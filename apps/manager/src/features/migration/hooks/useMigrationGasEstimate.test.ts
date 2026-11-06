@@ -1,9 +1,11 @@
-import { renderHook } from '@testing-library/react'
-import { type Address, zeroHash } from 'viem'
+import { type FetchQueryOptions, QueryClient } from '@tanstack/react-query'
+import { act, renderHook } from '@testing-library/react'
+import { type Address, TimeoutError, zeroHash } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chain } from '@/config'
 import { makeClassified, makeDomain } from '../service/_fixtures'
 import { makeRpcSubnameInventory } from '../service/_fixtures/rpcSubnameInventory'
+import { DirectMigrationRouteError } from '../service/directMigrationRoutes'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
 import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
 import { discoverSubnameRecreation } from '../service/subnameRecreation'
@@ -134,6 +136,7 @@ it('starts parent preflight while independent child discovery is still pending',
         blockHash: zeroHash,
         timestamp: '1',
       },
+      unrecoverable: [],
     })
     await pending
   }
@@ -208,6 +211,68 @@ it('marks fresh plans with the rollout state and refreshes it when the flag chan
 })
 
 describe('useMigrationGasEstimate failure stages', () => {
+  it('recovers from a transient preflight failure with one fresh preparation attempt', async () => {
+    mocks.preflight.mockRejectedValueOnce(
+      new TimeoutError({ url: 'https://rpc.example', body: {} }),
+    )
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, retryDelay: 0 } },
+    })
+    let preparation: Promise<unknown> = Promise.resolve()
+    mocks.query.mockImplementationOnce((options: FetchQueryOptions) => {
+      preparation = queryClient.fetchQuery(options)
+      return { isPending: true }
+    })
+    const { unmount } = renderHook(() => useMigrationGasEstimate(params))
+    try {
+      await act(async () => {
+        await expect(preparation).resolves.toMatchObject({
+          estimate: { feeWei: 2n, gasUnits: 1n, transactionCount: 1 },
+        })
+      })
+      expect(mocks.preflight).toHaveBeenCalledTimes(2)
+      expect(mocks.plan).toHaveBeenCalledTimes(1)
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+
+  it.each([
+    { stage: 'preflight', reason: 'missing-wrapper' },
+    { stage: 'plan', reason: 'conflicting-wrapper' },
+  ] as const)(
+    'stops after one preparation attempt for a $stage $reason failure',
+    async ({ stage, reason }) => {
+      const cause = new DirectMigrationRouteError({
+        message: 'Parent wrapper is unavailable',
+        reason,
+        ensName: 'ethereumclub.eth',
+      })
+      const operation = stage === 'preflight' ? mocks.preflight : mocks.plan
+      operation.mockRejectedValue(cause)
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: 1, retryDelay: 0 } },
+      })
+      let preparation: Promise<unknown> = Promise.resolve()
+      mocks.query.mockImplementationOnce((options: FetchQueryOptions) => {
+        preparation = queryClient.fetchQuery(options)
+        return { isPending: true }
+      })
+      const { unmount } = renderHook(() => useMigrationGasEstimate(params))
+      try {
+        await act(async () => {
+          await expect(preparation).rejects.toMatchObject({ cause })
+        })
+        expect(operation).toHaveBeenCalledTimes(1)
+        expect(mocks.estimate).not.toHaveBeenCalled()
+      } finally {
+        unmount()
+        queryClient.clear()
+      }
+    },
+  )
+
   it.each(['preflight', 'plan', 'fee'] as const)(
     'preserves a %s failure from the actual estimate pipeline',
     async (stage) => {

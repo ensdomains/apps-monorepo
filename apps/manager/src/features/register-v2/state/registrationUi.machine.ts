@@ -32,6 +32,7 @@ import {
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
@@ -46,8 +47,11 @@ import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
+  getRegistrationFailureReason,
+  isInvalidSignatureError,
   isNameNotAvailableError,
   isNameTakenByOther,
+  type RegistrationFailureReason,
 } from '../service/registrationFailure'
 import {
   acquireRegistrationLock,
@@ -129,6 +133,8 @@ type Context = {
    * Nothing to retry — the failure screen offers only a way back.
    */
   nameUnavailable: boolean
+  /** The orchestrator refused the intent's signature (`InvalidSignature()`). */
+  isSignatureRejected: boolean
   /**
    * A start or resume was refused because the wallet is registering elsewhere.
    * Nothing ran and nothing failed, so the screen says so instead of offering
@@ -137,6 +143,7 @@ type Context = {
    * finishes in between, and the refusal still happened.
    */
   isWalletBusy: boolean
+  failureReason?: RegistrationFailureReason
   /**
    * Set while the failure screen shows a run that failed before this page
    * loaded: the stored write it was restored from. Its child machine never
@@ -247,6 +254,7 @@ type Events =
       confirmedData: RegistrationConfirmedData
       /** The stored write the run was restored from. */
       run: StoredRegistrationKey
+      failureReason?: RegistrationFailureReason
     }
   | {
       /**
@@ -263,6 +271,8 @@ type Events =
       type: 'transaction.failed'
       message?: string
       nameUnavailable?: boolean
+      isSignatureRejected?: boolean
+      failureReason?: RegistrationFailureReason
       approvalOutcome?: ApprovalOutcome
       hasCommitment?: boolean
     }
@@ -481,11 +491,20 @@ const machineSetup = setup({
       fundingSourceChainId: () => undefined,
       fundingSourceOrigin: () => undefined,
     }),
+    // Closing the sheet forgets the pick, so the next open starts from the fallback.
+    clearPaymentPick: assign({
+      selectedToken: () => undefined,
+      fundingSourceChainId: () => undefined,
+      fundingSourceOrigin: () => undefined,
+      paymentAsset: () => 'stablecoin' as const,
+    }),
     clearError: assign({
       lastErrorMessage: () => undefined,
       approvalOutcome: () => 'none' as const,
       nameUnavailable: () => false,
+      isSignatureRejected: () => false,
       isWalletBusy: () => false,
+      failureReason: () => undefined,
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
@@ -509,6 +528,15 @@ const machineSetup = setup({
             ({ nameUnavailable }) => nameUnavailable === true,
           )
           .otherwise(() => false),
+      isSignatureRejected: ({ event }) =>
+        match(event)
+          .with(
+            { type: 'transaction.failed' },
+            ({ isSignatureRejected }) => isSignatureRejected === true,
+          )
+          .otherwise(() => false),
+      failureReason: ({ event }) =>
+        event.type === 'transaction.failed' ? event.failureReason : undefined,
       // A real failure replaces a refusal: something did run this time.
       isWalletBusy: () => false,
     }),
@@ -535,6 +563,8 @@ const machineSetup = setup({
           .otherwise(() => undefined),
       isWalletBusy: () => true,
       nameUnavailable: () => false,
+      isSignatureRejected: () => false,
+      failureReason: () => undefined,
     }),
     setRegistrationLockError: assign({
       lastErrorMessage: ({ context }) =>
@@ -566,7 +596,11 @@ const machineSetup = setup({
     },
     restoreFailure: assign(({ event, context }) =>
       event.type === 'registration.failure.restore'
-        ? { confirmedData: event.confirmedData, restoredRun: event.run }
+        ? {
+            confirmedData: event.confirmedData,
+            restoredRun: event.run,
+            failureReason: event.failureReason,
+          }
         : context,
     ),
     clearRegistrationData: assign({
@@ -828,7 +862,7 @@ const startRegistrationAction = machineSetup.createAction(
         ? asEthName(event.label)
         : undefined
 
-    const referrer = normalizeReferrer(event.referrer)
+    const referrer = normalizeReferrer(event.referrer, ENS_LABS_REFERRER)
 
     enqueue.assign({
       confirmedData: {
@@ -1089,6 +1123,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             nameUnavailable:
               snapshot.context.nameUnavailable === true ||
               isNameNotAvailableError(snapshot.context.error),
+            isSignatureRejected: isInvalidSignatureError(
+              snapshot.context.error,
+            ),
+            failureReason: getRegistrationFailureReason(snapshot.context.error),
           })),
         ],
       },
@@ -1128,6 +1166,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     lastErrorMessage: undefined,
     approvalOutcome: 'none',
     nameUnavailable: false,
+    isSignatureRejected: false,
     isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
@@ -1189,7 +1228,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
           on: {
             'pricing.step.previous': {
               target: 'duration',
-              actions: 'clearError',
+              actions: ['clearPaymentPick', 'clearError'],
             },
             'pricing.token.select': {
               // Cleared first: the coin's own origin replaces the L2's.
@@ -1203,7 +1242,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
-              actions: 'clearError',
+              actions: ['clearPaymentPick', 'clearError'],
             },
             'registration.start': {
               target: 'approving',

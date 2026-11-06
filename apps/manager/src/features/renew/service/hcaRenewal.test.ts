@@ -1,6 +1,7 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: test fixtures use loose typing
 
 import type {
+  PendingEthSwap,
   RhinestoneTransactionRequest,
   TransactionOptions,
 } from '@ens-apps/transaction-manager'
@@ -30,9 +31,11 @@ const mocks = vi.hoisted(() => ({
   readHcaUsdcBalanceActor: vi.fn(),
   readHcaUsdcBalanceAtLeastActor: vi.fn(),
   submitL2BridgeActor: vi.fn(),
+  swapEthForUsdcActor: vi.fn(),
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
+  HCA_INTENT_FEE_MARGIN_BPS: 500n,
   getSmartAccountAddress: mocks.getSmartAccountAddress,
   // A stand-in ceiling that scales with the limit; the real curve is covered in
   // the transaction-manager suite.
@@ -40,6 +43,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     (gasLimit * 10_000_000n) / 300_000n,
   planHcaIntentFunding: mocks.planHcaIntentFunding,
   quoteHcaIntentFeeUsdc: mocks.quoteHcaIntentFeeUsdc,
+  swapEthForUsdcActor: mocks.swapEthForUsdcActor,
   transactionManager: { startTransaction: mocks.startTransaction },
   waitForTransaction: mocks.waitForTransaction,
 }))
@@ -62,8 +66,6 @@ vi.mock('@/lib/smart-account/rhinestone', () => ({
 vi.mock(
   '@ens-apps/transaction-manager/machines/registration/registration.actors',
   () => ({
-    // Mirrors the real helper: the renewer pulls up to 10% above the quote.
-    authorizedPaymentAmount: (price: bigint) => price + price / 10n,
     encodeRenewData: mocks.encodeRenewData,
     encodeRenewBatchData: mocks.encodeRenewBatchData,
   }),
@@ -78,12 +80,17 @@ vi.mock('../data/queries/renewPricing.query', () => ({
 }))
 
 import {
+  readPendingEthSwap,
+  savePendingEthSwap,
+} from '@/features/register-v2/service/pendingEthSwap'
+import {
   readPendingL2Bridge,
   savePendingL2Bridge,
 } from '@/features/register-v2/service/pendingL2Bridge'
 import { TOKENS } from '@/lib/tokens'
 import {
   fundHcaRenewalsFromL2,
+  fundHcaRenewalsWithEth,
   HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
   HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
   HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
@@ -140,7 +147,7 @@ beforeEach(() => {
 })
 
 describe('submitHcaRenewal', () => {
-  it('approves the renewer for the live price plus headroom, then renews', async () => {
+  it('approves the renewer for exactly the live price, then renews', async () => {
     await submitHcaRenewal(params)
 
     // Priced at submit time, not from the screen before: the renewer computes
@@ -157,8 +164,7 @@ describe('submitHcaRenewal', () => {
       decodeFunctionData({ abi: erc20Abi, data: approve.data as Hex }),
     ).toMatchObject({
       functionName: 'approve',
-      // 1.0 price + 10% drift headroom — bounded, deliberately not unlimited.
-      args: [RENEWER, 1_100_000n],
+      args: [RENEWER, 1_000_000n],
     })
     expect(actionCall()).toMatchObject({
       to: RENEWER,
@@ -182,20 +188,52 @@ describe('submitHcaRenewal', () => {
         token: USDC,
         symbol: 'USDC',
         decimals: 6,
-        amount: 1_100_000n,
+        amount: 1_000_000n,
       },
       gasLimit: HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
+      feeMarginBps: 500n,
       maxFeeUsdc: 20_000_000n,
       ownerAddress: OWNER,
     })
   })
 
   it('checks the funding against the debit the payment screen showed', async () => {
-    const displayedDebit = { usdc: 1_100_000n, token: 0n }
+    const displayedDebit = { usdc: 1_000_000n, token: 0n }
 
     await submitHcaRenewal({ ...params, displayedDebit })
 
     expect(fundingParams()).toMatchObject({ displayedDebit })
+  })
+
+  it('asks about the re-quoted payment only when the wallet would pay more than was confirmed', async () => {
+    const displayedDebit = { usdc: 6_690_000n, token: 0n }
+    const confirmIncreasedPayment = vi.fn().mockResolvedValue(false)
+    const prompt = (permitValue: bigint) => ({
+      permitValue,
+      requiresPermit: true,
+      quotedFeeUsdc: 900_000n,
+      hcaBalanceUsdc: 3_000_000n,
+      requiredUsdc: 8_800_000n,
+    })
+
+    await submitHcaRenewal({
+      ...params,
+      displayedDebit,
+      confirmIncreasedPayment,
+    })
+    const { confirmFunding, ...funding } = fundingParams()
+
+    // The planner signs for the prompt's amount, so it is not given the
+    // drift-tolerant displayed debit to check against.
+    expect(funding).not.toHaveProperty('displayedDebit')
+    expect(await confirmFunding(prompt(6_690_000n))).toBe(true)
+    expect(await confirmFunding(prompt(6_000_000n))).toBe(true)
+    expect(confirmIncreasedPayment).not.toHaveBeenCalled()
+
+    expect(await confirmFunding(prompt(6_700_000n))).toBe(false)
+    expect(confirmIncreasedPayment).toHaveBeenCalledExactlyOnceWith(
+      prompt(6_700_000n),
+    )
   })
 
   it('batches several names into one call, with a limit scaled to the count', async () => {
@@ -212,7 +250,7 @@ describe('submitHcaRenewal', () => {
     // One batch call for all three, plus the single approval.
     expect(actionCalls()).toHaveLength(2)
     expect(fundingParams()).toMatchObject({
-      tokenSpend: { amount: 3_300_000n },
+      tokenSpend: { amount: 3_000_000n },
       gasLimit:
         HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
         2n * HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
@@ -249,7 +287,7 @@ describe('submitHcaRenewal', () => {
         token: DAI,
         symbol: 'DAI',
         decimals: 18,
-        amount: 1_100_000n,
+        amount: 1_000_000n,
       },
       gasLimit:
         HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
@@ -263,7 +301,7 @@ describe('submitHcaRenewal', () => {
   it('skips the approval when the account already allows the renewer', async () => {
     // Cheap on-chain read: a standing allowance turns the approval call into
     // dead weight in a batch that is priced per call.
-    readContract.mockResolvedValue(1_100_000n)
+    readContract.mockResolvedValue(1_000_000n)
 
     await submitHcaRenewal(params)
 
@@ -310,7 +348,7 @@ describe('submitHcaRenewal', () => {
 
   it('submits once through the actual machine and Warp transport when the accepted intent loses its fill response', async () => {
     const onSubmitted = vi.fn()
-    readContract.mockResolvedValue(1_100_000n)
+    readContract.mockResolvedValue(1_000_000n)
     await submitHcaRenewal({ ...params, onSubmitted })
     const started = mocks.startTransaction.mock.calls[0]
     if (!started) throw new Error('Renewal did not start a transaction')
@@ -488,23 +526,38 @@ describe('submitHcaRenewal paid from an L2', () => {
 
     await run()
 
-    // 1.10 price + 0.90 fee widened by 25%, less the 0.20 already held.
+    // 1.00 price + 0.90 fee widened by 25%, less the 0.20 already held.
     expect(bridged()).toMatchObject({
       hca: HCA,
-      payment: { source, amount: 2_025_000n, displayedCharge: 2_100_000n },
+      payment: { source, amount: 1_925_000n, displayedCharge: 2_100_000n },
       signer: { session: undefined },
     })
     expect(mocks.waitForTransaction).toHaveBeenCalledWith('bridge-tx')
     expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
-      expect.objectContaining({ atLeast: 2_225_000n }),
+      expect.objectContaining({ atLeast: 2_125_000n }),
     )
     expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
+  })
+
+  it('never asks about the wallet after the bridge, and refuses anything left for it to pay', async () => {
+    const confirmIncreasedPayment = vi.fn()
+    await submitHcaRenewal({
+      ...params,
+      confirmIncreasedPayment,
+      l2Funding: { source, displayedCharge: 2_100_000n },
+    })
+
+    expect(fundingParams()).toMatchObject({
+      displayedDebit: { usdc: 0n, token: 0n },
+    })
+    expect(fundingParams()).not.toHaveProperty('confirmFunding')
+    expect(confirmIncreasedPayment).not.toHaveBeenCalled()
   })
 
   it('plans the renewal on the balance the bridge read back, past a lagging node', async () => {
     await run()
 
-    expect(fundingParams()).toMatchObject({ hcaBalanceAtLeast: 2_225_000n })
+    expect(fundingParams()).toMatchObject({ hcaBalanceAtLeast: 2_125_000n })
   })
 
   it('sends nothing from the L2 when the account already covers the renewal', async () => {
@@ -528,13 +581,13 @@ describe('submitHcaRenewal paid from an L2', () => {
     await expect(run()).rejects.toThrow('fill timed out')
     expect(readPendingL2Bridge(params.chainId, HCA)).toMatchObject({
       intentId: 7n,
-      fundsHcaTo: 2_225_000n,
+      fundsHcaTo: 2_125_000n,
     })
     expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
 
     // It landed after all: the retry reads it back and pays nothing more.
     mocks.awaitL2BridgeActor.mockReturnValue(okAsync('landed'))
-    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(2_225_000n))
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(2_125_000n))
 
     await run()
 
@@ -572,10 +625,10 @@ describe('submitHcaRenewal paid from an L2', () => {
       l2Funding: { source, displayedCharge: 4_300_000n },
     })
 
-    // 2 × 1.10 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    // 2 × 1.00 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
     expect(mocks.submitL2BridgeActor).toHaveBeenCalledOnce()
     expect(bridged()).toMatchObject({
-      payment: { amount: 4_250_000n, displayedCharge: 4_300_000n },
+      payment: { amount: 4_050_000n, displayedCharge: 4_300_000n },
     })
   })
 
@@ -593,7 +646,7 @@ describe('submitHcaRenewal paid from an L2', () => {
 
     expect(readPendingL2Bridge(params.chainId, HCA)).toBeUndefined()
     // Sized on what the account holds now, not on the spent payment.
-    expect(bridged()).toMatchObject({ payment: { amount: 2_025_000n } })
+    expect(bridged()).toMatchObject({ payment: { amount: 1_925_000n } })
     expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
   })
 
@@ -707,4 +760,138 @@ it('checks cancellation at the synchronous intent handoff after identity validat
     }),
   ).rejects.toThrow()
   expect(mocks.startTransaction).not.toHaveBeenCalled()
+})
+
+type SwapStubInput = { readonly onSwapSent?: (swap: PendingEthSwap) => void }
+
+describe('submitHcaRenewal paid with ETH', () => {
+  const ethFunding = { usdcAmount: 2_025_000n, displayedCharge: 10n ** 15n }
+  const sent = { hash: `0x${'ab'.repeat(32)}` as Hex, deadline: 1_700_000_000n }
+  const swapInput = () => mocks.swapEthForUsdcActor.mock.calls[0]?.[0]
+
+  beforeEach(() => {
+    window.localStorage.clear()
+    mocks.swapEthForUsdcActor.mockImplementation(
+      ({ onSwapSent }: SwapStubInput) => {
+        onSwapSent?.(sent)
+        return okAsync(2_025_000n)
+      },
+    )
+    mocks.readHcaUsdcBalanceAtLeastActor.mockReturnValue(okAsync(2_025_000n))
+  })
+
+  it('plans the permit only once a read shows the wallet holding the USDC it bought', async () => {
+    mocks.planHcaIntentFunding.mockImplementation(
+      async ({ calls }: { readonly calls: unknown }) => {
+        expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
+          expect.objectContaining({ hca: OWNER, atLeast: 2_025_000n }),
+        )
+        return { calls, quotedFeeUsdc: 900_000n }
+      },
+    )
+
+    await submitHcaRenewal({ ...params, ethFunding })
+
+    expect(mocks.planHcaIntentFunding).toHaveBeenCalledOnce()
+  })
+
+  it('swaps for the USDC first, then funds the account with the usual permit', async () => {
+    mocks.planHcaIntentFunding.mockImplementation(
+      async ({ calls }: { readonly calls: unknown }) => {
+        expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
+        return { calls, quotedFeeUsdc: 900_000n }
+      },
+    )
+    const displayedDebit = { usdc: 2_000_000n, token: 0n }
+
+    await submitHcaRenewal({ ...params, displayedDebit, ethFunding })
+
+    expect(swapInput()).toMatchObject({
+      permitValue: 2_025_000n,
+      funding: { displayedCharge: 10n ** 15n },
+      approvalSigner: { type: 'eoa', walletClient },
+    })
+    // The wallet still pays by permit, so the debit shown is still checked.
+    expect(fundingParams()).toMatchObject({ displayedDebit })
+    expect(readPendingEthSwap(params.chainId, OWNER)).toBeUndefined()
+  })
+
+  it('counts a swap an earlier attempt sent instead of buying again', async () => {
+    savePendingEthSwap(params.chainId, OWNER, sent)
+
+    await submitHcaRenewal({ ...params, ethFunding })
+
+    expect(swapInput()).toMatchObject({ pendingSwap: sent })
+  })
+
+  it('stops before any permit when the swap fails, keeping the sent swap for the retry', async () => {
+    mocks.swapEthForUsdcActor.mockImplementation(
+      ({ onSwapSent }: SwapStubInput) => {
+        onSwapSent?.(sent)
+        return errAsync(new Error('The ETH swap failed on-chain.'))
+      },
+    )
+
+    await expect(submitHcaRenewal({ ...params, ethFunding })).rejects.toThrow(
+      'The ETH swap failed on-chain.',
+    )
+    expect(mocks.planHcaIntentFunding).not.toHaveBeenCalled()
+    expect(readPendingEthSwap(params.chainId, OWNER)).toEqual(sent)
+  })
+})
+
+describe('fundHcaRenewalsWithEth', () => {
+  const batches = [
+    [{ label: 'alice', duration: 31_536_000n }],
+    [{ label: 'bob', duration: 31_536_000n }],
+  ]
+  const run = (overrides: Record<string, unknown> = {}) =>
+    fundHcaRenewalsWithEth({
+      ...params,
+      batches,
+      ethFunding: { displayedCharge: 10n ** 16n },
+      ...overrides,
+    })
+
+  beforeEach(() => {
+    window.localStorage.clear()
+    mocks.quoteHcaIntentFeeUsdc.mockResolvedValue(900_000n)
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(200_000n))
+    mocks.swapEthForUsdcActor.mockReturnValue(okAsync(4_250_000n))
+  })
+
+  it('swaps once for what the batches it is given are short, bounded by the ETH shown', async () => {
+    await run()
+
+    // 2 × 1.00 price + 2 × 0.90 fee widened by 25%, less the 0.20 held.
+    expect(mocks.swapEthForUsdcActor).toHaveBeenCalledOnce()
+    expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
+      permitValue: 4_050_000n,
+      funding: { displayedCharge: 10n ** 16n },
+    })
+  })
+
+  it('sizes a retry on the names left, not the whole selection', async () => {
+    await run({ batches: [batches[0]] })
+
+    // 1.00 price + 0.90 fee widened by 25%, less the 0.20 held.
+    expect(mocks.swapEthForUsdcActor.mock.calls[0]?.[0]).toMatchObject({
+      permitValue: 1_925_000n,
+    })
+  })
+
+  it('swaps nothing with a wallet that does not control the owner', async () => {
+    await expect(
+      run({ walletClient: { account: { address: RENEWER } } }),
+    ).rejects.toThrow(/does not control the owner/)
+    expect(mocks.swapEthForUsdcActor).not.toHaveBeenCalled()
+  })
+
+  it('swaps nothing when the account already covers the batches', async () => {
+    mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(10_000_000n))
+
+    await run()
+
+    expect(mocks.swapEthForUsdcActor).not.toHaveBeenCalled()
+  })
 })

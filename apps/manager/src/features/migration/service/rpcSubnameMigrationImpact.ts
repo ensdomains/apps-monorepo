@@ -1,7 +1,9 @@
 import {
   FUSES,
   hasFuse,
+  MAX_UNRECOVERABLE_SUBNAMES,
   type SubnameMigrationImpact,
+  unknownLabelhashOf,
 } from '@ens-apps/migration'
 import { err, ok, type Result } from 'neverthrow'
 import {
@@ -108,6 +110,8 @@ type ImpactParameters = {
   readonly upgradedNodes: ReadonlySet<Hex>
   readonly expiredRootNodes: ReadonlySet<Hex>
   readonly checkedAt: number
+  /** `[labelhash].parent` names whose label was never published; a leaf among them is dropped. */
+  readonly unknownLabelNames?: readonly string[]
 }
 
 const initialBranches = (
@@ -178,6 +182,29 @@ const descendantFacts = (
   return factsOf(source, wrapper, inventory.checkpoint.timestamp)
 }
 
+/** An unknown-label node with no live children is dropped rather than lost. */
+const unknownLeafName = (
+  node: Hex,
+  params: {
+    readonly inventory: RpcSubnameInventory
+    readonly sources: ReadonlyMap<Hex, RpcSubnameSource>
+    readonly children: ReadonlyMap<Hex, readonly Hex[]>
+    readonly unknownLabels: ReadonlyMap<Hex, string>
+  },
+): string | undefined => {
+  const isLeaf =
+    params.inventory.scannedParentNodes.includes(node) &&
+    !params.inventory.unscannedParentNodes.includes(node) &&
+    (params.children.get(node) ?? []).every((child) => {
+      const source = params.sources.get(child)
+      return (
+        source !== undefined &&
+        isEmptyRpcSubnameTombstone(source, params.inventory)
+      )
+    })
+  return isLeaf ? params.unknownLabels.get(node) : undefined
+}
+
 const affectedDescendants = (params: {
   readonly inventory: RpcSubnameInventory
   readonly wrapper: Address
@@ -234,6 +261,36 @@ const affectedDescendants = (params: {
   return ok(affected)
 }
 
+/** Unknown-label leaves are dropped instead of lost, up to the limit per parent. */
+const splitUnrecoverable = (
+  affected: ReadonlyMap<string, ReadonlySet<Hex>>,
+  isUnknownLeaf: (node: Hex) => string | undefined,
+) => {
+  const split = [...affected].map(([parent, nodes]) => {
+    const dropped = [...nodes].flatMap((node) => {
+      const name = isUnknownLeaf(node)
+      return name === undefined ? [] : [{ node, name }]
+    })
+    const isWithinLimit = dropped.length <= MAX_UNRECOVERABLE_SUBNAMES
+    const droppedNodes = new Set(dropped.map(({ node }) => node))
+    return {
+      parent,
+      lost: isWithinLimit
+        ? [...nodes].filter((node) => !droppedNodes.has(node))
+        : [...nodes],
+      dropped: isWithinLimit ? dropped.map(({ name }) => name) : [],
+    }
+  })
+  return {
+    affected: new Map(
+      split
+        .filter(({ lost }) => lost.length > 0)
+        .map(({ parent, lost }) => [parent, new Set(lost)] as const),
+    ),
+    dropped: split.flatMap(({ dropped }) => dropped).sort(),
+  }
+}
+
 /** The graph proves completeness; names only identify selected migration boundaries. */
 export const computeRpcSubnameMigrationImpact = (
   params: ImpactParameters,
@@ -285,7 +342,17 @@ export const computeRpcSubnameMigrationImpact = (
     selectedAncestors,
   })
   if (affected.isErr()) return { status: 'incomplete', reason: affected.error }
-  const evidence = [...affected.value]
+  const unknownLabels = new Map(
+    (params.unknownLabelNames ?? [])
+      .filter((name) => unknownLabelhashOf(name) !== null)
+      .map((name) => [namehash(name.toLowerCase()), name.toLowerCase()]),
+  )
+  const { affected: lost, dropped } = splitUnrecoverable(
+    affected.value,
+    (node) =>
+      unknownLeafName(node, { inventory, sources, children, unknownLabels }),
+  )
+  const evidence = [...lost]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([name, hashes]) => ({ name, hashes: [...hashes].sort() }))
   const parents = evidence.map(({ name, hashes }) => ({
@@ -300,6 +367,7 @@ export const computeRpcSubnameMigrationImpact = (
         (sum, parent) => sum + parent.affectedCount,
         0,
       ),
+      unrecoverable: dropped,
       fingerprint: keccak256(
         toHex(
           JSON.stringify({
@@ -313,6 +381,7 @@ export const computeRpcSubnameMigrationImpact = (
               ),
             ].sort(),
             evidence,
+            ...(dropped.length > 0 && { unrecoverable: dropped }),
           }),
         ),
       ),

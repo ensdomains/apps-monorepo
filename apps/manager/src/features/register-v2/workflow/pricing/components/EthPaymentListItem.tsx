@@ -14,6 +14,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import {
+  getEthShortfall,
+  isEthShortOfFunds,
+  weiToUsd,
+} from '../lib/ethPaymentRow'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import { PaymentMethodRow } from './PaymentMethodRow'
 
@@ -36,24 +41,15 @@ export type EthPaymentRow = Readonly<{
   hasQuoteFailed: boolean
 }>
 
-export const isEthShortOfFunds = ({
-  chargeRaw,
-  balanceRaw,
-  gasReserveRaw,
-}: EthPaymentRow) =>
-  chargeRaw !== undefined &&
-  balanceRaw !== undefined &&
-  balanceRaw < chargeRaw + gasReserveRaw
+/** Selecting ETH, and what paying with it asks of the wallet. */
+export type EthPaymentProps = Readonly<{
+  row: EthPaymentRow
+  isSelected: boolean
+  onSelect: () => void
+  onFallbackSelect: () => void
+}>
 
-/** The row can pay: quoted, and the wallet holds what it would send. */
-export const canPayWithEth = (row: EthPaymentRow) =>
-  row.chargeRaw !== undefined &&
-  !row.isQuoteLoading &&
-  !row.hasQuoteFailed &&
-  !isEthShortOfFunds(row)
-
-const weiToUsd = (wei: bigint, ethUsd: bigint) =>
-  Number(formatUnits(ethToUsdcRaw(wei, ethUsd), USDC_DECIMALS))
+export { canPayWithEth, isEthShortOfFunds } from '../lib/ethPaymentRow'
 
 /** The swap's own gas in USDC: one estimate, not the doubled reserve kept back for it. */
 export const getEthSwapGasUsdcRaw = (row: EthPaymentRow | undefined) =>
@@ -69,8 +65,10 @@ export const getEthSwapGasUsd = (row: EthPaymentRow | undefined) =>
 
 export const getEthSelectionMessage = (row: EthPaymentRow) =>
   match(row)
-    .when(isEthShortOfFunds, () => (
-      <Trans>You do not have enough ETH for this transaction.</Trans>
+    .when(isEthShortOfFunds, (short) => (
+      <Trans>
+        You need {getEthShortfall(short)} ETH more for the swap and its gas.
+      </Trans>
     ))
     .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying with ETH isn't available right now.</Trans>

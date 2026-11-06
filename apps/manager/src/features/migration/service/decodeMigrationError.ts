@@ -1,4 +1,13 @@
-import { type Address, decodeErrorResult, type Hex, parseAbi } from 'viem'
+import {
+  type Address,
+  decodeErrorResult,
+  ExecutionRevertedError,
+  type Hex,
+  InsufficientFundsError,
+  InvalidInputRpcError,
+  parseAbi,
+  TransactionRejectedRpcError,
+} from 'viem'
 import {
   LIB_MIGRATION_ERRORS_ABI,
   MIGRATION_HELPER_ABI,
@@ -7,6 +16,7 @@ import { ProfileFetchError } from './fetchV1Profiles'
 
 export type MigrationError =
   | { type: 'generic'; message: string }
+  | { type: 'insufficient-eth' }
   | { type: 'plan-changed' }
   | { type: 'copy-read-failed'; message: string }
   | { type: 'retry-blocked' }
@@ -70,6 +80,23 @@ const isUserRejection = (err: unknown): boolean => {
       e.name === 'UserRejectedRequestError' || /user rejected/i.test(e.message),
   )
 }
+
+const NODE_REFUSAL_CODES: ReadonlySet<number> = new Set([
+  InvalidInputRpcError.code,
+  TransactionRejectedRpcError.code,
+  ExecutionRevertedError.code,
+])
+
+const isNodeRefusal = (e: Error): boolean =>
+  'code' in e && typeof e.code === 'number' && NODE_REFUSAL_CODES.has(e.code)
+
+/** The wallet can't pay the gas: viem's error by name, or the node's refusal with its message. */
+const isWalletOutOfEth = (err: unknown): boolean =>
+  walkCauseChain(err).some(
+    (e) =>
+      e.name === 'InsufficientFundsError' ||
+      (isNodeRefusal(e) && InsufficientFundsError.nodeMessage.test(e.message)),
+  )
 
 const findTimeoutError = (
   err: unknown,
@@ -306,6 +333,7 @@ export const canRetryMigration = (error: MigrationError | undefined): boolean =>
 
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
+  if (isWalletOutOfEth(err)) return { type: 'insufficient-eth' }
 
   const copyReadinessError = findNamedError(err, 'CopyMigrationReadinessError')
   if (

@@ -7,11 +7,16 @@ export type PaymentReceiptFigures = {
   readonly due: number
 }
 
+/** `usd` rounded up to a whole cent, read through micro-dollars so float noise can't add one. */
+const ceilUsdToCents = (usd: number): number =>
+  Math.ceil(Math.round(usd * 1_000_000) / 10_000) / 100
+
 /** The receipt's three figures, in cents, so total minus applied always equals due. */
 export const getPaymentReceiptFigures = ({
   funding,
   price,
   accountCredit,
+  isUpTo = false,
 }: {
   readonly funding:
     | {
@@ -23,17 +28,16 @@ export const getPaymentReceiptFigures = ({
     | undefined
   readonly price: number | undefined
   readonly accountCredit: number
+  /** The figures are maximums ("up to"): what the wallet pays rounds up, never below what it signs. */
+  readonly isUpTo?: boolean
 }): PaymentReceiptFigures | undefined => {
   if (funding) {
     const { walletDebit, credit } = getPaymentBreakdownFigures(funding)
-    return {
-      total: roundUsdToCents(walletDebit + credit),
-      applied: credit,
-      due: walletDebit,
-    }
+    const due = isUpTo ? ceilUsdToCents(funding.walletDebit) : walletDebit
+    return { total: roundUsdToCents(due + credit), applied: credit, due }
   }
   if (price === undefined) return undefined
-  const total = roundUsdToCents(price)
+  const total = isUpTo ? ceilUsdToCents(price) : roundUsdToCents(price)
   const applied = roundUsdToCents(Math.min(Math.max(0, accountCredit), total))
   return { total, applied, due: roundUsdToCents(total - applied) }
 }
@@ -81,6 +85,12 @@ const CENT_RAW = 10_000n
 /** Half-up to a whole cent, as `formatUsd` shows it. */
 const roundToCentRaw = (raw: bigint): bigint =>
   ((raw + CENT_RAW / 2n) / CENT_RAW) * CENT_RAW
+
+/** What the wallet pays with ETH: the most the swap sends plus its gas, in USDC (6dp), to the cent. */
+export const getEthReceiptDueRaw = (
+  ethDebitRaw: bigint,
+  extraFeeRaw: bigint,
+): bigint => roundToCentRaw(ethDebitRaw + extraFeeRaw)
 
 /** All in USDC's 6 decimals, rounded to cents. */
 export type NetworkFeeReceiptFigures = {

@@ -6,6 +6,7 @@ import type { HcaRenewalItem } from '@/features/renew/service/hcaRenewal'
 import {
   computeRenewalDisplayedDebit,
   computeRenewalFunding,
+  getRenewalFeeQuoteState,
   type RenewalFunding,
 } from '@/features/renew/utils/renewalFunding'
 import { getRenewalPaymentRoute } from '@/features/renew/utils/renewalPaymentRoute'
@@ -20,7 +21,10 @@ export type RenewalIntentFunding = {
   /** Only the smart-account route pays an intent fee. */
   readonly isIntentRoute: boolean
   readonly isQuoting: boolean
-  /** Absent until the fee is quoted, or when the quote failed: the price alone is shown then. */
+  /** The fee could not be quoted, so the renewal cannot start until a retry succeeds. */
+  readonly hasQuoteFailed: boolean
+  readonly retryQuote: () => void
+  /** Absent until the fee is quoted, or when the quote failed. */
   readonly funding:
     | (RenewalFunding['summary'] & { readonly isLoading: boolean })
     | undefined
@@ -75,8 +79,7 @@ export const useRenewalIntentFunding = (params: {
       : decimalBigintToNumber(networkFeeRaw, USDC_DECIMALS)
 
   // The price is owed in the chosen coin and the fee in USDC, each net of what
-  // the account already holds. Shown as "up to": the price carries its approval
-  // headroom and the fee is an estimate.
+  // the account already holds.
   const renewalFunding =
     isIntentRoute && pricing && networkFee !== undefined
       ? computeRenewalFunding({
@@ -87,9 +90,19 @@ export const useRenewalIntentFunding = (params: {
         })
       : undefined
 
+  const quoteState = getRenewalFeeQuoteState({
+    isActive: isEnabled && isIntentRoute,
+    isFetching: feeQuery.isFetching,
+    isError: feeQuery.isError,
+    feeRaw: feeQuery.isSuccess ? feeQuery.data : undefined,
+  })
+
   return {
     isIntentRoute,
-    isQuoting: isEnabled && isIntentRoute && feeQuery.isLoading,
+    ...quoteState,
+    retryQuote: () => {
+      feeQuery.refetch()
+    },
     funding: renewalFunding
       ? { ...renewalFunding.summary, isLoading: feeQuery.isFetching }
       : undefined,

@@ -37,6 +37,7 @@ const makeNames = (
   unavailableNames: [],
   blockedSubnames: [],
   verifiedSubnames: [],
+  unrecoverableSubnames: [],
   isEligibilityError: false,
   retryEligibility: vi.fn(),
   wrapperSyncNames: [],

@@ -2467,6 +2467,7 @@ const executeRemainingAtomicBatches = async (params: {
       onInventory: (inventory) => {
         subnameInventory = inventory
       },
+      unknownLabelNames: params.plan.subnameRecreation?.skipped,
     })
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     params.ctx.tracker.registerBatch(batch)

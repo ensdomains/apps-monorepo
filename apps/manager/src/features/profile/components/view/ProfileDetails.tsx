@@ -1,6 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Link, useHydrated } from '@tanstack/react-router'
 import type { Address } from 'viem'
+import { NameCopyButton } from '@/components/atoms/NameCopyButton/NameCopyButton'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
@@ -31,12 +32,36 @@ const detailValueClassName =
 const detailIconClassName =
   'ms-opsz-11 ms-wght-300 shrink-0 text-[11px] leading-[11px]'
 
-export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
-  <div className="inline-flex max-w-full items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
-    <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
-      {name}
-    </h1>
+/** Shared by the badge and its skeleton so the badge stays put on load. */
+export const ProfileNameBadgeRow = ({
+  badge,
+  trailing,
+}: {
+  readonly badge: React.ReactNode
+  readonly trailing: React.ReactNode
+}) => (
+  // Full width so the badge cap below resolves against the page, not the badge itself
+  <div className="flex w-full items-center justify-center gap-1 xl:justify-start">
+    {/* Mirrors the size-8 trailing slot to centre the badge below xl; only this spacer shrinks, and the badge cap leaves room for the button and gaps */}
+    <div aria-hidden className="h-8 w-8 min-w-0 shrink xl:hidden" />
+    <div className="flex max-w-[calc(100%-2.5rem)] shrink-0 xl:max-w-[calc(100%-2.25rem)]">
+      {badge}
+    </div>
+    {trailing}
   </div>
+)
+
+export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
+  <ProfileNameBadgeRow
+    badge={
+      <div className="inline-flex min-w-0 items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
+        <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
+          {name}
+        </h1>
+      </div>
+    }
+    trailing={<NameCopyButton name={name} />}
+  />
 )
 
 const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {

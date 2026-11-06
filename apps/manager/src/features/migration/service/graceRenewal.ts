@@ -31,7 +31,6 @@ import {
   type WaitForTransactionReceiptParameters,
   type WalletClient,
   zeroAddress,
-  zeroHash,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { containsNodeError, getNodeError } from 'viem/utils'
@@ -39,6 +38,7 @@ import type { Connector } from 'wagmi'
 import { chain } from '@/config'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { TOKENS } from '@/lib/tokens'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import {
@@ -351,7 +351,7 @@ const getRenewalArgs = (quote: GraceRenewalQuote) =>
       .map(({ label, duration }) => ({
         label,
         duration,
-        referrer: zeroHash,
+        referrer: ENS_LABS_REFERRER,
       })),
     quote.paymentToken,
   ] as const
