@@ -35,6 +35,8 @@ export type EthPaymentRow = Readonly<{
   balanceRaw: bigint | undefined
   /** ETH (wei) the swap step keeps back for gas on top of the swap. */
   gasReserveRaw: bigint
+  /** USDC (6dp) the wallet already holds that the payment spends before swapping. */
+  walletUsdcRaw: bigint
   /** The Chainlink ETH/USD price (8 decimals), once read. */
   ethUsdRaw: bigint | undefined
   isQuoteLoading: boolean

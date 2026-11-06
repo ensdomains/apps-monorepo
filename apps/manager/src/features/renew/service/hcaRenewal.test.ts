@@ -11,7 +11,7 @@ import { err, errAsync, ok, okAsync } from 'neverthrow'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { decodeFunctionData, erc20Abi } from 'viem'
 import { toAccount } from 'viem/accounts'
-import { sepolia } from 'viem/chains'
+import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createActor, waitFor } from 'xstate'
 
@@ -91,11 +91,13 @@ import { TOKENS } from '@/lib/tokens'
 import {
   fundHcaRenewalsFromL2,
   fundHcaRenewalsWithEth,
-  HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
-  HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
-  HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
+  hcaRenewalIntentGasLimit,
+  MAINNET_RENEWAL_INTENT_GAS,
+  POST_GLAMSTERDAM_RENEWAL_INTENT_GAS,
   submitHcaRenewal,
 } from './hcaRenewal'
+
+const SEPOLIA_GAS = POST_GLAMSTERDAM_RENEWAL_INTENT_GAS
 
 const USDC = TOKENS.USDC.address
 const RENEWER = '0x9999999999999999999999999999999999999999' as Address
@@ -146,6 +148,18 @@ beforeEach(() => {
   }))
 })
 
+describe('hcaRenewalIntentGasLimit', () => {
+  it('quotes mainnet renewals against its own averages, before Glamsterdam', () => {
+    expect(
+      hcaRenewalIntentGasLimit({
+        chainId: mainnet.id,
+        itemCount: 1,
+        token: 'USDC',
+      }),
+    ).toBe(MAINNET_RENEWAL_INTENT_GAS.base)
+  })
+})
+
 describe('submitHcaRenewal', () => {
   it('approves the renewer for exactly the live price, then renews', async () => {
     await submitHcaRenewal(params)
@@ -190,9 +204,9 @@ describe('submitHcaRenewal', () => {
         decimals: 6,
         amount: 1_000_000n,
       },
-      gasLimit: HCA_RENEWAL_INTENT_GAS_LIMIT_BASE,
+      gasLimit: SEPOLIA_GAS.base,
       feeMarginBps: 500n,
-      maxFeeUsdc: 20_000_000n,
+      maxFeeUsdc: 18_000_000n,
       ownerAddress: OWNER,
     })
   })
@@ -251,9 +265,7 @@ describe('submitHcaRenewal', () => {
     expect(actionCalls()).toHaveLength(2)
     expect(fundingParams()).toMatchObject({
       tokenSpend: { amount: 3_000_000n },
-      gasLimit:
-        HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
-        2n * HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM,
+      gasLimit: SEPOLIA_GAS.base + 2n * SEPOLIA_GAS.perExtraName,
     })
   })
 
@@ -289,9 +301,7 @@ describe('submitHcaRenewal', () => {
         decimals: 18,
         amount: 1_000_000n,
       },
-      gasLimit:
-        HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
-        HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS,
+      gasLimit: SEPOLIA_GAS.base + SEPOLIA_GAS.tokenFunding,
     })
     expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
       request: { rhinestoneParams: { feeAsset: 'USDC' } },

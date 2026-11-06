@@ -247,6 +247,28 @@ describe('validateRecord', () => {
     })
   })
 
+  describe('address validation (coin address-encoder 3.0.0 removed)', () => {
+    // An existing Binance Chain (714) record can still be edited: ensjs encodes it.
+    const bnbRecord = (value: string): EditableRecord => ({
+      type: 'address',
+      key: 'bnb',
+      value,
+      id: 714,
+    })
+
+    it('accepts a valid address for a saved record', () => {
+      expect(
+        validateRecord(bnbRecord('bnb1grpf0955h0ykzq3ar5nmum7y6gdfl6lxfn46h2')),
+      ).toBeNull()
+    })
+
+    it('rejects an invalid address for a saved record', () => {
+      expect(validateRecord(bnbRecord('bnb1invalid'))).toContain(
+        'Invalid BNB address',
+      )
+    })
+  })
+
   describe('text records without special validation', () => {
     it('accepts any value for non-validated text keys', () => {
       const record: EditableRecord = {
