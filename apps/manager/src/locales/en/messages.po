@@ -2033,6 +2033,14 @@ msgstr "Need more help? Visit ENS Support Docs"
 msgid "Network fee"
 msgstr "Network fee"
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Network fees are elevated right now, so the total above is an estimate (about {estimatedTotalLabel}). Try again shortly for a confirmed quote before paying."
+msgstr "Network fees are elevated right now, so the total above is an estimate (about {estimatedTotalLabel}). Try again shortly for a confirmed quote before paying."
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower."
+msgstr "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Network fees changed since you authorized this registration. Sign once more in your wallet to continue."
 msgstr "Network fees changed since you authorized this registration. Sign once more in your wallet to continue."

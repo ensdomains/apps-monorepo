@@ -1012,6 +1012,64 @@ describe('TokenPickerContentBase', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
+  it('shows the fallback estimate and still blocks payment when the quote failed', () => {
+    const onRetry = vi.fn()
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      onRetry,
+      selectedToken: 'USDC',
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      globalErrorMessage:
+        'Network fees are elevated right now, so the total above is an estimate (about $11.40). Try again shortly for a confirmed quote before paying.',
+      checkoutReceipt: { totalRaw: 1_400_000n },
+    })
+
+    expect(
+      screen.getByText(
+        /Network fees are elevated right now, so the total above is an estimate \(about \$11\.40\)/,
+      ),
+    ).toBeVisible()
+    expect(receiptRow('Registration total')).toHaveTextContent('$1.40')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
+    expect(receiptRow('You pay')).toHaveTextContent('$11.40')
+    expect(
+      screen.queryByRole('button', { name: /approv|register/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+  })
+
+  it('does not call a failed quote fully covered by credit that only covers the price', () => {
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      selectedToken: 'USDC',
+      pricingData: 1.4,
+      accountCredit: { USDC: 5 },
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      checkoutReceipt: { totalRaw: 1_400_000n },
+    })
+
+    expect(screen.queryByText(/No additional payment needed/)).toBeNull()
+    expect(
+      screen
+        .getByRole('heading', { hidden: true, name: 'Pay with' })
+        .closest('[hidden]'),
+    ).toBeNull()
+  })
+
   it('holds checkout while a stale quote is on screen', () => {
     renderPicker({
       funding: {
@@ -1144,6 +1202,30 @@ describe('TokenPickerContentBase L2 rows', () => {
     row: L2PaymentRow,
     selectedChainId: number | undefined = undefined,
   ) => l2PaymentOf([row], selectedChainId)
+
+  it('keeps the fallback estimate when the selected L2 was quoted for the previous budget', () => {
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      selectedToken: 'USDC',
+      pricingData: 1.4,
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      checkoutReceipt: { totalRaw: 1_400_000n },
+      l2Payment: l2Payment(
+        baseSepoliaRow('available', { amountInRaw: 5_012_573n }),
+        baseSepolia.id,
+      ),
+    })
+
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
+    expect(receiptRow('You pay')).toHaveTextContent('$11.40')
+  })
 
   const shortL2Payment = () => {
     const shortRow = baseSepoliaRow('insufficient')
@@ -1622,6 +1704,30 @@ describe('TokenPickerContentBase ETH row', () => {
     isSelected,
     onSelect: vi.fn(),
     onFallbackSelect: vi.fn(),
+  })
+
+  it('keeps the fallback estimate when the selected ETH swap was quoted for the previous budget', () => {
+    renderPicker({
+      hasBudgetQuoteFailed: true,
+      selectedToken: 'USDC',
+      pricingData: 1.4,
+      estimatedFunding: {
+        registration: 1.4,
+        networkFee: 10,
+        total: 11.4,
+        walletDebit: 11.4,
+        hcaCredit: 0,
+        isLoading: false,
+      },
+      checkoutReceipt: { totalRaw: 1_400_000n },
+      ethPayment: ethPaymentOf(
+        { ethUsdRaw: 200_000_000_000n, gasReserveRaw: 10n ** 15n },
+        true,
+      ),
+    })
+
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
+    expect(receiptRow('You pay')).toHaveTextContent('$11.40')
   })
 
   it('lists ETH next to a wallet that cannot pay, and selects it on click', () => {

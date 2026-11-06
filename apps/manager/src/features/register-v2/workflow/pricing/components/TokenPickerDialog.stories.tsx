@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { type ReactNode, useState } from 'react'
+import { parseUnits } from 'viem'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,7 @@ import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
+import { getCheckoutReceiptTotalRaw } from '../lib/budgetQuoteRecovery'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
@@ -81,7 +83,12 @@ interface TokenPickerDialogShellProps {
   readonly footer?: ReactNode
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
+  readonly estimatedFunding?: RegistrationFundingSummary
+  readonly hasBudgetQuoteFailed?: boolean
   readonly isQuotingFunding?: boolean
+  readonly accountCredit?: Partial<Record<SUPPORTED_TOKEN, number>>
+  /** No quote has succeeded yet, so the page total is still unknown. */
+  readonly isFirstQuote?: boolean
   /** L2 rows the registration can be paid from. */
   readonly l2Rows?: readonly L2PaymentRow[]
 }
@@ -100,7 +107,11 @@ export const TokenPickerDialogShell = ({
   footer,
   initialSelectedToken,
   funding,
+  estimatedFunding,
+  hasBudgetQuoteFailed = false,
   isQuotingFunding = false,
+  accountCredit,
+  isFirstQuote = false,
   l2Rows,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -117,9 +128,27 @@ export const TokenPickerDialogShell = ({
       title="Select payment"
     >
       <TokenPickerContentBase
+        accountCredit={accountCredit}
+        checkoutReceipt={
+          hasBudgetQuoteFailed
+            ? {
+                totalRaw: getCheckoutReceiptTotalRaw({
+                  hasBudgetQuoteFailed,
+                  estimatedRegistrationRaw: estimatedFunding
+                    ? parseUnits(String(estimatedFunding.registration), 6)
+                    : null,
+                  totalRaw: isFirstQuote
+                    ? undefined
+                    : parseUnits(String(pricingData ?? 0), 6),
+                }),
+              }
+            : undefined
+        }
+        estimatedFunding={estimatedFunding}
         footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
+        hasBudgetQuoteFailed={hasBudgetQuoteFailed}
         helpMessage={helpMessage}
         isConnected={isConnected}
         isInPriceCooldown={isInPriceCooldown}
@@ -136,6 +165,7 @@ export const TokenPickerDialogShell = ({
         }
         label={label}
         onNext={() => {}}
+        onRetry={hasBudgetQuoteFailed ? () => {} : undefined}
         onSelectCoin={(coin) => {
           setSelectedChainId(undefined)
           setSelectedToken(coin)
@@ -487,6 +517,69 @@ export const LongNameWithApprovalDetails: Story = {
       }
     />
   ),
+}
+
+const ELEVATED_FEE_ESTIMATE: RegistrationFundingSummary = {
+  registration: 1.4,
+  networkFee: 10,
+  total: 11.4,
+  walletDebit: 11.4,
+  hcaCredit: 0,
+  isLoading: false,
+}
+
+/** WEB-2061: Rhinestone refused a quote during a gas spike; show the fallback estimate. */
+export const BudgetQuoteGasCoverageFailed: Story = {
+  args: {
+    label: 'freedz',
+    initialSelectedToken: 'USDC',
+    pricingData: 1.4,
+    stablecoinBalances: [
+      { ...FUNDED_USDC, balance: '9000000', formattedBalance: '9.00' },
+    ],
+    hasBudgetQuoteFailed: true,
+    estimatedFunding: ELEVATED_FEE_ESTIMATE,
+    globalErrorMessage:
+      'Network fees are elevated right now, so the total above is an estimate (about $11.40). Try again shortly for a confirmed quote before paying.',
+  },
+}
+
+/** WEB-2061: an L2 still holds a quote for the previous budget; picking it must not replace the estimate. */
+export const BudgetQuoteGasCoverageFailedWithL2: Story = {
+  args: {
+    ...BudgetQuoteGasCoverageFailed.args,
+    l2Rows: [l2Row(baseSepolia, 400_000_000n, 'available', 5_012_573n)],
+  },
+}
+
+/** WEB-2061: credit covers the price but not the estimate, so the methods stay listed. */
+export const BudgetQuoteGasCoverageFailedWithAccountCredit: Story = {
+  args: {
+    ...BudgetQuoteGasCoverageFailed.args,
+    accountCredit: { USDC: 5 },
+  },
+}
+
+/** WEB-2061: the very first quote failed, so only the estimate can fill the receipt. */
+export const BudgetQuoteGasCoverageFailedFirstQuote: Story = {
+  args: {
+    ...BudgetQuoteGasCoverageFailed.args,
+    isFirstQuote: true,
+  },
+}
+
+/** WEB-2061: quote failed with no fallback figures — dashes and the generic retry. */
+export const BudgetQuoteFailedGeneric: Story = {
+  args: {
+    label: 'freedz',
+    initialSelectedToken: 'USDC',
+    pricingData: 1.4,
+    stablecoinBalances: [
+      { ...FUNDED_USDC, balance: '9000000', formattedBalance: '9.00' },
+    ],
+    hasBudgetQuoteFailed: true,
+    globalErrorMessage: "We couldn't calculate the total. Please try again.",
+  },
 }
 
 export const FixtureMultipleMethodsCollapsed: Story = {

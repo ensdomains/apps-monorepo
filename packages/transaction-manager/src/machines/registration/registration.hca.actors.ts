@@ -33,6 +33,7 @@ import {
   estimateHcaBudget,
   getDestinationContracts,
   type HcaBudgetBreakdown,
+  HcaBudgetUnquotedError,
   type Call as HcaCall,
   type HcaLeg,
   hasAddrReverseResolver,
@@ -581,12 +582,9 @@ export function estimateHcaBudgetActor(input: {
       // it is an unpriced guess that will over- or under-fund. Now that
       // auxiliary funds let the planner price a low-balance HCA, a fallback
       // means something genuinely broke and the reason is worth surfacing.
+      // Preserve the display estimate without sizing a permit from it.
       if (breakdown.source !== 'quote') {
-        throw new Error(
-          `HCA budget could not be quoted (source: ${breakdown.source}). ` +
-            `Refusing to size the funding permit from the fallback model. ` +
-            `Reasons: ${breakdown.fallbackReasons?.join('; ') ?? 'unknown'}`,
-        )
+        throw new HcaBudgetUnquotedError(breakdown)
       }
 
       return breakdown

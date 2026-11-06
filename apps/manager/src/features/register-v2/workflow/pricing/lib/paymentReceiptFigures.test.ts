@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getCheckoutReceiptFigures,
   getNetworkFeeReceiptFigures,
   getPaymentReceiptFigures,
+  getPaymentReceiptState,
   getWalletShortfall,
 } from './paymentReceiptFigures'
 
@@ -183,5 +185,53 @@ describe('getNetworkFeeReceiptFigures', () => {
     ],
   ])('%s', (_case, input, expected) => {
     expect(getNetworkFeeReceiptFigures(input)).toEqual(expected)
+  })
+})
+
+describe('getPaymentReceiptState', () => {
+  const figures = { total: 11.4, applied: 0, due: 11.4 }
+
+  it('keeps dashes when a quote failed and no estimate was passed', () => {
+    expect(
+      getPaymentReceiptState({
+        hasQuoteFailed: true,
+        isLoading: false,
+        figures: undefined,
+      }),
+    ).toEqual({ status: 'unavailable' })
+  })
+
+  it('shows the fallback estimate when a quote failed with figures', () => {
+    expect(
+      getPaymentReceiptState({
+        hasQuoteFailed: true,
+        isLoading: false,
+        figures,
+      }),
+    ).toEqual({ status: 'ready', figures })
+  })
+})
+
+describe('getCheckoutReceiptFigures', () => {
+  it('omits the registration price alone when the budget quote failed', () => {
+    expect(
+      getCheckoutReceiptFigures({
+        hasBudgetQuoteFailed: true,
+        funding: undefined,
+        price: 1.4,
+        accountCredit: 0,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('keeps a full fee estimate when the budget quote failed', () => {
+    expect(
+      getCheckoutReceiptFigures({
+        hasBudgetQuoteFailed: true,
+        funding: funding({ walletDebit: 11.4, hcaCredit: 0 }),
+        price: 1.4,
+        accountCredit: 0,
+      }),
+    ).toEqual({ total: 11.4, applied: 0, due: 11.4 })
   })
 })

@@ -1,4 +1,6 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import type { MessageDescriptor } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
@@ -37,6 +39,10 @@ import {
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
+import {
+  getBudgetQuoteFailureUi,
+  getCheckoutReceiptTotalRaw,
+} from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
 import { getEthPaymentDebit, getEthPaymentRow } from '../lib/ethPaymentRow'
 import {
@@ -48,12 +54,15 @@ import {
 } from '../lib/fallbackPaymentChoice'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import {
-  getPaymentReceiptFigures,
+  getCheckoutReceiptFigures,
   getPaymentReceiptState,
   getWalletShortfall,
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
-import { computeRegistrationFunding } from '../lib/registrationFunding'
+import {
+  computeRegistrationFunding,
+  type RegistrationFunding,
+} from '../lib/registrationFunding'
 import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
@@ -132,11 +141,107 @@ export type RegistrationFundingSummary = {
   readonly isLoading: boolean
 }
 
+const getFundingSummary = (
+  funding: RegistrationFunding | null,
+  isLoading: boolean,
+): RegistrationFundingSummary | undefined =>
+  funding ? { ...funding, isLoading } : undefined
+
 const getDomainSizeClasses = (domainName: string): string => {
   const charCount = Array.from(domainName).length
   if (charCount > LONG_NAME_CHAR_THRESHOLD) return 'text-[22px]'
   if (charCount >= MEDIUM_NAME_CHAR_THRESHOLD) return 'text-[32px]'
   return 'text-[40px]'
+}
+
+/** Sheet-level warning above the CTA. Kept out of the component body for complexity. */
+const getPricingGlobalErrorMessage = ({
+  approvalState,
+  isPaidFromElsewhere,
+  budgetFailureCopy,
+  mutationError,
+  isAvailabilityError,
+  domainName,
+}: {
+  readonly approvalState: {
+    readonly approvalOutcome?: string
+    readonly errorMessage?: string
+  }
+  readonly isPaidFromElsewhere: boolean
+  readonly budgetFailureCopy: ReturnType<
+    typeof getBudgetQuoteFailureUi
+  >['failureCopy']
+  readonly mutationError: unknown
+  readonly isAvailabilityError: boolean
+  readonly domainName: string
+}): MessageDescriptor | string | null => {
+  const budgetFailureMessage = match(budgetFailureCopy)
+    .with(
+      { variant: 'gas-coverage-with-estimate' },
+      ({ estimatedTotalLabel }) =>
+        msg`Network fees are elevated right now, so the total above is an estimate (about ${estimatedTotalLabel}). Try again shortly for a confirmed quote before paying.`,
+    )
+    .with(
+      { variant: 'gas-coverage' },
+      () =>
+        msg`Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower.`,
+    )
+    .with(
+      { variant: 'generic' },
+      () => msg`We couldn't calculate the total. Please try again.`,
+    )
+    .with(null, () => null)
+    .exhaustive()
+
+  return match({
+    approvalState,
+    isPaidFromElsewhere,
+    budgetFailureMessage,
+    mutationError,
+    isAvailabilityError,
+  })
+    .with(
+      { approvalState: { approvalOutcome: 'rejected' } },
+      () => msg`Signature cancelled. You can try again.`,
+    )
+    .with(
+      {
+        isPaidFromElsewhere: true,
+        approvalState: { approvalOutcome: 'failed', errorMessage: P.string },
+      },
+      ({ approvalState }) => approvalState.errorMessage,
+    )
+    .with(
+      { approvalState: { approvalOutcome: 'failed' } },
+      () =>
+        msg`We couldn't approve your payment. Please try again and approve the payment in your wallet.`,
+    )
+    .with(
+      { approvalState: { errorMessage: P.string } },
+      () => msg`We couldn't start your registration. Please try again.`,
+    )
+    .with(
+      { budgetFailureMessage: P.not(null) },
+      ({ budgetFailureMessage }) => budgetFailureMessage,
+    )
+    .with(
+      {
+        isAvailabilityError: true,
+        mutationError: P.not(P.instanceOf(InsufficientFundingError)),
+      },
+      () =>
+        msg`We couldn't confirm that ${domainName} is still available. Please try again.`,
+    )
+    .otherwise(() => null)
+}
+
+const resolvePricingErrorMessage = (
+  value: MessageDescriptor | string | null,
+  i18n: { readonly _: (descriptor: MessageDescriptor) => string },
+): string | null => {
+  if (value === null) return null
+  if (typeof value === 'string') return value
+  return i18n._(value)
 }
 
 const PaymentMethods = <T extends TOKEN_SYMBOL>({
@@ -175,7 +280,7 @@ const PaymentMethods = <T extends TOKEN_SYMBOL>({
 }
 
 export const TokenPickerContent = () => {
-  const { t } = useLingui()
+  const { t, i18n } = useLingui()
   const { label, uiActor, registrationActor } = useRegistrationV2Context()
   const approvalState = useSelector(uiActor, (state) => ({
     isApproving: state.matches({ pricing: 'approving' }),
@@ -320,7 +425,7 @@ export const TokenPickerContent = () => {
   )
   const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
 
-  // Absent until the quote lands, and permanently absent if it fails.
+  // Confirmed funding is absent until the quote succeeds.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
     ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
@@ -533,51 +638,34 @@ export const TokenPickerContent = () => {
     revalidatedFundingError?.available,
   )
 
-  const globalErrorMessage = match({
-    approvalState,
-    isPaidFromElsewhere,
-    hasBudgetQuoteFailed,
-    mutationError: availabilityMutation.error,
-    isAvailabilityError: availabilityMutation.isError,
+  const budgetFailureUi = getBudgetQuoteFailureUi({
+    hasFailed: match({
+      hasBudgetQuoteFailed,
+      error: availabilityMutation.error,
+    })
+      .with(
+        P.union(
+          { hasBudgetQuoteFailed: true },
+          { error: P.instanceOf(BudgetQuoteUnavailableError) },
+        ),
+        () => true,
+      )
+      .otherwise(() => false),
+    error: budgetQuery.error ?? availabilityMutation.error,
+    formatTotal: formatUsd,
   })
-    .with(
-      { approvalState: { approvalOutcome: 'rejected' } },
-      () => t`Signature cancelled. You can try again.`,
-    )
-    // An L2 or ETH payment fails for reasons worth reading, such as one still
-    // settling or a price that moved.
-    .with(
-      {
-        isPaidFromElsewhere: true,
-        approvalState: { approvalOutcome: 'failed', errorMessage: P.string },
-      },
-      ({ approvalState }) => approvalState.errorMessage,
-    )
-    .with(
-      { approvalState: { approvalOutcome: 'failed' } },
-      () =>
-        t`We couldn't approve your payment. Please try again and approve the payment in your wallet.`,
-    )
-    .with(
-      { approvalState: { errorMessage: P.string } },
-      () => t`We couldn't start your registration. Please try again.`,
-    )
-    .with(
-      P.union(
-        { hasBudgetQuoteFailed: true },
-        { mutationError: P.instanceOf(BudgetQuoteUnavailableError) },
-      ),
-      () => t`We couldn't calculate the total. Please try again.`,
-    )
-    .with(
-      {
-        isAvailabilityError: true,
-        mutationError: P.not(P.instanceOf(InsufficientFundingError)),
-      },
-      () =>
-        t`We couldn't confirm that ${domainName} is still available. Please try again.`,
-    )
-    .otherwise(() => null)
+  const { estimatedFunding } = budgetFailureUi
+  const globalErrorMessage = resolvePricingErrorMessage(
+    getPricingGlobalErrorMessage({
+      approvalState,
+      isPaidFromElsewhere,
+      budgetFailureCopy: budgetFailureUi.failureCopy,
+      mutationError: availabilityMutation.error,
+      isAvailabilityError: availabilityMutation.isError,
+      domainName,
+    }),
+    i18n,
+  )
 
   const isBusy = availabilityMutation.isPending || approvalState.isApproving
   const isPaymentApprovalRequired = !funding || funding.walletDebitRaw > 0n
@@ -641,21 +729,20 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       checkoutReceipt={
-        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
-      }
-      ethPayment={ethPayment}
-      funding={
-        funding
+        isBudgetRequired
           ? {
-              registration: funding.registration,
-              networkFee: funding.networkFee,
-              total: funding.total,
-              walletDebit: funding.walletDebit,
-              hcaCredit: funding.hcaCredit,
-              isLoading: budgetQuery.isFetching,
+              totalRaw: getCheckoutReceiptTotalRaw({
+                hasBudgetQuoteFailed,
+                estimatedRegistrationRaw:
+                  budgetFailureUi.estimatedRegistrationRaw,
+                totalRaw: registrationTotalRaw,
+              }),
             }
           : undefined
       }
+      estimatedFunding={getFundingSummary(estimatedFunding, false)}
+      ethPayment={ethPayment}
+      funding={getFundingSummary(funding, budgetQuery.isFetching)}
       globalErrorMessage={globalErrorMessage}
       hasBudgetQuoteFailed={hasBudgetQuoteFailed}
       helpMessage={helpMessage}
@@ -756,6 +843,14 @@ const getShownFunding = (
   funding && selectedL2?.amountInRaw !== undefined
     ? getL2FundingSummary(funding, selectedL2.amountInRaw)
     : funding
+
+/** A failed quote's estimate stands alone: the L2 and ETH quotes were sized for the previous budget. */
+const getReceiptQuotes = (
+  hasBudgetQuoteFailed: boolean,
+  selectedL2: L2PaymentRow | undefined,
+  selectedEth: EthPaymentRow | undefined,
+): { readonly l2?: L2PaymentRow; readonly eth?: EthPaymentRow } =>
+  hasBudgetQuoteFailed ? {} : { l2: selectedL2, eth: selectedEth }
 
 /** Highest L2 balance first; an unread balance goes last. */
 const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
@@ -1022,6 +1117,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   showNetworkFeeDetails = false,
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
+  estimatedFunding,
   isBusy = false,
   canProceed = true,
   totalLabel = <Trans>Registration total</Trans>,
@@ -1074,6 +1170,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
    * must cover.
    */
   readonly funding?: RegistrationFundingSummary
+  /** Display-only fallback estimate; never enables payment. */
+  readonly estimatedFunding?: RegistrationFundingSummary
   /** The method-level fee quote is still in flight. */
   readonly isQuotingFunding?: boolean
   /** Registration-only disclosure; renewals keep their existing token row. */
@@ -1101,7 +1199,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly checkoutReceipt?: CheckoutReceipt
   /** The caller hides the methods, such as while a re-quoted amount is reviewed. */
   readonly isMethodListHidden?: boolean
-  /** Renewal only: a message about the receipt's figures, shown directly below it. */
+  /** Shown below the receipt — renewal review copy, or a failed-quote estimate notice. */
   readonly receiptNotice?: ReactNode
   /** Renewal only: offers Cancel below the CTA. */
   readonly onCancel?: () => void
@@ -1135,9 +1233,18 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
 
   const selectedL2 = getSelectedL2(l2Payment)
   const selectedEth = ethPayment?.isSelected ? ethPayment.row : undefined
-  const shownFunding = getShownFunding(funding, selectedL2)
-  const displayedNetworkFee = funding
-    ? getPaymentBreakdownFigures(funding).networkFee
+  // Failed quotes show a full estimate, never the registration price alone.
+  const receiptFunding = match(hasBudgetQuoteFailed)
+    .with(true, () => estimatedFunding)
+    .otherwise(() => funding)
+  const receiptQuotes = getReceiptQuotes(
+    hasBudgetQuoteFailed,
+    selectedL2,
+    selectedEth,
+  )
+  const shownFunding = getShownFunding(receiptFunding, receiptQuotes.l2)
+  const displayedNetworkFee = receiptFunding
+    ? getPaymentBreakdownFigures(receiptFunding).networkFee
     : undefined
 
   const selectedCoinBalance = stablecoinBalances?.find(
@@ -1178,7 +1285,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
 
-  const receiptFigures = getPaymentReceiptFigures({
+  const receiptFigures = getCheckoutReceiptFigures({
+    hasBudgetQuoteFailed,
     funding: shownFunding,
     price: fundedAmount ?? pricingData,
     accountCredit: selectedToken ? (accountCredit?.[selectedToken] ?? 0) : 0,
@@ -1188,12 +1296,17 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     hasQuoteFailed: hasBudgetQuoteFailed,
     // A background refetch keeps the last figures on screen.
     isLoading:
-      isQuoteStale || pricingLoading || (isQuotingFunding && !shownFunding),
+      isQuoteStale ||
+      pricingLoading ||
+      (isQuotingFunding && !shownFunding && !hasBudgetQuoteFailed),
     figures: receiptFigures,
   })
-  // Unrounded, so a sub-cent debit keeps the methods.
+  // Unrounded, so a sub-cent debit keeps the methods. A failed quote's estimate is never covered.
   const isFullyCovered =
-    receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
+    receiptState.status === 'ready' &&
+    !hasBudgetQuoteFailed &&
+    selectedShare === 0 &&
+    !!walletSelection
 
   const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances
     .filter(hasBalance)
@@ -1395,8 +1508,10 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           />
         ) : (
           <NetworkFeeReceipt
-            ethDebit={selectedEth && getEthPaymentDebit(selectedEth)}
-            extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
+            ethDebit={
+              receiptQuotes.eth && getEthPaymentDebit(receiptQuotes.eth)
+            }
+            extraFeeRaw={getEthSwapGasUsdcRaw(receiptQuotes.eth)}
             networkFee={shownFunding?.networkFee}
             state={receiptState}
             totalLabel={checkoutReceipt.totalLabel}

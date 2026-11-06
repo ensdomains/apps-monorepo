@@ -2,6 +2,7 @@ import type { PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  classifyHcaBudgetFailureReasons,
   commitLegGasLimit,
   estimateHcaBudget,
   HCA_ACCOUNT_DEPLOY_GAS,
@@ -10,6 +11,7 @@ import {
   HCA_MAX_LEG_FEES_USDC,
   HCA_RESOLVER_DEPLOY_GAS,
   HcaBudgetExceedsMaximumError,
+  HcaBudgetUnquotedError,
   hcaBudgetMaximum,
   legFeeUsdc,
   primaryNameGas,
@@ -542,5 +544,49 @@ describe('legFeeUsdc', () => {
     expect(breakdown.commitCost).toBeGreaterThanOrEqual(15_899n)
     // Covers the 10_017 the commit pulled plus a reveal of the same shape.
     expect(breakdown.total - 8_005_501n).toBeGreaterThan(2n * 10_017n)
+  })
+})
+
+describe('classifyHcaBudgetFailureReasons', () => {
+  it.each([
+    [
+      'destination gas coverage',
+      [
+        'commit: quote threw — No available destination-chain balance can cover execution gas.',
+      ],
+      'gas-coverage',
+    ],
+    [
+      'NO_PLAN_AVAILABLE',
+      ['register: quote threw — NO_PLAN_AVAILABLE'],
+      'generic',
+    ],
+    ['a timeout', ['commit: quote threw — timeout'], 'generic'],
+  ] as const)('classifies %s', (_name, reasons, kind) => {
+    expect(classifyHcaBudgetFailureReasons(reasons)).toBe(kind)
+  })
+})
+
+describe('HcaBudgetUnquotedError', () => {
+  it('carries the fallback breakdown and gas-coverage kind', () => {
+    const breakdown = {
+      total: USDC(11),
+      commitCost: USDC(5),
+      registerCost: USDC(5),
+      registrationPrice: USDC(1),
+      expectedMaximum: USDC(46),
+      source: 'fallback' as const,
+      fallbackReasons: [
+        'commit: quote threw — No available destination-chain balance can cover execution gas.',
+      ],
+    }
+    const error = new HcaBudgetUnquotedError(breakdown)
+
+    expect(error.name).toBe('HcaBudgetUnquotedError')
+    // Tagged like the package's other operation errors, so callers can match on `_tag`.
+    expect(error).toMatchObject({ _tag: 'HcaBudgetUnquotedError' })
+    expect(error.kind).toBe('gas-coverage')
+    expect(error.breakdown).toBe(breakdown)
+    expect(error.message).toMatch(/source: fallback/)
   })
 })
