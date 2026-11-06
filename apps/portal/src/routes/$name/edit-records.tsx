@@ -571,7 +571,10 @@ const EditRecordsContent = ({
           </div>
         </div>
         {addRecordError && (
-          <Alert variant="destructive" className="mt-4">
+          <Alert
+            variant="destructive"
+            className="mt-4 items-center [&>svg]:translate-y-0"
+          >
             <AlertCircle />
             <AlertDescription>{addRecordError}</AlertDescription>
           </Alert>
