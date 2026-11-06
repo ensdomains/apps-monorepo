@@ -22,7 +22,8 @@ export const getFavoriteVersionsQueryOptions = (names: readonly string[]) =>
       bigname
         .lookup(
           {
-            profile: 'feed',
+            // The feed profile omits authority, which version filtering needs.
+            profile: 'detail',
             namespace: 'ens',
             inputs: names.map((name) => ({ name })),
           },

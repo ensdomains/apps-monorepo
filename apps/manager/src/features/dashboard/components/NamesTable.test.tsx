@@ -42,7 +42,7 @@ vi.mock('../service/queries/getFavorites', () => ({
 }))
 vi.mock('@/lib/bigname', () => ({
   bigname: {
-    lookup: vi.fn(({ inputs }: LookupRequest) => {
+    lookup: vi.fn(({ inputs, profile }: LookupRequest) => {
       if (
         inputs.some(
           (input) => 'name' in input && input.name === 'z-missing.eth',
@@ -53,25 +53,24 @@ vi.mock('@/lib/bigname', () => ({
         data: inputs.flatMap((input) => {
           if (!('name' in input)) return []
           const { name } = input
-          const isMissing = name === 'old-5.eth'
+          if (name === 'old-5.eth')
+            return [{ input, kind: 'name', status: 'not_found' }]
+          const authority =
+            name === 'v2.eth' || name.startsWith('a-v2-') ? 'ens_v2' : 'ens_v1'
+          const recordAuthority = profile === 'detail' ? authority : undefined
           return [
             {
               input,
               kind: 'name',
-              status: isMissing ? 'not_found' : 'ok',
-              record: isMissing
-                ? undefined
-                : {
-                    name,
-                    display_name: name,
-                    namespace: 'ens',
-                    namehash: '0x01',
-                    read_status: 'ok',
-                    authority:
-                      name === 'v2.eth' || name.startsWith('a-v2-')
-                        ? 'ens_v2'
-                        : 'ens_v1',
-                  },
+              status: 'ok',
+              record: {
+                name,
+                display_name: name,
+                namespace: 'ens',
+                namehash: '0x01',
+                read_status: 'ok',
+                authority: recordAuthority,
+              },
             },
           ]
         }),
