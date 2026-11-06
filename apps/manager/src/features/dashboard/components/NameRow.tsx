@@ -8,6 +8,7 @@ import { Check, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import {
@@ -42,13 +43,24 @@ import {
   Ensv1Pill,
   ExpiringPill,
   type NameRole,
+  RegistrationLifecyclePill,
   RolePill,
 } from './DashboardPills'
 import { NamePill } from './NamePill'
 import { PrimaryBadge } from './PrimaryBadge'
 
-export type NameStatus = 'eligibleUpgrade' | 'ensv1' | 'ensv1Only'
-export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
+export type NameStatus =
+  | 'eligibleUpgrade'
+  | 'ensv1'
+  | 'ensv1Only'
+  | 'expired'
+  | 'unregistered'
+  | 'unknown'
+export type NameRowCta =
+  | 'renew'
+  | 'remindMe'
+  | 'manageExplorer'
+  | 'checkAvailability'
 
 interface NameRowProps {
   readonly label: string
@@ -91,6 +103,7 @@ const ctaVariants = cva(
         renew: 'text-ens-lapis-core',
         remindMe: 'text-ens-lapis-900',
         manageExplorer: 'text-ens-garnet-500',
+        checkAvailability: 'text-ens-lapis-core',
       },
     },
   },
@@ -104,25 +117,33 @@ const RowCta = ({
   readonly cta: NameRowCta
   readonly label: string
   readonly renewalProtocol: RenewalProtocol
-}) => {
-  if (cta === 'manageExplorer') {
-    if (!EXPLORER_URL) return null
-
-    return (
-      <a
-        className={ctaVariants({ kind: 'manageExplorer' })}
-        href={`${EXPLORER_URL}/${label}`}
-        rel="noopener noreferrer"
-        target="_blank"
+}) =>
+  match(cta)
+    .with('checkAvailability', () => (
+      <Link
+        className={ctaVariants({ kind: cta })}
+        params={{ name: label }}
+        preload={false}
+        to="/$name"
       >
-        <Trans>Manage on explorer</Trans>
-        <MSymbol className="ms-opsz-20 text-xl" symbol="arrow_outward" />
-      </a>
+        <Trans>Check availability</Trans>
+        <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
+      </Link>
+    ))
+    .with('manageExplorer', () =>
+      EXPLORER_URL ? (
+        <a
+          className={ctaVariants({ kind: 'manageExplorer' })}
+          href={`${EXPLORER_URL}/${label}`}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <Trans>Manage on explorer</Trans>
+          <MSymbol className="ms-opsz-20 text-xl" symbol="arrow_outward" />
+        </a>
+      ) : null,
     )
-  }
-
-  if (cta === 'remindMe') {
-    return (
+    .with('remindMe', () => (
       <Link
         className={ctaVariants({ kind: 'remindMe' })}
         to="/notifications/settings"
@@ -133,20 +154,18 @@ const RowCta = ({
           symbol="notification_settings"
         />
       </Link>
-    )
-  }
-
-  return (
-    <Link
-      className={ctaVariants({ kind: 'renew' })}
-      params={{ name: label }}
-      to={getRenewalRoute(renewalProtocol)}
-    >
-      <Trans>Renew</Trans>
-      <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
-    </Link>
-  )
-}
+    ))
+    .with('renew', () => (
+      <Link
+        className={ctaVariants({ kind: 'renew' })}
+        params={{ name: label }}
+        to={getRenewalRoute(renewalProtocol)}
+      >
+        <Trans>Renew</Trans>
+        <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
+      </Link>
+    ))
+    .exhaustive()
 
 const FavoriteButton = ({
   isFavorite,
@@ -279,6 +298,11 @@ const NameRowTop = ({
             ))
           : null}
         {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
+        {(status === 'expired' ||
+          status === 'unregistered' ||
+          status === 'unknown') && (
+          <RegistrationLifecyclePill status={status} />
+        )}
         {(status === 'ensv1' || status === 'ensv1Only') && (
           <Ensv1Pill isOnly={status === 'ensv1Only'} />
         )}
@@ -451,11 +475,15 @@ const NameOptionsMenu = ({
 }
 
 const ExpiryDetails = ({
+  status,
   expiryLabel,
   cta,
   label,
   renewalProtocol,
-}: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label' | 'renewalProtocol'>) => {
+}: Pick<
+  NameRowProps,
+  'status' | 'expiryLabel' | 'cta' | 'label' | 'renewalProtocol'
+>) => {
   if (!expiryLabel && !cta) return null
 
   const isNonExpiring = expiryLabel === NON_EXPIRING_DATE_LABEL
@@ -466,11 +494,14 @@ const ExpiryDetails = ({
         <div className="flex items-center gap-2">
           <History className="size-4 shrink-0 text-ens-quartz-360" />
           <span className="font-sans text-ens-quartz-380 text-sm">
-            {isNonExpiring ? (
-              <Trans>Does not expire</Trans>
-            ) : (
-              <Trans>Expires on</Trans>
-            )}
+            {match({ isNonExpiring, status })
+              .with({ isNonExpiring: true }, () => (
+                <Trans>Does not expire</Trans>
+              ))
+              .with({ status: 'expired' }, () => <Trans>Expired on</Trans>)
+              .otherwise(() => (
+                <Trans>Expires on</Trans>
+              ))}
           </span>
           {!isNonExpiring && (
             <span className="font-sans text-ens-quartz-550 text-sm">
@@ -570,6 +601,7 @@ export const NameRow = ({
         expiryLabel={expiryLabel}
         label={label}
         renewalProtocol={renewalProtocol}
+        status={status}
       />
     </div>
   )

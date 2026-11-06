@@ -5,6 +5,10 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
+import {
+  profileExpiryDateFromSeconds,
+  profileExpiryQuery,
+} from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { getV1RenewableQueryOptions } from '@/features/renew/data/queries/v1Renewable.query'
@@ -15,6 +19,7 @@ import {
   type FavoriteMetadata,
   filterFavoritesBySearch,
   filterFavoritesByVersion,
+  getFavoriteAvailabilityCta,
   getFavoriteLookupBatches,
   getFavoriteMetadata,
   getFavoriteResolutionState,
@@ -22,6 +27,7 @@ import {
   getFavoriteVersions,
   paginateFavorites,
   shouldCheckFavoriteV1Renewal,
+  shouldCheckFavoriteV2Expiry,
   sortFavorites,
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
@@ -93,6 +99,13 @@ const FavoriteNameRow = ({
     ...favoriteReadOptions,
     enabled: isOptionsOpen && shouldCheckFavoriteV1Renewal(label, protocol),
   })
+  const v2Expiry = useQuery({
+    ...profileExpiryQuery(label, 'v2'),
+    ...favoriteReadOptions,
+    select: ({ expiry }) => profileExpiryDateFromSeconds(expiry),
+    enabled:
+      isOptionsOpen && shouldCheckFavoriteV2Expiry(label, protocol, metadata),
+  })
 
   return (
     <NameRow
@@ -101,10 +114,12 @@ const FavoriteNameRow = ({
       canRenew={canRenewFavorite(
         label,
         protocol,
-        metadata?.expiryDate,
+        metadata?.expiryDate ?? v2Expiry.data,
         v1Renewable.data === true,
         new Date(),
+        metadata?.lifecycle,
       )}
+      cta={getFavoriteAvailabilityCta(label, metadata?.lifecycle)}
       expiryLabel={metadata?.expiryLabel}
       isAuthenticated
       isFavorite
@@ -114,7 +129,7 @@ const FavoriteNameRow = ({
       onToggleFavorite={onToggleFavorite}
       renewalProtocol={protocol}
       showFavoriteButton
-      status={protocol === 'v1' ? 'ensv1' : null}
+      status={metadata?.lifecycle ?? (protocol === 'v1' ? 'ensv1' : null)}
       themeColor={preview.themeColor}
     />
   )

@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { cva } from 'class-variance-authority'
 import { CircleAlert } from 'lucide-react'
+import { match } from 'ts-pattern'
 import ensMarkBadge from '@/assets/ens-mark-badge.svg'
 
 const pillVariants = cva(
@@ -13,6 +14,9 @@ const pillVariants = cva(
         owner: 'border-[0.5px] border-ens-peridot-900 text-ens-peridot-900',
         manager: 'border-[0.5px] border-ens-peridot-900 text-ens-peridot-900',
         expiring: 'bg-ens-citrine-50 text-ens-citrine-450',
+        expired: 'bg-ens-garnet-100 text-ens-garnet-500',
+        unregistered: 'bg-ens-quartz-150 text-ens-quartz-500',
+        unknown: 'bg-ens-quartz-150 text-ens-quartz-500',
       },
     },
   },
@@ -51,5 +55,19 @@ export const ExpiringPill = ({ days }: { readonly days: number }) => (
       strokeWidth={2}
     />
     <Trans>Expires in {days} days</Trans>
+  </span>
+)
+
+export const RegistrationLifecyclePill = ({
+  status,
+}: {
+  readonly status: 'expired' | 'unregistered' | 'unknown'
+}) => (
+  <span className={pillVariants({ tone: status })}>
+    {match(status)
+      .with('expired', () => <Trans>Expired</Trans>)
+      .with('unregistered', () => <Trans>Not registered</Trans>)
+      .with('unknown', () => <Trans>Status unknown</Trans>)
+      .exhaustive()}
   </span>
 )

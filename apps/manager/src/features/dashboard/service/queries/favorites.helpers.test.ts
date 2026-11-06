@@ -7,6 +7,7 @@ import {
   filterFavoritesByVersion,
   getFavoriteMetadata,
   paginateFavorites,
+  shouldCheckFavoriteV2Expiry,
   sortFavorites,
 } from './favorites.helpers'
 
@@ -275,13 +276,25 @@ it('enriches indexed favorites without treating misses or unknown expiry as non-
     expiryDate: new Date('2027-01-01T00:00:00Z'),
     expiryLabel: 'January 1, 2027',
     isInGrace: false,
+    lifecycle: null,
   })
   expect(metadata.get('never.eth')?.expiryLabel).toBe('Does not expire')
   expect(metadata.get('unknown.eth')?.expiryLabel).toBeNull()
-  expect(metadata.has('missing.eth')).toBe(false)
+  expect(metadata.get('missing.eth')?.lifecycle).toBe('unknown')
+  expect(metadata.get('missing.eth')?.expiryLabel).toBeNull()
 })
 
 it('offers renewal only for supported names with confirmed eligibility', () => {
+  expect([
+    shouldCheckFavoriteV2Expiry('alice.eth', 'v1', undefined),
+    shouldCheckFavoriteV2Expiry('sub.alice.eth', 'v2', undefined),
+    shouldCheckFavoriteV2Expiry('alice.eth', 'v2', undefined),
+    shouldCheckFavoriteV2Expiry('alice.eth', 'v2', {
+      expiryDate: null,
+      expiryLabel: 'Does not expire',
+      lifecycle: null,
+    }),
+  ]).toEqual([false, false, true, false])
   const now = new Date('2026-11-04T00:00:00Z')
   const expiry = new Date('2030-01-01T00:00:00Z')
   expect([
@@ -291,5 +304,58 @@ it('offers renewal only for supported names with confirmed eligibility', () => {
     canRenewFavorite('alice.eth', 'v1', expiry, true, now),
     canRenewFavorite('alice.eth', 'v2', new Date('2020-01-01'), false, now),
     canRenewFavorite('alice.eth', 'v2', expiry, false, now),
-  ]).toEqual([false, false, false, true, false, true])
+    canRenewFavorite('alice.eth', 'v2', expiry, false, now, 'unregistered'),
+  ]).toEqual([false, false, false, true, false, true, false])
+})
+
+it('marks expired and released favorites without labelling grace as available', () => {
+  const inputs: readonly {
+    readonly name: string
+    readonly record: Partial<LookupRecord>
+  }[] = [
+    {
+      name: 'expired.eth',
+      record: { status: 'expired', expires_at: '2026-01-01T00:00:00Z' },
+    },
+    {
+      name: 'lapsed.eth',
+      record: {
+        status: 'released',
+        lapsed_registration: { release_kind: 'expired' },
+      },
+    },
+    { name: 'unregistered.eth', record: { status: 'unregistered' } },
+    {
+      name: 'grace.eth',
+      record: {
+        status: 'expired',
+        expires_at: '2026-11-01T00:00:00Z',
+        grace_ends_at: '2026-11-10T00:00:00Z',
+      },
+    },
+  ]
+  const metadata = getFavoriteMetadata(
+    inputs.map(({ name, record }) => ({
+      input: { name },
+      kind: 'name',
+      status: 'ok',
+      record: {
+        name,
+        display_name: name,
+        namespace: 'ens',
+        namehash: '0x01',
+        read_status: 'ok',
+        authority: 'ens_v2',
+        ...record,
+      },
+    })),
+    new Date('2026-11-04T00:00:00Z'),
+  )
+  expect(inputs.map(({ name }) => metadata.get(name)?.lifecycle)).toEqual([
+    'expired',
+    'expired',
+    'unregistered',
+    null,
+  ])
+  expect(metadata.get('grace.eth')?.isInGrace).toBe(true)
 })

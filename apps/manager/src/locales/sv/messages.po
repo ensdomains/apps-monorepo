@@ -701,6 +701,10 @@ msgstr ""
 msgid "Check again"
 msgstr ""
 
+#: src/features/dashboard/components/NameRow.tsx
+msgid "Check availability"
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Check mint status"
 msgstr ""
@@ -1400,6 +1404,14 @@ msgstr ""
 msgid "Existing balance"
 msgstr ""
 
+#: src/features/dashboard/components/DashboardPills.tsx
+msgid "Expired"
+msgstr ""
+
+#: src/features/dashboard/components/NameRow.tsx
+msgid "Expired on"
+msgstr ""
+
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
@@ -2097,6 +2109,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepNameList.tsx
 msgid "Not enough USDC to renew the selected names. Add USDC or deselect this name."
+msgstr ""
+
+#: src/features/dashboard/components/DashboardPills.tsx
+msgid "Not registered"
 msgstr ""
 
 #: src/features/landing/check-availability/CheckAvailability.tsx
@@ -3230,6 +3246,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Starting..."
+msgstr ""
+
+#: src/features/dashboard/components/DashboardPills.tsx
+msgid "Status unknown"
 msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
