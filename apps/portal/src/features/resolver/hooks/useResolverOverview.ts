@@ -380,6 +380,15 @@ export const resolverCollectionCount = (
   return `${count}${status === 'partial' ? '+' : ''}`
 }
 
+export const formatRoleHolderCount = (
+  count: number | null | undefined,
+  status: Completeness | undefined,
+): string =>
+  match(resolverCollectionCount(count, status))
+    .with('Unknown', () => 'Role holders unknown')
+    .with('1', () => '1 role holder')
+    .otherwise((formatted) => `${formatted} role holders`)
+
 const readOverview = (
   { chainId, address }: ResolverRef,
   signal: AbortSignal | undefined,

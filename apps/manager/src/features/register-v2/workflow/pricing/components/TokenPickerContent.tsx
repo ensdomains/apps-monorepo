@@ -44,7 +44,7 @@ import {
   getCheckoutReceiptTotalRaw,
 } from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
-import { getEthPaymentRow, getEthSwapDebitUsdcRaw } from '../lib/ethPaymentRow'
+import { getEthPaymentDebit, getEthPaymentRow } from '../lib/ethPaymentRow'
 import {
   getCurrentMethodState,
   getFallbackPaymentChoice,
@@ -1495,7 +1495,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           />
         ) : (
           <NetworkFeeReceipt
-            ethDebitRaw={selectedEth && getEthSwapDebitUsdcRaw(selectedEth)}
+            ethDebit={selectedEth && getEthPaymentDebit(selectedEth)}
             extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
             networkFee={shownFunding?.networkFee}
             state={receiptState}
