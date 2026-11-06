@@ -1855,6 +1855,7 @@ msgstr ""
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
@@ -3239,6 +3240,7 @@ msgstr ""
 msgid "Some names are more in-demand than others."
 msgstr ""
 
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/MyNamesList.tsx
 msgid "Some names could not be loaded"
 msgstr ""
