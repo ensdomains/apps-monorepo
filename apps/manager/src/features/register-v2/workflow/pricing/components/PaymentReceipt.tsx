@@ -1,8 +1,10 @@
+import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { Trans, useLingui } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { formatUnits, parseUnits } from 'viem'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
+import type { EthPaymentDebit } from '../lib/ethPaymentRow'
 import {
   getEthReceiptDueRaw,
   getNetworkFeeReceiptFigures,
@@ -57,6 +59,37 @@ const UsdAmount = ({
       )
     })
     .exhaustive()
+
+/** With ETH selected: the coins the wallet sends, then what they come to in USD. */
+const EthDueAmount = ({
+  debit,
+  dueUsd,
+}: {
+  readonly debit: EthPaymentDebit
+  readonly dueUsd: number
+}) => (
+  <span className="flex flex-col items-end gap-1">
+    <span className="flex flex-wrap items-baseline justify-end gap-x-2">
+      {debit.usdcRaw > 0n && (
+        <>
+          <span className={RECEIPT_AMOUNT}>
+            {toUsd(debit.usdcRaw).toFixed(2)}
+          </span>
+          <span className={RECEIPT_LABEL}>USDC</span>
+          <span className={RECEIPT_LABEL}>+</span>
+        </>
+      )}
+      <span className="text-base text-ens-quartz-400">
+        <Trans>up to</Trans>
+      </span>
+      <span className={RECEIPT_AMOUNT}>{formatGasEth(debit.ethWei)}</span>
+      <span className={RECEIPT_LABEL}>ETH</span>
+    </span>
+    <span className="text-base text-ens-quartz-400">
+      ≈ {formatUsd(dueUsd)} USD
+    </span>
+  </span>
+)
 
 const Amount = ({
   state,
@@ -148,7 +181,7 @@ export const NetworkFeeReceipt = ({
   totalRaw,
   networkFee,
   extraFeeRaw,
-  ethDebitRaw,
+  ethDebit,
   totalLabel = <Trans>Registration total</Trans>,
 }: {
   /** The quote behind the fee; the total is the page's and is always shown. */
@@ -159,8 +192,8 @@ export const NetworkFeeReceipt = ({
   readonly networkFee: number | undefined
   /** Paid on top of the wallet debit, such as an ETH swap's gas. */
   readonly extraFeeRaw: bigint
-  /** With ETH selected: the most the swap sends, in USDC (6dp), shown as "You pay". */
-  readonly ethDebitRaw?: bigint
+  /** With ETH selected: what the wallet sends, shown as "You pay". */
+  readonly ethDebit?: EthPaymentDebit
   readonly totalLabel?: ReactNode
 }) => {
   const { t } = useLingui()
@@ -181,13 +214,15 @@ export const NetworkFeeReceipt = ({
       : { status: 'unavailable' }
   const shown = (field: 'networkFeeRaw' | 'dueRaw'): ShownAmount =>
     figures ? { status: 'ready', value: toUsd(figures[field]) } : pending
-  const due: ShownAmount =
-    figures && ethDebitRaw !== undefined
-      ? {
-          status: 'ready',
-          value: toUsd(getEthReceiptDueRaw(ethDebitRaw, extraFeeRaw)),
-        }
-      : shown('dueRaw')
+  const ethDueUsd =
+    figures && ethDebit
+      ? toUsd(
+          getEthReceiptDueRaw(
+            ethDebit.usdcRaw + ethDebit.swapUsdcRaw,
+            extraFeeRaw,
+          ),
+        )
+      : undefined
 
   return (
     <section
@@ -224,7 +259,11 @@ export const NetworkFeeReceipt = ({
         )}
         <hr className="border-ens-quartz-100" />
         <Row label={<Trans>You pay</Trans>}>
-          <UsdAmount amount={due} isEstimate={ethDebitRaw !== undefined} />
+          {ethDebit && ethDueUsd !== undefined ? (
+            <EthDueAmount debit={ethDebit} dueUsd={ethDueUsd} />
+          ) : (
+            <UsdAmount amount={shown('dueRaw')} />
+          )}
         </Row>
       </dl>
     </section>

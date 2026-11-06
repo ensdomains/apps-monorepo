@@ -3,8 +3,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 let routeName = 'jobintime.xyz'
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
+  Link: ({
+    children,
+    to,
+    params = {},
+  }: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+  }) => (
+    <a
+      href={Object.entries(params).reduce(
+        (href, [key, value]) => href.replace(`$${key}`, value),
+        to,
+      )}
+    >
+      {children}
+    </a>
   ),
   createFileRoute: () => (options: Record<string, unknown>) => options,
   useParams: () => ({ name: routeName }),
@@ -36,6 +51,8 @@ let ownerResult: QueryResult
 let resolverResult: QueryResult
 let v1StateResult: QueryResult
 let profileResult: QueryResult
+let permissionedResult: QueryResult
+let overviewResult: QueryResult
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -54,6 +71,8 @@ vi.mock('@tanstack/react-query', async () => {
       if (key === 'get-ens-owner') return ownerResult
       if (key === 'transfer-v1-name-state') return v1StateResult
       if (key === 'profile') return profileResult
+      if (key === 'is-permissioned-resolver') return permissionedResult
+      if (key === 'resolver-overview') return overviewResult
       return settled(undefined)
     },
   }
@@ -115,6 +134,8 @@ beforeEach(() => {
   v1StateResult = settled({ subject: null })
   offchain = { isLoading: false, resolvedAddress: null }
   profileResult = settled(undefined)
+  permissionedResult = settled(undefined)
+  overviewResult = settled(undefined)
 })
 
 describe('resolver route', () => {
@@ -268,6 +289,59 @@ describe('resolver route', () => {
       render(<ResolverRoute />)
 
       expect(screen.queryByTestId('resolver-warning')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('permissions row', () => {
+    beforeEach(() => {
+      routeName = 'alice.eth'
+      ownerResult = settled({
+        owner: '0x55e55C649895940826a852820d9e1A076Ec47b09',
+        registryAddress: '0x1111111111111111111111111111111111111111',
+        protocolVersion: 'ENSv2',
+      })
+      permissionedResult = settled(true)
+    })
+
+    it('shows the role holders and links to the contract page', () => {
+      overviewResult = settled({
+        links: [],
+        roleHolderCount: 2,
+        rolesStatus: 'full',
+      })
+
+      render(<ResolverRoute />)
+
+      expect(screen.getByText('Permissions')).toBeInTheDocument()
+      expect(screen.getByText('2 role holders.')).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: 'View and manage' }),
+      ).toHaveAttribute('href', `/resolver/${ENS_V1_RESOLVER}`)
+    })
+
+    it('keeps the link when the role holders fail to load', () => {
+      overviewResult = {
+        ...settled(undefined),
+        error: new Error('bigname 503'),
+      }
+
+      render(<ResolverRoute />)
+
+      expect(
+        screen.getByText('Failed to load role holders.'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: 'View and manage' }),
+      ).toBeInTheDocument()
+    })
+
+    it('leaves the row off a resolver without roles', () => {
+      permissionedResult = settled(false)
+
+      render(<ResolverRoute />)
+
+      expect(screen.getByText(ENS_V1_RESOLVER)).toBeInTheDocument()
+      expect(screen.queryByText('Permissions')).not.toBeInTheDocument()
     })
   })
 })

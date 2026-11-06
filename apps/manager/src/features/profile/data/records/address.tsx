@@ -18,11 +18,39 @@ import type { AddressRecordDef } from './types'
 const ADDRESS_PRESENTATION_OVERRIDES: Readonly<
   Record<number, { readonly name?: string; readonly iconKey?: string }>
 > = {
-  [coinNameToTypeMap.bnb]: { name: 'Binance Chain' },
   [coinNameToTypeMap.default]: { name: 'Any EVM chain' },
   [coinNameToTypeMap.bsc]: { iconKey: 'bnb' },
   [coinNameToTypeMap.avaxc]: { iconKey: 'avax' },
   [coinNameToTypeMap.scr]: { iconKey: 'scroll' },
+  // The Lisk mainnet moved to this L2, which keeps the Lisk brand.
+  [coinNameToTypeMap.lisk]: { iconKey: 'lsk' },
+}
+
+// Removed in address-encoder 3.0.0: saved records still load via ensjs, so keep their names.
+const REMOVED_COINS: Readonly<
+  Record<number, readonly [notation: string, name: string]>
+> = {
+  55: ['aib', 'AIB'],
+  105: ['strat', 'Stratis'],
+  134: ['lsk', 'Lisk'],
+  178: ['poaLegacy', '[LEGACY] POA'],
+  194: ['eos', 'EOS'],
+  204: ['bcn', 'Bytecoin'],
+  330: ['luna', 'Terra'],
+  367: ['abbc', 'ABBC'],
+  415: ['etn', 'Electroneum'],
+  489: ['cca', 'Counos'],
+  535: ['xhv', 'Haven Protocol'],
+  568: ['lrg', 'Large Coin'],
+  569: ['sero', 'Super Zero Protocol'],
+  571: ['ccxx', 'Counos X'],
+  573: ['srm', 'Serum'],
+  576: ['bps', 'BitcoinPoS'],
+  714: ['bnb', 'Binance Chain'],
+  904: ['hnt', 'Helium'],
+  999: ['bcd', 'Bitcoin Diamond'],
+  99999: ['wicc', 'Waykichain'],
+  2147483747: ['poa', 'POA'],
 }
 
 // Reuse the installed brand library for coins without bundled SVGs. These are
@@ -37,9 +65,10 @@ const ADDITIONAL_COIN_ICONS: Readonly<
   ),
 }
 
-const canonicalAddressRecords: AddressRecordDef[] = Object.entries(
-  coinTypeToNameMap,
-).map(([coinType, [notation, name]]) => {
+const toAddressRecordDef = ([coinType, [notation, name]]: readonly [
+  string,
+  readonly [string, string],
+]): AddressRecordDef => {
   const canonicalCoinType = Number(coinType)
   const override = ADDRESS_PRESENTATION_OVERRIDES[canonicalCoinType]
   return {
@@ -53,7 +82,13 @@ const canonicalAddressRecords: AddressRecordDef[] = Object.entries(
       coinIcons[notation.replace(/Legacy$/, '')] ??
       ADDITIONAL_COIN_ICONS[notation],
   }
-})
+}
+
+const canonicalAddressRecords: AddressRecordDef[] =
+  Object.entries(coinTypeToNameMap).map(toAddressRecordDef)
+
+const removedAddressRecords: AddressRecordDef[] =
+  Object.entries(REMOVED_COINS).map(toAddressRecordDef)
 
 const canonicalAddressRecordIndex = new Map(
   canonicalAddressRecords.map((record) => [record.coinType, record]),
@@ -79,10 +114,11 @@ const sepoliaAddressRecords = L2_REVERSE_REGISTRAR_CHAIN_IDS.flatMap(
 )
 
 const addressPresentationIndex = new Map(
-  [...canonicalAddressRecords, ...sepoliaAddressRecords].map((record) => [
-    record.coinType,
-    record,
-  ]),
+  [
+    ...removedAddressRecords,
+    ...canonicalAddressRecords,
+    ...sepoliaAddressRecords,
+  ].map((record) => [record.coinType, record]),
 )
 
 // Only the picker/probe list follows the deployment's reverse-registrar keys.
