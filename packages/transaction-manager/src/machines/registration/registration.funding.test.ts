@@ -2,6 +2,31 @@ import { describe, expect, it } from 'vitest'
 import { getRegistrationFundingAmount } from './registration.funding'
 
 describe('registration funding after approval', () => {
+  const amounts = [0n, 1n, 2n, 3n] as const
+  const fundingMatrix = amounts.flatMap((targetBalance) =>
+    amounts.flatMap((balance) =>
+      amounts.map((consented) => ({ targetBalance, balance, consented })),
+    ),
+  )
+
+  it.each(fundingMatrix)(
+    'funds target $targetBalance from balance $balance only within consent $consented',
+    ({ targetBalance, balance, consented }) => {
+      const result = getRegistrationFundingAmount({
+        targetBalance,
+        balance,
+        consented,
+      })
+      const shortfall = targetBalance > balance ? targetBalance - balance : 0n
+
+      if (shortfall > consented) {
+        expect(result.isErr()).toBe(true)
+        return
+      }
+      expect(result._unsafeUnwrap()).toBe(shortfall)
+    },
+  )
+
   it.each([
     [15n, 0n, 15n],
     [15n, 5n, 10n],
