@@ -2,7 +2,7 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
-import { skipToken, useQuery } from '@tanstack/react-query'
+import { skipToken } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { type GetLogsErrorType, getLogs } from 'viem/actions'
@@ -93,7 +93,3 @@ export const getUserPermissionedResolversQueryOptions = ({
       ? () => getUserPermissionedResolvers({ account })
       : skipToken,
   })
-
-export const useUserPermissionedResolvers = (params: {
-  readonly account: Address | undefined
-}) => useQuery(getUserPermissionedResolversQueryOptions(params))

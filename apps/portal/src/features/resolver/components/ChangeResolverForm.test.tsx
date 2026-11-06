@@ -126,7 +126,13 @@ const EXISTING_RESOLVERS: readonly Address[] = [
 const mockUseUserPermissionedResolvers = vi.fn()
 
 vi.mock('@/features/resolver/hooks/useUserPermissionedResolvers', () => ({
-  useUserPermissionedResolvers: (params: { account?: string }) =>
+  getUserPermissionedResolversQueryOptions: (params: { account?: string }) =>
+    params,
+}))
+
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQuery: (params: { account?: string }) =>
     mockUseUserPermissionedResolvers(params),
 }))
 
