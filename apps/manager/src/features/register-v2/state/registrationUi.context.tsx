@@ -5,6 +5,7 @@ import { createContext, use, useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { useAnalyticsFlowReady } from '@/lib/posthog/useAnalyticsFlowReady'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -50,6 +51,8 @@ export const RegistrationV2UiProvider = ({
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
     input: { chainId },
   })
+
+  useAnalyticsFlowReady(registrationV2UiActor)
 
   useRegistrationLockSweep()
   const registrationActor = useSelector(

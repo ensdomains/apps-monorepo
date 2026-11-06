@@ -1,8 +1,13 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import {
+  canCaptureAnalytics,
+  getAnalyticsProjectKey,
+} from '@ens-apps/utils/posthog/analyticsConfiguration'
+import {
   hasAnalyticsConsent,
   useAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
+import { getWalletIdentityAction } from '@ens-apps/utils/posthog/walletIdentity'
 import {
   boot as bootIntercom,
   getVisitorId,
@@ -22,9 +27,13 @@ import type { PostHog } from 'posthog-js'
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { type RefObject, useEffect, useRef } from 'react'
-import { useConnectionEffect } from 'wagmi'
-import { applyAnalyticsConsent, POSTHOG_CONFIG } from './config'
-import { track, trackWithOptions } from './events'
+import { useConnection, useConnectionEffect } from 'wagmi'
+import {
+  applyAnalyticsConsent,
+  POSTHOG_CONFIG,
+  resetKeepingConsent,
+} from './config'
+import { startAnalyticsOperation, track, trackWithOptions } from './events'
 
 type ConnectedWallet = {
   readonly address: string
@@ -34,18 +43,31 @@ type ConnectedWallet = {
 
 // With consent the wallet becomes the analytics identity. Without it nothing
 // is sent, so wallet-targeted flags match only after Accept.
-const identifyWallet = (wallet: ConnectedWallet) => {
-  if (!hasAnalyticsConsent(posthog)) return
-  posthog.identify(
-    wallet.address,
-    { address: wallet.address },
-    { initial_address: wallet.address },
-  )
-  posthog.register({
-    wallet_address: wallet.address,
-    chain_id: wallet.chainId,
-    wallet_connector: wallet.connector.name,
+const identifyWallet = (wallet: ConnectedWallet | null) => {
+  if (!posthog.__loaded) return
+  const action = getWalletIdentityAction({
+    isGranted:
+      hasAnalyticsConsent(posthog) &&
+      canCaptureAnalytics({
+        environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
+        isDevelopment: import.meta.env.DEV,
+        isDebugEnabled: import.meta.env.VITE_PUBLIC_ANALYTICS_DEBUG === 'true',
+        stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
+        productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
+      }),
+    isIdentified: posthog.get_property('$user_state') === 'identified',
+    distinctId: posthog.get_distinct_id(),
+    address: wallet?.address,
   })
+  if (action.type === 'reset' || action.type === 'replace')
+    resetKeepingConsent(posthog)
+  if (action.type === 'identify' || action.type === 'replace')
+    posthog.identify(action.address)
+  if (wallet && hasAnalyticsConsent(posthog))
+    posthog.register({
+      chain_id: wallet.chainId,
+      wallet_connector: wallet.connector.name,
+    })
 }
 
 // Links support chats to analytics, only for visitors who accepted.
@@ -70,9 +92,13 @@ const useApplyAnalyticsConsent = (
   const consent = useAnalyticsConsent(posthog)
   useEffect(() => {
     if (!consent) return
-    applyAnalyticsConsent(posthog)
-    if (wallet.current) identifyWallet(wallet.current)
-    linkIntercomToAnalytics()
+    try {
+      applyAnalyticsConsent(posthog)
+      identifyWallet(wallet.current)
+      linkIntercomToAnalytics()
+    } catch (error) {
+      console.warn('[posthog] consent synchronization failed', error)
+    }
   }, [consent, wallet])
 }
 
@@ -83,21 +109,55 @@ export const PHProvider = ({
 }): React.ReactNode => {
   const isHydrated = useHydrated()
   const wallet = useRef<ConnectedWallet | null>(null)
+  const connection = useConnection()
+
+  useEffect(() => {
+    if (
+      connection.status !== 'connected' &&
+      connection.status !== 'disconnected'
+    )
+      return
+    const connected =
+      connection.address && connection.chainId && connection.connector
+        ? {
+            address: connection.address,
+            chainId: connection.chainId,
+            connector: connection.connector,
+          }
+        : null
+    wallet.current = connected
+    try {
+      identifyWallet(connected)
+    } catch (error) {
+      console.warn('[posthog] wallet synchronization failed', error)
+    }
+  }, [
+    connection.address,
+    connection.chainId,
+    connection.connector,
+    connection.status,
+  ])
 
   useEffect(() => {
     if (!isHydrated) return
 
     // Flag evaluation and support must not crash the app if either SDK fails.
     try {
-      posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
-        api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-        ...POSTHOG_CONFIG,
+      const posthogKey = getAnalyticsProjectKey({
+        environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
+        stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
+        productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
       })
+      if (posthogKey)
+        posthog.init(posthogKey, {
+          api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+          ...POSTHOG_CONFIG,
+        })
 
-      // The ESM `posthog-js` build keeps the singleton in an internal
-      // registry and never attaches it to `window` (unlike the script-tag
-      // snippet). Expose it so e2e can reach `window.posthog.featureFlags`
-      // to override flags, and for debugging in the console.
+        // The ESM `posthog-js` build keeps the singleton in an internal
+        // registry and never attaches it to `window` (unlike the script-tag
+        // snippet). Expose it so e2e can reach `window.posthog.featureFlags`
+        // to override flags, and for debugging in the console.
       ;(window as Window & { posthog?: typeof posthog }).posthog = posthog
     } catch (error) {
       console.warn('[posthog] init failed', error)
@@ -109,6 +169,19 @@ export const PHProvider = ({
       console.warn('[intercom] init failed', error)
     }
 
+    const runCaptures = new Map<
+      string,
+      ReturnType<typeof startAnalyticsOperation>
+    >()
+    const unsubscribeRunIdentity = transactionManager.onRunTelemetryEvent(
+      ({ runId, event, status }) => {
+        if (event.sequence === 1) {
+          if (runCaptures.size >= 256) runCaptures.clear()
+          runCaptures.set(runId, startAnalyticsOperation())
+        }
+        if (status === 'success') runCaptures.delete(runId)
+      },
+    )
     const unsubscribeFailed = transactionManager.onFailedRunTelemetry(
       (payload) => {
         if (import.meta.env.DEV) {
@@ -130,30 +203,20 @@ export const PHProvider = ({
         }
 
         try {
-          track('tm:failed_run', {
-            tm_payload: payload,
-            tm_run_id: payload.run.runId,
-            tm_tx_id: payload.run.txId,
-            tm_status: payload.run.status,
-            tm_failure_stage: payload.summary.failureStage,
-            tm_state_final: payload.summary.finalState,
-            tm_chain_id: payload.summary.chainId,
-            tm_intent_type: payload.summary.intentType,
-            tm_request_type: payload.summary.requestType,
-            tm_signer_type: payload.summary.signerType,
-            tm_error_name: payload.summary.finalErrorName,
-            tm_error_cause_name: payload.summary.finalError?.cause?.name,
-            tm_hash: payload.summary.hash,
-            tm_userop_hash: payload.summary.userOpHash,
-            tm_retry_count: payload.summary.attemptCount,
-            tm_event_count: payload.truncation.totalEvents,
-            tm_truncated: payload.truncation.truncated,
-            tm_dropped_events: payload.truncation.droppedEvents,
-            source_app: 'manager',
-            build_env: import.meta.env.MODE,
-          })
+          runCaptures
+            .get(payload.run.runId)
+            ?.capture('transaction:execution_end', {
+              operation_id: payload.run.runId,
+              outcome:
+                payload.run.status === 'cancelled' ? 'cancelled' : 'failure',
+              failure_stage: payload.summary.failureStage,
+              chain_id: payload.summary.chainId,
+              execution_method: payload.summary.requestType,
+              attempt_count: payload.summary.attemptCount,
+            })
+          runCaptures.delete(payload.run.runId)
         } catch (error) {
-          console.warn('Failed to capture tm:failed_run telemetry', error)
+          console.warn('Failed to capture transaction telemetry', error)
         }
       },
     )
@@ -174,6 +237,7 @@ export const PHProvider = ({
       : () => {}
 
     return () => {
+      unsubscribeRunIdentity()
       unsubscribeFailed()
       unsubscribeLive()
     }

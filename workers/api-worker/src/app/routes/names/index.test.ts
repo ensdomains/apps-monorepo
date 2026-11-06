@@ -1,4 +1,4 @@
-import { ok } from 'neverthrow'
+import { err, ok } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const selectResults: Array<Array<{ value: number }>> = []
@@ -80,6 +80,19 @@ describe('GET /names/:name/stats', () => {
       env,
       'vitalik.eth',
     )
+  })
+
+  it('reports unavailable analytics statistics instead of a genuine zero', async () => {
+    selectResults.push([{ value: 425 }])
+    mocks.getAvailable.mockResolvedValue(true)
+    mocks.getUniqueSearchesLast30dFromPostHog.mockResolvedValue(
+      err(new Error('offline')),
+    )
+    const res = await namesApp.request('/names/vitalik.eth/stats', {}, env)
+    expect(res.status).toBe(503)
+    expect(await res.json()).toEqual({
+      error: 'Name search statistics unavailable',
+    })
   })
 
   it('returns 404 for registered names and does not call PostHog', async () => {

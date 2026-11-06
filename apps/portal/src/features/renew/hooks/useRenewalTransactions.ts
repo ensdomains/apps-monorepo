@@ -10,7 +10,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
@@ -33,6 +33,7 @@ import {
   buildRenewIntent,
   type RenewParams,
 } from '../utils/buildRenewIntent'
+import { createRenewalAnalytics } from '../utils/renewalAnalytics'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
 import { getIsRenewableQueryOptions } from './useIsRenewable'
@@ -442,6 +443,9 @@ export const useRenewalTransactions = ({
   // abandoned run would otherwise leave its finished actors behind.
   const attempt = useFlowAttempt()
   const [flow, setFlow] = useState<RenewalFlow | null>(null)
+  const analytics = useRef<ReturnType<typeof createRenewalAnalytics> | null>(
+    null,
+  )
   const canBatchAtomically = useAtomicBatchSupport(ensChain.id)
   const hasDeclinedUpgrade = useHasDeclinedAtomicUpgrade(ensChain.id)
 
@@ -672,6 +676,7 @@ export const useRenewalTransactions = ({
   // Both starters name the attempt themselves, so a caller cannot open the
   // modal on unscoped step ids by forgetting to call `attempt.start`.
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
+    analytics.current = createRenewalAnalytics(1, ensChain.id)
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
     ).symbol
@@ -694,6 +699,10 @@ export const useRenewalTransactions = ({
   }
 
   const startMultiFlow = (flowConfig: StartMultiFlowConfig) => {
+    analytics.current = createRenewalAnalytics(
+      flowConfig.renewals.length,
+      ensChain.id,
+    )
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
     ).symbol
@@ -727,7 +736,7 @@ export const useRenewalTransactions = ({
   }
 
   return {
-    transactions,
+    transactions: analytics.current?.decorate(transactions) ?? transactions,
     startFlow,
     startMultiFlow,
     clearIncompatibleRenewalState,

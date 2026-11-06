@@ -21,6 +21,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import {
   assertCalldataResourceId,
   canonicalResourceId,
@@ -120,6 +121,7 @@ export async function revokeRoles(
     throw new Error('No roles found to revoke')
   }
 
+  const operation = startAnalyticsOperation()
   const intent = prepareRevokeRolesTransaction(params)
 
   const txId = transactionManager.startTransaction(intent, signer, {
@@ -130,6 +132,10 @@ export async function revokeRoles(
   })
 
   const result = await waitForTransaction(txId)
+  operation.capture('roles:permissions_update', {
+    chain_id: chainId,
+    action: 'revoke',
+  })
 
   return {
     txId,

@@ -2,6 +2,7 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useState } from 'react'
 import { useConfig } from 'wagmi'
 import type { Actor } from 'xstate'
+import { useAnalyticsFlowReady } from '@/lib/posthog/useAnalyticsFlowReady'
 import { publicClient } from '@/lib/wagmi'
 import { createUpgradeReadCoordinator } from '../service/upgradeReadCoordinator'
 import {
@@ -26,6 +27,8 @@ export const MigrationUiProvider = ({
   const uiActor = useActorRef(migrationUiMachine, {
     input: { wagmiConfig },
   })
+
+  useAnalyticsFlowReady(uiActor)
 
   useEffect(() => {
     const subscription = uiActor.subscribe({

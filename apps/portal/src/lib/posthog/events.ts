@@ -1,46 +1,33 @@
-// Must import from the same module path as provider.tsx — mixing the default
-// `posthog-js` build with `module.full.no-external` would bundle PostHog twice
-// and run two separate SDK instances. See provider.tsx for why we use this build.
+import { createAnalyticsTracker } from '@ens-apps/utils/posthog/createAnalyticsTracker'
+import { getConnection } from '@wagmi/core/actions'
 import posthog, {
   type CaptureOptions,
 } from 'posthog-js/dist/module.full.no-external'
+import { wagmiConfig } from '@/lib/wagmi'
 
-export type PostHogEvents = {
-  'wallet:connect': {
-    wallet_address: string
-    chain_id: number
-    wallet_connector: string
-  }
+export type { PostHogEvents } from '@ens-apps/utils/posthog/eventContracts'
 
-  'wallet:disconnect': undefined
-
-  'intercom:booted': undefined
-
-  'dnssec_debug:opened': {
-    name: string
-    source: 'sidebar' | 'import' | 'sync' | 'direct'
-  }
-
-  'dnssec_debug:result': {
-    name: string
-    verdict: string
-    failed_step: string | null
+export const getConnectedWalletAddress = (): string | null | undefined => {
+  try {
+    const connection = getConnection(wagmiConfig)
+    if (connection.status === 'disconnected') return null
+    if (connection.status !== 'connected') return undefined
+    return connection.address
+  } catch {
+    return undefined
   }
 }
 
-export type PostHogEvent = keyof PostHogEvents
-
-export function track<N extends PostHogEvent>(
-  name: N,
-  ...args: PostHogEvents[N] extends undefined ? [] : [PostHogEvents[N]]
-): void {
-  posthog.capture(name, args[0])
-}
-
-export function trackWithOptions<N extends PostHogEvent>(
-  name: N,
-  args: PostHogEvents[N],
-  options: CaptureOptions,
-): void {
-  posthog.capture(name, args, options)
-}
+export const { track, trackWithOptions, startAnalyticsOperation } =
+  createAnalyticsTracker<CaptureOptions>({
+    sourceApp: 'explorer',
+    client: posthog,
+    getConnectedWalletAddress,
+    environment: () => ({
+      environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
+      isDevelopment: import.meta.env.DEV,
+      isDebugEnabled: import.meta.env.VITE_PUBLIC_ANALYTICS_DEBUG === 'true',
+      productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
+      stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
+    }),
+  })

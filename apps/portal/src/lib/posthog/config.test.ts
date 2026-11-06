@@ -9,6 +9,8 @@ import {
   setAnalyticsConsent,
 } from './config'
 
+vi.mock('./events', () => ({ getConnectedWalletAddress: () => null }))
+
 const WALLET = '0x1111111111111111111111111111111111111111'
 
 // A client that records its requests instead of sending them.
@@ -53,6 +55,9 @@ const flagBodies = (requests: Requests) =>
 
 describe('PostHog consent', () => {
   beforeEach(async () => {
+    vi.stubEnv('VITE_PUBLIC_ANALYTICS_ENV', 'staging')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_STAGING_KEY', 'staging-test-key')
+    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', 'true')
     await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
     vi.useFakeTimers()
     localStorage.clear()
@@ -62,6 +67,7 @@ describe('PostHog consent', () => {
     vi.clearAllTimers()
     vi.useRealTimers()
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it.each([false, true])(

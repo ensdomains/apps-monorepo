@@ -25,6 +25,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useDebouncedValue } from '@/hooks/useDebounce'
+import { track } from '@/lib/posthog/events'
 import { cn } from '@/lib/utils'
 import { useSearchResults } from '../hooks/useSearchResults'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
@@ -65,12 +66,20 @@ export const HomeSearchInput = ({
 
   const navigateToAddress = useCallback(
     (address: string) => {
+      track('name_search:result_select', {
+        source: 'search',
+        result_type: 'address',
+      })
       navigate({ to: '/addr/$addr', params: { addr: address } })
     },
     [navigate],
   )
   const navigateToName = useCallback(
     (name: string) => {
+      track('name_search:result_select', {
+        source: 'search',
+        result_type: 'name',
+      })
       navigate({ to: '/$name', params: { name } })
     },
     [navigate],
@@ -78,6 +87,10 @@ export const HomeSearchInput = ({
   const navigateToResolver = useCallback(
     (address: string) => {
       if (!isAddress(address, { strict: false })) return
+      track('name_search:result_select', {
+        source: 'search',
+        result_type: 'resolver',
+      })
       navigate({ to: '/resolver/$address', params: { address } })
     },
     [navigate],
@@ -85,6 +98,10 @@ export const HomeSearchInput = ({
 
   const navigateToRegister = useCallback(
     (name: string) => {
+      track('name_search:result_select', {
+        source: 'search',
+        result_type: 'available',
+      })
       const nameWithEth = name.includes('.') ? name : `${name}.eth`
       navigate({ to: '/register', search: { name: nameWithEth } })
     },

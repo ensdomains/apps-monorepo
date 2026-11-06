@@ -39,6 +39,7 @@ import type { Transaction } from '@/features/transaction-manager/types'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { ensChain } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
+import { createRegistrationAnalytics } from '../utils/registrationAnalytics'
 import { createRegistrationPersistenceAdapter } from '../utils/registrationPersistence'
 import type { ResumableRun } from './useRegistrationResume'
 
@@ -267,6 +268,16 @@ export const useRegistrationTransactions = ({
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
   })
+  const analytics = useRef<ReturnType<
+    typeof createRegistrationAnalytics
+  > | null>(null)
+  useEffect(() => {
+    const subscription = actor.subscribe((snapshot) =>
+      analytics.current?.observe(snapshot),
+    )
+    return () => subscription.unsubscribe()
+  }, [actor])
+
   // The machine stops bundling once the user declines the account upgrade; the
   // steps follow it.
   const isMachineBundling = useSelector(
@@ -416,6 +427,7 @@ export const useRegistrationTransactions = ({
       )
         transactionManager.cancelTransaction(id)
     }
+    analytics.current?.retry()
     actor.send({ type: 'RETRY' })
   }, [actor])
 
@@ -447,6 +459,7 @@ export const useRegistrationTransactions = ({
     }
     setResumed(null)
 
+    const pendingAnalytics = createRegistrationAnalytics(chainId)
     const walletClient = await getWalletClient(config, {
       account: connection.address,
     })
@@ -477,6 +490,8 @@ export const useRegistrationTransactions = ({
 
     const signer = createEOASigner(walletClient)
 
+    analytics.current = pendingAnalytics
+    analytics.current.start(false)
     actor.send({
       type: 'START_REGISTRATION',
       referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
@@ -694,6 +709,8 @@ export const useRegistrationTransactions = ({
       setApprovalPlanned(approvalNeeded)
       setIsSetupBundled(canBatchAtomically)
 
+      analytics.current = createRegistrationAnalytics(chainId)
+      analytics.current.start(true)
       actor.send({
         type: 'RESUME',
         stage: record.stage,

@@ -4,6 +4,7 @@ import {
   ENSV2_LEARN_MORE_URL,
   MANAGER_UPGRADE_URL,
 } from '@/lib/constants/domain'
+import { track } from '@/lib/posthog/events'
 
 /**
  * Learn more plus Upgrade to v2, the pair every migration prompt offers.
@@ -34,7 +35,14 @@ export const UpgradeActions = ({
       </Button>
     )}
     <Button className="rounded-xs" asChild variant="entity" size="xs">
-      <a href={MANAGER_UPGRADE_URL} target="_blank" rel="noopener noreferrer">
+      <a
+        href={MANAGER_UPGRADE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() =>
+          track('migration:manager_open', { is_wrapped: isWrapped })
+        }
+      >
         <ArrowUpCircle className="size-4 shrink-0" />
         {isWrapped ? 'Unwrap and upgrade' : 'Upgrade to v2'}
       </a>

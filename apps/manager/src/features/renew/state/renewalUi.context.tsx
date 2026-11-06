@@ -2,6 +2,7 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
+import { useAnalyticsFlowReady } from '@/lib/posthog/useAnalyticsFlowReady'
 import { useHcaFundingPrompt } from '@/lib/smart-account'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { renewalUiMachine } from './renewalUi.machine'
@@ -50,6 +51,7 @@ export const RenewalUiProvider = ({
       },
     },
   })
+  useAnalyticsFlowReady(uiActor)
   const previousLabel = useRef(label)
 
   useEffect(() => {

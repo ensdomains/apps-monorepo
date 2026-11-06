@@ -1,6 +1,7 @@
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import type { InferRequestType } from 'hono/client'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { backendClient } from '@/utils/backend-client'
 
 // Queries
@@ -25,6 +26,8 @@ export const updatePreferenceMutationOptions = mutationOptions({
       typeof backendClient.notifications.preferences.$patch
     >['json'],
   ) => {
+    const analytics = startAnalyticsOperation()
+    const operationId = crypto.randomUUID()
     const response = await backendClient.notifications.preferences.$patch({
       json: request,
     })
@@ -36,7 +39,11 @@ export const updatePreferenceMutationOptions = mutationOptions({
       )
     }
 
-    return response.json()
+    const result = await response.json()
+    analytics.capture('notifications:preferences_update', {
+      operation_id: operationId,
+    })
+    return result
   },
   meta: {
     invalidates: [

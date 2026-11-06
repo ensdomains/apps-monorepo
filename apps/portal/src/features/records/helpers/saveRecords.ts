@@ -25,6 +25,7 @@ import {
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 import { getIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { transformPendingChangesToSetRecords } from './transformPendingChanges'
 
@@ -167,6 +168,7 @@ export async function saveRecords(
 ): Promise<SaveRecordsResult> {
   const { name, publicClient, signer, chainId, id } = params
 
+  const operation = startAnalyticsOperation()
   const intent = await prepareSaveRecordsTransaction(params)
 
   const txId = transactionManager.startTransaction(intent, signer, {
@@ -177,6 +179,13 @@ export async function saveRecords(
   })
 
   const result = await waitForTransaction(txId)
+  operation.capture('profile:records_update', {
+    chain_id: chainId,
+    record_count:
+      params.pendingChanges.newRecords.length +
+      params.pendingChanges.editedValues.size +
+      params.pendingChanges.deletedIds.size,
+  })
 
   return {
     txId,

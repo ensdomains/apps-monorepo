@@ -8,6 +8,9 @@ import {
   resetKeepingConsent,
   setAnalyticsConsent,
 } from './config'
+import { getConnectedWalletAddress } from './events'
+
+vi.mock('./events', () => ({ getConnectedWalletAddress: vi.fn(() => null) }))
 
 const WALLET = '0x1111111111111111111111111111111111111111'
 
@@ -53,6 +56,10 @@ const flagBodies = (requests: Requests) =>
 
 describe('PostHog consent', () => {
   beforeEach(async () => {
+    vi.mocked(getConnectedWalletAddress).mockReturnValue(null)
+    vi.stubEnv('VITE_PUBLIC_ANALYTICS_ENV', 'staging')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_STAGING_KEY', 'staging-test-key')
+    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', 'true')
     await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
     vi.useFakeTimers()
     localStorage.clear()
@@ -62,6 +69,7 @@ describe('PostHog consent', () => {
     vi.clearAllTimers()
     vi.useRealTimers()
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it.each([false, true])(
@@ -97,6 +105,41 @@ describe('PostHog consent', () => {
     expect(
       flagBodies(requests).every((body) => body?.distinct_id !== WALLET),
     ).toBe(true)
+  })
+
+  it('filters native page payloads and drops ordinary autocapture before transport', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    history.pushState({}, '', '/alice.eth/records?signature=private#secret')
+    const pageview = client.capture('$pageview')
+    expect(pageview?.properties.$current_url).toBe(
+      'http://localhost:3000/:value/records',
+    )
+    expect(pageview?.properties.$title).toBeUndefined()
+    expect(
+      client.capture('$autocapture', { $el_text: 'private' }),
+    ).toBeUndefined()
+  })
+
+  it('keeps feature flags working while local analytics is disabled despite consent', async () => {
+    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', '')
+    const { client, requests } = initClient()
+    setAnalyticsConsent(client, true)
+    client.capture('wallet:connect')
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(client.isFeatureEnabled('test-flag')).toBe(true)
+    expect(onlyFlagRequests(requests)).toBe(true)
+  })
+
+  it('drops native events during the wallet identity synchronization gap', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    vi.mocked(getConnectedWalletAddress).mockReturnValue(WALLET)
+    expect(client.capture('$pageview')).toBeUndefined()
+    client.identify(WALLET)
+    expect(client.capture('$pageview')?.properties.distinct_id).toBe(WALLET)
+    vi.mocked(getConnectedWalletAddress).mockReturnValue(undefined)
+    expect(client.capture('$pageleave')).toBeUndefined()
   })
 
   it('keeps the answer in the cookie the ens.domains apps share', () => {

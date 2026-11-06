@@ -1,89 +1,69 @@
 import {
+  applyAnalyticsConsent,
+  canCaptureAnalytics,
+  SHARED_POSTHOG_CONFIG,
+  sanitizeAutomaticProperties,
+  writeAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConfiguration'
+import {
   ANALYTICS_CONSENT_COOKIE,
-  type AnalyticsConsent,
-  hasAnalyticsConsent,
   notifyAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
-import type {
-  PostHog,
-  PostHogConfig,
-} from 'posthog-js/dist/module.full.no-external'
+import { hasMatchingWalletIdentity } from '@ens-apps/utils/posthog/createAnalyticsTracker'
+import type { PostHogConfig } from 'posthog-js/dist/module.full.no-external'
+import { getConnectedWalletAddress } from './events'
 
-// `loaded` gets the SDK's narrower PostHogInterface, so take only what's used.
-type ConsentTarget = Pick<
-  PostHog,
-  | 'get_explicit_consent_status'
-  | 'get_property'
-  | 'opt_in_capturing'
-  | 'opt_out_capturing'
-  | 'reset'
-  | 'set_config'
-> & { readonly __loaded?: boolean }
+export {
+  applyAnalyticsConsent,
+  resetKeepingConsent,
+  setAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConfiguration'
 
-// Writes an answer to PostHog's consent cookie.
-const writeConsent = (client: ConsentTarget, consent: AnalyticsConsent) => {
-  if (consent === 'granted')
-    client.opt_in_capturing({ captureEventName: false })
-  if (consent === 'denied') client.opt_out_capturing()
-}
-
-/** Records the visitor's answer. Declining also forgets their identity. */
-export const setAnalyticsConsent = (
-  client: ConsentTarget,
-  granted: boolean,
-): void => {
-  if (!granted) client.reset()
-  writeConsent(client, granted ? 'granted' : 'denied')
-  notifyAnalyticsConsent()
-}
-
-/** Forgets the visitor's identity. A plain `reset()` deletes their answer too. */
-export const resetKeepingConsent = (client: ConsentTarget): void => {
-  if (!client.__loaded) return
-  const consent = client.get_explicit_consent_status()
-  client.reset()
-  writeConsent(client, consent)
-}
-
-/**
- * Lines PostHog up with its answer. Without consent it keeps no wallet
- * identity, and session recording and surveys stay off.
- */
-export const applyAnalyticsConsent = (client: ConsentTarget): void => {
-  const isGranted = hasAnalyticsConsent(client)
-  if (!isGranted && client.get_property('$user_state') === 'identified')
-    resetKeepingConsent(client)
-  client.set_config({
-    disable_session_recording: !isGranted || import.meta.env.DEV,
-    disable_surveys: !isGranted,
-  })
-}
-
-// Capture stays opted out until the visitor accepts. Feature flags work
-// either way.
 export const POSTHOG_CONFIG = {
-  capture_pageview: 'history_change',
-  // Turned on with consent by applyAnalyticsConsent.
-  disable_session_recording: true,
-  disable_surveys: true,
-  // Neither app uses these.
-  disable_product_tours: true,
-  disable_web_experiments: true,
-  disable_conversations: true,
-  defaults: '2025-11-30',
-  person_profiles: 'identified_only',
-  opt_out_capturing_by_default: true,
-  // The answer lives in a cookie on the parent domain (cross_subdomain_cookie
-  // is on by default), so the Explorer and the Manager share one answer.
-  opt_out_capturing_persistence_type: 'cookie',
+  ...SHARED_POSTHOG_CONFIG,
+  autocapture: {
+    ...SHARED_POSTHOG_CONFIG.autocapture,
+    dom_event_allowlist: ['click'],
+  },
   consent_persistence_name: ANALYTICS_CONSENT_COOKIE,
+  before_send: (event) => {
+    if (!event) return null
+    const identity = event.properties.distinct_id
+    if (
+      typeof identity !== 'string' ||
+      !hasMatchingWalletIdentity(
+        getConnectedWalletAddress(),
+        identity,
+        event.event,
+      )
+    )
+      return null
+    const env = import.meta.env
+    if (
+      !canCaptureAnalytics({
+        environment: env.VITE_PUBLIC_ANALYTICS_ENV,
+        isDevelopment: env.DEV,
+        isDebugEnabled: env.VITE_PUBLIC_ANALYTICS_DEBUG === 'true',
+        stagingKey: env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
+        productionKey: env.VITE_PUBLIC_POSTHOG_KEY,
+      })
+    )
+      return null
+    if (event.event === '$autocapture' || event.event === '$exception')
+      return null
+    return {
+      ...event,
+      properties: {
+        ...sanitizeAutomaticProperties(event.properties),
+        source_app: 'manager',
+        environment: env.VITE_PUBLIC_ANALYTICS_ENV,
+        analytics_version: 1,
+      },
+    }
+  },
   loaded: (client) => {
-    // Runs before the first flag request, so a wallet identity kept without
-    // consent (such as one from before the banner) is gone before flags load.
     applyAnalyticsConsent(client)
-    // Writing the answer again renews its cookie, which Safari drops 7 days
-    // after it was written.
-    writeConsent(client, client.get_explicit_consent_status())
+    writeAnalyticsConsent(client, client.get_explicit_consent_status())
     notifyAnalyticsConsent()
   },
 } satisfies Partial<PostHogConfig>

@@ -23,6 +23,7 @@ import {
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { prepareSetV1ResolverTransaction } from '@/features/transfer/v1/writes'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import {
   assertCalldataResourceId,
   canonicalResourceId,
@@ -193,6 +194,7 @@ export const changeResolver = async ({
     throw new Error('Wallet client must have account and chain configured')
   }
 
+  const operation = startAnalyticsOperation()
   const txId = transactionManager.startTransaction(
     prepareSetResolverTransaction({
       name,
@@ -211,6 +213,10 @@ export const changeResolver = async ({
   )
 
   const result = await waitForTransaction(txId)
+  operation.capture('resolver:configuration_update', {
+    chain_id: chainId,
+    action: 'change',
+  })
 
   return {
     txId,

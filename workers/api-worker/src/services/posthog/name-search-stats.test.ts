@@ -99,7 +99,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
     ).resolves.toMatchObject({ value: 42 })
   })
 
-  it('returns zero when PostHog fails', async () => {
+  it('returns an error when PostHog fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
 
     await expect(
@@ -114,6 +114,8 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
         } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
-    ).resolves.toMatchObject({ value: 0 })
+    ).resolves.toMatchObject({
+      error: { name: 'POSTHOG_NAME_SEARCH_STATS_ERROR' },
+    })
   })
 })

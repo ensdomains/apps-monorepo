@@ -13,6 +13,7 @@ import {
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import type { WalletClientWithAccount } from '@/utils/types'
 
 interface WriteRequest {
@@ -78,6 +79,7 @@ export const setReverseResolution = async ({
 
   const walletWithAccount = walletClient as WalletClientWithAccount
 
+  const operation = startAnalyticsOperation()
   const intent = prepareSetReverseResolutionTransaction({
     request,
     from: walletWithAccount.account.address,
@@ -92,6 +94,7 @@ export const setReverseResolution = async ({
   })
 
   const result = await waitForTransaction(txId)
+  operation.capture('profile:primary_name_update', { chain_id: chainId })
 
   return {
     txId,

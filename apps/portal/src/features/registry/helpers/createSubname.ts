@@ -11,6 +11,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import type { Address, Hex, WalletClient } from 'viem'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import {
   type CreateSubnameWrite,
   prepareCreateSubnameTransaction,
@@ -57,6 +58,7 @@ export async function createSubname(
     expires,
   } = params
 
+  const operation = startAnalyticsOperation()
   const intent = prepareCreateSubnameTransaction({
     write,
     parentName,
@@ -74,6 +76,7 @@ export async function createSubname(
   })
 
   const result = await waitForTransaction(txId)
+  operation.capture('subname:name_create', { chain_id: chainId })
 
   return {
     txId,

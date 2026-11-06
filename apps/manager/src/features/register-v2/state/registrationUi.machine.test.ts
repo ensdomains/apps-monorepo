@@ -3,6 +3,7 @@ import type { Address } from 'viem'
 import { baseSepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
+import * as analyticsEvents from '@/lib/posthog/events'
 
 /**
  * Events the stubbed registration child accepts. `FORCE_*` are test-only
@@ -636,6 +637,40 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     })
     expect(actor.getSnapshot().context.confirmedData?.label).toBe('café')
     expect(getChild(actor).getSnapshot().context.primaryName).toBe('café.eth')
+    actor.stop()
+  })
+
+  it('counts verified registration once before optional primary setup fails', async () => {
+    const verification = deferred<string>()
+    startPrimaryNameForward.mockReturnValueOnce(verification.promise)
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount, { enabled: true }))
+    const analytics = actor.getSnapshot().context.analytics
+    const capture = vi.spyOn(analytics, 'capture')
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
+    await flush()
+    expect(capture).toHaveBeenCalledWith('registration:flow_complete', {
+      flow_id: analytics.flow_id,
+      item_count: 1,
+    })
+    expect(
+      capture.mock.calls.filter(
+        ([name]) => name === 'registration:flow_complete',
+      ),
+    ).toHaveLength(1)
+    verification.reject(new Error('Forward verification unavailable'))
+    await flush()
+    expect(
+      capture.mock.calls.filter(
+        ([name]) => name === 'registration:flow_complete',
+      ),
+    ).toHaveLength(1)
+    expect(capture).toHaveBeenCalledWith('registration:step_result', {
+      flow_id: analytics.flow_id,
+      step: 'post_registration',
+      outcome: 'failure',
+      is_retryable: false,
+    })
     actor.stop()
   })
 
@@ -1787,5 +1822,26 @@ describe('paying with ETH', () => {
     expect(actor.getSnapshot().matches({ pricing: 'tokens' })).toBe(true)
     expect(actor.getSnapshot().context.paymentAsset).toBe('eth')
     actor.stop()
+  })
+})
+
+describe('late analytics readiness', () => {
+  it('observes only the current pricing step once when analytics becomes ready', () => {
+    const capture = vi.fn<(...args: readonly unknown[]) => void>()
+    const operation = vi
+      .spyOn(analyticsEvents, 'startAnalyticsOperation')
+      .mockReturnValue({ capture })
+    const actor = startActorInTokens()
+    capture.mockClear()
+    actor.send({ type: 'analytics.ready', readyKey: 'late-ready' })
+    const flowId = actor.getSnapshot().context.analytics.flow_id
+    expect(capture.mock.calls).toEqual([
+      ['registration:flow_view', { flow_id: flowId }],
+      ['registration:step_view', { flow_id: flowId, step: 'payment' }],
+    ])
+    actor.send({ type: 'analytics.ready', readyKey: 'late-ready' })
+    expect(capture.mock.calls).toHaveLength(2)
+    actor.stop()
+    operation.mockRestore()
   })
 })

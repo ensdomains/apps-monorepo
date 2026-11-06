@@ -1,7 +1,12 @@
 import {
+  canCaptureAnalytics,
+  getAnalyticsProjectKey,
+} from '@ens-apps/utils/posthog/analyticsConfiguration'
+import {
   hasAnalyticsConsent,
   useAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
+import { getWalletIdentityAction } from '@ens-apps/utils/posthog/walletIdentity'
 import {
   boot as bootIntercom,
   getVisitorId,
@@ -26,7 +31,7 @@ import type { PostHog } from 'posthog-js'
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { type RefObject, useEffect, useRef } from 'react'
-import { useConnectionEffect } from 'wagmi'
+import { useConnection, useConnectionEffect } from 'wagmi'
 import {
   applyAnalyticsConsent,
   POSTHOG_CONFIG,
@@ -42,18 +47,31 @@ type ConnectedWallet = {
 
 // With consent the wallet becomes the analytics identity. Without it nothing
 // is sent: the Explorer's flags don't use the address.
-const identifyWallet = (wallet: ConnectedWallet) => {
-  if (!hasAnalyticsConsent(posthog)) return
-  posthog.identify(
-    wallet.address,
-    { address: wallet.address },
-    { initial_address: wallet.address },
-  )
-  posthog.register({
-    wallet_address: wallet.address,
-    chain_id: wallet.chainId,
-    wallet_connector: wallet.connector.name,
+const identifyWallet = (wallet: ConnectedWallet | null) => {
+  if (!posthog.__loaded) return
+  const action = getWalletIdentityAction({
+    isGranted:
+      hasAnalyticsConsent(posthog) &&
+      canCaptureAnalytics({
+        environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
+        isDevelopment: import.meta.env.DEV,
+        isDebugEnabled: import.meta.env.VITE_PUBLIC_ANALYTICS_DEBUG === 'true',
+        stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
+        productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
+      }),
+    isIdentified: posthog.get_property('$user_state') === 'identified',
+    distinctId: posthog.get_distinct_id(),
+    address: wallet?.address,
   })
+  if (action.type === 'reset' || action.type === 'replace')
+    resetKeepingConsent(posthog)
+  if (action.type === 'identify' || action.type === 'replace')
+    posthog.identify(action.address)
+  if (wallet && hasAnalyticsConsent(posthog))
+    posthog.register({
+      chain_id: wallet.chainId,
+      wallet_connector: wallet.connector.name,
+    })
 }
 
 // Links support chats to analytics, only for visitors who accepted.
@@ -78,9 +96,13 @@ const useApplyAnalyticsConsent = (
   const consent = useAnalyticsConsent(posthog)
   useEffect(() => {
     if (!consent) return
-    applyAnalyticsConsent(posthog)
-    if (wallet.current) identifyWallet(wallet.current)
-    linkIntercomToAnalytics()
+    try {
+      applyAnalyticsConsent(posthog)
+      identifyWallet(wallet.current)
+      linkIntercomToAnalytics()
+    } catch (error) {
+      console.warn('[posthog] consent synchronization failed', error)
+    }
   }, [consent, wallet])
 }
 
@@ -90,6 +112,34 @@ export const PHProvider = ({
   children: React.ReactNode
 }): React.ReactNode => {
   const wallet = useRef<ConnectedWallet | null>(null)
+  const connection = useConnection()
+
+  useEffect(() => {
+    if (
+      connection.status !== 'connected' &&
+      connection.status !== 'disconnected'
+    )
+      return
+    const connected =
+      connection.address && connection.chainId && connection.connector
+        ? {
+            address: connection.address,
+            chainId: connection.chainId,
+            connector: connection.connector,
+          }
+        : null
+    wallet.current = connected
+    try {
+      identifyWallet(connected)
+    } catch (error) {
+      console.warn('[posthog] wallet synchronization failed', error)
+    }
+  }, [
+    connection.address,
+    connection.chainId,
+    connection.connector,
+    connection.status,
+  ])
 
   useEffect(() => {
     // Flag evaluation and support must not crash the app if either SDK fails.
@@ -97,7 +147,11 @@ export const PHProvider = ({
       // PostHog is optional: deployments without a key (local dev, e2e)
       // skip flag initialization for an undefined project.
       // Intercom still boots either way.
-      const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY
+      const posthogKey = getAnalyticsProjectKey({
+        environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
+        stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
+        productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
+      })
       if (posthogKey) {
         posthog.init(posthogKey, {
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,

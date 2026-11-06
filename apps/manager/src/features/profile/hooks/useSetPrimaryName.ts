@@ -7,6 +7,7 @@ import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import type { Address, Hex, PublicClient } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import {
   useHcaFundingPrompt,
   useSmartAccountContext,
@@ -79,6 +80,8 @@ export function useSetPrimaryName(
   const mutation = useMutation({
     onSuccess: options?.onSuccess,
     mutationFn: async ({ name, owner }: SetPrimaryNameArgs) => {
+      const analytics = startAnalyticsOperation()
+      const operationId = crypto.randomUUID()
       if (!owner) {
         throw new Error('Cannot set primary name - ENS owner is not available.')
       }
@@ -108,6 +111,9 @@ export function useSetPrimaryName(
           onTxId: setTxId,
           confirmFunding: requestFundingApproval,
         })
+        analytics.capture('profile:primary_name_update', {
+          operation_id: operationId,
+        })
         return
       }
 
@@ -126,6 +132,9 @@ export function useSetPrimaryName(
         chainId,
         connector,
         onTxId: setTxId,
+      })
+      analytics.capture('profile:primary_name_update', {
+        operation_id: operationId,
       })
     },
   })

@@ -34,6 +34,7 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
+import { type AnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -127,6 +128,7 @@ const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
 export const renewalUiMachine = setup({
   types: {
     context: {} as {
+      readonly analytics: AnalyticsFlow
       currentExpiry: bigint
       protocol: RenewalProtocol
       renewerAddress: Address
@@ -156,6 +158,7 @@ export const renewalUiMachine = setup({
       approvalFallback?: HcaFundingApprovalCapability
     },
     events: {} as
+      | { readonly type: 'analytics.ready'; readonly readyKey: string }
       | { type: 'pricing.step.next' }
       | { type: 'pricing.step.previous' }
       | { type: 'pricing.dialog.dismiss' }
@@ -261,6 +264,9 @@ export const renewalUiMachine = setup({
     ),
   },
   guards: {
+    hasNewAnalyticsIdentity: ({ context, event }) =>
+      event.type === 'analytics.ready' &&
+      context.analytics.readyKey !== event.readyKey,
     // The registrar already has enough allowance from the paying EOA, so no
     // approval is needed — go straight to renew.
     hasSufficientAllowance: ({ context }, params: { allowance: bigint }) =>
@@ -277,6 +283,84 @@ export const renewalUiMachine = setup({
       params.expiry !== null && params.expiry > context.currentExpiry,
   },
   actions: {
+    bindReadyAnalytics: assign({
+      analytics: ({ context, event }) => ({
+        ...createAnalyticsFlow(context.analytics.flow_id),
+        readyKey:
+          event.type === 'analytics.ready'
+            ? event.readyKey
+            : context.analytics.readyKey,
+      }),
+    }),
+    resetAnalytics: assign({ analytics: () => createAnalyticsFlow() }),
+    analyticsFlowView: ({ context }) =>
+      context.analytics.capture('renewal:flow_view', {
+        flow_id: context.analytics.flow_id,
+      }),
+    analyticsStart: ({ context }) =>
+      context.analytics.capture('renewal:flow_start', {
+        flow_id: context.analytics.flow_id,
+        registration_method:
+          context.submissionData?.signer.type === 'rhinestone' ? 'hca' : 'eoa',
+      }),
+    analyticsDuration: ({ context }) =>
+      context.analytics.capture('renewal:step_view', {
+        flow_id: context.analytics.flow_id,
+        step: 'duration',
+      }),
+    analyticsPayment: ({ context }) =>
+      context.analytics.capture('renewal:step_view', {
+        flow_id: context.analytics.flow_id,
+        step: 'payment',
+      }),
+    analyticsExecution: ({ context }) =>
+      context.analytics.capture('renewal:step_view', {
+        flow_id: context.analytics.flow_id,
+        step: 'execution',
+      }),
+    analyticsApproval: ({ context }) =>
+      context.analytics.capture('renewal:step_view', {
+        flow_id: context.analytics.flow_id,
+        step: 'approval',
+      }),
+    analyticsVerification: ({ context }) =>
+      context.analytics.capture('renewal:step_view', {
+        flow_id: context.analytics.flow_id,
+        step: 'verification',
+      }),
+    analyticsPaymentSelect: ({ context, event }) => {
+      if (
+        !(
+          event.type === 'pricing.token.select' ||
+          event.type === 'pricing.fundingSource.select' ||
+          event.type === 'pricing.paymentAsset.select'
+        )
+      )
+        return
+      if (event.origin === 'fallback') return
+      context.analytics.capture('renewal:payment_option_select', {
+        flow_id: context.analytics.flow_id,
+        payment_asset: context.paymentAsset,
+        funding_source:
+          context.fundingSourceChainId === undefined ? 'wallet' : 'l2',
+      })
+    },
+    analyticsComplete: ({ context }) =>
+      context.analytics.capture('renewal:flow_complete', {
+        flow_id: context.analytics.flow_id,
+        item_count: 1,
+      }),
+    analyticsFailure: ({ context }) =>
+      context.analytics.capture('renewal:step_result', {
+        flow_id: context.analytics.flow_id,
+        step: 'execution',
+        outcome: 'failure',
+        is_retryable: true,
+      }),
+    analyticsRetry: ({ context }) =>
+      context.analytics.capture('renewal:flow_retry', {
+        flow_id: context.analytics.flow_id,
+      }),
     setDuration: assign({
       duration: ({ event, context }) =>
         event.type === 'pricing.duration.set'
@@ -365,6 +449,8 @@ export const renewalUiMachine = setup({
       lastErrorMessage: () => undefined,
     }),
     startRenewal: assign({
+      analytics: ({ context }) =>
+        createAnalyticsFlow(context.analytics.flow_id),
       lastErrorMessage: () => undefined,
       approvalTxId: () => undefined,
       renewalTxId: () => undefined,
@@ -412,6 +498,7 @@ export const renewalUiMachine = setup({
 }).createMachine({
   id: 'renewalUi',
   context: ({ input }) => ({
+    analytics: createAnalyticsFlow(),
     currentExpiry: input.currentExpiry,
     protocol: input.protocol,
     renewerAddress: getRenewerAddress(input.protocol),
@@ -427,12 +514,22 @@ export const renewalUiMachine = setup({
     approvalFallback: input.approvalFallback,
   }),
   initial: 'pricing',
+  entry: 'analyticsFlowView',
   states: {
     pricing: {
       initial: 'duration',
       states: {
         duration: {
+          entry: 'analyticsDuration',
           on: {
+            'analytics.ready': {
+              guard: 'hasNewAnalyticsIdentity',
+              actions: [
+                'bindReadyAnalytics',
+                'analyticsFlowView',
+                'analyticsDuration',
+              ],
+            },
             'pricing.duration.set': {
               actions: 'setDuration',
             },
@@ -443,19 +540,28 @@ export const renewalUiMachine = setup({
         },
         // One confirmation: picking the coin and starting the renewal happen here.
         tokens: {
+          entry: 'analyticsPayment',
           on: {
+            'analytics.ready': {
+              guard: 'hasNewAnalyticsIdentity',
+              actions: [
+                'bindReadyAnalytics',
+                'analyticsFlowView',
+                'analyticsPayment',
+              ],
+            },
             'pricing.step.previous': {
               target: 'duration',
               actions: 'clearPaymentPick',
             },
             'pricing.token.select': {
-              actions: 'setToken',
+              actions: ['setToken', 'analyticsPaymentSelect'],
             },
             'pricing.fundingSource.select': {
-              actions: 'setFundingSource',
+              actions: ['setFundingSource', 'analyticsPaymentSelect'],
             },
             'pricing.paymentAsset.select': {
-              actions: 'setPaymentAsset',
+              actions: ['setPaymentAsset', 'analyticsPaymentSelect'],
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
@@ -467,7 +573,11 @@ export const renewalUiMachine = setup({
                 // the account itself.
                 guard: 'startsHcaRenewal',
                 target: '#renewalUi.submittingHcaRenewal',
-                actions: 'startRenewal',
+                actions: [
+                  'startRenewal',
+                  'analyticsStart',
+                  'analyticsExecution',
+                ],
               },
               {
                 // Only the account can be paid from an L2 or with ETH, so a
@@ -476,7 +586,11 @@ export const renewalUiMachine = setup({
                   event.l2Funding === undefined &&
                   event.ethFunding === undefined,
                 target: '#renewalUi.checkingAllowance',
-                actions: 'startRenewal',
+                actions: [
+                  'startRenewal',
+                  'analyticsStart',
+                  'analyticsExecution',
+                ],
               },
             ],
           },
@@ -601,6 +715,7 @@ export const renewalUiMachine = setup({
     // Read the connected EOA's current allowance to the registrar. This is the
     // EOA fallback route: the EOA is `msg.sender` and pays the price itself.
     checkingAllowance: {
+      entry: 'analyticsApproval',
       tags: 'renewing',
       invoke: {
         src: 'readPaymentTokenAllowance',
@@ -727,6 +842,7 @@ export const renewalUiMachine = setup({
       },
     },
     waitingForRenewal: {
+      entry: 'analyticsVerification',
       tags: 'renewing',
       invoke: {
         src: 'pollTransactionStatus',
@@ -785,12 +901,14 @@ export const renewalUiMachine = setup({
         },
       },
     },
-    success: {},
+    success: { entry: 'analyticsComplete' },
     failure: {
+      entry: 'analyticsFailure',
       on: {
         retry: {
           target: 'checkingRenewed',
           actions: [
+            'analyticsRetry',
             'clearFailure',
             assign({
               approvalTxId: () => undefined,
@@ -808,7 +926,7 @@ export const renewalUiMachine = setup({
   on: {
     'label.changed': {
       target: '.pricing',
-      actions: ['clearFailure', 'clearSubmission'],
+      actions: ['resetAnalytics', 'clearFailure', 'clearSubmission'],
     },
   },
 })

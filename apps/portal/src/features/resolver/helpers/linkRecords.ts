@@ -16,6 +16,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 
 /** The record id that unlinks a name; it then reads the resolver's default record. */
 const UNLINKED_RECORD_ID = 0n
@@ -75,6 +76,7 @@ export const linkToNode = async (
 ): Promise<LinkRecordsResult> => {
   const { sourceName, targetName, publicClient, signer, chainId, id } = params
 
+  const operation = startAnalyticsOperation()
   const txId = transactionManager.startTransaction(
     prepareLinkToNodeTransaction(params),
     signer,
@@ -87,6 +89,10 @@ export const linkToNode = async (
   )
 
   const result = await waitForTransaction(txId)
+  operation.capture('resolver:configuration_update', {
+    chain_id: chainId,
+    action: 'link',
+  })
   return { txId, hash: result.hash }
 }
 
@@ -140,6 +146,7 @@ export const unlink = async (
 ): Promise<LinkRecordsResult> => {
   const { sourceName, publicClient, signer, chainId, id } = params
 
+  const operation = startAnalyticsOperation()
   const txId = transactionManager.startTransaction(
     prepareUnlinkTransaction(params),
     signer,
@@ -147,5 +154,9 @@ export const unlink = async (
   )
 
   const result = await waitForTransaction(txId)
+  operation.capture('resolver:configuration_update', {
+    chain_id: chainId,
+    action: 'unlink',
+  })
   return { txId, hash: result.hash }
 }

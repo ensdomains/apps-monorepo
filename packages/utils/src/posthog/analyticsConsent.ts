@@ -17,10 +17,17 @@ type ConsentClient = {
 export const hasAnalyticsConsent = (client: ConsentClient): boolean =>
   client.__loaded === true && client.get_explicit_consent_status() === 'granted'
 
+let consentRevision = 0
+export const getAnalyticsConsentRevision = (): number => consentRevision
+export const invalidateAnalyticsOperations = (): void => {
+  consentRevision += 1
+}
+
 const listeners = new Set<() => void>()
 
 /** Re-renders `useAnalyticsConsent` once PostHog loads or its answer changes. */
 export const notifyAnalyticsConsent = (): void => {
+  invalidateAnalyticsOperations()
   for (const listener of listeners) listener()
 }
 

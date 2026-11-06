@@ -25,6 +25,7 @@ import {
   type MigrationProgress,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
+import { type AnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
   executeGraceRenewal,
@@ -83,6 +84,7 @@ const renewalProgress = (
 })
 
 type Context = {
+  readonly analytics: AnalyticsFlow
   wagmiConfig: WagmiConfig
   selectedNames: string[]
   /**
@@ -111,6 +113,7 @@ type Context = {
 }
 
 type Events =
+  | { readonly type: 'analytics.ready'; readonly readyKey: string }
   | { type: 'selection.set'; names: string[] }
   | { type: 'managerRestoration.set'; names: string[] }
   | {
@@ -152,6 +155,7 @@ type Events =
   | { type: 'cancel' }
 
 const initialContext = (wagmiConfig: WagmiConfig): Context => ({
+  analytics: createAnalyticsFlow(),
   wagmiConfig,
   selectedNames: [],
   managerRestorationNames: [],
@@ -332,6 +336,9 @@ export const migrationUiMachine = setup({
     }),
   },
   guards: {
+    hasNewAnalyticsIdentity: ({ context, event }) =>
+      event.type === 'analytics.ready' &&
+      context.analytics.readyKey !== event.readyKey,
     // A recovery plan may have only cleanup or reconciliation left.
     hasSelection: ({ event }) =>
       event.type === 'migration.start' &&
@@ -344,6 +351,62 @@ export const migrationUiMachine = setup({
       context.completedOperations.length === 0,
   },
   actions: {
+    bindReadyAnalytics: assign({
+      analytics: ({ context, event }) => ({
+        ...createAnalyticsFlow(context.analytics.flow_id),
+        readyKey:
+          event.type === 'analytics.ready'
+            ? event.readyKey
+            : context.analytics.readyKey,
+      }),
+    }),
+    analyticsFlowView: ({ context }) =>
+      context.analytics.capture('migration:flow_view', {
+        flow_id: context.analytics.flow_id,
+      }),
+    analyticsStart: ({ context }) =>
+      context.analytics.capture('migration:flow_start', {
+        flow_id: context.analytics.flow_id,
+      }),
+    analyticsExecution: ({ context }) =>
+      context.analytics.capture('migration:step_view', {
+        flow_id: context.analytics.flow_id,
+        step: 'execution',
+      }),
+    analyticsRenewal: ({ context }) =>
+      context.analytics.capture('migration:step_view', {
+        flow_id: context.analytics.flow_id,
+        step: 'renewal',
+      }),
+    analyticsFailure: ({ context }) =>
+      context.analytics.capture('migration:step_result', {
+        flow_id: context.analytics.flow_id,
+        step: 'execution',
+        outcome: 'failure',
+        is_retryable: true,
+      }),
+    analyticsRetry: ({ context }) =>
+      context.analytics.capture('migration:flow_retry', {
+        flow_id: context.analytics.flow_id,
+      }),
+    analyticsComplete: ({ context, event }) => {
+      if (event.type !== 'migration.complete') return
+      context.analytics.capture('migration:flow_complete', {
+        flow_id: context.analytics.flow_id,
+        item_count: context.completedOperations.length,
+        migrated_count: context.completedOperations.filter(
+          ({ action }) => action === 'migrate',
+        ).length,
+        copied_count: context.completedOperations.filter(
+          ({ action }) => action === 'copy',
+        ).length,
+        ineligible_count: event.result.ineligible.length,
+      })
+    },
+    bindAnalytics: assign({
+      analytics: ({ context }) =>
+        createAnalyticsFlow(context.analytics.flow_id),
+    }),
     captureRenewalStart: assign(({ event }) => {
       if (event.type !== 'migration.renewAndStart') return {}
       const stepDescriptors = event.renewal.requestSteps ?? [
@@ -548,7 +611,12 @@ export const migrationUiMachine = setup({
   },
   states: {
     select: {
+      entry: 'analyticsFlowView',
       on: {
+        'analytics.ready': {
+          guard: 'hasNewAnalyticsIdentity',
+          actions: ['bindReadyAnalytics', 'analyticsFlowView'],
+        },
         'selection.set': {
           actions: 'setSelection',
         },
@@ -558,7 +626,7 @@ export const migrationUiMachine = setup({
         'migration.start': {
           target: 'migrate',
           guard: 'hasSelection',
-          actions: 'captureMigrationStart',
+          actions: ['bindAnalytics', 'captureMigrationStart', 'analyticsStart'],
         },
         'migration.renewAndStart': {
           target: 'migrate.renewing',
@@ -566,7 +634,7 @@ export const migrationUiMachine = setup({
             event.renewal.quote.items.length > 0 &&
             event.renewal.domains.length > 0 &&
             event.renewal.quote.balance >= event.renewal.quote.totalAmount,
-          actions: 'captureRenewalStart',
+          actions: ['bindAnalytics', 'captureRenewalStart', 'analyticsStart'],
         },
       },
     },
@@ -574,6 +642,7 @@ export const migrationUiMachine = setup({
       initial: 'running',
       states: {
         renewing: {
+          entry: 'analyticsRenewal',
           tags: 'running',
           exit: assign({ renewalDiscardConfirmation: undefined }),
           invoke: {
@@ -665,6 +734,7 @@ export const migrationUiMachine = setup({
           },
         },
         running: {
+          entry: 'analyticsExecution',
           tags: 'running',
           invoke: {
             id: 'runMigration',
@@ -705,7 +775,7 @@ export const migrationUiMachine = setup({
               },
               {
                 target: 'landing',
-                actions: 'recordCompletion',
+                actions: ['recordCompletion', 'analyticsComplete'],
               },
             ],
             'migration.failed': {
@@ -740,13 +810,14 @@ export const migrationUiMachine = setup({
       },
     },
     failure: {
+      entry: 'analyticsFailure',
       tags: 'result',
       on: {
         retry: [
           {
             guard: ({ context }) => !!context.plan,
             target: 'migrate.running',
-            actions: 'resetForRetry',
+            actions: ['analyticsRetry', 'resetForRetry'],
           },
           {
             guard: ({ context }) => !!context.renewedDomains,

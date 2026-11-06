@@ -34,6 +34,7 @@ import {
 import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { type AnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import {
   useHcaFundingPrompt,
@@ -464,6 +465,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const completedRef = useRef<Set<string>>(new Set())
   // Set by a failed run: the next submit re-reads expiries before paying.
   const failedRef = useRef(false)
+  const analyticsRef = useRef<AnalyticsFlow | undefined>(undefined)
   // Monotonic id for the active submission. Bumped on every `submit` and on
   // `reset`, so a superseded submission can detect it's stale and skip its UI
   // updates.
@@ -474,6 +476,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     runIdRef.current += 1
     completedRef.current = new Set()
     failedRef.current = false
+    analyticsRef.current = undefined
     declineFunding()
     setPhase('idle')
     setStatuses({})
@@ -484,6 +487,15 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     setStatuses((prev) => ({ ...prev, [label]: status }))
 
   const failWith = (error: Error) => {
+    const analytics = analyticsRef.current
+    analytics?.capture('renewal:step_result', {
+      flow_id: analytics.flow_id,
+      is_bulk: true,
+      step: 'execution',
+      outcome: 'failure',
+      is_retryable: true,
+      completed_count: completedRef.current.size,
+    })
     failedRef.current = true
     setErrorMessage(error.message)
     setStatuses((prev) => {
@@ -546,6 +558,12 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     refreshDashboardNames()
     await new Promise((resolve) => setTimeout(resolve, SETTLE_MS))
     if (!isCurrent()) return
+    const analytics = analyticsRef.current
+    analytics?.capture('renewal:flow_complete', {
+      flow_id: analytics.flow_id,
+      is_bulk: true,
+      item_count: completedRef.current.size,
+    })
     setPhase('success')
   }
 
@@ -621,6 +639,23 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     await finishSuccess(isCurrent)
   }
 
+  const beginAnalytics = () => {
+    if (!failedRef.current) analyticsRef.current = createAnalyticsFlow()
+    const analytics = analyticsRef.current
+    analytics?.capture(
+      failedRef.current ? 'renewal:flow_retry' : 'renewal:flow_start',
+      {
+        flow_id: analytics.flow_id,
+        is_bulk: true,
+      },
+    )
+    analytics?.capture('renewal:step_view', {
+      flow_id: analytics.flow_id,
+      is_bulk: true,
+      step: 'execution',
+    })
+  }
+
   const submit = async ({
     items: inputItems,
     token,
@@ -640,6 +675,8 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     runIdRef.current += 1
     const runId = runIdRef.current
     const isCurrent = () => runIdRef.current === runId
+
+    beginAnalytics()
 
     const hca = resolveHcaContext(account, signer, token)
     const ctx = resolveContext(signer, token)
