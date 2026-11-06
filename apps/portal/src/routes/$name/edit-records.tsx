@@ -2,7 +2,13 @@ import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeftIcon,
+  ChevronDown,
+  CirclePlus,
+  Search,
+} from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useAccount, useConnection, useWalletClient } from 'wagmi'
@@ -12,6 +18,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -564,9 +571,10 @@ const EditRecordsContent = ({
           </div>
         </div>
         {addRecordError && (
-          <p role="alert" className="text-small text-danger-text">
-            {addRecordError}
-          </p>
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle />
+            <AlertDescription>{addRecordError}</AlertDescription>
+          </Alert>
         )}
       </header>
 
