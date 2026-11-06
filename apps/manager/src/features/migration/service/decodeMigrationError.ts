@@ -8,6 +8,7 @@ import { ProfileFetchError } from './fetchV1Profiles'
 export type MigrationError =
   | { type: 'generic'; message: string }
   | { type: 'plan-changed' }
+  | { type: 'copy-read-failed'; message: string }
   | { type: 'retry-blocked' }
   | { type: 'subregistry-conflict' }
   | { type: 'resolver-not-writable' }
@@ -305,6 +306,15 @@ export const canRetryMigration = (error: MigrationError | undefined): boolean =>
 
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
+
+  const copyReadinessError = findNamedError(err, 'CopyMigrationReadinessError')
+  if (
+    copyReadinessError &&
+    'reason' in copyReadinessError &&
+    copyReadinessError.reason === 'read-failed'
+  ) {
+    return { type: 'copy-read-failed', message: extractErrorMessage(err) }
+  }
 
   if (
     hasNamedError(err, 'MigrationPlanChangedError') ||

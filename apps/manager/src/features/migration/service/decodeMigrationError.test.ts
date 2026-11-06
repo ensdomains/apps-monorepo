@@ -18,6 +18,10 @@ const revertWith = (data: Hex) =>
 describe('canRetryMigration', () => {
   it.each([
     { error: { type: 'plan-changed' }, expected: false },
+    {
+      error: { type: 'copy-read-failed', message: 'RPC timeout' },
+      expected: true,
+    },
     { error: { type: 'user-rejected' }, expected: true },
     { error: { type: 'cleanup-failed' }, expected: true },
     { error: { type: 'generic', message: 'RPC unavailable' }, expected: true },
@@ -101,6 +105,22 @@ describe('decodeMigrationError — direct mappings', () => {
     })
 
     expect(decodeMigrationError(copyChanged)).toEqual({ type: 'plan-changed' })
+  })
+
+  it('keeps retry available for a transient copy-read failure', () => {
+    const readFailed = Object.assign(new Error('RPC timeout'), {
+      name: 'CopyMigrationReadinessError',
+      reason: 'read-failed',
+    })
+
+    expect(
+      decodeMigrationError(
+        new Error('migration failed', { cause: readFailed }),
+      ),
+    ).toEqual({
+      type: 'copy-read-failed',
+      message: 'RPC timeout',
+    })
   })
 
   it('maps an uncertain submitted batch to a fail-closed retry error', () => {

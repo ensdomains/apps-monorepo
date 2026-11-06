@@ -115,6 +115,12 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
+    case 'copy-read-failed':
+      return (
+        <Trans>
+          Could not check copy readiness: {error.message}. Try again.
+        </Trans>
+      )
     case 'locked-resolver-record-control':
       return <LockedResolverFailureMessage cause={error.cause} />
     case 'parent-not-upgraded':
