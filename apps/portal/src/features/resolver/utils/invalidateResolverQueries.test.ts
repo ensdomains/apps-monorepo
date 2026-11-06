@@ -8,7 +8,7 @@ import {
 import { getNameDetailQueryOptions } from '@/features/profile/hooks/useNameDetail'
 import { getNameResolverAddressQueryOptions } from '@/features/records/hooks/useNameResolverAddress'
 import { getResolverNodesQueryOptions } from '../hooks/useResolverOverview'
-import { userPermissionedResolversQueryKey } from '../hooks/useUserPermissionedResolvers'
+import { getUserPermissionedResolversQueryOptions } from '../hooks/useUserPermissionedResolvers'
 import { invalidateResolverQueries } from './invalidateResolverQueries'
 
 const NAME = 'alice.eth'
@@ -27,10 +27,9 @@ describe('invalidateResolverQueries', () => {
       'name resolver',
       getNameResolverAddressQueryOptions({ name: NAME }).queryKey,
     ],
-    // The hook builds its options inline around this key.
     [
       'permissioned resolvers',
-      userPermissionedResolversQueryKey({ account: ADDRESS }),
+      getUserPermissionedResolversQueryOptions({ account: ADDRESS }).queryKey,
     ],
     ['history pages', getNameHistoryPagesQueryOptions({ name: NAME }).queryKey],
     [
