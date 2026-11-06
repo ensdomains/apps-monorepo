@@ -16,6 +16,7 @@ import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
+import { ProfileExploreAction } from './ProfileExploreAction'
 
 const AddressLabel = ({ address }: { readonly address: Address }) => {
   const { t } = useLingui()
@@ -113,19 +114,22 @@ export const AddressProfileHeader = ({
       ) : null}
       <div className="flex flex-col items-center gap-4 xl:flex-row xl:justify-between">
         <AddressLabel address={address} />
-        {primaryName ? (
-          <Link
-            className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-ens-lapis-hover xl:h-11"
-            params={{ name: primaryName }}
-            to="/$name"
-          >
-            <MSymbol
-              className="ms-opsz-20 shrink-0 text-xs"
-              symbol="person_check"
-            />
-            <Trans>View profile</Trans>
-          </Link>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <ProfileExploreAction target={{ kind: 'address', address }} />
+          {primaryName ? (
+            <Link
+              className="inline-flex h-12.5 w-43 items-center justify-center gap-2.5 whitespace-nowrap rounded bg-ens-lapis-core px-4 font-medium font-mono text-[13px] text-white uppercase tracking-[1.56px] hover:bg-ens-lapis-hover xl:h-11"
+              params={{ name: primaryName }}
+              to="/$name"
+            >
+              <MSymbol
+                className="ms-opsz-20 shrink-0 text-xs"
+                symbol="person_check"
+              />
+              <Trans>View profile</Trans>
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {primaryName ? (
