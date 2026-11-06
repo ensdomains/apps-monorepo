@@ -32,8 +32,8 @@ import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import {
+  formatRoleHolderCount,
   getResolverOverviewQueryOptions,
-  resolverCollectionCount,
 } from '@/features/resolver/hooks/useResolverOverview'
 import { ResolverPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
@@ -162,13 +162,10 @@ const RoleHolderCount = ({
       <span className="text-destructive">Failed to load role holders.</span>
     )
 
-  const count = resolverCollectionCount(
-    resolver?.roleHolderCount,
-    resolver?.rolesStatus,
-  )
-  if (count === 'Unknown') return <span>Role holders unknown.</span>
   return (
-    <span>{`${count} ${count === '1' ? 'role holder' : 'role holders'}.`}</span>
+    <span>
+      {formatRoleHolderCount(resolver?.roleHolderCount, resolver?.rolesStatus)}.
+    </span>
   )
 }
 

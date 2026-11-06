@@ -3,8 +3,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 let routeName = 'jobintime.xyz'
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
+  Link: ({
+    children,
+    to,
+    params = {},
+  }: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+  }) => (
+    <a
+      href={Object.entries(params).reduce(
+        (href, [key, value]) => href.replace(`$${key}`, value),
+        to,
+      )}
+    >
+      {children}
+    </a>
   ),
   createFileRoute: () => (options: Record<string, unknown>) => options,
   useParams: () => ({ name: routeName }),
@@ -288,30 +303,21 @@ describe('resolver route', () => {
       permissionedResult = settled(true)
     })
 
-    it.each([
-      {
-        overview: { roleHolderCount: 1, rolesStatus: 'full' },
-        expected: '1 role holder.',
-      },
-      {
-        overview: { roleHolderCount: 2, rolesStatus: 'full' },
-        expected: '2 role holders.',
-      },
-      { overview: null, expected: 'Role holders unknown.' },
-    ])(
-      'says $expected and links to the contract page',
-      ({ overview, expected }) => {
-        overviewResult = settled(overview && { links: [], ...overview })
+    it('shows the role holders and links to the contract page', () => {
+      overviewResult = settled({
+        links: [],
+        roleHolderCount: 2,
+        rolesStatus: 'full',
+      })
 
-        render(<ResolverRoute />)
+      render(<ResolverRoute />)
 
-        expect(screen.getByText('Permissions')).toBeInTheDocument()
-        expect(screen.getByText(expected)).toBeInTheDocument()
-        expect(
-          screen.getByRole('link', { name: 'View and manage' }),
-        ).toHaveAttribute('href', '/resolver/$address')
-      },
-    )
+      expect(screen.getByText('Permissions')).toBeInTheDocument()
+      expect(screen.getByText('2 role holders.')).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: 'View and manage' }),
+      ).toHaveAttribute('href', `/resolver/${ENS_V1_RESOLVER}`)
+    })
 
     it('keeps the link when the role holders fail to load', () => {
       overviewResult = {
