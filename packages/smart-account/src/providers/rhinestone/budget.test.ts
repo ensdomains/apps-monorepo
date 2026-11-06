@@ -583,6 +583,8 @@ describe('HcaBudgetUnquotedError', () => {
     const error = new HcaBudgetUnquotedError(breakdown)
 
     expect(error.name).toBe('HcaBudgetUnquotedError')
+    // Tagged like the package's other operation errors, so callers can match on `_tag`.
+    expect(error).toMatchObject({ _tag: 'HcaBudgetUnquotedError' })
     expect(error.kind).toBe('gas-coverage')
     expect(error.breakdown).toBe(breakdown)
     expect(error.message).toMatch(/source: fallback/)
