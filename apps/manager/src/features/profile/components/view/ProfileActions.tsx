@@ -18,6 +18,7 @@ import {
   renewActionClassName,
 } from './ProfileAction.styles'
 import { ProfileEditAction } from './ProfileEditAction'
+import { ProfileExploreAction } from './ProfileExploreAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
 import { ProfileRenewAction } from './ProfileRenewAction'
 import { ProfileShareAction } from './ProfileShareAction'
@@ -52,6 +53,7 @@ export const ProfileDesktopActions = ({
   <div className={desktopActionClusterClassName}>
     <ProfileFavoriteAction name={name} />
     <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+    <ProfileExploreAction target={{ kind: 'name', name }} />
     <ProfileRenewAction
       className={renewActionClassName}
       isOwner={isOwner}
@@ -81,10 +83,14 @@ export const ProfileActions = ({
   useIntercomClearance(bar)
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
-  const barActions = (
+  const renderBarActions = (exploreLayout?: 'ownerBar') => (
     <>
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+      <ProfileExploreAction
+        layout={exploreLayout}
+        target={{ kind: 'name', name }}
+      />
       <ProfileRenewAction
         className={renewActionClassName}
         isOwner={isOwner}
@@ -103,7 +109,7 @@ export const ProfileActions = ({
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
         // Owned profiles keep favorite, share, and renew in this bar at every width.
-        leftActions={barActions}
+        leftActions={renderBarActions('ownerBar')}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
@@ -124,7 +130,7 @@ export const ProfileActions = ({
         >
           <div className={editBottomNavContentClassName}>
             <div className={cn(profileBarActionsClassName, 'w-full xl:hidden')}>
-              {barActions}
+              {renderBarActions()}
             </div>
             <ProfileEditAction
               canEdit={canEdit}
@@ -146,7 +152,9 @@ export const ProfileActions = ({
           ref={setBar}
         >
           <div className={cn(editBottomBarContentClassName, 'justify-center')}>
-            <div className={profileBarActionsClassName}>{barActions}</div>
+            <div className={profileBarActionsClassName}>
+              {renderBarActions()}
+            </div>
           </div>
         </nav>
       )}

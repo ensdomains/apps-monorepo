@@ -1463,6 +1463,10 @@ msgstr "expiring on"
 msgid "Expiry Date"
 msgstr "Expiry Date"
 
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Explore"
+msgstr "Explore"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Failed to add email"
 msgstr "Failed to add email"
@@ -3994,6 +3998,10 @@ msgstr "Video export is unavailable. Please try again later."
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
 msgstr "View address"
+
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "View details and history in ENS Explorer"
+msgstr "View details and history in ENS Explorer"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
 msgid "View history"
