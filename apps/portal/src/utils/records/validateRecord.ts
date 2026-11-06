@@ -3,9 +3,11 @@ import {
   getCoderByCoinType,
 } from '@ensdomains/address-encoder'
 import {
+  getCoderFromCoin,
   getProtocolType,
   isValidContentHash as isValidEncodedContentHash,
 } from '@ensdomains/ensjs/utils'
+import { fromThrowable } from 'neverthrow'
 import { getAddress } from 'viem'
 import { isOutOfRangeEvmCoinType } from '@/lib/utils'
 import { type EditableRecord, getRecordId } from './editRecordUtils'
@@ -60,6 +62,30 @@ function normalizeCoinAddress(coinType: number, address: string): string {
   return address
 }
 
+// ensjs encodes the write with its own copy, which still codes coins 3.0.0 removed.
+const getCoder = (coinType: number) =>
+  fromThrowable(
+    () => getCoderByCoinType(coinType),
+    (error) => error,
+  )().orElse((error) =>
+    fromThrowable(
+      () => getCoderFromCoin(coinType),
+      () => error,
+    )(),
+  )
+
+const toAddressErrorMessage = (e: unknown): string => {
+  if (typeof e === 'string') return e
+  if (e instanceof Error) {
+    // Clean up common error messages
+    if (e.message.includes('Invalid checksum'))
+      return 'Invalid address checksum'
+    if (e.message.includes('Invalid address')) return 'Invalid address format'
+    return e.message
+  }
+  return 'Invalid address format'
+}
+
 /**
  * Validates a cryptocurrency address for a coin type using the address-encoder
  * library. Returns an error message if invalid, or null if valid.
@@ -70,23 +96,15 @@ function validateCryptoAddress(
 ): string | null {
   if (!address) return null // Empty is valid (means deletion)
 
-  try {
-    const normalizedAddress = normalizeCoinAddress(coinType, address)
-    const coder = getCoderByCoinType(coinType)
-    coder.decode(normalizedAddress)
-    return null // Valid
-  } catch (e: unknown) {
-    // Extract error message
-    if (typeof e === 'string') return e
-    if (e instanceof Error) {
-      // Clean up common error messages
-      if (e.message.includes('Invalid checksum'))
-        return 'Invalid address checksum'
-      if (e.message.includes('Invalid address')) return 'Invalid address format'
-      return e.message
-    }
-    return 'Invalid address format'
-  }
+  const normalizedAddress = normalizeCoinAddress(coinType, address)
+  return getCoder(coinType)
+    .andThen((coder) =>
+      fromThrowable(
+        () => coder.decode(normalizedAddress),
+        (error) => error,
+      )(),
+    )
+    .match(() => null, toAddressErrorMessage)
 }
 
 /**
