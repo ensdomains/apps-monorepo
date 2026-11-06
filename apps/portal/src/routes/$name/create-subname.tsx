@@ -49,6 +49,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
+import { getV1WrapperAccessQueryOptions } from '@/features/transfer/v1/getV1WrapperAccess'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -511,29 +512,46 @@ const V1CreateSubname = ({ name: rawName }: CreateSubnameContentProps) => {
     ...getV1NameStateQueryOptions({ name: rawName }),
     staleTime: 0,
   })
+  const wrapperAccessQuery = useQuery({
+    ...getV1WrapperAccessQueryOptions({
+      name: rawName,
+      account: connectedAddress ?? zeroAddress,
+    }),
+    staleTime: 0,
+    enabled: !!connectedAddress,
+  })
+
+  const cantCheck = (
+    <MessageCard
+      icon={<AlertTriangle className="size-8" />}
+      title="Couldn’t check this name"
+      description={
+        <p>
+          We couldn’t read how this name is held, so we can’t tell whether
+          subnames can be created under it. Refresh and try again.
+        </p>
+      }
+    />
+  )
 
   if (stateQuery.isLoading) return <LoadingMessage />
 
-  if (stateQuery.isError)
-    return (
-      <MessageCard
-        icon={<AlertTriangle className="size-8" />}
-        title="Couldn’t check this name"
-        description={
-          <p>
-            We couldn’t read how this name is held, so we can’t tell whether
-            subnames can be created under it. Refresh and try again.
-          </p>
-        }
-      />
-    )
+  if (stateQuery.isError) return cantCheck
 
   // Can't throw: the query already normalised the same input, and every V1
   // hash and write below must use the normalised form.
   const name = normalize(rawName)
   const gate = stateQuery.data
-    ? getV1SubnameCreateGate(stateQuery.data, connectedAddress)
+    ? getV1SubnameCreateGate(
+        stateQuery.data,
+        connectedAddress,
+        wrapperAccessQuery.data,
+      )
     : ({ reason: 'unowned' } as const)
+
+  // Only an operator approval could lift `not-holder`.
+  if (gate.reason === 'not-holder' && !wrapperAccessQuery.data)
+    return wrapperAccessQuery.isError ? cantCheck : <LoadingMessage />
 
   return match(gate)
     .with({ reason: 'ok' }, ({ target }) => (

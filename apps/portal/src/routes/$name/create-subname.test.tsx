@@ -61,6 +61,18 @@ vi.mock('@/features/transfer/v1/getV1NameState', () => ({
     queryFn: () => v1State,
   }),
 }))
+let wrapperAccess:
+  | { canModifyName: boolean; canModifyParent: boolean }
+  | Error = { canModifyName: false, canModifyParent: false }
+vi.mock('@/features/transfer/v1/getV1WrapperAccess', () => ({
+  getV1WrapperAccessQueryOptions: () => ({
+    queryKey: ['v1WrapperAccess', NAME],
+    queryFn: async () => {
+      if (wrapperAccess instanceof Error) throw wrapperAccess
+      return wrapperAccess
+    },
+  }),
+}))
 
 vi.mock('@/features/registry/hooks/useNameRegistryDiscovery', () => ({
   getNameRegistriesQueryOptions: () => ({
@@ -152,6 +164,7 @@ const v1 = (overrides: Record<string, unknown> = {}) => {
 beforeEach(() => {
   protocolVersion = 'ENSv1'
   v1State = null
+  wrapperAccess = { canModifyName: false, canModifyParent: false }
   labelLookup = 'pending'
   labelLookupCalls.mockReset()
   rootRoles = []
@@ -237,6 +250,40 @@ describe('create subname under a V1 parent', () => {
 
     expect(await screen.findByText(title)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /create subname/i })).toBeNull()
+  })
+
+  it('offers the form to the wrapped holder’s NameWrapper operator', async () => {
+    wrapperAccess = { canModifyName: true, canModifyParent: false }
+    v1({
+      subject: {
+        kind: 'v1-wrapped',
+        owner: OTHER,
+        fuses: {
+          cannotTransfer: false,
+          cannotSetResolver: false,
+          cannotUnwrap: false,
+          cannotCreateSubdomain: false,
+          parentCannotControl: false,
+        },
+        expiry: null,
+      },
+    })
+    renderRoute()
+
+    await screen.findByLabelText('Subname')
+    expect(screen.queryByText('Only its owner can create subnames')).toBeNull()
+  })
+
+  // Only `not-holder` waits on the access read: an approval can't lift anything else.
+  it.each([
+    ['offers the holder the form', CONNECTED, 'Subname'],
+    ['can’t answer a non-holder', OTHER, 'Couldn’t check this name'],
+  ])('when the access read fails, %s', async (_, owner, text) => {
+    wrapperAccess = new Error('rpc down')
+    v1({ subject: { kind: 'v1-registry', owner } })
+    renderRoute()
+
+    expect(await screen.findByText(text)).toBeInTheDocument()
   })
 
   // Protocol terminology: the V1 registry and NameWrapper both call it owner.
