@@ -4,6 +4,8 @@ import type {
   ProfileRecords,
 } from '@/features/profile/types'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
+import { LockedRecordsNotice } from '../../LockedRecordsNotice'
+import { useIsRecordTypeLocked } from '../../LockedRecordTypes.context'
 import {
   applyEthAddressChange,
   getAddressDisplayState,
@@ -27,6 +29,8 @@ export const AddressesTab = ({
   values,
 }: AddressesTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
+  const isAddressLocked = useIsRecordTypeLocked('address')
+  const isDisabled = isSaving || isAddressLocked
   const [pickerMode, setPickerMode] = useState<PickerMode | null>(null)
   const [extraEvmCoinTypes, setExtraEvmCoinTypes] = useState<number[]>([])
   const [extraOtherCoinTypes, setExtraOtherCoinTypes] = useState<number[]>([])
@@ -98,10 +102,11 @@ export const AddressesTab = ({
 
   return (
     <div className="flex flex-col gap-6 pb-4">
+      <LockedRecordsNotice type="address" />
       <EvmAddressSection
         addresses={values.addresses}
         customEvmOptions={customEvmOptions}
-        disabled={isSaving}
+        disabled={isDisabled}
         ethAddress={ethAddress}
         onAddMore={() => setPickerMode('evm')}
         onEthAddressChange={handleEthAddressChange}
@@ -113,7 +118,7 @@ export const AddressesTab = ({
 
       <OtherNetworksSection
         addresses={values.addresses}
-        disabled={isSaving}
+        disabled={isDisabled}
         onAddMore={() => setPickerMode('other')}
         onRemoveAddress={removeAddressValue}
         onSetAddressValue={setAddressValue}
@@ -122,7 +127,7 @@ export const AddressesTab = ({
       />
 
       <ChainPickerDialog
-        disabled={isSaving}
+        disabled={isDisabled}
         mode={pickerMode ?? 'evm'}
         onAdd={handlePickerAdd}
         onOpenChange={(open) =>

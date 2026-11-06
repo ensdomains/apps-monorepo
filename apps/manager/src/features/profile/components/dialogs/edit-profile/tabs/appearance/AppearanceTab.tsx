@@ -4,6 +4,8 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { getProfileTheme } from '@/features/profile/utils/themeColor'
 import { cn, truncateAddress } from '@/lib/utils'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
+import { LockedRecordsNotice } from '../../LockedRecordsNotice'
+import { useIsRecordTypeLocked } from '../../LockedRecordTypes.context'
 
 const getPreviewAddress = (values: ProfileRecords, owner?: Address): string => {
   const ethAddress = values.addresses.find(
@@ -76,11 +78,14 @@ export const AppearanceTab = ({
   values,
 }: AppearanceTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
+  const isTextLocked = useIsRecordTypeLocked('text')
+  const isDisabled = isSaving || isTextLocked
   const selectedThemeValue = getProfileTheme(values.base.theme).value
   const previewAddress = getPreviewAddress(values, owner)
 
   return (
     <div className="flex flex-col gap-4 pb-4">
+      <LockedRecordsNotice type="text" />
       <div className="flex flex-col gap-1.5">
         <p className="font-bold font-sans text-[#525252] text-base leading-ens-none tracking-[-0.32px]">
           Appearance
@@ -94,7 +99,7 @@ export const AppearanceTab = ({
         {PROFILE_THEMES.map((theme) => (
           <ThemePreviewButton
             address={previewAddress}
-            disabled={isSaving}
+            disabled={isDisabled}
             isActive={theme.value === selectedThemeValue}
             key={theme.value}
             name={name}
