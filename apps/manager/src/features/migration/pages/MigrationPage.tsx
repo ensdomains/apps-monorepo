@@ -15,7 +15,6 @@ import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { useBalance, useConnection } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
-import { MSymbol } from '@/components/ui/material-symbol'
 import { chain } from '@/config'
 import { recordVerifiedNftMigration } from '@/features/migration/commemorative-nft/verifiedMigration'
 import { GameStep } from '@/features/migration/components/GameStep'
@@ -115,6 +114,12 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
+    case 'insufficient-eth':
+      return (
+        <Trans>
+          Your wallet needs more ETH for network fees. Add ETH and try again.
+        </Trans>
+      )
     case 'locked-resolver-record-control':
       return <LockedResolverFailureMessage cause={error.cause} />
     case 'parent-not-upgraded':
@@ -286,7 +291,7 @@ export const MigrationPage = () => {
   const dialogOpen = migrationNftEnabled && isMigrationSuccess
   const completedNames = completedOperations.map(({ name }) => name)
   const dialogNames = isMigrationSuccess ? completedNames : selectedNames
-  const { gracePeriodNames } = useEligibleV1Names()
+  const { gracePeriodNames, unrecoverableSubnames } = useEligibleV1Names()
   const graceDomains = useMemo(() => {
     const selected = new Set(selectedNames)
     return gracePeriodNames
@@ -413,6 +418,7 @@ export const MigrationPage = () => {
       retryRenewal?.quote.items.map(({ domain }) => domain.name),
       graceDomains.map(({ name }) => name),
     ),
+    unknownLabelNames: unrecoverableSubnames,
     ownerAddress,
     managerRestorationNames,
     isEnabled: step === 'select' || shouldCheckImpactBeforeRetry,
@@ -563,20 +569,6 @@ export const MigrationPage = () => {
     <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-clip">
       <GrainOverlay className="opacity-70" />
 
-      {step === 'select' && (
-        <button
-          aria-label="Back"
-          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
-          onClick={handleBack}
-          type="button"
-        >
-          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
-          <span className="max-xl:hidden">
-            <Trans>Back</Trans>
-          </span>
-        </button>
-      )}
-
       {match(step)
         .with('select', () => (
           <SelectNamesStep
@@ -584,6 +576,7 @@ export const MigrationPage = () => {
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
             isMetaMaskWallet={connector !== undefined && isMetaMask(connector)}
+            onBack={handleBack}
             onManagerRestorationChange={handleManagerRestorationChange}
             onNamesChange={handleNamesChange}
             onNext={() => confirmation.request('start')}

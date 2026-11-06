@@ -10,6 +10,7 @@ import { useHcaFundingPrompt } from '@/lib/smart-account/useHcaFundingPrompt'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { getRegistrationFailureReason } from '../service/registrationFailure'
 import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
@@ -123,6 +124,10 @@ export const RegistrationV2UiProvider = ({
         return {
           confirmedData: context.confirmedData,
           postRegistrationSetup: context.postRegistrationSetup,
+          // From the child's own error: the parent may not have read it yet.
+          failureReason: getRegistrationFailureReason(
+            registrationActor.getSnapshot().context.error,
+          ),
         }
       },
     })

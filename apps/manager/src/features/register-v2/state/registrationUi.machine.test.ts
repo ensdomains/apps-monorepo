@@ -222,6 +222,8 @@ vi.mock('../service/registrationPersistence', () => ({
 }))
 
 import { waitForTransaction } from '@ens-apps/transaction-manager'
+import { OrchestratorError } from '@rhinestone/sdk/errors'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
   submitPrimaryNameForward,
@@ -1471,13 +1473,35 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
     expect(actor.getSnapshot().matches('registering')).toBe(true)
     expect(childRetryCount(actor)).toBe(1)
   })
+
+  it('names an emptied smart account on the failure screen, and clears it on retry', async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new OrchestratorError({
+        message: 'No viable route found for this intent.',
+        statusCode: 422,
+        context: { failureCodes: ['NO_ROUTE_SUPPORT', 'INSUFFICIENT_BALANCE'] },
+      }),
+    })
+    await flush()
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(actor.getSnapshot().context.failureReason).toBe('insufficientFunds')
+
+    actor.send({ type: 'retry' })
+    await flush()
+
+    expect(actor.getSnapshot().context.failureReason).toBeUndefined()
+  })
 })
 
 describe('registration referrer boundary', () => {
   it.each([
     ['0x1234', `0x${'0'.repeat(60)}1234`],
-    ['0xgg', `0x${'0'.repeat(64)}`],
-    [undefined, `0x${'0'.repeat(64)}`],
+    ['0xgg', ENS_LABS_REFERRER],
+    [undefined, ENS_LABS_REFERRER],
   ])(
     'normalizes %s before saving confirmed data and starting the child',
     (referrer, expected) => {
@@ -1617,6 +1641,22 @@ describe('paying with ETH', () => {
     expect(actor.getSnapshot().context).toMatchObject({
       paymentAsset: 'eth',
       selectedToken: 'USDC',
+    })
+    actor.stop()
+  })
+
+  it('forgets the pick when the sheet closes, so the next open starts from the fallback', () => {
+    const actor = startActorInTokens()
+    actor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' })
+
+    actor.send({ type: 'pricing.dialog.dismiss' })
+    actor.send({ type: 'pricing.step.next' })
+
+    expect(actor.getSnapshot().context).toMatchObject({
+      paymentAsset: 'stablecoin',
+      selectedToken: undefined,
+      fundingSourceChainId: undefined,
+      fundingSourceOrigin: undefined,
     })
     actor.stop()
   })

@@ -51,6 +51,8 @@ export const getL2SelectionMessage = (
   row: L2PaymentRow,
   required: number | undefined,
   estimatedAmountInRaw: bigint | undefined,
+  /** Registration names the token, as its design does, rather than the amount missing. */
+  isTokenNamed = false,
 ) => {
   const chainName = row.option.source.chain.name
   const balance =
@@ -74,9 +76,13 @@ export const getL2SelectionMessage = (
     shortfall,
     isQuoted: quoted !== undefined,
     isEstimated: estimated !== undefined,
+    isTokenNamed,
   })
     .with({ status: 'unavailable' }, () => (
       <Trans>Couldn't read your balance on {chainName}.</Trans>
+    ))
+    .with({ isShort: true, isTokenNamed: true }, () => (
+      <Trans>You do not have enough USDC for this transaction.</Trans>
     ))
     .with({ isShort: true, shortfall: P.number, isQuoted: true }, (m) => (
       <Trans>

@@ -104,6 +104,77 @@ describe('getFallbackPaymentChoice', () => {
       expected,
     )
   })
+
+  it.each([
+    {
+      case: 'takes ETH when nothing else can pay',
+      current: 'short' as const,
+      payableMethods: [],
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'with nothing chosen, takes ETH when nothing else can pay',
+      current: 'none' as const,
+      payableMethods: [],
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'prefers any USDC method to the ETH swap',
+      current: 'short' as const,
+      payableMethods: [l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'l2', chainId: baseSepolia.id },
+    },
+    {
+      case: "keeps the user's own pick that falls short",
+      current: 'chosen' as const,
+      payableMethods: [],
+      expected: undefined,
+    },
+    {
+      case: 'keeps ETH it picked while nothing else can pay',
+      current: 'autoEth' as const,
+      payableMethods: [],
+      expected: undefined,
+    },
+    {
+      case: 'moves ETH it picked to an L2 that can now pay',
+      current: 'autoEth' as const,
+      payableMethods: [l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'l2', chainId: baseSepolia.id },
+    },
+    {
+      case: 'moves ETH it picked to a wallet coin over a bigger L2',
+      current: 'autoEth' as const,
+      payableMethods: [wallet(20_000_000n), l2(baseSepolia.id, 48_340_000n)],
+      expected: { kind: 'wallet', symbol: 'USDC' },
+    },
+  ])('with ETH able to pay, $case', ({ current, payableMethods, expected }) => {
+    expect(
+      getFallbackPaymentChoice({ current, payableMethods, isEthPayable: true }),
+    ).toEqual(expected)
+  })
+
+  it.each([
+    {
+      case: 'takes ETH over a wallet coin the list hides',
+      isCurrentListed: false,
+      expected: { kind: 'eth' },
+    },
+    {
+      case: 'keeps a wallet coin that is listed, short as both are',
+      isCurrentListed: true,
+      expected: undefined,
+    },
+  ])('with ETH listed but short, $case', ({ isCurrentListed, expected }) => {
+    expect(
+      getFallbackPaymentChoice({
+        current: 'short',
+        payableMethods: [],
+        isEthListed: true,
+        isCurrentListed,
+      }),
+    ).toEqual(expected)
+  })
 })
 
 describe('getCurrentMethodState', () => {
@@ -138,6 +209,11 @@ describe('getCurrentMethodState', () => {
       'an L2 the app picked',
       { kind: 'l2', isPayable: true, origin: 'fallback' },
       'auto',
+    ],
+    [
+      'ETH the app picked',
+      { kind: 'eth', isPayable: true, origin: 'fallback' },
+      'autoEth',
     ],
     [
       'a wallet coin the app picked',

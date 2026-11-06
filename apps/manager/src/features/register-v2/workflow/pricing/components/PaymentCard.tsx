@@ -1,4 +1,3 @@
-import { Trans } from '@lingui/react/macro'
 import {
   keepPreviousData,
   useMutation,
@@ -8,9 +7,6 @@ import {
 import { useSelector } from '@xstate/react'
 import { useState } from 'react'
 import { useConnection } from 'wagmi'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
-import { Button } from '@/components/ens-consumer/button/Button'
-import { Card } from '@/components/ui/card'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
@@ -19,18 +15,17 @@ import { TOKENS } from '@/lib/tokens'
 import { useConnectModal, useWalletDisconnect } from '@/lib/wallet'
 import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { warmRegistrationCheckout } from '../../../service/checkoutWarmup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useCheckoutSources } from '../hooks/useCheckoutSources'
+import { useIsAccountPending } from '../hooks/useIsAccountPending'
 import {
   getCheckoutAction,
   getPageAvailability,
 } from '../lib/checkoutAvailability'
 import { getCheckoutSummary } from '../lib/checkoutSummary'
 import { useCheckoutWarmup } from '../useCheckoutWarmup'
-import { AnimatedPrice } from './AnimatedPrice'
 import { CheckoutSummaryCard } from './CheckoutSummaryCard'
 import {
   PaymentCardBaseLine,
@@ -68,7 +63,7 @@ export const PaymentCard = () => {
   )
 
   // The chooser opens once its figures are cached, so it does not open on the
-  // rent alone and then reflow when the funding budget lands.
+  // price alone and then reflow when the funding budget lands.
   const queryClient = useQueryClient()
   const account = useSmartAccountContext()
   const checkout = {
@@ -95,6 +90,7 @@ export const PaymentCard = () => {
   const { openConnectModal, connectModalOpen } = useConnectModal()
 
   const { accountBalance, sources } = useCheckoutSources(account)
+  const isAccountPending = useIsAccountPending(account.isConnected)
   const summary = pricingQuery.data
     ? getCheckoutSummary(
         pricingQuery.data.basePrice + pricingQuery.data.premium,
@@ -102,6 +98,7 @@ export const PaymentCard = () => {
       )
     : undefined
   const action = getCheckoutAction({
+    isAccountPending,
     isConnected: account.isConnected,
     isPreparing: openTokenPicker.isPending,
     availability: pricingQuery.data
@@ -164,132 +161,5 @@ export const PaymentCard = () => {
         }}
       />
     </>
-  )
-}
-
-export const PaymentCardBase = ({
-  canNext,
-  onNext,
-  amount,
-  isLoading,
-  discountAmount,
-  premiumAmount,
-  basePrice,
-  type,
-  connectionSource = 'smart-account',
-  isPreparing = false,
-}: {
-  canNext: boolean
-  onNext: () => void
-  /** The chooser's figures are being fetched; the button shows it and waits. */
-  readonly isPreparing?: boolean
-  amount: number | undefined
-  discountAmount?: number
-  premiumAmount?: number
-  /** Base registration cost (excludes the one-time cooldown premium). */
-  basePrice?: number
-  isLoading: boolean
-  type: 'register' | 'renew'
-  connectionSource?: 'eoa' | 'smart-account'
-}) => {
-  const { isConnected: isSmartAccountConnected } = useSmartAccountContext()
-  const { isConnected: isEoaConnected } = useConnection()
-  const isConnected =
-    connectionSource === 'eoa' ? isEoaConnected : isSmartAccountConnected
-  const { openConnectModal, connectModalOpen } = useConnectModal()
-
-  return (
-    <Card className="flex-1 items-center justify-between gap-8 px-12">
-      <div className="w-full max-w-64 space-y-3 text-center">
-        {premiumAmount !== undefined && premiumAmount > 0 && (
-          <div className="mx-auto w-max space-y-2">
-            {basePrice !== undefined && (
-              <PaymentCardBaseLine
-                basePrice={basePrice}
-                isLoading={isLoading}
-              />
-            )}
-            <PaymentCardPremiumLine
-              isLoading={isLoading}
-              premiumAmount={premiumAmount}
-            />
-          </div>
-        )}
-
-        <p className="text-ens-lapis-surface text-xs uppercase">
-          <Trans>Total</Trans>
-        </p>
-
-        <div className="flex items-end justify-center gap-1.5">
-          <span
-            className={tw(
-              'font-medium text-4xl text-ens-blue-midnight leading-ens-none md:text-5xl',
-              isLoading && 'animate-pulse',
-            )}
-          >
-            <AnimatedPrice emphasis="soft" value={amount ?? 0} />
-          </span>
-          <span className="font-normal text-base text-ens-blue-midnight leading-7">
-            <Trans>USD</Trans>
-          </span>
-        </div>
-
-        <div
-          className={tw(
-            'w-full rounded bg-ens-signal-success-300 px-4 py-2 transition-opacity duration-300',
-            !discountAmount && 'opacity-0',
-          )}
-        >
-          <span className="font-normal text-2xl text-ens-peridot-core leading-ens-none">
-            <Trans>
-              Save <AnimatedPrice value={discountAmount ?? 0} />
-            </Trans>
-          </span>
-        </div>
-      </div>
-
-      <div className="flex w-full flex-col items-center justify-between gap-3">
-        <div className="flex flex-col items-center gap-1.5">
-          <p className="text-center font-normal text-ens-gray text-xs tracking-tight">
-            <Trans>Stables accepted</Trans>
-          </p>
-          {/* Stablecoin icons */}
-          <div className="flex items-center gap-1">
-            <USDCIcon className="h-7 w-7" />
-          </div>
-        </div>
-
-        {isConnected ? (
-          <Button
-            className="w-full font-medium font-mono uppercase tracking-widest"
-            color="blue"
-            disabled={!canNext && !isPreparing}
-            loading={isPreparing}
-            onClick={isPreparing ? undefined : onNext}
-            size="lg"
-          >
-            {isPreparing ? (
-              <Trans>Preparing checkout...</Trans>
-            ) : (
-              <Trans>Pay</Trans>
-            )}
-          </Button>
-        ) : (
-          <Button
-            className="w-full font-medium font-mono uppercase tracking-widest"
-            color="blue"
-            disabled={connectModalOpen}
-            onClick={() => openConnectModal?.()}
-            size="lg"
-          >
-            {type === 'register' ? (
-              <Trans>Connect to register</Trans>
-            ) : (
-              <Trans>Connect to renew</Trans>
-            )}
-          </Button>
-        )}
-      </div>
-    </Card>
   )
 }
