@@ -164,6 +164,12 @@ describe('AddressResolutionSidebar', () => {
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     })
 
+    it('treats a blank address like an empty one', () => {
+      typeAddress('   ')
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    })
+
     it('keeps Save available for a valid address, a contract included', () => {
       typeAddress('0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2')
 

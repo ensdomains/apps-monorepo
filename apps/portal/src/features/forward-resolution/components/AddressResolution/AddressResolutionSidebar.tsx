@@ -431,7 +431,7 @@ const ResolutionDetails = ({
           error={addressError}
           disabled={isBusy}
           saveDisabled={
-            !addressInput || !!addressError || isBusy || !hasResolver
+            !addressInput.trim() || !!addressError || isBusy || !hasResolver
           }
           saveLabel={saveLabel}
           onSave={onSave}
@@ -706,7 +706,7 @@ const useAddressRecordEditor = (
       isSyncing,
     }),
     onSave: () => {
-      if (!addressInput || addressError || !resolverAddress) return
+      if (!addressInput.trim() || addressError || !resolverAddress) return
       openFlow('addr')
     },
     isSettingPrimaryName: isSettingL2PrimaryName,
