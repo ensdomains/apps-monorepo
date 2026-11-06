@@ -98,11 +98,7 @@ export interface RootRolesChangedLog {
   readonly args: { readonly newRoleBitmap: bigint }
 }
 
-/**
- * The contracts where the account's latest root roles include every bit of
- * `requiredBitmap`, checksummed, most recently changed first. `logs` must be in chain
- * order, as `getLogs` returns them.
- */
+/** Contracts whose latest bitmap holds all of `requiredBitmap`, newest first; `logs` must be in chain order. */
 export const selectContractsHoldingRoles = (
   logs: readonly RootRolesChangedLog[],
   requiredBitmap: bigint,

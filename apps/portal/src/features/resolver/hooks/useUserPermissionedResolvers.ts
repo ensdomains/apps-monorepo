@@ -39,14 +39,7 @@ interface GetUserPermissionedResolversParams {
   readonly account: Address
 }
 
-/**
- * The PermissionedResolvers where `account` holds every admin role on the
- * root resource, whoever deployed them: a resolver the Manager deploys through
- * the user's smart account grants the wallet its roles in the same call.
- *
- * Any contract can emit a role event naming the account, so each candidate
- * must also pass the factory's verification before it is listed.
- */
+// Any contract can emit a role event naming `account`, so each candidate must pass the factory's verification.
 export const getUserPermissionedResolvers = ResultFn(async function* ({
   account,
 }: GetUserPermissionedResolversParams) {

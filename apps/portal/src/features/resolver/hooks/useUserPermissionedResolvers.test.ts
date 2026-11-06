@@ -61,7 +61,7 @@ let logsResponse: () => unknown[] = () => []
 const factoryRefusal = () => {
   throw new RpcRequestError({
     body: {},
-    // ProxyNotFromFactory(address)
+    // VerificationFailed(address)
     error: {
       code: 3,
       message: 'execution reverted',
@@ -112,8 +112,6 @@ describe('getUserPermissionedResolvers', () => {
     logsResponse = () => []
   })
 
-  // The wallet's grant is found by its own role event on any contract, not
-  // by the factory deploy it would have had to send itself (WEB-2141).
   it('lists the verified resolvers granting the wallet its roles', async () => {
     logsResponse = () => [
       roleLog(RESOLVER, 0),
