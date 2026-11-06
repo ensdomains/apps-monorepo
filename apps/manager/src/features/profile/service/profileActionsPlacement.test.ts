@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { shouldShowHeaderActions } from './profileActionsPlacement'
+import { getProfileActionsPlacement } from './profileActionsPlacement'
 
-describe('shouldShowHeaderActions', () => {
+describe('getProfileActionsPlacement', () => {
   const settledVisitor = {
     hasFloatingBar: false,
     isAccountPending: false,
@@ -11,44 +11,44 @@ describe('shouldShowHeaderActions', () => {
   } as const
 
   it.each([
-    { case: 'a visitor', change: {}, expected: true },
+    { case: 'a visitor', change: {}, expected: 'header' },
     {
       case: 'a visitor while write access is read',
       change: { isWriteAccessPending: true },
-      expected: true,
+      expected: 'header',
     },
     {
       case: 'an owner who cannot edit',
       change: { isOwner: true },
-      expected: true,
+      expected: 'bar',
     },
     {
       case: 'an owner while write access is read',
       change: { isOwner: true, isWriteAccessPending: true },
-      expected: false,
+      expected: 'none',
     },
     {
       case: 'an owner while the copy source is read',
       change: { isOwner: true, isCopySourcePending: true },
-      expected: false,
+      expected: 'none',
     },
     {
-      case: 'anyone with the profile bar',
+      case: 'anyone with the editor bar',
       change: { hasFloatingBar: true },
-      expected: false,
+      expected: 'bar',
     },
     {
       case: 'a wallet still reconnecting',
       change: { isAccountPending: true },
-      expected: false,
+      expected: 'none',
     },
     {
       case: 'an owner still loading',
       change: { isOwner: undefined },
-      expected: false,
+      expected: 'none',
     },
   ])('is $expected for $case', ({ change, expected }) => {
-    expect(shouldShowHeaderActions({ ...settledVisitor, ...change })).toBe(
+    expect(getProfileActionsPlacement({ ...settledVisitor, ...change })).toBe(
       expected,
     )
   })

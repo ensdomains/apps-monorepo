@@ -12,7 +12,7 @@ import { isConnectedProfileOwner } from '@/features/profile/components/view/conn
 import { useCanEditRecords } from '@/features/profile/hooks/useCanEditRecords'
 import { useLatchedFlag } from '@/features/profile/hooks/useLatchedFlag'
 import { useResolverCopySource } from '@/features/profile/hooks/useResolverCopySource'
-import { shouldShowHeaderActions } from '@/features/profile/service/profileActionsPlacement'
+import { getProfileActionsPlacement } from '@/features/profile/service/profileActionsPlacement'
 import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import { canEditProfileHere } from '@/features/profile/service/profileEditability'
 import {
@@ -196,7 +196,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     canEditProfile || Boolean(resolverCopySource),
     sessionKey,
   )
-  const hasHeaderActions = shouldShowHeaderActions({
+  const actionsPlacement = getProfileActionsPlacement({
     hasFloatingBar,
     isAccountPending: isAccountPending({
       isHydrated,
@@ -277,7 +277,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               avatarUrl={avatarUrl}
               canEdit={canEditProfile}
               desktopActions={
-                hasHeaderActions ? (
+                actionsPlacement === 'header' ? (
                   <ProfileDesktopActions
                     avatarUrl={avatarUrl}
                     isOwner={resolvedIsOwner}
@@ -320,6 +320,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
           <ProfileActions
             avatarUrl={avatarUrl}
             canEdit={canEditProfile}
+            hasDesktopBar={actionsPlacement === 'bar'}
             hasFloatingBar={hasFloatingBar}
             // An unknown expiry could be a grace period, so editing waits too.
             isInGrace={expiry.isInGrace || isExpiryError}
