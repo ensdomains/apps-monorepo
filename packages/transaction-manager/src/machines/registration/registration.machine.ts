@@ -55,6 +55,10 @@ import {
   getResumeTarget,
   type PersistedRegistrationContext,
 } from './registration.persistence'
+import {
+  getRegistrationVerification,
+  type RegistrationVerification,
+} from './registration.verification'
 
 /** `Math.max` for bigints (no bigint overload on `Math.max`). */
 const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
@@ -408,6 +412,11 @@ export type RegistrationContext = {
    * is still filling or definitively dead.
    */
   registrationIntentId?: bigint
+  /** Observes an already-queued reveal independently of the registration actor. */
+  readonly onRegistrationQueued?: (
+    txId: string,
+    verification?: RegistrationVerification,
+  ) => void
   /**
    * Asks the orchestrator for an intent's status (`'FAILED'`, `'PENDING'`, …)
    * or null when inconclusive. Runtime dep injected on START_REGISTRATION and
@@ -503,6 +512,11 @@ export type RegistrationEvent =
       unsettledL2Bridge?: UnsettledL2Bridge
       /** Standalone-HCA: set the primary name in the reveal batch. */
       primaryName?: string
+      /** Observes an already-queued reveal independently of the registration actor. */
+      readonly onRegistrationQueued?: (
+        txId: string,
+        verification?: RegistrationVerification,
+      ) => void
       /**
        * Orchestrator status lookup for the reveal intent (whose id arrives via
        * `INTENT_SUBMITTED` mid-flight), so `verifyingRegistration` can fail
@@ -545,6 +559,11 @@ export type RegistrationEvent =
         hcaSessionEnable?: HcaSessionEnableParams
         /** Rebuilt from the record's `l2FundingChainId`. */
         l2Funding?: L2FundingSource
+        /** Observes an already-queued reveal independently of the registration actor. */
+        readonly onRegistrationQueued?: (
+          txId: string,
+          verification?: RegistrationVerification,
+        ) => void
         /**
          * Orchestrator status lookup for the persisted reveal intent, so a
          * resumed verification can fail fast on a dead intent instead of
@@ -708,8 +727,15 @@ export const registrationMachine = setup({
         primaryName?: string
         id?: string
         onIntentSubmitted?: (intentId: bigint) => void
+        readonly onRegistrationQueued?: (
+          txId: string,
+          verification?: RegistrationVerification,
+        ) => void
+        readonly verification?: RegistrationVerification
       }) => {
-        return submitRevealBatchActor(input)
+        return submitRevealBatchActor(input).andTee((txId) =>
+          input.onRegistrationQueued?.(txId, input.verification),
+        )
       },
     ),
     checkResolverDeployment: fromResultAsync(
@@ -805,8 +831,15 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         resolverAddress: Address
         id?: string
+        readonly onRegistrationQueued?: (
+          txId: string,
+          verification?: RegistrationVerification,
+        ) => void
+        readonly verification?: RegistrationVerification
       }) => {
-        return submitRegistrationActor(input)
+        return submitRegistrationActor(input).andTee((txId) =>
+          input.onRegistrationQueued?.(txId, input.verification),
+        )
       },
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
@@ -979,6 +1012,7 @@ export const registrationMachine = setup({
         l2BridgeTxId: undefined,
         priorL2BridgeTx: carryPriorL2BridgeTx(context),
         fetchRegistrationIntentStatus: event.deps.fetchIntentStatus,
+        onRegistrationQueued: event.deps.onRegistrationQueued,
         reauthorizeSession: event.deps.reauthorizeSession,
         sessionReauthTarget: undefined,
         requiredGasOverhead: undefined,
@@ -1134,6 +1168,7 @@ export const registrationMachine = setup({
             // assigner, so TS drops the `event` inference.
             assign(({ event }) => ({
               fetchRegistrationIntentStatus: event.fetchIntentStatus,
+              onRegistrationQueued: event.onRegistrationQueued,
               reauthorizeSession: event.reauthorizeSession,
             })),
             assign({
@@ -2285,6 +2320,8 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           primaryName: context.primaryName,
           id: REGISTRATION_TX_IDS.register,
+          onRegistrationQueued: context.onRegistrationQueued,
+          verification: getRegistrationVerification(context),
           // Fires from the transport once the orchestrator accepts the
           // intent — typically AFTER this invoke has already resolved (the
           // submit actor returns as soon as the tx is queued), so the id is
@@ -2617,6 +2654,8 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
           id: REGISTRATION_TX_IDS.register,
+          onRegistrationQueued: context.onRegistrationQueued,
+          verification: getRegistrationVerification(context),
         }),
         onDone: {
           target: 'waitingForRegistration',

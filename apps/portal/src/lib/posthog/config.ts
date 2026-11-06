@@ -1,6 +1,7 @@
 import {
   applyAnalyticsConsent,
   canCaptureAnalytics,
+  clearAnalyticsAttribution,
   getAnalyticsProjectKey,
   prepareAnalyticsEvent,
   SHARED_POSTHOG_CONFIG,
@@ -45,9 +46,17 @@ export const POSTHOG_CONFIG = {
       environment: getAnalyticsEnvironment(),
       walletAddress: getConnectedWalletAddress(),
     }),
-  loaded: (client) => {
-    applyAnalyticsConsent(client)
-    writeAnalyticsConsent(client, client.get_explicit_consent_status())
+  loaded: (
+    client: Parameters<typeof applyAnalyticsConsent>[0] &
+      Parameters<typeof clearAnalyticsAttribution>[0],
+  ) => {
+    try {
+      clearAnalyticsAttribution(client)
+      applyAnalyticsConsent(client)
+      writeAnalyticsConsent(client, client.get_explicit_consent_status())
+    } catch (error) {
+      console.warn('[posthog] loaded consent synchronization failed', error)
+    }
     notifyAnalyticsConsent()
   },
 } satisfies Partial<PostHogConfig>

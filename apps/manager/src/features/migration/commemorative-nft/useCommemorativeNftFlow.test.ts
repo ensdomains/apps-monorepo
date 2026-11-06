@@ -1,6 +1,6 @@
 import type { EnsNetwork } from '@ens-apps/config'
+import { useFeatureFlagEnabled } from '@ens-apps/utils/posthog/useFeatureFlags'
 import { i18n } from '@lingui/core'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { Storage } from 'happy-dom'
@@ -50,21 +50,33 @@ vi.mock('../hooks/useEligibleV1Names', () => ({
   }),
 }))
 
-vi.mock('@/config', async () => {
+vi.mock('@/config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/config')>()
   const { extendChainWithEns } = await import('@ensdomains/ensjs/chain')
   const { mainnet } = await import('viem/chains')
   return {
+    ...actual,
     envConfig: {
+      ...actual.envConfig,
       get network() {
         return mockEnvConfig.network
       },
       chain: extendChainWithEns(mainnet),
-      endpoints: { bignameApi: 'https://bigname.example' },
+      endpoints: {
+        ...actual.envConfig.endpoints,
+        bignameApi: 'https://bigname.example',
+      },
     },
   }
 })
-vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
+vi.mock('wagmi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('wagmi')>()),
+  useChainId: vi.fn(),
+  useConfig: vi.fn(),
+}))
+vi.mock('@ens-apps/utils/posthog/useFeatureFlags', () => ({
+  useFeatureFlagEnabled: vi.fn(),
+}))
 vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
 vi.mock('../service/userRegistryMigration', () => ({
   computeUserRegistryAddress: vi.fn(),
@@ -252,9 +264,7 @@ describe('commemorative NFT flow session', () => {
     'keeps cached NFTs and callbacks disabled on Sepolia with migration-nft=%s',
     async (nft) => {
       onSepolia()
-      featureFlag.mockImplementation(
-        (_flag, defaultValue) => nft ?? defaultValue,
-      )
+      featureFlag.mockReturnValue(nft ?? false)
       const client = createClient()
       client.setQueryData(
         commemorativeNftEligibilityQueryOptions({ ownerAddress }).queryKey,
@@ -287,7 +297,7 @@ describe('commemorative NFT flow session', () => {
 
   it('admits on Sepolia only after the initially unknown flag becomes enabled', async () => {
     onSepolia()
-    featureFlag.mockImplementation((_flag, defaultValue) => defaultValue)
+    featureFlag.mockReturnValue(false)
     const { result, rerender } = mountFlow(createClient())
 
     expect(result.current.admission.status).toBe('fallback')

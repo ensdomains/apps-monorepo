@@ -6,9 +6,7 @@ type RegistrationProperties = FlowIdentity & {
   readonly chain_id?: number
 }
 
-export type RegistrationStep =
-  | 'duration'
-  | 'payment'
+export type RegistrationStage =
   | 'execution'
   | 'post_registration'
   | 'setup'
@@ -24,22 +22,11 @@ type RenewalProperties = FlowIdentity & {
   readonly chain_id?: number
 }
 
-type RenewalStep =
-  | 'duration'
-  | 'payment'
-  | 'execution'
-  | 'approval'
-  | 'verification'
-  | 'review'
+type RenewalStage = 'execution' | 'approval' | 'verification'
 
-type MigrationStep = 'execution' | 'renewal'
+type MigrationStage = 'execution' | 'renewal'
 
-type StepOutcome = {
-  readonly outcome: 'success' | 'failure'
-  readonly is_retryable: boolean
-}
-
-type PaymentSelection = FlowIdentity & {
+type PaymentSelection = RegistrationProperties & {
   readonly payment_asset: 'eth' | 'stablecoin'
   readonly funding_chain_id?: number
 }
@@ -53,16 +40,20 @@ export type AnalyticsEvents = {
   readonly 'registration:flow_resume': RegistrationProperties
   /** The user retries a failed registration stage. */
   readonly 'registration:flow_retry': RegistrationProperties
-  /** Registration enters a user-visible stage. */
-  readonly 'registration:step_view': RegistrationProperties & {
-    readonly step: RegistrationStep
+  /** The registration duration screen is observed; best effort, never an operation outcome. */
+  readonly 'registration:duration_view': FlowIdentity
+  /** The registration payment screen is observed; best effort, never an operation outcome. */
+  readonly 'registration:payment_view': FlowIdentity
+  /** The running workflow enters a meaningful execution stage, not a viewed screen or confirmation. */
+  readonly 'registration:stage_enter': RegistrationProperties & {
+    readonly stage: RegistrationStage
   }
-  /** A registration stage succeeds or reports a recoverable or terminal failure. */
-  readonly 'registration:step_result': RegistrationProperties &
-    StepOutcome & {
-      readonly step: RegistrationStep
-      readonly error_code?: 'transaction_failed' | 'user_rejected'
-    }
+  /** An authoritative workflow failure; it does not imply terminal registration failure. */
+  readonly 'registration:stage_fail': RegistrationProperties & {
+    readonly stage: RegistrationStage
+    readonly is_retryable: boolean
+    readonly error_code?: 'transaction_failed' | 'user_rejected'
+  }
   /** Registration verification succeeds. */
   readonly 'registration:flow_complete': RegistrationProperties
   /** The user chooses a payment asset, token or funding chain. */
@@ -73,16 +64,24 @@ export type AnalyticsEvents = {
   readonly 'renewal:flow_start': RenewalProperties
   /** The user retries a failed renewal. */
   readonly 'renewal:flow_retry': RenewalProperties
-  /** Renewal enters review, payment or an execution stage. */
-  readonly 'renewal:step_view': RenewalProperties & {
-    readonly step: RenewalStep
+  /** The renewal duration screen is observed; best effort. */
+  readonly 'renewal:duration_view': FlowIdentity
+  /** The renewal payment screen is observed; best effort. */
+  readonly 'renewal:payment_view': FlowIdentity
+  /** A renewal operation enters execution or verification. */
+  readonly 'renewal:stage_enter': RenewalProperties & {
+    readonly stage: RenewalStage
   }
-  /** A renewal stage confirms or execution fails; bulk failure includes confirmed names. */
-  readonly 'renewal:step_result': RenewalProperties &
-    StepOutcome & {
-      readonly step: RenewalStep
-      readonly completed_count?: number
-    }
+  /** A renewal execution attempt fails; confirmed bulk progress remains explicit. */
+  readonly 'renewal:stage_fail': RenewalProperties & {
+    readonly stage: RenewalStage
+    readonly is_retryable: boolean
+    readonly completed_count?: number
+  }
+  /** One required transaction has a successful receipt, independent of modal acknowledgement. */
+  readonly 'renewal:transaction_confirm': RenewalProperties & {
+    readonly stage: 'approval' | 'execution'
+  }
   /** All selected names finish renewal. */
   readonly 'renewal:flow_complete': RenewalProperties & {
     readonly item_count: number
@@ -95,15 +94,15 @@ export type AnalyticsEvents = {
   readonly 'migration:flow_start': FlowIdentity
   /** The user retries a failed migration. */
   readonly 'migration:flow_retry': FlowIdentity
-  /** Migration enters execution or its renewal handoff. */
-  readonly 'migration:step_view': FlowIdentity & {
-    readonly step: MigrationStep
+  /** Migration enters execution or its renewal handoff; not a viewed screen. */
+  readonly 'migration:stage_enter': FlowIdentity & {
+    readonly stage: MigrationStage
   }
-  /** Migration execution fails. */
-  readonly 'migration:step_result': FlowIdentity &
-    StepOutcome & {
-      readonly step: MigrationStep
-    }
+  /** Migration execution fails without inferring permanent abandonment. */
+  readonly 'migration:stage_fail': FlowIdentity & {
+    readonly stage: MigrationStage
+    readonly is_retryable: boolean
+  }
   /** Migration finishes and reports migrated, copied and ineligible operations. */
   readonly 'migration:flow_complete': FlowIdentity & {
     readonly item_count: number

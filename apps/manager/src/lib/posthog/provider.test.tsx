@@ -14,9 +14,6 @@ vi.mock('@intercom/messenger-js-sdk', () => ({
   trackEvent: vi.fn(),
   update: vi.fn(),
 }))
-vi.mock('@posthog/react', () => ({
-  PostHogProvider: ({ children }: { children: unknown }) => children,
-}))
 // The answer PostHog keeps in its cookie.
 const consent = vi.hoisted(() => ({ stored: 'pending' }))
 const walletState = vi.hoisted(() => ({
@@ -115,6 +112,14 @@ describe('PostHog provider', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.restoreAllMocks()
+  })
+
+  it('renders children when reading SDK consent throws', () => {
+    vi.spyOn(posthog, 'get_explicit_consent_status').mockImplementation(() => {
+      throw new Error('SDK unavailable')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    expect(renderProvider().getByText('child').textContent).toBe('child')
   })
 
   it('initializes PostHog with the consent-gated config', () => {

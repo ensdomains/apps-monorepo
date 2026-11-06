@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const payload = vi.hoisted(() => ({ value: undefined as unknown }))
 
-vi.mock('@posthog/react', () => ({
+vi.mock('@ens-apps/utils/posthog/useFeatureFlags', () => ({
   useFeatureFlagEnabled: () => payload.value !== undefined,
   useFeatureFlagPayload: () => payload.value,
 }))

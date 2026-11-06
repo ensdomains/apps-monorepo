@@ -1,4 +1,5 @@
-import { useFeatureFlagEnabled } from '@posthog/react'
+import { useFeatureFlagEnabled } from '@ens-apps/utils/posthog/useFeatureFlags'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { NotificationsMenuItem } from '../notifications/NotificationsMenuItem'
 import { AccountMenuDivider } from './AccountMenuItem'
@@ -16,8 +17,8 @@ export const AccountContent = ({
   onChoosePrimaryName,
 }: AccountContentProps) => {
   const isLanguageSelectorEnabled = useFeatureFlagEnabled(
+    posthog,
     POSTHOG_FEATURE_FLAGS.I18N,
-    false,
   )
 
   return (

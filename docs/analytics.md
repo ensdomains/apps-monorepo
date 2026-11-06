@@ -1,23 +1,10 @@
-# ENS product analytics — WEB-1251 handoff
+# ENS analytics handoff — WEB-1251
 
-This is an implementation with automated verification and limited local browser QA. Wallet transactions and staging ingestion remain release acceptance work. No deployment, production setting, billing, integration, dashboard or GitHub state was changed. The temporary QA collector bound only to 127.0.0.1, used a fake token, and retained only selected sanitized metadata in memory; it was not a PostHog staging project.
+Analytics is optional, opt-in and best effort. Product requests, rendering, signing and transaction handling must not await analytics or fail because the SDK throws. Critical events belong to the operation that observes the fact; React observes only optional visible-screen metrics.
 
-## Implementation map
+## Developer API
 
-- `packages/utils/src/posthog/eventContracts.ts`: explicit TypeScript event map with per-flow steps and trigger comments, including retained legacy events. Types list only actual events; no generated flow families. App adapters use the bundled SDK singleton; no analytics backend, schema runtime, identity service or new dependency.
-- `createAnalyticsTracker.ts`: consent/environment gate, typed pass-through payloads, best-effort capture, and initiating-identity guards for asynchronous work. SDK outages cannot block product actions. Environment checks, common properties and automatic-data privacy live in the SDK configuration rather than being repeated in the adapter.
-- `analyticsConfiguration.ts`, `walletIdentity.ts`: shared opt-in consent, normalized connected-wallet identity, reset before account replacement, environment policy and automatic-property sanitization.
-- App `lib/posthog/config.ts` / `provider.tsx`: SDK and wagmi wiring, native SPA pageviews/pageleaves. Click listener retained for native rageclick detection; ordinary autocapture events are discarded. Replay, dead clicks and raw exception autocapture remain off.
-- Manager failed-run reporting is now `transaction:execution_end` with run ID, status, stage, chain, method and attempt count. Full payload, errors, transaction hashes, calldata and timeline are excluded. Runs without an observed initiating context are suppressed.
-- API Worker returns an unavailable statistics response (503) instead of a fabricated zero on failed/malformed PostHog responses. Manager already treats this as a query error and does not render unavailable demand data.
-
-See the [Manager matrix](analytics-manager-matrix.md), [Explorer matrix](analytics-explorer-matrix.md), and [configuration guide](analytics-configuration.md) for exact source locations, per-app steps and QA sequences. These matrices were established before the app instrumentation and updated afterward.
-
-
-## Adding an event
-
-1. Add its literal name, exact trigger comment and required properties to `packages/utils/src/posthog/eventContracts.ts`.
-2. Import `track` from the app's `@/lib/posthog/events` and call it at the real action/outcome. No property allowlist or runtime schema needs updating.
+Define an event once in `packages/utils/src/posthog/eventContracts.ts`, then call the app's typed `track()` at its actual trigger. There is no second property allowlist, runtime schema framework, analytics backend or event journal.
 
 ```ts
 track('name_search:result_select', {
@@ -27,7 +14,7 @@ track('name_search:result_select', {
 })
 ```
 
-For asynchronous outcomes, take the optional identity snapshot before starting work:
+Before asynchronous work, bind the initiating consent/wallet identity:
 
 ```ts
 const analytics = startAnalyticsOperation()
@@ -35,128 +22,147 @@ await updatePrimaryName()
 analytics.capture('profile:primary_name_update', { chain_id: chainId })
 ```
 
-`track()` uses current consent/identity. The snapshot suppresses a late outcome after consent or wallet changes. Complex flow IDs belong to those journeys; simple outcomes need no manufactured operation UUID. Shared SDK configuration attaches source app/environment/version to both native and custom events. Known automatic URL/DOM data is minimized there. Custom properties are explicit typed inputs: do not pass arbitrary errors, request/state objects, names or addresses. Legacy `name:search_selected` remains the one deliberate name-statistics exception.
+The guard suppresses old outcomes after wallet/consent changes, including A→B→A and withdrawal/regrant. Never wait for capture or make product success depend on it. A capture attempt is not an ingestion acknowledgement. Correlation IDs are optional infrastructure: unavailable crypto suppresses telemetry while product work continues.
 
-Manager's idle screen observer only reads the currently visible screen after consent and subscribes to actual UI changes. Analytics readiness is no longer a business-machine event or stored readiness key; active operations retain their initiating identity. Existing NFT callers reuse the same safe `track` through their legacy import alias. Support links retain the PostHog distinct ID in Intercom; there is no extra PostHog person-property setter.
+`createAnalyticsTracker` binds the existing SDK and wallet reader. SDK configuration alone owns environment policy, metadata and automatic-data scrubbing, including top-level person properties and flag-request attribution. There is no PostHog React provider/type-cast bridge; guarded SDK flag subscriptions keep optional SDK failures out of React rendering.
+
+## Lifecycle and outcome ownership
+
+- **Explorer renewal:** each real submission attaches receipt observation. Successful receipts produce transaction confirmations and final completion, independent of Done or unmount. Hard manager cleanup retains read-only observation when a hash or bundle ID is known; cleanup itself is not an execution failure. Done controls only existing UI callbacks. Atomic and separate approval paths count their actual required transactions; failures retain partial progress and retries do not double-count receipts.
+- **Explorer registration:** subscriptions attach synchronously before START/RESUME. A queued reveal attaches observation before UI publication, using verification inputs pinned before submission. Known hashes/bundle IDs remain observable after hard cleanup through the existing shared receipt actor, including Safe/EIP-5792 handling. Without a known submission identifier, bounded read-only ownership verification may recover completion. Neither path signs, submits or resumes paid work; confirmed success and verified recovery share deduplication.
+- **Manager renewal:** EOA submission attaches independent receipt observation before the UI actor's onDone; filled HCA service results also capture completion before UI publication. Existing cancellation/payment consent behavior remains.
+- **Manager bulk renewal:** initiating analytics and selected/completed items are retained by the actual row outcomes. The last required confirmation reports completion before UI staleness checks or the progress animation. Partial work never reports full completion; existing paid execution and cancellation behavior remain unchanged.
+- **Manager migration:** confirmed service results are observed before the UI cancellation guard, using the existing merged operation counts. Empty abandoned outcomes do not become completions; optional analytics errors cannot replace the service's result.
+- **Manager profile records:** the actual record/update-resolver mutations bind identity before the write and capture after completion. Dialog success messages only update the UI; stopping the dialog cannot discard the outcome.
+- **Manager registration:** the shared submit result attaches receipt observation before publishing the registration transaction ID to the UI, with bounded read-only verification fallback. No paid workflow is detached or continued on navigation.
+- **Visible pricing screens:** a small framework hook subscribes to current idle UI, with a pure comparison function. Dedicated screen events are best effort and are not mandatory business funnel steps. Mounting/unmounting may omit a screen that was never meaningfully observed; it must not determine operation success.
+
+Registration cancellation still pauses/stops the existing protocol workflow. Read-only result observation does not change that behavior. No completion is fabricated from an unsubmitted wallet prompt, an unverified read, a failed lookup, a UI success screen, or movement to the next stage.
+
+Ownership-verification fallback uses the existing 30-second grace plus RPC durations; known submitted Explorer transactions use the existing receipt timeout instead. Hard cleanup before any hash/bundle ID, late confirmations after those observation windows, a closed browser, or blocked ingestion can remain unobserved. No exactly-once delivery or cross-reload analytics journal is promised. Registration receipt observations follow actual transaction actors, since IDs can be reused; final completion deduplicates by the observed flow.
 
 ## Event registry
 
-Every emitted event has `source_app: manager | explorer`, `environment: production | staging`, and `analytics_version: 1`. Chain/connector context is registered while connected. UUIDs are opaque; no names or record values are added to new product events. Properties below are additional to common metadata. Not every type-supported event is emitted by every flow.
+All outgoing events receive `source_app: manager | explorer`, `environment: production | staging`, and `analytics_version: 1` at the SDK boundary. Execution events include known chain/method context; raw connected wallets are identity, not duplicated properties. `stage_enter` means entry into execution, not a viewed screen or confirmation.
 
-| Event(s) | Properties and exact semantics | App |
+| Events | Properties / trigger | Apps |
 | --- | --- | --- |
-| `registration:flow_view`, `flow_start`, `flow_resume`, `flow_retry` | `flow_id`; view = currently visible idle surface observed after consent/SDK readiness; start = explicit submission; resume = observed recovery; retry = explicit retry. Optional `execution_method`, `chain_id` where available. | Manager; Explorer start/resume/retry |
-| `registration:step_view`, `step_result` | `flow_id`, controlled `step`; result has `outcome`, `is_retryable`, bounded `error_code` where available. Significant UI/machine stages only; failure is an attempt, not terminal business failure. | Both |
-| `registration:payment_option_select` | `flow_id`, `payment_asset`, `funding_chain_id`; explicit payment selection. | Manager |
-| `registration:flow_complete` | `flow_id`; verified required registration, before optional post-registration setup. Deduplicated within the live flow. | Both |
-| `renewal:flow_view`, `flow_start`, `flow_retry`, `step_view`, `step_result` | Same correlation/result convention; Manager supports payment and execution, plus `is_bulk`, `completed_count` on partial batch failures; `item_count` on completion. Explorer tracks receipt-backed transaction stages. | Both; see matrices for app support |
-| `renewal:payment_option_select` | Explicit selection, same payment properties as registration. | Manager |
-| `renewal:flow_complete` | `flow_id`, `item_count`; confirmed renewal, all batch work complete. Explorer means all required receipt callbacks completed, not separately indexed expiries. | Both |
-| `migration:flow_view`, `flow_start`, `flow_retry`, `step_view`, `step_result`, `flow_complete` | `flow_id`; completion has actual result counts (`item_count`, `migrated_count`, `copied_count`, `ineligible_count`); partial results are not all-selected success. | Manager |
-| `migration:manager_open` | `is_wrapped`; click opens Manager's migration UI. This is not a migration outcome or a sequential app funnel. | Explorer |
-| `name_search:result_select` | `source`, optional `name_length`, required `result_type: name | address | resolver`, optional `is_available`; explicit chosen destination, not keystrokes or availability polling. | Both |
-| `profile:records_update` | `chain_id`, optional `record_count`; successful save completion, excluding record values. | Both |
-| `profile:primary_name_update` | `chain_id`; confirmed primary-name mutation. | Both |
-| `subname:name_create` | `chain_id`; receipt-backed create completion. | Explorer |
-| `resolver:configuration_update` | `chain_id`, controlled `action` (change/link/unlink/roles); successful receipt-backed operation. | Explorer |
-| `roles:permissions_update` | `chain_id`, `action: grant | revoke`; receipt-backed registry permission update. | Explorer |
-| `dns:manager_sync` | `chain_id`; successful DNS manager synchronization. | Explorer |
-| `notifications:preferences_update` | No event properties; successful preferences PATCH, no destinations or preference values. | Manager |
-| `wallet:connect`, `wallet:disconnect` | Connected callback/disconnect; chain and connector, no duplicated wallet address sent. Reactive identity synchronization also covers account/network/connector changes without fabricating connects. | Both |
-| `transaction:execution_end` | `operation_id`, `outcome: failure | cancelled`, `failure_stage`, optional `chain_id`, `execution_method`, `attempt_count`; bounded failed TM run. Not an overall business-flow failure. | Manager |
-| `$pageview`, `$pageleave`, `$rageclick` | SDK native events with sanitized automatic properties. No manual recreation. Rageclick functionality requires staging browser confirmation. | Both |
-| Retained legacy events | `name:search_selected` retains normalized `name` and `source: header_search` for name-popularity dependency. Existing NFT/Intercom/DNSSEC event names remain; DNSSEC raw `name` is removed at transport. | Existing app callers |
+| `registration:flow_view`, `duration_view`, `payment_view` | `flow_id`; currently observed idle screen | Manager |
+| `registration:flow_start`, `flow_resume`, `flow_retry` | `flow_id`, known `chain_id`, `execution_method`; explicit operation intent/recovery | Both |
+| `registration:stage_enter` | Above plus controlled `stage`: setup/approval/commit/cooldown/registration/verification; Manager also execution/post_registration | Both |
+| `registration:stage_fail` | Stage plus `is_retryable`, known bounded `error_code` only; never guessed from every error | Both |
+| `registration:payment_option_select` | `flow_id`, `payment_asset`, optional `funding_chain_id`; user choice, excluding automatic fallback selection | Manager |
+| `registration:flow_complete` | Required registration confirmed or verified; optional post-registration setup remains separate | Both |
+| `renewal:flow_view`, `duration_view`, `payment_view` | `flow_id`; optional observed idle pricing screen | Manager |
+| `renewal:flow_start`, `flow_retry`, `stage_enter`, `stage_fail` | `flow_id`, known chain/method; stage approval/execution/verification; bulk failure `completed_count` where known | Both; app stages differ |
+| `renewal:transaction_confirm` | `flow_id`, `chain_id`, stage approval/execution; one successful receipt, not a renewed-name count | Explorer |
+| `renewal:flow_complete` | `flow_id`, `item_count`; all required renewal work confirmed, once per run | Both |
+| `renewal:payment_option_select` | Same deliberate payment properties as registration | Manager |
+| `migration:flow_view`, `flow_start`, `flow_retry`, `stage_enter`, `stage_fail`, `flow_complete` | `flow_id`; stage renewal/execution; completion actual `item_count`, `migrated_count`, `copied_count`, `ineligible_count` | Manager |
+| `migration:manager_open` | `is_wrapped`; outgoing handoff, not migration completion | Explorer |
+| `name_search:result_select` | `source`, required name/address/resolver `result_type`, optional `is_available`, `name_length`; explicit selection | Both |
+| `profile:records_update`, `profile:primary_name_update` | Confirmed write, `chain_id`, optional record count; no record values or manufactured operation UUID | Both |
+| `subname:name_create`, `resolver:configuration_update`, `roles:permissions_update`, `dns:manager_sync` | Receipt-backed operation; chain and bounded action where applicable | Explorer |
+| `notifications:preferences_update` | Successful preferences response; no destinations/preferences payload | Manager |
+| `transaction:execution_end` | Bounded failed TM run: opaque operation ID, failure/cancel outcome, stage, known method/chain, attempt count | Manager |
+| `$pageview`, `$pageleave`, `$rageclick` | Native SDK events; sanitized URLs and automatic properties | Both |
 
-Verb vocabulary: view = observed meaningful surface/stage; start = explicit intent; select = deliberate choice; result = step outcome; retry/resume = observed recovery; complete = confirmed required outcome; update/create/sync = successful simple operation; open = outgoing handoff. Leaving a page is never synthesized into a failure. Duration can be computed between correlated timestamps; no clock-dependent business decisions are added.
+Retained legacy events: `name:search_selected` carries normalized name solely for existing search-popularity statistics. Do not rename/drop its field until the saved endpoint is migrated. Existing NFT/Intercom/DNSSEC categories remain. DNSSEC includes controlled source/verdict, no raw names or name-bearing failed-step strings. Never sum canonical search selection and its legacy counterpart as two searches.
 
-## Configuration and remote setup
+Custom contracts are the privacy boundary for deliberate properties: never pass raw errors, signatures, calldata, arbitrary URLs or state/request objects. Automatic URL/DOM/campaign data is minimized in configuration. The installed bundled SDK import remains unchanged for CSP. Ordinary autocapture is discarded while masked native rageclick detection retains its click listener. Replay, raw exception and dead-click capture remain disabled.
 
-**Capture is disabled until deployment explicitly selects an analytics environment.** Production Manager and Explorer must both set `VITE_PUBLIC_ANALYTICS_ENV=production` and use the same production project token. Staging requires `VITE_PUBLIC_ANALYTICS_ENV=staging` plus a distinct `VITE_PUBLIC_POSTHOG_STAGING_KEY`; it never falls back to the production key. Local staging capture additionally requires `VITE_PUBLIC_ANALYTICS_DEBUG=true`. Normal local/CI runs remain flags-only. See `.env.example` and the configuration guide.
+## SDK failure isolation
 
-Read-only account inspection on 2026-11-06 found ENS App organization `019b278e-62fe-0000-8810-6947910510c3`, combined project **109100**, one visible non-demo project, and `organizations_projects` limit **1**. A second same-organization project therefore needs an owner to resolve the entitlement before creating **ENS Staging**. ENS Labs has a different entitlement, but moving analytics to another organization was not authorized. No project or billing change was attempted.
+Consent reads in rendering return unavailable on SDK failure. Optional backend analytics headers return empty without affecting Authorization or the request. Disconnect resets, feedback calls and SDK loaded callbacks are guarded. Guarded feature-flag readers preserve the existing false/undefined defaults when SDK reads or subscriptions fail. Feature flags do not require analytics opt-in.
 
-Owner setup: resolve entitlement, create the staging project, configure its token and ingestion host/proxy in both deployments, copy essential flags and notice payloads, verify CSP connectivity, then perform the acceptance checklist below. Keep production/staging tokens out of shared CI defaults. Review retention and existing integrations separately; this change does not approve additional processing. Raw wallet addresses remain personal data and become PostHog identity only after consent. No SIWE dependency or identity pseudonym service is introduced.
+Synchronous capture exceptions and rejected capture promises are contained. A pending analytics request is never awaited by product work. A synchronous infinite loop in a third-party main-thread SDK cannot be interrupted by try/catch, a Result, or a promise timeout; this implementation does not claim worker-level isolation.
 
-The current name-search endpoint remains keyed to legacy `name:search_selected` / `properties.name` until its saved query is migrated deliberately. Do not rename/remove that event during rollout. Canonical result selection is suitable for funnels; never sum both events as two searches. The retained consented-name counter is an explicit compatibility exception, not a general approval to collect names.
+## Configuration / remote setup
 
-Landing repository is present at `~/dev/ensdomains-landing`; its Next root layout loads Plausible, and `SearchInput` has a Plausible search marker. Keep Plausible for this rollout. Handoff: adopt the same opt-in cookie and shared production project only after deciding the landing measurement purpose; preserve ordinary links and safe campaign attribution. Do not put wallets/names into attribution URLs or introduce automatic cross-domain identity merging. No Landing edit was necessary for the two-app integration.
+| Deployment | Settings |
+| --- | --- |
+| Production, both apps | `VITE_PUBLIC_ANALYTICS_ENV=production`; same `VITE_PUBLIC_POSTHOG_KEY` |
+| Staging, both apps | `VITE_PUBLIC_ANALYTICS_ENV=staging`; explicit `VITE_PUBLIC_POSTHOG_STAGING_KEY`, distinct from production |
+| Normal local/CI | Analytics environment unset; remote capture disabled, flags may initialize |
+| Deliberate local staging QA | Staging settings plus `VITE_PUBLIC_ANALYTICS_DEBUG=true` |
 
-## Verification status
+Use the appropriate `VITE_PUBLIC_POSTHOG_HOST` proxy/host. Staging never falls back to production. Do not expose personal API keys in Vite variables. See `.env.example` and [configuration details](analytics-configuration.md).
 
-| Scenario | Automated | Browser / outgoing / ingestion |
+Read-only inspection on 2026-11-06 found ENS App combined production project 109100 and an organization project limit of one. An owner must resolve entitlement and create/configure staging; no project, billing, production setting or dashboard was changed. Mirror essential flags deliberately and verify CSP connectivity before enabling staging. Landing still uses Plausible; no forced integration was added. Its handoff is shared opt-in/project policy after a separate measurement-purpose decision, without wallet/name attribution URLs.
+
+No active source-map upload setup was found in the earlier inspection. Raw exception capture remains off; source-map upload and sanitized exception tracking remain separate follow-ups.
+
+## Verification and manual QA
+
+Automated coverage targets failure boundaries and real lifecycle seams, not every event call. New regressions were observed failing before fixes or against deliberately broken code: successful renewal without Done, owner unmount while receipt pending, registration submitted reveal verified after unmount, no false grouped-stage success, backend headers/rendering with throwing SDK, and SDK initialization/reset/feedback failures. Metadata assertions cover real SDK configuration as well as pure preparation.
+
+Review-fix integration checks: **777 tests passed in 52 files** (Manager 349, Explorer 65, transaction-manager 333, shared analytics 30). `pnpm typecheck` passed in both apps, transaction-manager and utils. Biome reports no errors; three existing complexity warnings remain unchanged. One cookie-write suggestion is intentional: consent generations must update synchronously before the next optional capture, so asynchronous Cookie Store writes cannot replace it. No suppressions were added. The app matrices document exact triggers and expected manual sequences; the shared event map defines the types.
+
+Real-SDK regressions cover complete identify/pageview envelopes, native `title`, initial/refreshed flag bodies with old stored attribution, and legacy/current consent invalidation across independent module instances. Outcome regressions cover bulk unmount, early registration stop followed by failed receipt/verified recovery, migration renewal/preparation retries, hard-cleanup success/revert, EIP-5792 bundle success/failure, and replacement actors sharing an ID while prior recovery is pending. New bug cases were observed failing before fixes or against deliberately broken code.
+
+Browser SDK fixture QA used a fake key and localhost collector: accepted the actual banner, identified a synthetic wallet in an isolated SDK instance, seeded legacy attribution, reloaded flags and captured a sensitive-title pageview. The checked identify envelope, latest pageview and three flag requests contained no test ENS name, query secret, fragment, campaign or ad identifier; URL was `/register/:value`, title absent, metadata `manager/staging`. This is browser/outgoing-payload evidence, not a real wallet workflow or staging ingestion. Initial pre-fix title evidence was excluded from the final payload check.
+
+| Scenario | Evidence in this pass | Still required |
 | --- | --- | --- |
-| Pending/denied consent; flags independent | Real SDK integration tests pass | Both homepages loaded locally; Manager pending banner and decline observed, banner disappears; denial persists on same-context navigation to Explorer. No `/i/v0/e/` ingestion resources observed. No real PostHog ingestion inspection. |
-| Accepted/withdrawn/regranted | SDK and tracker tests pass | Acceptance observed against a temporary localhost collector using a fake staging token; native pageviews received. No real staging ingestion. Withdraw/regrant observed through the real navigation Settings switch: denial persisted across reload and suppressed view events; regrant emitted only current page/view/duration with a fresh observed flow, no start/completion. Pending-transaction/queued-beacon withdrawal still needs wallet QA. |
-| Wallet A→B, disconnect, restored connection | Identity and provider tests pass | No funded test wallet interaction; manual acceptance required. |
-| Old async outcomes / consent epochs | Tracker tests cover stale identities and regrant | No wallet/browser transaction verification. |
-| Native pageview/pageleave and local gate | Config tests pass | Manager runtime config observed `history_change`, pageleave true, replay disabled, `before_send` suppressing local capture. Native pageviews received by the localhost collector after consent, including real SPA navigation; ordinary navigation/Settings clicks yielded no ordinary autocapture events; dynamic name/query values redacted. Native pageleave received by the loopback collector on full navigation; real PostHog ingestion remains unverified. |
-| Product flow intermediate/final outcomes | Targeted machine/helper tests pass; regression mutation checks performed | Manager registration pricing screen observed on full reload: collector received flow_view then step_view(duration), one matching flow_id; no transaction completion was attempted. No renewal, migration or management transaction performed. |
-| Desktop/mobile | No UI layout changes | Both homepages observed at 1280px and 390px; no horizontal overflow at mobile; Manager banner fits viewport. |
-| Statistics unavailable | Worker regression reproduced before fix, then targeted tests pass | No live PostHog statistics query modified or production failure induced. |
+| Manager duration flow, native pageview/pageleave, redacted dynamic route, common metadata | Browser interaction; outgoing events received by a local fake-key collector | Real staging ingestion; no production QA traffic was sent |
+| Held analytics requests | Collector deliberately never answered ingestion; navigation, duration change and consent withdrawal/regrant remained responsive | Real transaction under blocked analytics |
+| Local environment isolation | Explorer rendered at desktop/mobile widths; configuration disabled capture and discarded a candidate native event | Deployment keys, CSP and staging ingestion |
+| Unmount during registration/renewal, no Done, retries and resumed verification | Real actor/hook lifecycle regression tests with controlled transaction/verification results | Disposable-wallet testnet execution and reload recovery |
+| SDK throws/rejects, consent and identity changes | Focused failure-boundary and identity tests | Real wallet A→B→A, connectors/networks, cross-app identity |
 
-Automated checks: both app `pnpm typecheck`, utils typecheck and API Worker typecheck. Manager affected workflow/wiring tests: 202 passed; final narrower rerun: 123 passed. Explorer final focused run: 71 passed; earlier helper run overlaps and is not additive. Final provider/config checks: Manager 20 and Explorer 17 passed; shared posthog tests 24 passed; Worker statistics tests 8 passed. These runs overlap some earlier checks and are not additive. Biome has only two existing complexity warnings (Manager bulk submit and Explorer search, both unchanged scores of 16). No full app test suite run. Local Cloudflare tests/dev servers required sandbox escalation for localhost/network-interface access. Restarting the Manager QA build initially hit a stale SSR React dependency-cache error; Vite --force restored the running screen. The first temporary collector proposal was rejected for its broad network binding; the executed fixture used loopback-only binding and restricted CORS.
+Both apps rendered at 1280px and 390px. Explorer's activity table overflowed at mobile width; this pass changes no layout. Hot reload, consent regrant and unacknowledged SDK retries occurred during fixture QA, so its event totals are not a deduplication measurement. No wallet signing, paid operation or real PostHog ingestion was browser-verified.
 
-## Manual acceptance, ordered by risk
+Manual acceptance, on staging/testnet with disposable wallets A/B:
 
-Use staging builds only, two disposable connected-wallet accounts A/B, Sepolia funds/test tokens, and a registered test name you control. Open PostHog **staging** Live events, filter `environment=staging` and `source_app`; inspect each event's properties and identity. Use DevTools Preserve log for ingestion requests and page-leave beacons. Record browser observation, outgoing request, and ingested event independently.
+1. Start renewal, submit, then close the modal/navigate away before its receipt. Expect `flow_start`, relevant `stage_enter`, actual `transaction_confirm` in Explorer and exactly one `flow_complete`. Do not click Done. Reject/fail a later batch stage: no premature completion; retry retains confirmed progress.
+2. Submit a registration reveal, leave the screen, and inspect confirmed/read-only verified completion. Unsubmitted prompts and unverified reads must not complete. Optional setup failure must not reverse required registration success. Check actual paused/resumed registration paths separately.
+3. Switch A→B and A→B→A while pending, withdraw/regrant consent, and reload a restored connection. Old contexts must never attach to another wallet or replay pre-consent activity. Suppressed old-identity completions intentionally undercount rather than misattribute.
+4. Block analytics, and exercise navigation, backend requests and supported transactions. Product work continues. Inspect app and environment metadata on outgoing requests and actual staging ingestion independently.
+5. Verify native pageview/pageleave and URL redaction with test names/addresses/query strings; ordinary clicks/forms emit no `$autocapture`, no raw exceptions/replay/payload objects. Confirm default local/CI capture remains disabled.
+6. Save profile records and perform a reviewed resolver setup, then navigate away while the final transaction is pending. Expect one `profile:records_update(chain_id=...)` after the actual write completes, independent of the dialog. Rejected/failed writes emit no success. Repeat a primary-name update; verify the reverse record and its dedicated event.
+7. While Explorer renewal is pending, start another flow that clears the manager. A known submitted transaction must still confirm/complete; cleanup alone must not emit failure. Repeat with EIP-5792 and Safe. For registration, leave a known reveal pending for over 30 seconds after cleanup; its receipt must remain observable within the normal receipt timeout. Hard cleanup before any hash/bundle ID is an unobserved outcome, not proof of failure.
+8. On Manager, navigate off the dashboard during the last bulk-renewal receipt or progress animation: full confirmed selection completes once, partial selection does not. Fail grace renewal during migration and retry; expect `migration:stage_fail(stage=renewal)`, `flow_retry`, and another renewal stage. Retry a preparation error too; do not mislabel it as failed grace renewal.
+9. With two consenting tabs/apps, start an operation in one, withdraw and regrant in the other before the five-second poll. Old completion stays suppressed. Also test an already granted browser with no generation metadata, which must continue working without another banner or consent prerequisite. Inspect flag requests and top-level person properties as well as ordinary event properties.
 
-1. **Environment/consent:** fresh storage → pending banner; search/navigate/click: no analytics. Decline → no analytics. Accept → only subsequent activity captured. Open the ENS navigation menu → Settings → Share usage data, and withdraw while a request is pending, then regrant: old operations must not resume capture or replay. Repeat across Manager/Explorer and a stale tab; verify feature flags still work. Normal local DEV and CI must send no events; staging key missing/equal to production must fail closed.
-2. **Identity:** accept, connect A, reload, change network/connector, switch directly to B, disconnect, reconnect A. Events must use normalized connected wallet, never HCA/Safe executing account. Start a transaction as A, switch to B (and separately A→B→A) before resolving: old completion must be suppressed. No address property duplicates, signatures, errors, record values or calldata. Repeat Manager→Explorer navigation in the same browser context.
-3. **Registration:** follow each app matrix's exact sequence through setup/commit/cooldown/approval/registration/verification. Check one `flow_id`, ordered `step_view`/`step_result`, and one `flow_complete` only after verified registration. Reject authorization at different stages; see failed step with retryability, no terminal flow failure. Retry and recover. Fail optional setup after registration: retain one registration completion; optional failure must not count as failed registration. Test EOA/HCA/Safe supported paths separately.
-4. **Renewal/bulk:** duration/payment → start/execution → confirmed completion. Fail after a partial batch, inspect partial counts, retry; no double counting already completed items. Explorer completion means all required receipts, not approval alone. Reload/recover a pending operation and ensure no synthetic start or duplicate completion from an already finished transaction.
-5. **Migration:** test direct and grace-renewal cases, mixed eligible/ineligible results and retry; inspect result counts and one observed completion. Explorer outgoing handoff must emit only `migration:manager_open`, not a migration completion.
-6. **Management:** edit records, set primary name, create subname, change/link/unlink resolver, grant/revoke roles, DNS sync, notification preference save. Confirm relevant outcome only after success, none on rejection or failed receipt, none after switching identity midflight. No record values/destinations in payloads.
-7. **Native events/privacy:** navigate routes containing test names/addresses and query strings; inspect native pageview/pageleave payloads (including previous-page fields and person initial properties). Only static route pattern survives. Ordinary clicks/forms produce no `$autocapture`; repeated clicks may produce native `$rageclick` with no DOM content. No replay, `$exception`, or arbitrary payloads. Do not infer a failure from abandonment.
-8. **Network failures:** block analytics host and repeat UI actions. App remains usable. Unblock: pre-consent activity must not be replayed. Confirm capture resumes only for permitted current contexts. Inspect queued/beacon behavior during withdrawal explicitly.
+Browser/ingestion evidence must distinguish actual browser observation, outgoing local fixture event, and real PostHog staging ingestion. Automated actor tests do not establish real-wallet or real-chain QA.
 
-Failure criterion: wrong identity/environment, an outcome on mere submission, repeated completion, raw sensitive payload, broken core UI when analytics fails, or pre-consent events. Capture evidence and fix before rollout. Expected per-app sequences and exact source functions are in the matrices.
+## Review notes
+
+The SDK adapter remains one injected binding for consent, wallet safety and exception containment. Callers use `track` directly; asynchronous writes bind `startAnalyticsOperation` once. No capture result is needed by product logic. Local weak references prevent duplicate observed outcomes without persisting another lifecycle. Registration's optional runtime queue callback carries pinned read-only verification inputs; one pure shared builder avoids app-specific copies. Receipt recovery reuses the actual transaction-manager receipt function, preserving Safe and batch semantics. Migration merge decisions live in the domain service, and renewal receipt results are keyed by the domain submission rather than analytics identity.
+
+Existing assertion changes reflect the intentional event rename (`step_view`/`step_result` to truthful stage/screen events), added chain/method metadata, guarded flag-hook imports, and framework provider setup. Same-actor dedup tests now assert one actual subscription instead of pinning lookup counts. Product assertions remain intact. Catching untyped SDK exceptions is deliberate at the optional IO boundary; it does not replace typed transaction failures or unwrap Results by throwing. No style-guide change is proposed.
 
 ## Dashboard recipes
 
-Create in staging first; no remote dashboards were created here. Default filters: `environment=staging`, `analytics_version=1`; production dashboards must explicitly select production. Never treat Manager→Explorer as funnel stages.
+Use explicit environment/version filters and break down comparable outcomes by source_app. Manager and Explorer are alternatives, not consecutive funnel stages.
 
-- **Registration funnel:** `registration:flow_start` → `registration:step_view` (step=registration) → `registration:flow_complete`; hold `flow_id` constant and break down by `source_app`. Separate app-specific duration/payment/setup/approval stages instead of forcing identical funnels. Use step failure trends by step/method/chain/connector for friction.
-- **Renewal:** start → execution view → complete, constant `flow_id`, breakdown `source_app` and `is_bulk`; inspect Manager failure `completed_count` for confirmed progress; final `item_count` measures completed batch size. Do not sum partial counts across retries as new renewals.
-- **Reliability:** `transaction:execution_end` by failure_stage/execution_method/chain_id/attempt_count. This is Manager failed-run diagnostics, not an all-app transaction failure rate or wallet rejection denominator. Separate step failures from terminal outcomes.
-- **Adoption:** unique users on profile/subname/resolver/roles/DNS/notifications events, breakdown source_app. Use migration completion result counts separately from Explorer outgoing handoffs.
-- **Measurement health:** counts by event/source/environment/version; alert on missing source_app or production events in staging. Compare starts to matured completion cohorts; recent starts are not failures.
+- Registration: `flow_start` → `stage_enter(stage=registration)` → `flow_complete`, correlated by flow_id. Screen views are optional acquisition/UX observations, not completion prerequisites. Analyze known stage failures separately; stage entry is never step success.
+- Renewal: `flow_start` → execution stage → `flow_complete`; inspect confirmed progress and final item_count. Transaction confirmations include approval and must not be counted as renewed names.
+- Migration: actual migrated/copied/ineligible counts, distinct from Explorer handoff adoption. Do not count accumulated retry progress as new migrated items twice.
+- Reliability/adoption: bounded transaction failures by stage/chain/method, dedicated management outcomes by app; check missing source/environment metadata. Recent starts, paused operations and unobserved outcomes are not automatically failures.
 
-Example HogQL for step friction (no joins):
+In PostHog Funnels, use ordered events, hold `flow_id` constant and break down by `source_app`. Make approval/setup branches optional rather than requiring steps absent from another execution method. Use a realistic conversion window for commit/reveal; filter `environment` and `analytics_version` on every insight. A quick measurement-health query is:
 
 ```sql
-SELECT properties.source_app AS app, properties.step AS step,
-       countIf(properties.outcome = 'failure') AS failures,
-       count() AS attempts
+SELECT properties.source_app AS app, event,
+       count() AS event_count,
+       uniqExact(properties.flow_id) AS observed_flows
 FROM events
-WHERE event = 'registration:step_result'
-  AND properties.environment = 'staging'
-  AND timestamp > now() - INTERVAL 7 DAY
-GROUP BY app, step
-ORDER BY failures DESC
+WHERE properties.environment = 'staging'
+  AND properties.analytics_version = 1
+  AND timestamp >= now() - INTERVAL 7 DAY
+  AND event IN ('registration:flow_start', 'registration:flow_complete',
+                'renewal:flow_start', 'renewal:flow_complete')
+GROUP BY app, event
+ORDER BY app, event
 ```
 
-For migration outcomes, sum migrated/copied/ineligible separately after deduplicating `flow_id` within the observed run; UI receipts are not an authoritative lifetime ledger. For drop-off/time-to-complete, use PostHog funnels with a mature window and flow_id constant, rather than dividing unrelated totals.
+These are event/observed-flow counts, not a conversion rate: starts and completions may cross the reporting window or reload correlation segments. This query has not been run against a staging project.
 
-## Remaining work / limits
+## Limits and design notes
 
-Release gates: staging entitlement/token/proxy setup; actual wallet workflow and native unload/rageclick QA; staging ingestion inspection. There are no funded-account/mainnet transactions in this run. Correlation is lightweight and in memory: reload uses a fresh observed resume flow, not a durable universal journal. Suppressing an old-identity outcome is preferred to attaching it to another wallet; this intentionally undercounts such completions.
+Browser-only telemetry cannot guarantee ingestion after tab/process shutdown, lost networking or consent withdrawal. Read-only registration confirmation is bounded. Submission-result callbacks close the UI-publication window; they do not continue paid work or make ingestion durable. Durable cross-reload correlation/backfill and authoritative server/indexer outcome accounting are intentionally not introduced here.
 
-Not yet comprehensively instrumented: wallet request start/end and rejection classifications, successful global TM runs, Explorer renewal failure/retry/per-item partial results, DNS import/DNSSEC step journeys, transfers/fuses, HCA creation/adoption and notification interactions beyond Manager preferences, and dedicated Manager subname flows. Existing NFT/DNSSEC diagnostic events are retained but not renamed wholesale. These are explicit coverage gaps, not verified journeys. Source-map upload and sanitized exception tracking are deferred; raw exceptions stay off.
+Registration UI/protocol/global transaction ownership already spans actors and callbacks. This change observes confirmed facts without continuing paid orchestration on navigation. Deduplication is local to the operation/run, not an external journal. Registration and pending renewal observations distinguish actual actors when transaction IDs are reused; superseded renewal callbacks cannot overwrite their replacement. Imperative refs/listener registration and weak dedup caches are IO adapter state; business selection/count/transition decisions remain plain functions. A broader lifecycle consolidation should use the existing transaction seams rather than growing another event journal. No unrelated style-guide rewrite is included.
 
-Regression check: checked app adapters/providers, Manager WalletLifecycle, all new flow/helper callers, API Worker stats route and Manager nameStats consumer. Existing tests changed only for intentional wallet normalization/minimization, explicit staging enablement, bounded TM telemetry, and unavailable-statistics behavior; registrationDisconnect changes its events mock to a partial import with unchanged assertions. No expectations were relaxed to hide a behavior regression.
-
-Design notes: existing state machines and transaction hooks contain mixed IO/decision responsibilities. This change adds narrow analytics seams and reuses existing outcome predicates; it does not restructure pricing or transaction orchestration. A future flow architecture change should preserve verified required success, optional-setup separation, partial completion and retry semantics under existing tests.
-
-References: [PostHog event best practices](https://posthog.com/docs/product-analytics/best-practices), [JavaScript configuration](https://posthog.com/docs/libraries/js/config). Current SDK behavior was checked against installed 1.404.1; research index and architecture informed scope, with the user's raw-wallet/opt-in decisions taking precedence.
-
-## Simplification follow-up verification
-
-The follow-up removes generated event families, the second `SAFE_KEYS` schema, SDK capture-options wrapper, simple-write UUIDs, and `analytics.ready` state-machine messages/ready keys. Registration no longer sends a constant item_count; renewal/migration retain meaningful counts. Payment selection now uses funding_chain_id; result_type describes the object kind, while is_available is separate. execution_method consistently means eoa/hca for registration and renewal. DNSSEC emits controlled verdicts rather than raw name-bearing step labels.
-
-Intentional test changes: registration completion expectations omit the removed constant count; Explorer registration expectations use execution_method; provider transport spies no longer expect source_app before the SDK boundary (real SDK config tests still assert its presence in outgoing events). Deleted readiness tests cover removed code and are replaced by current-view hook tests, including SDK failure, grant and regrant. Deleted allowlist tests cover the removed allowlist; a transport regression proves dotted diagnostic stages now survive unchanged. Existing NFT call sites and outcome tests remain intact.
-
-Simplification checks completed: Manager focused workflow/observer checks 205 passed; shared tracker/config/identity 24 passed; Manager SDK/NFT checks 95 passed; Explorer final SDK/registration/renewal/search checks 46 passed. These overlap prior runs and are not additive. Both app typechecks and utils typecheck pass; Biome retains only the two unchanged complexity warnings. Explorer tests printed RPC DNS failures but exited successfully; wallet-backed flows are not inferred from those results. Two independent GPT-6.1 Sol critiques were applied, including the observer SDK exception boundary, consent-regrant dedup reset, and removal of an ineffective Intercom person-property setter; final critique reported no high/medium must-fix finding.
-
-Browser follow-up used the loopback-only fake-key collector: pending/accepted/withdrawn/regranted consent, registration current view/duration after reload, native pageview/pageleave, common app/environment metadata and URL redaction were observed again. Regrant observes the current surface of the same live flow without replaying a start or completion. Ordinary navigation/Settings clicks emitted no ordinary autocapture events. These are local browser observations, not real PostHog staging ingestion or wallet transaction verification.
-
-Explorer browser follow-up also loaded at desktop and 390px with consent preserved from Manager; the live configuration reported analytics disabled and dropped a policy-test event under normal local defaults. No ingestion request was observed. Wallet transactions and real staging ingestion remain unverified.
+Intended analytics contract changes: dedicated duration/payment views; execution stage_enter/stage_fail replace ambiguous step_view/step_result; no inferred stage successes; method/chain metadata consistent on Manager registration/renewal stages. Existing tests retain product assertions while event expectations change to the deliberate schema. Test harnesses supply real required Wagmi context or retain real exports in existing framework mocks; no behavior assertion was relaxed. The old renewal callback-only test is replaced with real transaction-actor receipt/unmount regressions.

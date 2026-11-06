@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   invalidateAnalyticsOperations,
   notifyAnalyticsConsent,
@@ -40,6 +40,13 @@ const setup = () => {
     },
   }
 }
+
+beforeEach(() => {
+  vi.stubGlobal('document', {
+    cookie: 'ens_analytics_consent_generation=test-choice',
+  })
+})
+afterEach(() => vi.unstubAllGlobals())
 
 describe('analytics transport', () => {
   it('never captures or replays actions from before consent', () => {
@@ -88,6 +95,18 @@ describe('analytics transport', () => {
       attempt_count: 1,
     })
   })
+  it('handles a rejected capture promise without making product work wait', async () => {
+    const tracker = setup()
+    tracker.grant()
+    tracker.capture.mockImplementation(() =>
+      Promise.reject(new Error('offline')),
+    )
+    tracker.track('profile:primary_name_update', { chain_id: 1 })
+    const productWork = vi.fn()
+    productWork()
+    await Promise.resolve()
+    expect(productWork).toHaveBeenCalledExactlyOnceWith()
+  })
   it('does not break product operations when the SDK throws', () => {
     const tracker = setup()
     tracker.grant()
@@ -97,6 +116,23 @@ describe('analytics transport', () => {
     expect(() =>
       tracker.track('profile:primary_name_update', { chain_id: 1 }),
     ).not.toThrow()
+  })
+  it('suppresses delayed outcomes when consent metadata becomes unreadable without blocking current actions', () => {
+    const tracker = setup()
+    tracker.grant()
+    const operation = tracker.startAnalyticsOperation()
+    vi.stubGlobal('document', {
+      get cookie() {
+        throw new Error('Cookie access unavailable')
+      },
+    })
+
+    operation.capture('profile:records_update', { chain_id: 1 })
+    tracker.track('profile:primary_name_update', { chain_id: 1 })
+    expect(tracker.capture).toHaveBeenCalledExactlyOnceWith(
+      'profile:primary_name_update',
+      { chain_id: 1 },
+    )
   })
 })
 

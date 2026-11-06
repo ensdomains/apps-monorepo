@@ -4,16 +4,9 @@ import posthog from 'posthog-js/dist/module.full.no-external'
 import { useCallback, useEffect, useRef } from 'react'
 import { useConnection } from 'wagmi'
 import { track } from './events'
+import { type AnalyticsView, getFlowViewEvents } from './flowView'
 
-export type AnalyticsView = {
-  readonly flow_id: string
-} & (
-  | {
-      readonly flow: 'registration' | 'renewal'
-      readonly step: 'duration' | 'payment'
-    }
-  | { readonly flow: 'migration'; readonly step?: undefined }
-)
+export type { AnalyticsView } from './flowView'
 
 type ViewActor<Snapshot> = {
   readonly getSnapshot: () => Snapshot
@@ -22,64 +15,34 @@ type ViewActor<Snapshot> = {
   }
 }
 
-const captureView = (
-  view: AnalyticsView,
-  shouldCaptureFlow: boolean,
-  shouldCaptureStep: boolean,
-): void => {
-  const properties = { flow_id: view.flow_id }
-  switch (view.flow) {
-    case 'registration':
-      if (shouldCaptureFlow) track('registration:flow_view', properties)
-      if (shouldCaptureStep)
-        track('registration:step_view', { ...properties, step: view.step })
-      return
-    case 'renewal':
-      if (shouldCaptureFlow) track('renewal:flow_view', properties)
-      if (shouldCaptureStep)
-        track('renewal:step_view', { ...properties, step: view.step })
-      return
-    case 'migration':
-      if (shouldCaptureFlow) track('migration:flow_view', properties)
-  }
-}
-
-/** Observe current idle UI after provider identity effects settle, without replaying history. */
+/** Best-effort screen observations only; no business outcome depends on this subscription. */
 export const useAnalyticsFlowView = <Snapshot>(
   actor: ViewActor<Snapshot>,
   getView: (snapshot: Snapshot) => AnalyticsView | undefined,
 ): void => {
   const consent = useAnalyticsConsent(posthog)
   const { address, status } = useConnection()
-  const previousFlow = useRef<string | undefined>(undefined)
-  const previousStep = useRef<string | undefined>(undefined)
+  const previous =
+    useRef<ReturnType<typeof getFlowViewEvents>['observation']>(undefined)
   const observe = useCallback(() => {
     try {
-      const view = getView(actor.getSnapshot())
-      if (!view) {
-        previousStep.current = undefined
-        return
-      }
       const identity = posthog.get_distinct_id()
       const wallet = status === 'disconnected' ? null : address
       if (!hasMatchingWalletIdentity(wallet, identity)) return
-      const flowKey = `${identity}:${view.flow_id}`
-      const stepKey = `${flowKey}:${view.step}`
-      captureView(
-        view,
-        previousFlow.current !== flowKey,
-        previousStep.current !== stepKey,
+      const result = getFlowViewEvents(
+        previous.current,
+        getView(actor.getSnapshot()),
+        identity,
       )
-      previousFlow.current = flowKey
-      previousStep.current = stepKey
+      for (const event of result.events) track(event.name, event.properties)
+      previous.current = result.observation
     } catch {
-      // Optional analytics cannot interrupt actor notifications or rendering.
+      // Optional observations cannot interrupt actor notifications or rendering.
     }
   }, [actor, getView, address, status])
   useEffect(() => {
     if (consent !== 'granted') {
-      previousFlow.current = undefined
-      previousStep.current = undefined
+      previous.current = undefined
       return
     }
     if (status !== 'connected' && status !== 'disconnected') return

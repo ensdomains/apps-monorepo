@@ -21,10 +21,6 @@ import {
   type PreparedProfileImageUpload,
   submitPreparedProfileImageUpload,
 } from '@/features/profile/service/profileImageUpload'
-import {
-  type SaveRecordsParams,
-  saveRecords,
-} from '@/features/profile/service/profileRecordTransactions'
 import type {
   ResolverCopySource,
   ResolverImport,
@@ -42,7 +38,6 @@ import {
 import {
   OwnedResolverNotReadyError,
   ResolverChangeNotAuthorizedError,
-  setupControlledResolver,
 } from '@/features/profile/service/setupControlledResolver'
 import type { ProfileRecords } from '@/features/profile/types'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
@@ -57,6 +52,10 @@ import type {
   EditProfileForm,
   EditProfileSaveHandler,
 } from './EditProfileDialog.types'
+import {
+  getSaveRecordsMutationOptions,
+  getSetupResolverMutationOptions,
+} from './editProfileSave.mutations'
 
 type DeferredEditProfileSave = {
   readonly recordReview: ResolverRecordReview
@@ -89,14 +88,6 @@ interface UseEditProfileDialogSaveParams {
   readonly resolverCopySource?: ResolverCopySource
   readonly resolverImport?: ResolverImport
   readonly canSave: boolean
-}
-
-interface SaveRecordsMutationVariables extends SaveRecordsParams {
-  readonly currentRecords: ProfileRecords
-}
-
-interface SetupResolverMutationVariables {
-  readonly pendingSave: Extract<PendingSave, { kind: 'setup' }>
 }
 
 interface SaveBlockedPrerequisites {
@@ -316,10 +307,7 @@ export const useEditProfileDialogSave = ({
         (!resolverCopySource && !resolverWriteAccess.data?.canWrite)))
 
   const saveRecordsMutation = useMutation({
-    mutationFn: ({
-      currentRecords: _currentRecords,
-      ...params
-    }: SaveRecordsMutationVariables) => saveRecords(params),
+    ...getSaveRecordsMutationOptions(),
     onSuccess: (_data, variables) => {
       dialogActor.send({
         type: 'SAVE_SUCCEEDED',
@@ -336,34 +324,7 @@ export const useEditProfileDialogSave = ({
   })
 
   const setupResolverMutation = useMutation({
-    mutationFn: async ({ pendingSave }: SetupResolverMutationVariables) => {
-      if (!pendingSave.recordReview)
-        throw new Error(
-          'Review the exact records before replacing the resolver.',
-        )
-      const resolver = await setupControlledResolver({
-        name: pendingSave.name,
-        signer: pendingSave.signer,
-        ownerAddress: pendingSave.ownerAddress,
-        publicClient: pendingSave.publicClient,
-        chainId: pendingSave.chainId,
-        before: pendingSave.before,
-        after: pendingSave.after,
-        description: `Update profile records for ${pendingSave.name}`,
-        sourceResolver: pendingSave.sourceResolver,
-        assertCurrentIdentity: pendingSave.assertCurrentIdentity,
-        resolverImport,
-        recordReview: pendingSave.recordReview,
-      })
-
-      return {
-        currentRecords: {
-          ...pendingSave.currentRecords,
-          resolverAddress: resolver,
-        },
-        ethAddressChanged: pendingSave.ethAddressChanged,
-      }
-    },
+    ...getSetupResolverMutationOptions(resolverImport),
     onSuccess: ({ currentRecords, ethAddressChanged: ethChanged }) => {
       dialogActor.send({
         type: 'SAVE_SUCCEEDED',

@@ -10,13 +10,7 @@ import {
   trackEvent as trackIntercomEvent,
   update as updateIntercom,
 } from '@intercom/messenger-js-sdk'
-import { PostHogProvider } from '@posthog/react'
 import { useHydrated } from '@tanstack/react-router'
-// @posthog/react types its `client` prop with the `PostHog` type from the
-// default `posthog-js` build, which is a *nominally* distinct declaration from
-// the no-external build's `PostHog`. Import that type to cast at the provider
-// boundary below.
-import type { PostHog } from 'posthog-js'
 // Fully-bundled, no-external build so PostHog never lazy-loads extension
 // bundles via runtime <script> tags — our strict CSP blocks those. Same
 // approach as portal; see PostHog's CSP guide:
@@ -261,13 +255,5 @@ export const PHProvider = ({
     },
   })
 
-  if (!isHydrated) return <>{children}</>
-
-  // Cast bridges the two posthog-js declaration files (see the type import
-  // note above); the runtime object is the real PostHog SDK either way.
-  return (
-    <PostHogProvider client={posthog as unknown as PostHog}>
-      {children}
-    </PostHogProvider>
-  )
+  return <>{children}</>
 }

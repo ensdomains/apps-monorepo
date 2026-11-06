@@ -59,6 +59,10 @@ describe('PostHog consent', () => {
     vi.stubEnv('VITE_PUBLIC_POSTHOG_STAGING_KEY', 'staging-test-key')
     vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', 'true')
     await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
+    await cookieStore.delete({
+      name: `${ANALYTICS_CONSENT_COOKIE}_generation`,
+      path: '/',
+    })
     vi.useFakeTimers()
     localStorage.clear()
     sessionStorage.clear()
@@ -103,6 +107,58 @@ describe('PostHog consent', () => {
     expect(
       flagBodies(requests).every((body) => body?.distinct_id !== WALLET),
     ).toBe(true)
+  })
+
+  it('adds Explorer metadata through the real SDK capture hook', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+
+    const event = client.capture('$pageview')
+
+    expect(event?.properties.source_app).toBe('explorer')
+    expect(event?.properties.analytics_version).toBe(1)
+  })
+
+  it('clears persisted attribution before Explorer flags load while analytics is disabled', async () => {
+    const earlier = initClient().client
+    setAnalyticsConsent(earlier, true)
+    earlier.register({
+      $initial_person_info: {
+        u: 'https://explorer.ens.domains/alice.eth?secret=private',
+      },
+    })
+    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', '')
+    const { client, requests } = initClient()
+    expect(client.capture('$pageview')).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(3000)
+
+    const bodies = flagBodies(requests)
+    expect(bodies[0]?.person_properties).toEqual({})
+    expect(client.isFeatureEnabled('test-flag')).toBe(true)
+  })
+
+  it('contains errors in the SDK loaded callback', () => {
+    const { client } = initClient()
+    vi.spyOn(client, 'set_config').mockImplementation(() => {
+      throw new Error('SDK unavailable')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    expect(() => POSTHOG_CONFIG.loaded(client)).not.toThrow()
+  })
+
+  it('declines analytics even if resetting the SDK identity fails', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    vi.spyOn(client, 'reset').mockImplementation(() => {
+      throw new Error('SDK unavailable')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    setAnalyticsConsent(client, false)
+
+    expect(client.get_explicit_consent_status()).toBe('denied')
+    expect(client.has_opted_out_capturing()).toBe(true)
   })
 
   it('keeps the answer in the cookie the ens.domains apps share', () => {

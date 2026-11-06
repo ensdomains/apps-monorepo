@@ -9,13 +9,6 @@ import {
   trackEvent as trackIntercomEvent,
   update as updateIntercom,
 } from '@intercom/messenger-js-sdk'
-import { PostHogProvider } from '@posthog/react'
-// @posthog/react types its `client` prop with the `PostHog` type from the
-// default `posthog-js` build, which is a *nominally* distinct declaration from
-// the no-external build's `PostHog` (private fields make them structurally
-// incompatible even though they're the same runtime SDK). Import that type to
-// cast our instance at the provider boundary below.
-import type { PostHog } from 'posthog-js'
 // Import the fully-bundled, no-external build so PostHog never lazy-loads its
 // extension bundles (session recorder, surveys, dead-clicks, web-vitals,
 // exception autocapture) at runtime. The default `posthog-js` build injects
@@ -193,11 +186,5 @@ export const PHProvider = ({
     },
   })
 
-  // Cast bridges the two posthog-js declaration files (see the type import
-  // note above); the runtime object is the real PostHog SDK either way.
-  return (
-    <PostHogProvider client={posthog as unknown as PostHog}>
-      {children}
-    </PostHogProvider>
-  )
+  return <>{children}</>
 }

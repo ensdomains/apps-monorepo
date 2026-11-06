@@ -39,6 +39,7 @@ import {
   type AnalyticsFlow,
   bindAnalyticsFlow,
   createAnalyticsFlow,
+  getAnalyticsExecutionMethod,
 } from '@/lib/posthog/flow'
 import type { RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
@@ -128,6 +129,63 @@ const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
     throw new Error('The HCA renewal route needs a smart-account signer')
   }
   return signer
+}
+
+const getAnalyticsProperties = (
+  context: {
+    readonly analytics: AnalyticsFlow
+    readonly submissionData?: SubmissionData
+  },
+  chainId: number,
+) => ({
+  flow_id: context.analytics.flow_id,
+  chain_id: chainId,
+  execution_method: getAnalyticsExecutionMethod(
+    context.submissionData?.signer.type,
+  ),
+})
+
+const completedAnalytics = new WeakSet<object>()
+
+const captureRenewalComplete = (
+  context: Parameters<typeof getAnalyticsProperties>[0],
+) => {
+  const scope = context.analytics.completionScope ?? context.analytics
+  if (completedAnalytics.has(scope)) return
+  completedAnalytics.add(scope)
+  context.analytics.capture('renewal:flow_complete', {
+    ...getAnalyticsProperties(context, envConfig.chain.id),
+    item_count: 1,
+  })
+}
+
+type RenewalReceiptInput = {
+  readonly txId: string
+  readonly completion: Parameters<typeof getAnalyticsProperties>[0]
+}
+
+const renewalReceipts = new WeakMap<
+  SubmissionData,
+  {
+    readonly txId: string
+    readonly status: ReturnType<typeof pollTransactionStatusActor>
+  }
+>()
+
+const startRenewalReceiptObservation = (input: RenewalReceiptInput) => {
+  const submission = requireSubmissionData(input.completion.submissionData)
+  const status = pollTransactionStatusActor({ txId: input.txId })
+  status.andTee(() => captureRenewalComplete(input.completion))
+  renewalReceipts.set(submission, { txId: input.txId, status })
+  return status
+}
+
+const getRenewalReceiptObservation = (input: RenewalReceiptInput) => {
+  const submission = requireSubmissionData(input.completion.submissionData)
+  const receipt = renewalReceipts.get(submission)
+  return receipt?.txId === input.txId
+    ? receipt.status
+    : startRenewalReceiptObservation(input)
 }
 
 export const renewalUiMachine = setup({
@@ -225,12 +283,29 @@ export const renewalUiMachine = setup({
         submitApprovalActor(input),
     ),
     submitRenewal: fromResultAsync(
-      (input: Parameters<typeof submitRenewActor>[0]) =>
-        submitRenewActor(input),
+      (
+        input: Parameters<typeof submitRenewActor>[0] & {
+          readonly completion: Parameters<typeof getAnalyticsProperties>[0]
+        },
+      ) => {
+        const { completion, ...submission } = input
+        return submitRenewActor(submission).andTee((txId) => {
+          startRenewalReceiptObservation({ txId, completion })
+        })
+      },
     ),
-    pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
-      return pollTransactionStatusActor(input)
-    }),
+    pollTransactionStatus: fromResultAsync(
+      (input: {
+        readonly txId: string
+        readonly completion?: Parameters<typeof getAnalyticsProperties>[0]
+      }) =>
+        input.completion
+          ? getRenewalReceiptObservation({
+              txId: input.txId,
+              completion: input.completion,
+            })
+          : pollTransactionStatusActor(input),
+    ),
     // The intent route submits and WAITS for the fill here, so there is nothing
     // left to poll afterwards.
     submitHcaRenewalIntent: fromPromise(
@@ -238,28 +313,30 @@ export const renewalUiMachine = setup({
         input,
         signal,
       }: {
-        input: Parameters<typeof submitHcaRenewal>[0]
+        input: Parameters<typeof submitHcaRenewal>[0] & {
+          readonly completion: Parameters<typeof getAnalyticsProperties>[0]
+        }
         signal: AbortSignal
       }) => {
-        const { confirmIncreasedPayment } = input
-        return (
-          await submitHcaRenewal({
-            ...input,
-            signal,
-            // An abandoned attempt never asks, and its open question is declined.
-            ...(confirmIncreasedPayment
-              ? {
-                  confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
-                    signal.aborted
-                      ? Promise.resolve(false)
-                      : Promise.race([
-                          confirmIncreasedPayment(prompt),
-                          declineOnAbort(signal),
-                        ]),
-                }
-              : {}),
-          })
-        ).txId
+        const { confirmIncreasedPayment, completion, ...submission } = input
+        const result = await submitHcaRenewal({
+          ...submission,
+          signal,
+          // An abandoned attempt never asks, and its open question is declined.
+          ...(confirmIncreasedPayment
+            ? {
+                confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
+                  signal.aborted
+                    ? Promise.resolve(false)
+                    : Promise.race([
+                        confirmIncreasedPayment(prompt),
+                        declineOnAbort(signal),
+                      ]),
+              }
+            : {}),
+        })
+        captureRenewalComplete(completion)
+        return result.txId
       },
     ),
     readExpiry: fromResultAsync(
@@ -287,24 +364,22 @@ export const renewalUiMachine = setup({
     resetAnalytics: assign({ analytics: () => createAnalyticsFlow() }),
     analyticsStart: ({ context }) =>
       context.analytics.capture('renewal:flow_start', {
-        flow_id: context.analytics.flow_id,
-        execution_method:
-          context.submissionData?.signer.type === 'rhinestone' ? 'hca' : 'eoa',
+        ...getAnalyticsProperties(context, envConfig.chain.id),
       }),
     analyticsExecution: ({ context }) =>
-      context.analytics.capture('renewal:step_view', {
-        flow_id: context.analytics.flow_id,
-        step: 'execution',
+      context.analytics.capture('renewal:stage_enter', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: 'execution',
       }),
     analyticsApproval: ({ context }) =>
-      context.analytics.capture('renewal:step_view', {
-        flow_id: context.analytics.flow_id,
-        step: 'approval',
+      context.analytics.capture('renewal:stage_enter', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: 'approval',
       }),
     analyticsVerification: ({ context }) =>
-      context.analytics.capture('renewal:step_view', {
-        flow_id: context.analytics.flow_id,
-        step: 'verification',
+      context.analytics.capture('renewal:stage_enter', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: 'verification',
       }),
     analyticsPaymentSelect: ({ context, event }) => {
       if (
@@ -317,26 +392,21 @@ export const renewalUiMachine = setup({
         return
       if (event.origin === 'fallback') return
       track('renewal:payment_option_select', {
-        flow_id: context.analytics.flow_id,
+        ...getAnalyticsProperties(context, envConfig.chain.id),
         payment_asset: context.paymentAsset,
         funding_chain_id: context.fundingSourceChainId,
       })
     },
-    analyticsComplete: ({ context }) =>
-      context.analytics.capture('renewal:flow_complete', {
-        flow_id: context.analytics.flow_id,
-        item_count: 1,
-      }),
+    analyticsComplete: ({ context }) => captureRenewalComplete(context),
     analyticsFailure: ({ context }) =>
-      context.analytics.capture('renewal:step_result', {
-        flow_id: context.analytics.flow_id,
-        step: 'execution',
-        outcome: 'failure',
+      context.analytics.capture('renewal:stage_fail', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: 'execution',
         is_retryable: true,
       }),
     analyticsRetry: ({ context }) =>
       context.analytics.capture('renewal:flow_retry', {
-        flow_id: context.analytics.flow_id,
+        ...getAnalyticsProperties(context, envConfig.chain.id),
       }),
     setDuration: assign({
       duration: ({ event, context }) =>
@@ -426,7 +496,7 @@ export const renewalUiMachine = setup({
       lastErrorMessage: () => undefined,
     }),
     startRenewal: assign({
-      analytics: ({ context }) => bindAnalyticsFlow(context.analytics.flow_id),
+      analytics: ({ context }) => bindAnalyticsFlow(context.analytics),
       lastErrorMessage: () => undefined,
       approvalTxId: () => undefined,
       renewalTxId: () => undefined,
@@ -592,7 +662,10 @@ export const renewalUiMachine = setup({
                 'keepAcceptedPayment',
               ],
             },
-            cancel: { target: '#renewalUi.pricing.tokens' },
+            cancel: {
+              target: '#renewalUi.pricing.tokens',
+              actions: 'resetAnalytics',
+            },
           },
         },
       },
@@ -602,6 +675,7 @@ export const renewalUiMachine = setup({
         input: ({ context, self }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
+            completion: context,
             onSubmitted: (txId: string) =>
               self.send({ type: 'renewal.submitted', txId }),
             confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
@@ -772,6 +846,7 @@ export const renewalUiMachine = setup({
         input: ({ context }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
+            completion: context,
             label: submission.label,
             referrer: submission.referrer,
             duration: submission.duration,
@@ -807,7 +882,7 @@ export const renewalUiMachine = setup({
           if (!context.renewalTxId) {
             throw new Error('renewalTxId is required')
           }
-          return { txId: context.renewalTxId }
+          return { txId: context.renewalTxId, completion: context }
         },
         onDone: {
           target: 'success',
@@ -875,7 +950,7 @@ export const renewalUiMachine = setup({
         },
         cancel: {
           target: 'pricing',
-          actions: ['clearFailure', 'clearSubmission'],
+          actions: ['resetAnalytics', 'clearFailure', 'clearSubmission'],
         },
       },
     },

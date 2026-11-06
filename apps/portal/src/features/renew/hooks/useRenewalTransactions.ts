@@ -33,7 +33,10 @@ import {
   buildRenewIntent,
   type RenewParams,
 } from '../utils/buildRenewIntent'
-import { createRenewalAnalytics } from '../utils/renewalAnalytics'
+import {
+  createRenewalAnalytics,
+  type RenewalTransactionStarter,
+} from '../utils/renewalAnalytics'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
 import { getIsRenewableQueryOptions } from './useIsRenewable'
@@ -161,6 +164,7 @@ type BuildMultiTransactionsParams = {
   readonly publicClient: PublicClient
   readonly getSigner: () => Promise<Signer>
   readonly handleDone: () => void
+  readonly startTransaction: RenewalTransactionStarter
 }
 
 // A mixed v1+v2 batch emits one approval per renewer (ERC-20 allowance is
@@ -208,6 +212,8 @@ function buildRenewalApproveIntent(params: {
 function buildApproveTransaction(
   params: ApproveParams,
   signer: Signer,
+  startTransaction: RenewalTransactionStarter,
+  transactionCount: number,
   // A mixed batch emits two approvals; only the first resets the manager. Later
   // approvals pass skipClear so they don't stop/clear the already-completed one.
   {
@@ -217,7 +223,9 @@ function buildApproveTransaction(
 ) {
   if (!skipClear) transactionManager.clear()
 
-  transactionManager.startTransaction(
+  startTransaction(
+    'approval',
+    transactionCount,
     buildRenewalApproveIntent({
       from: params.from,
       tokenAddress: params.tokenAddress,
@@ -262,12 +270,20 @@ function buildRenewTransaction(
   params: RenewParams,
   signer: Signer,
   scope: FlowScope | null,
+  startTransaction: RenewalTransactionStarter,
+  transactionCount: number,
 ) {
-  transactionManager.startTransaction(buildRenewIntent(params), signer, {
-    id: RENEWAL_TX_IDS.renew(params.name, scope),
-    publicClient: params.publicClient,
-    description: `Renew ${params.name}`,
-  })
+  startTransaction(
+    'execution',
+    transactionCount,
+    buildRenewIntent(params),
+    signer,
+    {
+      id: RENEWAL_TX_IDS.renew(params.name, scope),
+      publicClient: params.publicClient,
+      description: `Renew ${params.name}`,
+    },
+  )
 }
 
 // One ordered step of a multi-renew batch: its display metadata plus the action
@@ -288,6 +304,7 @@ function buildMultiTransactions({
   getSigner,
   handleDone,
   scope,
+  startTransaction,
 }: BuildMultiTransactionsParams & {
   scope: FlowScope | null
 }): Transaction[] {
@@ -332,7 +349,7 @@ function buildMultiTransactions({
           const signer = await getSigner()
           // No clear(): a retried step must find its timed-out bundle to
           // resume it rather than send (and pay for) a second one.
-          transactionManager.startTransaction(bundleFor(from), signer, {
+          startTransaction('execution', 1, bundleFor(from), signer, {
             id,
             publicClient,
             description: transactionName,
@@ -377,6 +394,8 @@ function buildMultiTransactions({
                 renewer: step.renewer,
               },
               signer,
+              startTransaction,
+              plannedSteps.length,
               { skipClear: step.skipClear, scope },
             )
           },
@@ -396,7 +415,9 @@ function buildMultiTransactions({
                   from: walletClient.account.address,
                 }),
           action: async () => {
-            transactionManager.startTransaction(
+            startTransaction(
+              'execution',
+              plannedSteps.length,
               buildRenewBatchIntent({
                 renewals: step.renewals,
                 referrer: multiFlow.referrer,
@@ -446,6 +467,9 @@ export const useRenewalTransactions = ({
   const analytics = useRef<ReturnType<typeof createRenewalAnalytics> | null>(
     null,
   )
+  const startTransaction: RenewalTransactionStarter =
+    analytics.current?.startTransaction ??
+    ((_stage, _count, ...args) => transactionManager.startTransaction(...args))
   const canBatchAtomically = useAtomicBatchSupport(ensChain.id)
   const hasDeclinedUpgrade = useHasDeclinedAtomicUpgrade(ensChain.id)
 
@@ -543,6 +567,8 @@ export const useRenewalTransactions = ({
         renewer: getRenewerAddress(flow.selectedName.isV2),
       },
       runtime.signer,
+      startTransaction,
+      2,
       { scope: attempt.scope },
     )
   }
@@ -565,6 +591,8 @@ export const useRenewalTransactions = ({
       },
       runtime.signer,
       attempt.scope,
+      startTransaction,
+      flow.tokenAllowance >= flow.tokenPrice ? 1 : 2,
     )
   }
 
@@ -576,7 +604,9 @@ export const useRenewalTransactions = ({
 
     // No clear(): a retried step must find its timed-out bundle to resume it
     // rather than send (and pay for) a second approval + renewal.
-    transactionManager.startTransaction(
+    startTransaction(
+      'execution',
+      1,
       buildSingleRenewalBundle(flow, runtime.from, runtime.publicClient),
       runtime.signer,
       {
@@ -600,6 +630,7 @@ export const useRenewalTransactions = ({
         getSigner,
         handleDone,
         scope: attempt.scope,
+        startTransaction,
       })
     })
     .with({ kind: 'single' }, (single) => {
@@ -736,7 +767,7 @@ export const useRenewalTransactions = ({
   }
 
   return {
-    transactions: analytics.current?.decorate(transactions) ?? transactions,
+    transactions,
     startFlow,
     startMultiFlow,
     clearIncompatibleRenewalState,

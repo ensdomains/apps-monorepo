@@ -32,6 +32,10 @@ import {
 } from '@/lib/posthog/flow'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
+  hasCompletedMigrationOutcome,
+  mergeCompletedMigrationOperations,
+} from '../service/completedMigrationOperations'
+import {
   executeGraceRenewal,
   type GraceRenewalQuote,
   type GraceRenewalStatus,
@@ -44,6 +48,8 @@ import {
   REUNION_HOLD_MS,
   REUNION_SLIDE_MS,
 } from './migrationAnimationTiming'
+
+import { captureMigrationCompletion } from './migrationCompletionAnalytics'
 
 const FAILURE_HOLD_MS = 1500
 
@@ -283,6 +289,8 @@ export const migrationUiMachine = setup({
         refreshAccount: () => Promise<void>
         reconcileBeforeSubmit: boolean
         renewalStepCount: number
+        readonly analytics: AnalyticsFlow
+        readonly completedOperations: readonly MigrationJournalOperation[]
       }
     >(({ input, sendBack }) => {
       const controller = new AbortController()
@@ -321,6 +329,11 @@ export const migrationUiMachine = setup({
         reconcileBeforeSubmit: input.reconcileBeforeSubmit,
       })
         .then((result) => {
+          captureMigrationCompletion(
+            input.analytics,
+            result,
+            input.completedOperations,
+          )
           if (cancelled) return
           sendBack({ type: 'migration.complete', result })
         })
@@ -346,9 +359,13 @@ export const migrationUiMachine = setup({
         event.plan.requiresReconciliation === true),
     isOnlyFailures: ({ event, context }) =>
       event.type === 'migration.complete' &&
-      event.result.txHashes.length === 0 &&
-      event.result.completedOperations.length === 0 &&
-      context.completedOperations.length === 0,
+      !hasCompletedMigrationOutcome(
+        event.result,
+        mergeCompletedMigrationOperations(
+          context.completedOperations,
+          event.result.completedOperations,
+        ),
+      ),
   },
   actions: {
     analyticsStart: ({ context }) =>
@@ -356,42 +373,28 @@ export const migrationUiMachine = setup({
         flow_id: context.analytics.flow_id,
       }),
     analyticsExecution: ({ context }) =>
-      context.analytics.capture('migration:step_view', {
+      context.analytics.capture('migration:stage_enter', {
         flow_id: context.analytics.flow_id,
-        step: 'execution',
+        stage: 'execution',
       }),
     analyticsRenewal: ({ context }) =>
-      context.analytics.capture('migration:step_view', {
+      context.analytics.capture('migration:stage_enter', {
         flow_id: context.analytics.flow_id,
-        step: 'renewal',
+        stage: 'renewal',
       }),
     analyticsFailure: ({ context }) =>
-      context.analytics.capture('migration:step_result', {
+      context.analytics.capture('migration:stage_fail', {
         flow_id: context.analytics.flow_id,
-        step: 'execution',
-        outcome: 'failure',
+        stage:
+          context.renewal && !context.renewedDomains ? 'renewal' : 'execution',
         is_retryable: true,
       }),
     analyticsRetry: ({ context }) =>
       context.analytics.capture('migration:flow_retry', {
         flow_id: context.analytics.flow_id,
       }),
-    analyticsComplete: ({ context, event }) => {
-      if (event.type !== 'migration.complete') return
-      context.analytics.capture('migration:flow_complete', {
-        flow_id: context.analytics.flow_id,
-        item_count: context.completedOperations.length,
-        migrated_count: context.completedOperations.filter(
-          ({ action }) => action === 'migrate',
-        ).length,
-        copied_count: context.completedOperations.filter(
-          ({ action }) => action === 'copy',
-        ).length,
-        ineligible_count: event.result.ineligible.length,
-      })
-    },
     bindAnalytics: assign({
-      analytics: ({ context }) => bindAnalyticsFlow(context.analytics.flow_id),
+      analytics: ({ context }) => bindAnalyticsFlow(context.analytics),
     }),
     captureRenewalStart: assign(({ event }) => {
       if (event.type !== 'migration.renewAndStart') return {}
@@ -525,25 +528,10 @@ export const migrationUiMachine = setup({
         ...context.txHashes,
         ...event.result.txHashes.filter((h) => !existingHashes.has(h)),
       ]
-      const existingOperations = new Map(
-        context.completedOperations.map((operation) => [
-          operation.name,
-          operation,
-        ]),
+      const completedOperations = mergeCompletedMigrationOperations(
+        context.completedOperations,
+        event.result.completedOperations,
       )
-      const completedOperations = [...context.completedOperations]
-      for (const operation of event.result.completedOperations) {
-        const previous = existingOperations.get(operation.name)
-        if (previous && previous.action !== operation.action) {
-          throw new Error(
-            `Migration action changed for ${operation.name}: ${previous.action} -> ${operation.action}`,
-          )
-        }
-        if (!previous) {
-          completedOperations.push(operation)
-          existingOperations.set(operation.name, operation)
-        }
-      }
       return {
         completedOperations,
         txHashes: mergedHashes,
@@ -730,6 +718,8 @@ export const migrationUiMachine = setup({
                 throw new Error('Migration context is incomplete')
               }
               return {
+                analytics: context.analytics,
+                completedOperations: context.completedOperations,
                 wagmiConfig: context.wagmiConfig,
                 plan: context.plan,
                 signer: context.signer,
@@ -756,7 +746,7 @@ export const migrationUiMachine = setup({
               },
               {
                 target: 'landing',
-                actions: ['recordCompletion', 'analyticsComplete'],
+                actions: ['recordCompletion'],
               },
             ],
             'migration.failed': {
@@ -803,12 +793,12 @@ export const migrationUiMachine = setup({
           {
             guard: ({ context }) => !!context.renewedDomains,
             target: 'migrate.preparing',
-            actions: assign({ lastError: undefined }),
+            actions: ['analyticsRetry', assign({ lastError: undefined })],
           },
           {
             guard: ({ context }) => !!context.renewal,
             target: 'migrate.renewing',
-            actions: assign({ lastError: undefined }),
+            actions: ['analyticsRetry', assign({ lastError: undefined })],
           },
         ],
         cancel: {

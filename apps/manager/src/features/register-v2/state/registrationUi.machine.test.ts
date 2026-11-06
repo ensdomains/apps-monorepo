@@ -1,8 +1,11 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
+import type { RegistrationVerification } from '@ens-apps/transaction-manager/machines/registration/registration.verification'
 import type { Address } from 'viem'
 import { baseSepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
+import { publicClient } from '@/lib/wagmi'
+import * as completionAnalytics from '../service/registrationCompletionAnalytics'
 
 /**
  * Events the stubbed registration child accepts. `FORCE_*` are test-only
@@ -13,6 +16,10 @@ import { assign, createActor, createMachine } from 'xstate'
 type RegistrationStubEvent =
   | {
       type: 'START_REGISTRATION'
+      onRegistrationQueued?: (
+        txId: string,
+        verification?: RegistrationVerification,
+      ) => void
       primaryName?: string
       referrer?: `0x${string}`
       l2Funding?: { chain: { id: number } }
@@ -51,6 +58,9 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     },
     context: {
       suspended: false,
+      onRegistrationQueued: undefined as
+        | ((txId: string, verification?: RegistrationVerification) => void)
+        | undefined,
       resolverAddress: undefined as Address | undefined,
       resolverTxId: 'tx-resolver',
       commitment: undefined as object | undefined,
@@ -84,6 +94,14 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           START_REGISTRATION: {
             target: 'running',
             actions: assign({
+              onRegistrationQueued: ({
+                event,
+              }: {
+                readonly event: Extract<
+                  RegistrationStubEvent,
+                  { type: 'START_REGISTRATION' }
+                >
+              }) => event.onRegistrationQueued,
               referrer: ({ event }) => event.referrer,
               primaryName: ({ event }) =>
                 event.type === 'START_REGISTRATION'
@@ -613,6 +631,36 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     },
   )
 
+  it('forwards submission-time verification after the registration UI stops', () => {
+    const observe = vi
+      .spyOn(completionAnalytics, 'observeRegistrationCompletion')
+      .mockImplementation(() => undefined)
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    const queued = getChild(actor).getSnapshot().context.onRegistrationQueued
+    const verification: RegistrationVerification = {
+      mode: 'eoa',
+      input: {
+        name: 'example.eth',
+        owner: EOA_ADDRESS,
+        resolverAddress: HCA_ADDRESS,
+        publicClient: publicClient,
+        commitment: '0x1234',
+      },
+    }
+    actor.stop()
+    if (!queued) throw new Error('Missing queued completion observer')
+    queued('queued-after-unmount', verification)
+    expect(observe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({ execution_method: 'eoa' }),
+      }),
+      'queued-after-unmount',
+      verification,
+    )
+    observe.mockRestore()
+  })
+
   it('keeps the registered Unicode label in both EOA primary-name legs', async () => {
     const actor = startActorInTokens()
     actor.send({ ...startEvent(eoaAccount, { enabled: true }), label: 'café' })
@@ -650,6 +698,8 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     await flush()
     expect(capture).toHaveBeenCalledWith('registration:flow_complete', {
       flow_id: analytics.flow_id,
+      chain_id: 11155111,
+      execution_method: 'eoa',
     })
     expect(
       capture.mock.calls.filter(
@@ -663,10 +713,11 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
         ([name]) => name === 'registration:flow_complete',
       ),
     ).toHaveLength(1)
-    expect(capture).toHaveBeenCalledWith('registration:step_result', {
+    expect(capture).toHaveBeenCalledWith('registration:stage_fail', {
       flow_id: analytics.flow_id,
-      step: 'post_registration',
-      outcome: 'failure',
+      chain_id: 11155111,
+      execution_method: 'eoa',
+      stage: 'post_registration',
       is_retryable: false,
     })
     actor.stop()

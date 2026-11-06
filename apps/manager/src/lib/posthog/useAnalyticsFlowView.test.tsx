@@ -72,7 +72,12 @@ it.each([
     await waitFor(() =>
       expect(mocks.capture.mock.calls).toEqual([
         ['registration:flow_view', { flow_id: 'flow' }],
-        ['registration:step_view', { flow_id: 'flow', step }],
+        [
+          step === 'duration'
+            ? 'registration:duration_view'
+            : 'registration:payment_view',
+          { flow_id: 'flow' },
+        ],
       ]),
     )
     view.rerender()
@@ -90,17 +95,17 @@ it('tracks subsequent visible steps once without repeating the flow view', async
   await waitFor(() =>
     expect(mocks.capture.mock.calls).toEqual([
       ['registration:flow_view', { flow_id: 'flow' }],
-      ['registration:step_view', { flow_id: 'flow', step: 'duration' }],
-      ['registration:step_view', { flow_id: 'flow', step: 'payment' }],
+      ['registration:duration_view', { flow_id: 'flow' }],
+      ['registration:payment_view', { flow_id: 'flow' }],
     ]),
   )
   act(() => actor.send({ type: 'start' }))
   act(() => actor.send({ type: 'retry' }))
   expect(mocks.capture.mock.calls).toEqual([
     ['registration:flow_view', { flow_id: 'flow' }],
-    ['registration:step_view', { flow_id: 'flow', step: 'duration' }],
-    ['registration:step_view', { flow_id: 'flow', step: 'payment' }],
-    ['registration:step_view', { flow_id: 'flow', step: 'payment' }],
+    ['registration:duration_view', { flow_id: 'flow' }],
+    ['registration:payment_view', { flow_id: 'flow' }],
+    ['registration:payment_view', { flow_id: 'flow' }],
   ])
   actor.stop()
 })
@@ -138,9 +143,9 @@ it('observes the current surface again after consent is withdrawn and granted', 
   await waitFor(() =>
     expect(mocks.capture.mock.calls).toEqual([
       ['registration:flow_view', { flow_id: 'flow' }],
-      ['registration:step_view', { flow_id: 'flow', step: 'payment' }],
+      ['registration:payment_view', { flow_id: 'flow' }],
       ['registration:flow_view', { flow_id: 'flow' }],
-      ['registration:step_view', { flow_id: 'flow', step: 'payment' }],
+      ['registration:payment_view', { flow_id: 'flow' }],
     ]),
   )
   actor.stop()
@@ -159,9 +164,8 @@ it('keeps the actor working when SDK identity reads throw', async () => {
   expect(actor.getSnapshot().matches('payment')).toBe(true)
   expect(mocks.capture).toHaveBeenCalledTimes(2)
   act(() => actor.send({ type: 'next' }))
-  expect(mocks.capture).toHaveBeenLastCalledWith('registration:step_view', {
+  expect(mocks.capture).toHaveBeenLastCalledWith('registration:payment_view', {
     flow_id: 'flow',
-    step: 'payment',
   })
   actor.stop()
 })

@@ -3,6 +3,7 @@ import {
   hasAnalyticsConsent,
   invalidateAnalyticsOperations,
   notifyAnalyticsConsent,
+  recordAnalyticsConsentChoice,
 } from './analyticsConsent'
 import { hasMatchingWalletIdentity } from './walletIdentity'
 
@@ -32,8 +33,24 @@ export const setAnalyticsConsent = (
   client: ConsentTarget,
   granted: boolean,
 ): void => {
-  if (!granted) client.reset()
-  writeAnalyticsConsent(client, granted ? 'granted' : 'denied')
+  invalidateAnalyticsOperations()
+  try {
+    recordAnalyticsConsentChoice()
+  } catch (error) {
+    console.warn('[posthog] consent generation update failed', error)
+  }
+  if (!granted) {
+    try {
+      client.reset()
+    } catch (error) {
+      console.warn('[posthog] consent reset failed', error)
+    }
+  }
+  try {
+    writeAnalyticsConsent(client, granted ? 'granted' : 'denied')
+  } catch (error) {
+    console.warn('[posthog] consent update failed', error)
+  }
   notifyAnalyticsConsent()
 }
 
@@ -146,14 +163,38 @@ export const sanitizeAnalyticsUrl = (value: string): string => {
 const sanitizeUrlProperty = (value: unknown): string =>
   typeof value === 'string' ? sanitizeAnalyticsUrl(value) : '[redacted]'
 
+const CAMPAIGN_IDENTIFIERS = new Set([
+  'gad_source',
+  'mc_cid',
+  'gclid',
+  'gclsrc',
+  'dclid',
+  'gbraid',
+  'wbraid',
+  'fbclid',
+  'msclkid',
+  'twclid',
+  'li_fat_id',
+  'igshid',
+  'ttclid',
+  'rdt_cid',
+  'epik',
+  'qclid',
+  'sccid',
+  'irclid',
+  '_kx',
+])
+
 export const sanitizeAutomaticProperties = (
   properties: Readonly<Record<string, unknown>>,
 ): Record<string, unknown> =>
   Object.fromEntries(
     Object.entries(properties).flatMap(([key, value]) => {
+      const attributionKey = key.replace(/^\$(?:session_entry_)?/, '')
       if (
         [
           '$title',
+          'title',
           '$elements',
           '$elements_chain',
           '$event_properties',
@@ -182,10 +223,11 @@ export const sanitizeAutomaticProperties = (
           ],
         ]
       if (
-        ['$utm_', 'utm_', '$initial_utm_'].some((prefix) =>
-          key.startsWith(prefix),
-        ) ||
-        key === '$search_engine' ||
+        key.includes('utm_') ||
+        CAMPAIGN_IDENTIFIERS.has(attributionKey) ||
+        key.startsWith('$initial_') ||
+        attributionKey === 'ph_keyword' ||
+        attributionKey === 'search_engine' ||
         key.includes('referring_domain')
       )
         return []
@@ -194,6 +236,8 @@ export const sanitizeAutomaticProperties = (
   )
 
 export const SHARED_POSTHOG_CONFIG = {
+  save_campaign_params: false,
+  save_referrer: false,
   capture_pageview: 'history_change',
   capture_pageleave: true,
   autocapture: { dom_event_allowlist: ['click'], capture_copied_text: false },
@@ -213,11 +257,38 @@ export const SHARED_POSTHOG_CONFIG = {
   opt_out_capturing_persistence_type: 'cookie',
 } as const
 
+/** Flags read these persisted SDK properties before before_send can filter them. */
+export const clearAnalyticsAttribution = (client: {
+  readonly unregister: (key: string) => void
+  readonly get_property: (key: string) => unknown
+  readonly register: (properties: Readonly<Record<string, unknown>>) => void
+}): void => {
+  for (const key of [
+    '$initial_person_info',
+    '$initial_campaign_params',
+    '$initial_referrer_info',
+  ])
+    client.unregister(key)
+  const properties = client.get_property('$stored_person_properties')
+  if (
+    properties &&
+    typeof properties === 'object' &&
+    !Array.isArray(properties)
+  )
+    client.register({
+      $stored_person_properties: sanitizeAutomaticProperties(
+        properties as Readonly<Record<string, unknown>>,
+      ),
+    })
+}
+
 /** Applies one capture policy to custom and native SDK events. */
 export const prepareAnalyticsEvent = <
   Event extends {
     readonly event: string
     readonly properties: Readonly<Record<string, unknown>>
+    readonly $set?: Readonly<Record<string, unknown>>
+    readonly $set_once?: Readonly<Record<string, unknown>>
   },
 >(
   event: Event | null,
@@ -226,7 +297,13 @@ export const prepareAnalyticsEvent = <
     readonly environment: CaptureEnvironment
     readonly walletAddress: string | null | undefined
   },
-): Event | null => {
+):
+  | (Omit<Event, 'properties' | '$set' | '$set_once'> & {
+      readonly properties: Readonly<Record<string, unknown>>
+      readonly $set?: Readonly<Record<string, unknown>>
+      readonly $set_once?: Readonly<Record<string, unknown>>
+    })
+  | null => {
   if (!event || !canCaptureAnalytics(context.environment)) return null
   const identity = event.properties.distinct_id
   if (
@@ -238,6 +315,10 @@ export const prepareAnalyticsEvent = <
     return null
   return {
     ...event,
+    ...(event.$set ? { $set: sanitizeAutomaticProperties(event.$set) } : {}),
+    ...(event.$set_once
+      ? { $set_once: sanitizeAutomaticProperties(event.$set_once) }
+      : {}),
     properties: {
       ...sanitizeAutomaticProperties(event.properties),
       source_app: context.sourceApp,

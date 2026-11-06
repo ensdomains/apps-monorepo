@@ -40,8 +40,10 @@ export const createAnalyticsTracker = ({
           client.get_distinct_id(),
           name,
         )
-      )
-        client.capture(name, properties)
+      ) {
+        if (properties && 'flow_id' in properties && !properties.flow_id) return
+        void Promise.resolve(client.capture(name, properties)).catch(() => {})
+      }
     } catch {
       // Analytics must never interrupt a product action.
     }
@@ -56,6 +58,7 @@ export const createAnalyticsTracker = ({
       const identity = client.get_distinct_id()
       const revision = getAnalyticsConsentRevision()
       const isAllowed =
+        revision !== undefined &&
         hasAnalyticsConsent(client) &&
         hasMatchingWalletIdentity(connectedWallet, identity)
       const capture: Track = (name, ...args) => {

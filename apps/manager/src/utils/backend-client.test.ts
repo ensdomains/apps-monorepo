@@ -1,6 +1,8 @@
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   backendAuthStore,
+  backendClient,
   DEFAULT_BACKEND_API_URL,
   getBackendApiBaseUrl,
   resolveBackendApiBaseUrl,
@@ -111,4 +113,48 @@ describe('apiBaseUrlOverride when debug features are disabled', () => {
     expect(isolatedStore.get().context.authKey).toBeUndefined()
     expect(isolatedStore.get().context.address).toBeUndefined()
   })
+})
+
+describe('optional analytics request headers', () => {
+  const loadedDescriptor = Object.getOwnPropertyDescriptor(posthog, '__loaded')
+  afterEach(() => {
+    if (loadedDescriptor)
+      Object.defineProperty(posthog, '__loaded', loadedDescriptor)
+    backendAuthStore.trigger.signOut()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it.each(['consent', 'identity'] as const)(
+    'still sends authenticated backend requests when %s reads throw',
+    async (failure) => {
+      Object.defineProperty(posthog, '__loaded', {
+        configurable: true,
+        value: true,
+      })
+      vi.spyOn(posthog, 'get_explicit_consent_status').mockImplementation(
+        () => {
+          if (failure === 'consent') throw new Error('SDK unavailable')
+          return 'granted'
+        },
+      )
+      vi.spyOn(posthog, 'get_distinct_id').mockImplementation(() => {
+        throw new Error('SDK unavailable')
+      })
+      backendAuthStore.trigger.signIn({ authKey: 'auth-key', address: '0xabc' })
+      const transport = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response('{}'))
+      vi.stubGlobal('fetch', transport)
+
+      const response =
+        await backendClient.notifications.channels.telegram.oauth.$get()
+
+      expect(response.status).toBe(200)
+      expect(transport).toHaveBeenCalledOnce()
+      const headers = new Headers(transport.mock.calls[0]?.[1]?.headers)
+      expect(headers.get('Authorization')).toBe('Bearer auth-key')
+      expect(headers.has('X-PostHog-Distinct-ID')).toBe(false)
+    },
+  )
 })

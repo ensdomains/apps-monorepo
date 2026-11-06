@@ -1,10 +1,10 @@
-import type { RegistrationStep } from '@ens-apps/utils/posthog/eventContracts'
+import type { RegistrationStage } from '@ens-apps/utils/posthog/eventContracts'
 
 /** Groups only user-visible stages; other child snapshots add no milestone. */
 export const getRegistrationAnalyticsStep = (
   stage: string,
-): RegistrationStep | undefined => {
-  const stages: Readonly<Record<string, RegistrationStep>> = {
+): RegistrationStage | undefined => {
+  const stages: Readonly<Record<string, RegistrationStage>> = {
     settingUpRegistration: 'setup',
     checkingResolver: 'setup',
     deployingResolver: 'setup',
@@ -15,6 +15,7 @@ export const getRegistrationAnalyticsStep = (
     waitingForApproval: 'approval',
     preparingCommitment: 'commit',
     committingTransaction: 'commit',
+    submittingEoaSetupBundle: 'commit',
     submittingSetupBundle: 'commit',
     waitingForCommitment: 'commit',
     commitmentCooldown: 'cooldown',
