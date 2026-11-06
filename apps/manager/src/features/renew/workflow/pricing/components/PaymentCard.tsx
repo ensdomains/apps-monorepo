@@ -78,7 +78,8 @@ export const PaymentCard = () => {
   return (
     <>
       <CheckoutSummaryCard
-        acceptsEth={isEthAccepted}
+        // Listed until the wallet route is known, as most wallets take the intent route.
+        acceptsEth={route !== 'wallet'}
         action={action}
         connect={{
           onConnect: () => openConnectModal?.(),
