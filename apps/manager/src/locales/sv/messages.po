@@ -2039,7 +2039,7 @@ msgid "Network fee"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Network fees are elevated right now (about {estimatedTotalLabel} estimated). We couldn't lock in a total — please try again shortly."
+msgid "Network fees are elevated right now, so the total above is an estimate (about {estimatedTotalLabel}). Try again shortly for a confirmed quote before paying."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -3701,10 +3701,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This subname's parent or registry is not supported for upgrading yet."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "This total is an estimate. Try again for a confirmed quote before paying."
 msgstr ""
 
 #: src/features/migration/components/SubnameMigrationDialog.tsx

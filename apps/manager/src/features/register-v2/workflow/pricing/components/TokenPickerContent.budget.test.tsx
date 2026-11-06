@@ -161,10 +161,11 @@ describe('TokenPickerContent budget quote', () => {
 
     expect(
       await screen.findByText(
-        /Network fees are elevated right now \(about \$340\.00 estimated\)/,
+        /Network fees are elevated right now, so the total above is an estimate \(about \$340\.00\)\. Try again shortly for a confirmed quote before paying\./,
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText(/This total is an estimate/)).toBeInTheDocument()
+    // The warning carries the explanation; nothing is added under the receipt.
+    expect(screen.queryByText(/^This total is an estimate/)).toBeNull()
     // No quote ever succeeded, so the whole receipt comes from the estimate.
     expect(receiptRow('Registration total')).toHaveTextContent('$330.00')
     expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')

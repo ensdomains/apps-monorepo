@@ -76,15 +76,12 @@ export function getBudgetQuoteFailureUi(params: {
   readonly estimatedFunding: RegistrationFunding | null
   readonly estimatedRegistrationRaw: bigint | null
   readonly failureCopy: BudgetQuoteFailureCopy | null
-  /** True when the receipt should explain the figures are estimates. */
-  readonly shouldShowEstimateNotice: boolean
 } {
   if (!params.hasFailed) {
     return {
       estimatedFunding: null,
       estimatedRegistrationRaw: null,
       failureCopy: null,
-      shouldShowEstimateNotice: false,
     }
   }
   const recovery = getBudgetQuoteRecovery(params.error)
@@ -97,7 +94,6 @@ export function getBudgetQuoteFailureUi(params: {
         ? params.formatTotal(recovery.estimatedFunding.total)
         : null,
     }),
-    shouldShowEstimateNotice: recovery.estimatedFunding !== null,
   }
 }
 

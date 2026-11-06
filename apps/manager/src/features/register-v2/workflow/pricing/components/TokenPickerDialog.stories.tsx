@@ -85,7 +85,6 @@ interface TokenPickerDialogShellProps {
   readonly funding?: RegistrationFundingSummary
   readonly estimatedFunding?: RegistrationFundingSummary
   readonly hasBudgetQuoteFailed?: boolean
-  readonly receiptNotice?: ReactNode
   readonly isQuotingFunding?: boolean
   readonly accountCredit?: Partial<Record<SUPPORTED_TOKEN, number>>
   /** No quote has succeeded yet, so the page total is still unknown. */
@@ -110,7 +109,6 @@ export const TokenPickerDialogShell = ({
   funding,
   estimatedFunding,
   hasBudgetQuoteFailed = false,
-  receiptNotice,
   isQuotingFunding = false,
   accountCredit,
   isFirstQuote = false,
@@ -174,7 +172,6 @@ export const TokenPickerDialogShell = ({
         }}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
-        receiptNotice={receiptNotice}
         selectedToken={selectedToken}
         showNetworkFeeDetails
         stablecoinBalances={stablecoinBalances}
@@ -543,9 +540,7 @@ export const BudgetQuoteGasCoverageFailed: Story = {
     hasBudgetQuoteFailed: true,
     estimatedFunding: ELEVATED_FEE_ESTIMATE,
     globalErrorMessage:
-      "Network fees are elevated right now (about $11.40 estimated). We couldn't lock in a total — please try again shortly.",
-    receiptNotice:
-      'This total is an estimate. Try again for a confirmed quote before paying.',
+      'Network fees are elevated right now, so the total above is an estimate (about $11.40). Try again shortly for a confirmed quote before paying.',
   },
 }
 

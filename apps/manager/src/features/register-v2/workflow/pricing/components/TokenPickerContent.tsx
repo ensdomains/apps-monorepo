@@ -179,7 +179,7 @@ const getPricingGlobalErrorMessage = ({
     .with(
       { variant: 'gas-coverage-with-estimate' },
       ({ estimatedTotalLabel }) =>
-        msg`Network fees are elevated right now (about ${estimatedTotalLabel} estimated). We couldn't lock in a total — please try again shortly.`,
+        msg`Network fees are elevated right now, so the total above is an estimate (about ${estimatedTotalLabel}). Try again shortly for a confirmed quote before paying.`,
     )
     .with(
       { variant: 'gas-coverage' },
@@ -765,16 +765,6 @@ export const TokenPickerContent = () => {
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
-      receiptNotice={match(budgetFailureUi.shouldShowEstimateNotice)
-        .with(true, () => (
-          <p className="w-full text-center text-ens-quartz-500 text-sm">
-            <Trans>
-              This total is an estimate. Try again for a confirmed quote before
-              paying.
-            </Trans>
-          </p>
-        ))
-        .otherwise(() => undefined)}
       revalidatedShortfall={revalidatedShortfall}
       selectedToken={selectedToken}
       shortfallLabel={<Trans>Register name</Trans>}

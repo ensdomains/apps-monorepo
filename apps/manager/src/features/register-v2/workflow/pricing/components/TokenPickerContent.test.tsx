@@ -1027,25 +1027,18 @@ describe('TokenPickerContentBase', () => {
         isLoading: false,
       },
       globalErrorMessage:
-        "Network fees are elevated right now (about $11.40 estimated). We couldn't lock in a total — please try again shortly.",
-      receiptNotice: (
-        <p>
-          This total is an estimate. Try again for a confirmed quote before
-          paying.
-        </p>
-      ),
+        'Network fees are elevated right now, so the total above is an estimate (about $11.40). Try again shortly for a confirmed quote before paying.',
       checkoutReceipt: { totalRaw: 1_400_000n },
     })
 
     expect(
       screen.getByText(
-        /Network fees are elevated right now \(about \$11\.40 estimated\)/,
+        /Network fees are elevated right now, so the total above is an estimate \(about \$11\.40\)/,
       ),
     ).toBeVisible()
     expect(receiptRow('Registration total')).toHaveTextContent('$1.40')
     expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
     expect(receiptRow('You pay')).toHaveTextContent('$11.40')
-    expect(screen.getByText(/This total is an estimate/)).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /approv|register/i }),
     ).not.toBeInTheDocument()
