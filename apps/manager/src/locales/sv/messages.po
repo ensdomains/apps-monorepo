@@ -1067,6 +1067,11 @@ msgstr ""
 msgid "Copy wallet address"
 msgstr ""
 
+#. placeholder {0}: error.message
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Could not check copy readiness: {0}. Try again."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Could not connect Telegram. Please try again and allow the bot to send messages."
 msgstr ""
