@@ -13,7 +13,6 @@ import {
   upsertAddress,
 } from './AddressesTab.helpers'
 import {
-  BNB_COIN_TYPE,
   BSC_COIN_TYPE,
   ETH_COIN_TYPE,
   evmChainOptions,
@@ -65,7 +64,7 @@ describe('getPickerRecordGroups', () => {
     const { otherRecords, popularRecords } = getPickerRecordGroups({
       mode: 'other',
       normalizedSearchValue: 'monero',
-      unavailableCoinTypes: new Set([ETH_COIN_TYPE, 0, 501, BNB_COIN_TYPE]),
+      unavailableCoinTypes: new Set([ETH_COIN_TYPE, 0, 501, 714]),
     })
 
     expect(popularRecords.map(({ name }) => name)).toEqual([
@@ -122,15 +121,8 @@ describe('address row helpers', () => {
     ])
 
     expect(
-      upsertAddress(
-        [address(ETH_COIN_TYPE, ethAddress)],
-        BNB_COIN_TYPE,
-        'bnb1',
-      ),
-    ).toEqual([
-      address(ETH_COIN_TYPE, ethAddress),
-      address(BNB_COIN_TYPE, 'bnb1'),
-    ])
+      upsertAddress([address(ETH_COIN_TYPE, ethAddress)], 714, 'bnb1'),
+    ).toEqual([address(ETH_COIN_TYPE, ethAddress), address(714, 'bnb1')])
   })
 
   it('removes every row matching the coin type', () => {

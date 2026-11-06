@@ -68,6 +68,34 @@ describe('coins', () => {
     })
   })
 
+  describe('EVM chains added in address-encoder 3.0.0', () => {
+    it.each([
+      ['unichain', 'Unichain', 2147483778],
+      ['monad', 'Monad', 2147483791],
+      ['sonic', 'Sonic', 2147483794],
+      ['worldchain', 'World Chain', 2147484128],
+      ['hyperevm', 'HyperEVM', 2147484647],
+      ['lisk', 'Lisk', 2147484783],
+      ['soneium', 'Soneium', 2147485516],
+      ['ronin', 'Ronin', 2147485668],
+      ['abstract', 'Abstract', 2147486389],
+      ['tempo', 'Tempo', 2147487865],
+      ['robinhood', 'Robinhood Chain', 2147488311],
+      ['arc', 'Arc', 2147488690],
+      ['plasma', 'Plasma', 2147493393],
+      ['arbnova', 'Arbitrum Nova', 2147525818],
+      ['ink', 'Ink', 2147540721],
+      ['berachain', 'Berachain', 2147563742],
+      ['taiko', 'Taiko', 2147650648],
+    ] as const)('offers %s as %s (%i)', (name, longName, coinType) => {
+      expect(getCoinByName(name)).toMatchObject({ name, longName, coinType })
+    })
+
+    it('reuses the Lisk artwork for the Lisk EVM chain', () => {
+      expect(getCoinByName('lisk')?.icon).toBe('/address/LskIcon.svg')
+    })
+  })
+
   describe('getCoinByName', () => {
     it('returns ETH coin for "eth"', () => {
       const coin = getCoinByName('eth')

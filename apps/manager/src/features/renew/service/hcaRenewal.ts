@@ -32,6 +32,7 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
+import { mainnet } from 'viem/chains'
 import {
   clearPendingL2Bridge,
   readPendingL2Bridge,
@@ -49,24 +50,29 @@ import {
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { type HcaRenewalEthFunding, swapEthForRenewal } from './renewalEthSwap'
 
-/**
- * Declared gas limit for a renewal intent, and the marginal cost of each extra
- * name in a batch.
- *
- * The rail prices the quote on the DECLARED limit, so an under-declared batch
- * quotes a fee that cannot pay for its own fill (registration's `register` leg
- * learned this the expensive way). Measured on a Sepolia fork against the v2
- * registrar: `renew` alone costs ~91k gas and each extra `renewBatch` entry
- * ~24-35k, on top of the executor's own overhead — the commit leg, a comparable
- * `permit + transferFrom + one call` batch, BILLS ~385k. 600k base plus 100k
- * per extra name therefore covers the whole shape with room to spare, and the
- * overshoot is not wasted: whatever the fill does not spend stays in the HCA.
- */
-export const HCA_RENEWAL_INTENT_GAS_LIMIT_BASE = 600_000n
-export const HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM = 100_000n
+/** Gas a renewal intent is quoted on: what its fills used on average, not the most, since the user funds the quote. */
+export type RenewalIntentGas = {
+  /** One name, funding permit and `transferFrom` included. */
+  readonly base: bigint
+  /** Each further name in a `renewBatch`. */
+  readonly perExtraName: bigint
+  /** The second permit and `transferFrom` pair when the price is not in USDC. */
+  readonly tokenFunding: bigint
+}
 
-/** Room for a second permit + `transferFrom` pair when the price is not in USDC. */
-export const HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS = 150_000n
+/** Sepolia's fills on 2026-11-05, which pay Glamsterdam's state-creation gas (EIP-8037). */
+export const POST_GLAMSTERDAM_RENEWAL_INTENT_GAS: RenewalIntentGas = {
+  base: 540_000n,
+  perExtraName: 30_000n,
+  tokenFunding: 130_000n,
+}
+
+/** Mainnet's fills on 2026-11-05, before Glamsterdam; drop this once mainnet activates it. */
+export const MAINNET_RENEWAL_INTENT_GAS: RenewalIntentGas = {
+  base: 330_000n,
+  perExtraName: 30_000n,
+  tokenFunding: 90_000n,
+}
 
 /**
  * Most names one intent may carry.
@@ -87,10 +93,22 @@ const RENEWAL_PERMIT_PURPOSE: PermitPurpose = {
     'the network fee, less what the smart account already holds.',
 }
 
-/** Gas limit a renewal batch of `itemCount` names is quoted against. */
-export const hcaRenewalIntentGasLimit = (itemCount: number): bigint =>
-  HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
-  HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM * BigInt(Math.max(itemCount - 1, 0))
+/** Gas limit a renewal batch of `itemCount` names, priced in `token`, is quoted against. */
+export const hcaRenewalIntentGasLimit = (params: {
+  readonly chainId: number
+  readonly itemCount: number
+  readonly token: RENEWAL_TOKEN
+}): bigint => {
+  const gas =
+    params.chainId === mainnet.id
+      ? MAINNET_RENEWAL_INTENT_GAS
+      : POST_GLAMSTERDAM_RENEWAL_INTENT_GAS
+  return (
+    gas.base +
+    gas.perExtraName * BigInt(Math.max(params.itemCount - 1, 0)) +
+    (params.token === 'USDC' ? 0n : gas.tokenFunding)
+  )
+}
 
 export interface HcaRenewalItem {
   readonly label: string
@@ -201,6 +219,7 @@ const buildRenewalIntent = async (params: {
   readonly token: RENEWAL_TOKEN
   readonly hca: Address
   readonly publicClient: PublicClient
+  readonly chainId: number
 }): Promise<RenewalIntent> => {
   const { items, renewerAddress, protocol, token, hca, publicClient } = params
   const [first, ...rest] = items
@@ -259,9 +278,11 @@ const buildRenewalIntent = async (params: {
     },
   ]
 
-  const gasLimit =
-    hcaRenewalIntentGasLimit(items.length) +
-    (token === 'USDC' ? 0n : HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS)
+  const gasLimit = hcaRenewalIntentGasLimit({
+    chainId: params.chainId,
+    itemCount: items.length,
+    token,
+  })
 
   return { tokenAddress, rentTotal, actionCalls, gasLimit }
 }
@@ -305,6 +326,7 @@ export async function quoteHcaRenewalFee(
       token,
       hca,
       publicClient,
+      chainId,
     })
 
   return quoteHcaIntentFeeUsdc({
@@ -715,6 +737,7 @@ export async function submitHcaRenewal(
       token,
       hca,
       publicClient,
+      chainId,
     })
 
   // Owner-signed on purpose: `renew` is not one of the calls
