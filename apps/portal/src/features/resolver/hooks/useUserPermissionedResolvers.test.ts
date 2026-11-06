@@ -7,6 +7,7 @@ import {
   custom,
   encodeAbiParameters,
   encodeEventTopics,
+  getAddress,
   type Hex,
   numberToHex,
   pad,
@@ -122,7 +123,7 @@ describe('getUserPermissionedResolvers', () => {
 
     const result = await getUserPermissionedResolvers({ account: WALLET })
 
-    expect(result._unsafeUnwrap()).toEqual([RESOLVER])
+    expect(result._unsafeUnwrap()).toEqual([getAddress(RESOLVER)])
     expect(getLogsFilters).toEqual([
       {
         topics: encodeEventTopics({

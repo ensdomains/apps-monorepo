@@ -100,7 +100,7 @@ export interface RootRolesChangedLog {
 
 /**
  * The contracts where the account's latest root roles include every bit of
- * `requiredBitmap`, most recently changed first. `logs` must be in chain
+ * `requiredBitmap`, checksummed, most recently changed first. `logs` must be in chain
  * order, as `getLogs` returns them.
  */
 export const selectContractsHoldingRoles = (
@@ -118,7 +118,7 @@ export const selectContractsHoldingRoles = (
     .filter(
       (log) => (log.args.newRoleBitmap & requiredBitmap) === requiredBitmap,
     )
-    .map((log) => log.address)
+    .map((log) => getAddress(log.address))
 }
 
 export const EIP1967_IMPLEMENTATION_SLOT: Hex =

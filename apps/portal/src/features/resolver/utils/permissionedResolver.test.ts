@@ -61,8 +61,8 @@ describe('parseProxyDeployedAddress', () => {
 
 describe('selectContractsHoldingRoles', () => {
   const REQUIRED = 0b1010n
-  const A = '0x1111111111111111111111111111111111111111' as Address
-  const B = '0x2222222222222222222222222222222222222222' as Address
+  const A = getAddress('0xa111111111111111111111111111111111111111')
+  const B = getAddress('0xb222222222222222222222222222222222222222')
   const log = (address: Address, newRoleBitmap: bigint) => ({
     address,
     args: { newRoleBitmap },
@@ -89,9 +89,9 @@ describe('selectContractsHoldingRoles', () => {
       [A, B],
     ],
     [
-      'one contract across address casing',
-      [log(A, 0n), log(getAddress(A), REQUIRED)],
-      [getAddress(A)],
+      'one checksummed contract across address casing',
+      [log(A, 0n), log(A.toLowerCase() as Address, REQUIRED)],
+      [A],
     ],
   ])('lists %s', (_, logs, expected) => {
     expect(selectContractsHoldingRoles(logs, REQUIRED)).toEqual(expected)
