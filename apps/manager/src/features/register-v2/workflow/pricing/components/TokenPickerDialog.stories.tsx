@@ -544,6 +544,14 @@ export const BudgetQuoteGasCoverageFailed: Story = {
   },
 }
 
+/** WEB-2061: an L2 still holds a quote for the previous budget; picking it must not replace the estimate. */
+export const BudgetQuoteGasCoverageFailedWithL2: Story = {
+  args: {
+    ...BudgetQuoteGasCoverageFailed.args,
+    l2Rows: [l2Row(baseSepolia, 400_000_000n, 'available', 5_012_573n)],
+  },
+}
+
 /** WEB-2061: credit covers the price but not the estimate, so the methods stay listed. */
 export const BudgetQuoteGasCoverageFailedWithAccountCredit: Story = {
   args: {
