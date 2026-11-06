@@ -1,0 +1,127 @@
+name: Linear Production Release
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        type: string
+        required: true
+      tag:
+        type: string
+        required: true
+      notes_artifact:
+        type: boolean
+        default: true
+    secrets:
+      LINEAR_ACCESS_KEY:
+        required: false
+      LINEAR_RELEASE_MANAGER_PRODUCTION:
+        required: false
+      LINEAR_RELEASE_PORTAL_PRODUCTION:
+        required: false
+      LINEAR_RELEASE_API_WORKER_PRODUCTION:
+        required: false
+    outputs:
+      release-url:
+        value: ${{ jobs.sync.outputs.release-url }}
+      status:
+        value: ${{ jobs.sync.outputs.status }}
+  workflow_dispatch:
+    inputs:
+      app:
+        type: choice
+        options: [manager, portal, api-worker]
+        required: true
+      tag:
+        description: Successfully deployed production tag to sync (no redeploy)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: linear-production-${{ inputs.app }}
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      release-url: ${{ steps.linear.outputs.release-url }}
+      status: ${{ steps.key.outputs.configured == 'true' && steps.linear.outcome || 'pending-key' }}
+    env:
+      TAG: ${{ inputs.tag }}
+      APP: ${{ inputs.app }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check pipeline access key
+        id: key
+        env:
+          LINEAR_ACCESS_KEY: ${{ secrets.LINEAR_ACCESS_KEY || (inputs.app == 'manager' && secrets.LINEAR_RELEASE_MANAGER_PRODUCTION) || (inputs.app == 'portal' && secrets.LINEAR_RELEASE_PORTAL_PRODUCTION) || (inputs.app == 'api-worker' && secrets.LINEAR_RELEASE_API_WORKER_PRODUCTION) }}
+        run: |
+          if [ -z "$LINEAR_ACCESS_KEY" ]; then
+            echo '::warning::Production Linear pipeline key is pending; deployment is unaffected.'
+            echo 'Production Linear sync is pending its pipeline access key.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout production tag
+        if: steps.key.outputs.configured == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout workflow tooling
+        if: steps.key.outputs.configured == 'true'
+        uses: actions/checkout@v7
+        with:
+          path: .linear-tooling
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Verify successful production release
+        if: steps.key.outputs.configured == 'true'
+        run: |
+          gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -qx false
+
+      - name: Download release notes
+        if: steps.key.outputs.configured == 'true' && inputs.notes_artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes
+
+      - name: Rebuild notes for manual retry
+        if: steps.key.outputs.configured == 'true' && !inputs.notes_artifact
+        run: |
+          mkdir -p "$RUNNER_TEMP/notes"
+          node .linear-tooling/scripts/release-notes.mjs "$TAG" "$RUNNER_TEMP/notes"
+          gh release view "$TAG" --json body --jq '.body' > "$RUNNER_TEMP/notes/release-notes.md"
+
+      - name: Determine production commit range
+        if: steps.key.outputs.configured == 'true'
+        id: range
+        run: node .linear-tooling/scripts/linear-release-base.mjs "$APP" "$TAG" "$RUNNER_TEMP/notes/release-notes.json"
+
+      - name: Sync production release
+        if: steps.key.outputs.configured == 'true'
+        id: linear
+        uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 # v0.17.2
+        with:
+          access_key: ${{ secrets.LINEAR_ACCESS_KEY || (inputs.app == 'manager' && secrets.LINEAR_RELEASE_MANAGER_PRODUCTION) || (inputs.app == 'portal' && secrets.LINEAR_RELEASE_PORTAL_PRODUCTION) || (inputs.app == 'api-worker' && secrets.LINEAR_RELEASE_API_WORKER_PRODUCTION) }}
+          command: sync
+          name: ${{ inputs.tag }}
+          version: ${{ inputs.tag }}
+          base_ref: ${{ steps.range.outputs.base-ref }}
+          include_paths: ${{ steps.range.outputs.include-paths }}
+          release_notes: ${{ runner.temp }}/notes/release-notes.md
+          links: |
+            GitHub release=${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}
+            Workflow=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

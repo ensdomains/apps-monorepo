@@ -65,7 +65,9 @@ const changeLine = c =>
     c.pr ? `<${repoUrl}/pull/${c.pr}|#${c.pr}>` : `<${repoUrl}/commit/${c.sha}|${c.sha}>`
   }`;
 
-const results = Object.entries(needs).map(([job, { result }]) => ({ job: JOBS[job] ?? job, result }));
+const results = Object.entries(needs)
+  .filter(([job]) => job !== 'linear')
+  .map(([job, { result }]) => ({ job: JOBS[job] ?? job, result }));
 const failed = results.filter(r => r.result === 'failure');
 const succeeded = results.filter(r => r.result === 'success');
 const isReleased = results.length > 0 && succeeded.length === results.length;
@@ -109,7 +111,16 @@ const ensEth =
       }.${root ? ` Swarm root \`${root}\`.` : ''}`
     : null;
 
+const linear = needs.linear;
+const linearUrl = linear?.outputs?.['release-url'];
+const linearNotice = linear?.result === 'failure'
+  ? `:warning: Linear sync failed; production deployment is unaffected. <${runUrl}|Retry the Linear sync>.`
+  : linear?.outputs?.status === 'pending-key'
+    ? ':warning: Linear sync is pending its pipeline access key.'
+    : null;
+
 const footer = [
+  linearUrl && `<${linearUrl}|Linear release>`,
   actor && `Tagged by <${server}/${actor}|${actor}>`,
   sha && `<${repoUrl}/commit/${sha}|${sha.slice(0, 9)}>`,
   notes?.compareUrl && `<${notes.compareUrl}|Full diff>`,
@@ -122,7 +133,7 @@ const title = isReleased ? `:rocket: ${name} released to mainnet` : `:x: ${name}
 const section = text => ({ type: 'section', text: { type: 'mrkdwn', text } });
 const blocks = [
   { type: 'header', text: { type: 'plain_text', text: title, emoji: true } },
-  section([summary, outcome].filter(Boolean).join('\n')),
+  section([summary, outcome, linearNotice].filter(Boolean).join('\n')),
   ...sections.map(section),
   ...(ensEth ? [section(ensEth)] : []),
   { type: 'context', elements: [{ type: 'mrkdwn', text: footer }] },
