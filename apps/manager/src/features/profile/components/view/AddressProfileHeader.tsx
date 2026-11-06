@@ -114,7 +114,7 @@ export const AddressProfileHeader = ({
       ) : null}
       <div className="flex flex-col items-center gap-4 xl:flex-row xl:justify-between">
         <AddressLabel address={address} />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 empty:hidden">
           <ProfileExploreAction target={{ kind: 'address', address }} />
           {primaryName ? (
             <Link
