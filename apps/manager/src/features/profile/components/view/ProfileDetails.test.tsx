@@ -9,7 +9,7 @@ import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { copyToClipboard } from '@/lib/clipboard'
 import { render } from '@/utils/test-utils'
-import { ProfileDetails } from './ProfileDetails'
+import { ProfileDetails, ProfileNameBadge } from './ProfileDetails'
 
 vi.mock('@/lib/clipboard', () => ({
   copyToClipboard: vi.fn(),
@@ -76,5 +76,27 @@ describe('ProfileDetails', () => {
     expect(
       await screen.findByRole('link', { name: '0x7F12...d5Cb' }),
     ).toHaveAttribute('href', `/${owner}`)
+  })
+})
+
+describe('ProfileNameBadge', () => {
+  beforeEach(() => vi.mocked(copyToClipboard).mockClear())
+
+  it('copies the full name from the button beside the heading', async () => {
+    render(<ProfileNameBadge name="rustic-sparrow.eth" />)
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'rustic-sparrow.eth' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'rustic-sparrow.eth — Copy to clipboard',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(copyToClipboard).toHaveBeenCalledWith('rustic-sparrow.eth'),
+    )
   })
 })
