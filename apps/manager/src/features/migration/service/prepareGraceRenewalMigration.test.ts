@@ -2,6 +2,7 @@ import type { Config } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeRpcSubnameInventory } from './_fixtures/rpcSubnameInventory'
 
 vi.mock('./buildMigrationPlan', () => ({ buildMigrationPlan: vi.fn() }))
 vi.mock('./computeMigrationPreflight', () => ({
@@ -106,8 +107,13 @@ describe('prepareGraceRenewalMigration', () => {
         ReturnType<typeof discoverSubnameRecreation>
       >['snapshot']
       vi.mocked(discoverSubnameRecreation).mockResolvedValue({
+        inventory: makeRpcSubnameInventory({
+          domains: [...refreshed, child],
+          rootNames: refreshed.map(({ name }) => name),
+        }),
         domains: [...refreshed, child],
         snapshot,
+        unrecoverable: [],
       })
       vi.mocked(buildMigrationPlan).mockImplementation(
         async ({ domains }) =>

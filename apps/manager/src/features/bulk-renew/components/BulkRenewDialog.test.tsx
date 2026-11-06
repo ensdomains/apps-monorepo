@@ -1,5 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import type { SummaryRow } from '../types'
@@ -35,8 +35,21 @@ vi.mock('motion/react', () => ({
 // handed so the assertion can read them.
 vi.mock('./DurationPresets', () => ({ DurationPresets: () => <div /> }))
 vi.mock('./RenewToDatePopover', () => ({ RenewToDatePopover: () => <div /> }))
-vi.mock('./PaymentMethodSection', () => ({
-  PaymentMethodSection: () => <div />,
+vi.mock('./BulkRenewPaymentStep', () => ({
+  BulkRenewPaymentStep: ({
+    header,
+    onConfirm,
+  }: {
+    header: ReactNode
+    onConfirm: () => void
+  }) => (
+    <>
+      {header}
+      <button onClick={onConfirm} type="button">
+        Confirm
+      </button>
+    </>
+  ),
 }))
 vi.mock('./NamesBreakdown', () => ({ NamesBreakdown: () => <div /> }))
 vi.mock('./RenewingStep', () => ({
@@ -44,8 +57,19 @@ vi.mock('./RenewingStep', () => ({
 }))
 vi.mock('./FailureStep', () => ({ FailureStep: () => <div /> }))
 vi.mock('./SuccessStep', () => ({
-  SuccessStep: ({ rows }: { rows: readonly SummaryRow[] }) => (
+  SuccessStep: ({
+    rows,
+    total,
+    existingBalance,
+  }: {
+    rows: readonly SummaryRow[]
+    total: number
+    existingBalance?: number
+  }) => (
     <div data-testid="success">
+      <div data-testid="success-total">
+        {total} {existingBalance}
+      </div>
       {rows.map((row) => (
         <div data-testid="success-row" key={row.key}>
           {row.startDate.toISOString()} {row.endDate.toISOString()}
@@ -76,7 +100,8 @@ const bulkRenewResult = (rows: readonly SummaryRow[]) => ({
     isConnected: true,
     isLoadingBalances: false,
     stablecoinBalances: [],
-    canConfirm: true,
+    canProceed: true,
+    intentFunding: { displayedDebit: { usdc: 11_000_000n, token: 0n } },
   },
 })
 
@@ -92,7 +117,7 @@ beforeEach(() => {
     phase: submitPhase,
     statuses: {},
     errorMessage: undefined,
-    fundingPrompt: null,
+    approvalState: { kind: 'idle' },
     approveFunding: vi.fn(),
     declineFunding: vi.fn(),
     submit,
@@ -133,6 +158,32 @@ describe('BulkRenewDialog success receipt', () => {
     expect(row).toHaveTextContent('2040-07-20')
     expect(row).not.toHaveTextContent('2040-08-17')
   })
+
+  it('shows the total and existing balance confirmed, not the live ones after renewing', () => {
+    const row = makeRow('2040-06-12T00:00:00.000Z', '2040-07-20T00:00:00.000Z')
+    const withBalance = (appliedBalance: number, listTotal: number) => {
+      const result = bulkRenewResult([row])
+      return {
+        ...result,
+        payment: { ...result.payment, appliedBalance, listTotal },
+      }
+    }
+    // The account's 0.46 covers both names, so the list confirms $0.00.
+    hooks.useBulkRenew.mockImplementation(() => withBalance(0.46, 0))
+
+    const { rerender } = render(
+      <BulkRenewDialog names={[]} onOpenChange={() => {}} open />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+
+    // The renewal spent the balance, so the live list now reads the gross total.
+    hooks.useBulkRenew.mockImplementation(() => withBalance(0, 10))
+    submitPhase = 'success'
+    rerender(<BulkRenewDialog names={[]} onOpenChange={() => {}} open />)
+
+    expect(screen.getByTestId('success-total')).toHaveTextContent('0 0.46')
+  })
 })
 
 const Harness = () => {
@@ -158,6 +209,20 @@ describe('BulkRenewDialog close/reopen', () => {
       ]),
     )
   })
+
+  it.each(['Back', '1 year'])(
+    'returns to the duration step from the confirm step via %s',
+    (name) => {
+      render(<Harness />)
+      fireEvent.click(screen.getByRole('button', { name: /next/i }))
+      expect(screen.getByText('Confirm renewal')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name }))
+
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument()
+      expect(screen.queryByText('Confirm renewal')).not.toBeInTheDocument()
+    },
+  )
 
   it('resumes the in-flight renewal when reopened mid-flow', () => {
     const { rerender } = render(<Harness />)

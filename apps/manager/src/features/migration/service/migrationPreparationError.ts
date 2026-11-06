@@ -1,7 +1,10 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
+import { shouldRetrySubnameMigrationImpact } from './subnameMigrationImpactQuery.helpers'
 import { SubnameRecreationError } from './subnameRecreationError'
+
+const MAX_PREPARATION_RETRIES = 1
 
 type MigrationPreparationStage =
   | 'account'
@@ -23,6 +26,7 @@ type MigrationPreparationReason =
   | 'recovery-changed'
   | 'parent-not-upgraded'
   | 'reservation-not-synced'
+  | 'atomic-name-gas-limit'
   | 'rpc-unavailable'
   | 'fee-unavailable'
   | 'unknown'
@@ -57,6 +61,12 @@ const causeChain = (error: unknown): readonly Record<string, unknown>[] => {
   return chain
 }
 
+const NAMED_ERROR_REASONS = [
+  ['LegacyResolverContentError', 'legacy-resolver-content'],
+  ['UnsupportedResolverRecordsError', 'unsupported-resolver-records'],
+  ['AtomicMigrationNameGasLimitExceededError', 'atomic-name-gas-limit'],
+] as const satisfies readonly (readonly [string, MigrationPreparationReason])[]
+
 const reasonFor = (
   stage: MigrationPreparationStage,
   cause: unknown,
@@ -87,10 +97,10 @@ const reasonFor = (
     )
   )
     return 'locked-resolver-record-control'
-  if (chain.some((error) => error.name === 'LegacyResolverContentError'))
-    return 'legacy-resolver-content'
-  if (chain.some((error) => error.name === 'UnsupportedResolverRecordsError'))
-    return 'unsupported-resolver-records'
+  const namedReason = NAMED_ERROR_REASONS.find(([name]) =>
+    chain.some((error) => error.name === name),
+  )?.[1]
+  if (namedReason) return namedReason
   if (stage === 'fee') return 'fee-unavailable'
   if (
     chain.some(
@@ -181,6 +191,17 @@ export const migrationPreparationFailure = (
   return { stage, reason: reasonFor(stage, cause), cause }
 }
 
+/** Retry only attributed transport failures, preserving semantic safety errors. */
+export const shouldRetryMigrationPreparation = (
+  failureCount: number,
+  error: unknown,
+): boolean =>
+  failureCount < MAX_PREPARATION_RETRIES &&
+  shouldRetrySubnameMigrationImpact({
+    failureCount,
+    cause: error instanceof MigrationPreparationError ? error.cause : error,
+  })
+
 export const runMigrationPreparationStage = async <T>(
   stage: MigrationPreparationStage,
   operation: () => Promise<T>,
@@ -206,9 +227,21 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'recovery-changed': msg`Couldn't restore your upgrade progress. Reload to check the latest state.`,
   'parent-not-upgraded': msg`Some subnames can't upgrade until their parent name is upgraded. Upgrade the parent first, or deselect those subnames.`,
   'reservation-not-synced': msg`A renewed name's ENSv2 reservation is out of date. Wait for it to sync before upgrading. If this continues, contact support.`,
+  'atomic-name-gas-limit': msg`The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest.`,
   'rpc-unavailable': msg`Couldn't reach the network to prepare your upgrade. Please try again.`,
   'fee-unavailable': msg`Couldn't estimate the network fee`,
   unknown: msg`Couldn't prepare your upgrade. Please try again.`,
+}
+
+const atomicGasLimitMessage = (cause: unknown): MessageDescriptor => {
+  const error = causeChain(cause).find(
+    (entry) => entry.name === 'AtomicMigrationNameGasLimitExceededError',
+  )
+  if (typeof error?.ensName === 'string') {
+    const ensName = error.ensName
+    return msg`The estimated gas for ${ensName} and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest.`
+  }
+  return messages['atomic-name-gas-limit']
 }
 
 export const migrationPreparationMessage = (
@@ -218,6 +251,9 @@ export const migrationPreparationMessage = (
   if (failure.cause instanceof SubnameRecreationError) {
     const details = failure.cause.message
     return msg`${details}`
+  }
+  if (failure.reason === 'atomic-name-gas-limit') {
+    return atomicGasLimitMessage(failure.cause)
   }
   if (failure.reason === 'parent-not-upgraded') {
     const error = causeChain(failure.cause).find(

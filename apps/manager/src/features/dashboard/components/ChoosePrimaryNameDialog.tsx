@@ -848,12 +848,11 @@ export const ChoosePrimaryNameDialog = ({
         }}
       />
       <HcaFundingConfirmDialog
-        description={<Trans>Setting a primary name is paid in USDC.</Trans>}
-        lines={[
-          {
-            label: <Trans>Network fee</Trans>,
-            amount: fundingPrompt?.quotedFeeUsdc ?? 0n,
-          },
+        description={() => (
+          <Trans>Setting a primary name is paid in USDC.</Trans>
+        )}
+        lines={({ quotedFeeUsdc }) => [
+          { label: <Trans>Network fee</Trans>, amount: quotedFeeUsdc },
         ]}
         onApprove={approveFunding}
         onDecline={declineFunding}

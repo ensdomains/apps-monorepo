@@ -1,10 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { LanguagesIcon } from 'lucide-react'
-import { MobileHeader } from '@/components/MobileHeader'
 import { PageContainer } from '@/components/PageContainer'
-import { RegisterSidebar } from '@/components/RegisterSidebar'
+import { TopNav } from '@/components/TopNav'
 import { MessageCard } from '@/components/ui/message-card'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { RegisterName } from '@/features/register/components'
 
 interface RegisterSearch {
@@ -15,10 +13,9 @@ const RegisterPage = () => {
   const { name } = Route.useSearch()
 
   return (
-    <SidebarProvider>
-      <RegisterSidebar />
-      <SidebarInset className="w-full min-w-0">
-        <MobileHeader />
+    <>
+      <TopNav />
+      <main className="w-full min-w-0">
         <PageContainer className="min-h-screen flex flex-col pt-4">
           {!name ? (
             <MessageCard
@@ -27,9 +24,9 @@ const RegisterPage = () => {
               description={
                 <div>
                   <p>
-                    Search for a name using the search bar in the sidebar, then
-                    select or enter the name to proceed with the registration
-                    flow.
+                    Search for a name using the search bar at the top of the
+                    page, then select or enter the name to proceed with the
+                    registration flow.
                   </p>
                 </div>
               }
@@ -38,8 +35,8 @@ const RegisterPage = () => {
             <RegisterName key={name} name={name} />
           )}
         </PageContainer>
-      </SidebarInset>
-    </SidebarProvider>
+      </main>
+    </>
   )
 }
 

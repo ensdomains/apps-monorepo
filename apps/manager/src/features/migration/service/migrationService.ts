@@ -106,7 +106,7 @@ import {
   nameCount,
 } from './migrationProgressCopy'
 import { planSetupBundles } from './planSetupBundles'
-
+import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
   assertSubnameRecreationUnchanged,
@@ -1501,7 +1501,6 @@ const reconcileSubmittedAtomicBatch = async (params: {
         domains: params.plan.registryContext
           .filter(({ domain }) => submission.names.includes(domain.name))
           .map(({ domain }) => domain),
-        toBlock: receipt.blockNumber,
         ownTransactionHash: submission.hash,
       })
     await verifyAtomicMigrationBatch({
@@ -2354,6 +2353,7 @@ const executeRemainingAtomicBatches = async (params: {
   let remaining = [...params.plan.classified]
   const journalScope = batchJournalScope(params.ctx)
   let retryPermissionHeadLag = params.retryPermissionHeadLag
+  let subnameInventory: RpcSubnameInventory | undefined
 
   while (remaining.length > 0) {
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
@@ -2376,8 +2376,13 @@ const executeRemainingAtomicBatches = async (params: {
     })
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
-      ownerAddress: params.plan.migrationOwner,
       classified: remaining,
+      signal: params.ctx.submissionGate.signal,
+      inventory: subnameInventory,
+      onInventory: (inventory) => {
+        subnameInventory = inventory
+      },
+      unknownLabelNames: params.plan.subnameRecreation?.skipped,
     })
     assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)
@@ -2447,7 +2452,6 @@ const executeRemainingAtomicBatches = async (params: {
           domains: params.plan.registryContext
             .filter(({ domain }) => batch.names.includes(domain.name))
             .map(({ domain }) => domain),
-          toBlock: receipt.blockNumber,
           ownTransactionHash: hash,
         })
       await verifyAtomicMigrationBatch({

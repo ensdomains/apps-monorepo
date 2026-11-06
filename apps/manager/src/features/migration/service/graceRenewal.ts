@@ -31,7 +31,6 @@ import {
   type WaitForTransactionReceiptParameters,
   type WalletClient,
   zeroAddress,
-  zeroHash,
 } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { containsNodeError, getNodeError } from 'viem/utils'
@@ -39,6 +38,7 @@ import type { Connector } from 'wagmi'
 import { chain } from '@/config'
 import { resolveRenewalLabel } from '@/features/renew/utils/renewableName'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { TOKENS } from '@/lib/tokens'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import {
@@ -351,7 +351,7 @@ const getRenewalArgs = (quote: GraceRenewalQuote) =>
       .map(({ label, duration }) => ({
         label,
         duration,
-        referrer: zeroHash,
+        referrer: ENS_LABS_REFERRER,
       })),
     quote.paymentToken,
   ] as const
@@ -377,6 +377,7 @@ type ExecuteGraceRenewalParameters = {
   readonly connector?: Connector
   readonly renewalHash?: Hex
   readonly signal?: AbortSignal
+  readonly isAttached?: () => boolean
   readonly onStatus?: (status: GraceRenewalStatus) => void
   readonly onApprovalRequired?: (required: boolean) => void
   readonly onRenewalSubmitted?: (hash: Hex) => void
@@ -390,8 +391,11 @@ const assertWallet = async ({
   publicClient,
   walletClient,
   signal,
+  isAttached,
 }: ExecuteGraceRenewalParameters): Promise<void> => {
   signal?.throwIfAborted()
+  if (isAttached?.() === false)
+    throw new DOMException('The renewal screen was closed.', 'AbortError')
   assertChain(publicClient)
   const [walletChainId, addresses] = await Promise.all([
     walletClient.getChainId(),
@@ -407,6 +411,8 @@ const assertWallet = async ({
   )
     throw new Error('Reconnect the wallet and network used for this renewal.')
   signal?.throwIfAborted()
+  if (isAttached?.() === false)
+    throw new DOMException('The renewal screen was closed.', 'AbortError')
 }
 
 /** viem's default, which the direct receipt wait keeps. */

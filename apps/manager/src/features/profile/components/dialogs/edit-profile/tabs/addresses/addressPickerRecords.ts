@@ -23,7 +23,6 @@ export type PickerMode = 'evm' | 'other'
 
 export const ETH_COIN_TYPE = 60
 const EVM_COIN_TYPE_OFFSET = 0x80000000
-export const BNB_COIN_TYPE = 714
 export const BSC_COIN_TYPE = 2147483704
 
 // Shared with the explorer, so both key these L2s on the same coin type. The
@@ -45,11 +44,9 @@ export const evmChainOptions: readonly AddressOption[] = [
   BSC_COIN_TYPE,
 ].map(toAddressOption)
 
-export const otherNetworkOptions: readonly AddressOption[] = [
-  0,
-  501,
-  BNB_COIN_TYPE,
-].map(toAddressOption)
+export const otherNetworkOptions: readonly AddressOption[] = [0, 501].map(
+  toAddressOption,
+)
 
 const POPULAR_PICKER_RECORD_COUNT = 5
 const EVM_PICKER_POPULAR_COIN_TYPES = [

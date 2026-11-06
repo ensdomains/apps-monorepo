@@ -131,6 +131,33 @@ describe.each(['mainnet', 'sepolia'] as const)(
       }
     })
 
+    it('keeps the name and artwork of records for coins address-encoder 3.0.0 removed', async () => {
+      const { addressRecords, getAddressPresentation } = await import(
+        './address'
+      )
+      for (const [coinType, label, icon] of [
+        [714, 'Binance Chain', coinIcons.bnb],
+        [194, 'EOS', coinIcons.eos],
+        [134, 'Lisk', coinIcons.lsk],
+        [178, '[LEGACY] POA', coinIcons.poa],
+        [2147483747, 'POA', coinIcons.poa],
+      ] as const) {
+        expect(icon).toBeDefined()
+        expect(getAddressPresentation(coinType)).toMatchObject({ label, icon })
+        expect(addressRecords.map((record) => record.coinType)).not.toContain(
+          coinType,
+        )
+      }
+    })
+
+    it('reuses the Lisk artwork for the Lisk EVM chain', async () => {
+      const { getAddressPresentation } = await import('./address')
+      expect(getAddressPresentation(2147484783)).toMatchObject({
+        label: 'Lisk',
+        icon: coinIcons.lsk,
+      })
+    })
+
     it('labels unknown coin types and only interprets valid ENSIP-11 chain types', async () => {
       const { getAddressPresentation } = await import('./address')
       expect(getAddressPresentation(0x80000000 + 1234567).label).toBe(

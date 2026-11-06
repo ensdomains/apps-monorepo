@@ -2,6 +2,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
 import { type Address, erc20Abi, formatUnits } from 'viem'
 import { readContract } from 'viem/actions'
+import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import {
@@ -17,9 +18,15 @@ export type RenewalBalances = {
   readonly wallet: readonly StablecoinBalance[]
   /** What the smart account already holds of each; empty off the HCA route. */
   readonly accountCredit: Partial<Record<RENEWAL_TOKEN, number>>
+  /** The same balances in token units, for the debit the intent is checked against. */
+  readonly accountCreditRaw: Partial<Record<RENEWAL_TOKEN, bigint>>
 }
 
-const NO_BALANCES: RenewalBalances = { wallet: [], accountCredit: {} }
+const NO_BALANCES: RenewalBalances = {
+  wallet: [],
+  accountCredit: {},
+  accountCreditRaw: {},
+}
 
 const readBalances = (holder: Address) =>
   Promise.allSettled(
@@ -71,6 +78,12 @@ const readRenewalBalances = async (
           : []
       }),
     ),
+    accountCreditRaw: Object.fromEntries(
+      RENEWAL_SYMBOLS.flatMap((symbol, index) => {
+        const read = account[index]
+        return read?.status === 'fulfilled' ? [[symbol, read.value]] : []
+      }),
+    ),
   }
 }
 
@@ -80,10 +93,10 @@ const readRenewalBalances = async (
  */
 export const useRenewalBalances = ({ enabled = true } = {}) => {
   const account = useSmartAccountContext()
+  const signer = useRenewalSigner()
   const owner = account.ownerAddress
   // Only the intent route spends from the account; an EOA pays for itself.
-  const hca =
-    account.signer?.type === 'rhinestone' ? account.accountAddress : null
+  const hca = signer?.type === 'rhinestone' ? account.accountAddress : null
 
   const query = useQuery({
     queryKey: $qk({
@@ -97,5 +110,11 @@ export const useRenewalBalances = ({ enabled = true } = {}) => {
     refetchInterval: 30_000,
   })
 
-  return { ...(query.data ?? NO_BALANCES), isLoading: query.isLoading }
+  return {
+    ...(query.data ?? NO_BALANCES),
+    isLoading: query.isLoading,
+    refetch: () => {
+      query.refetch()
+    },
+  }
 }
