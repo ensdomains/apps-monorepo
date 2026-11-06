@@ -1,5 +1,8 @@
 node_modules
 coverage
+# ...except the E2E coverage ledger, which is source, not a generated report:
+# it is the committed state the E2E goal resumes from (e2e/docs/e2e-goal.md).
+!e2e/coverage/
 .claude/
 dist
 **/.DS_Store

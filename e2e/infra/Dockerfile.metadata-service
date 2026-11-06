@@ -1,0 +1,53 @@
+# Runs github.com/ensdomains/metadata-service-v2 locally against the e2e
+# fork(s), for the "metadata" e2e project (WEB-1191).
+#
+# The repo is cloned at build time and pinned to a commit, same philosophy as
+# the anvil/mockestrator digest pins in docker-compose.yml: this container
+# must not silently change behaviour between two CI runs. Bump the pin
+# deliberately (new commit SHA, verified locally) rather than tracking a
+# branch.
+FROM node:22-bookworm
+
+ARG METADATA_SERVICE_REPO=https://github.com/ensdomains/metadata-service-v2.git
+# HEAD as of 2026-08-31 — "Merge PR #12 add-v2-tokenid-reverse-lookup", which
+# already includes the August 26 sepolia-v2 address redeploy (commit
+# 9d9904c / PR #13) this ticket is regression-testing.
+ARG METADATA_SERVICE_COMMIT=eccb0459c4067efc0b96c03e8e3b34d8fda3559a
+
+WORKDIR /app
+
+# git for the clone below, wget for the compose healthcheck — neither is
+# guaranteed present on node:*-bookworm.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# metadata-service-v2 is a PRIVATE repo, so the clone needs a credential. It
+# arrives as a BuildKit secret rather than an ARG or ENV: a build arg is
+# visible in `docker history` and an ENV persists into every layer, whereas a
+# secret mount exists only for the lifetime of this RUN. The remote is reset
+# to the plain URL afterwards so the token is not left behind in .git/config
+# either.
+#
+# Supply it with:
+#   GH_TOKEN=$(gh auth token) docker compose build metadata-service
+# Without it the clone falls through to anonymous and fails with a "could not
+# read Username" error, which is the whole reason this is not a plain clone.
+RUN --mount=type=secret,id=gh_token \
+    set -eu; \
+    if [ -s /run/secrets/gh_token ]; then \
+      git clone "https://x-access-token:$(cat /run/secrets/gh_token)@${METADATA_SERVICE_REPO#https://}" .; \
+    else \
+      git clone "${METADATA_SERVICE_REPO}" .; \
+    fi; \
+    git checkout "${METADATA_SERVICE_COMMIT}"; \
+    git remote set-url origin "${METADATA_SERVICE_REPO}"; \
+    corepack enable; \
+    yarn install --immutable
+
+COPY metadata-service/entrypoint.sh /app/e2e-entrypoint.sh
+RUN chmod +x /app/e2e-entrypoint.sh
+
+EXPOSE 8787
+
+ENTRYPOINT ["/app/e2e-entrypoint.sh"]

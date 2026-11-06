@@ -7,16 +7,17 @@ import type {
   NameRecordResponse,
   NameRecordsResponse,
   WrapperFuses,
+  WrapperState,
 } from '@ens-apps/indexer/bigname'
 import {
   SECONDS_PER_DAY,
   V1_GRACE_PERIOD_DAYS,
   V2_GRACE_PERIOD_DAYS,
 } from '@ens-apps/utils/gracePeriod'
+import type { Address } from 'viem'
 import { MIGRATION_TOOL_RPC } from './config'
 import {
   type ActiveName,
-  ALL_CHILD_FUSES,
   CANNOT_APPROVE,
   CANNOT_BURN_FUSES,
   CANNOT_CREATE_SUBDOMAIN,
@@ -25,31 +26,26 @@ import {
   CANNOT_TRANSFER,
   CANNOT_UNWRAP,
   DEFAULT_ACCOUNT,
-  ETH_NODE,
   getBlockTimestamp,
   getOnchainExpiries,
   IS_DOT_ETH,
-  labelhash,
-  namehashFromLabelAndParent,
   PARENT_CANNOT_CONTROL,
+  type PresetNode,
+  QA_RECORD_ABI,
+  QA_RECORD_COIN_TYPES,
+  QA_RECORD_CONTENTHASH,
+  QA_RECORD_TEXT_KEYS,
+  V1_CUSTOM_RESOLVER,
+  V1_DISTINCT_MANAGER,
   V1_PUBLIC_RESOLVER,
+  V1_RECORD_RESOLVER,
+  walkPreset,
 } from './MigrationTestPanel.helpers'
 
 const SEPOLIA_CHAIN_ID = 11155111
 const V1_GRACE_SECONDS = V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY
 const V2_GRACE_SECONDS = V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY
 const OWNER = DEFAULT_ACCOUNT.toLowerCase() as `0x${string}`
-
-const isWrapped = (name: ActiveName) =>
-  name.type !== 'unwrapped' && name.type !== 'grace-renewable-unwrapped'
-
-const fusesOf = (name: ActiveName): number => {
-  let fuses = PARENT_CANNOT_CONTROL | IS_DOT_ETH
-  if (name.type !== 'unwrapped' && name.type !== 'wrapped')
-    fuses |= CANNOT_UNWRAP
-  if (name.type === 'locked-all') fuses |= ALL_CHILD_FUSES
-  return fuses
-}
 
 const toWrapperFuses = (fuses: number): WrapperFuses => ({
   fuses,
@@ -65,42 +61,81 @@ const toWrapperFuses = (fuses: number): WrapperFuses => ({
   can_extend_expiry: false,
 })
 
-/** The detail bigname would serve for a panel-created `.eth` name at fork time `now`. */
-export function buildMockRecord(name: ActiveName, now: number): LookupRecord {
-  const fuses = fusesOf(name)
-  const expiry = String(name.expiryDate)
+const wrapperStateOf = (fuses: number): WrapperState =>
+  fuses & CANNOT_UNWRAP
+    ? 'locked'
+    : fuses & PARENT_CANNOT_CONTROL
+      ? 'emancipated'
+      : 'wrapped'
+
+/** The resolver a node points at; `wrapETH2LD` sets the public one on a 2LD. */
+const resolverOf = (node: PresetNode): Address | null => {
+  if (node.resolver === 'record') return V1_RECORD_RESOLVER
+  if (node.resolver === 'custom') return V1_CUSTOM_RESOLVER
+  return node.depth === 0 && node.wrapped ? V1_PUBLIC_RESOLVER : null
+}
+
+/** One node a panel name puts on chain, with the name it belongs to. */
+type MockNode = Readonly<{ name: ActiveName; node: PresetNode }>
+
+const nodesOf = (names: readonly ActiveName[]): MockNode[] =>
+  names.flatMap((name) =>
+    walkPreset(name.label, name.type).map((node) => ({ name, node })),
+  )
+
+const findNode = (names: readonly ActiveName[], fullName: string | undefined) =>
+  nodesOf(names).find(({ node }) => node.fullName === fullName?.toLowerCase())
+
+/** The detail bigname would serve for one node of a panel name at fork time `now`. */
+export function buildMockRecord(
+  { name, node }: MockNode,
+  now: number,
+): LookupRecord {
   const created = String(Math.floor(Date.now() / 1000) - 3600)
-  const wrapped = isWrapped(name)
+  const isDotEth2ld = node.depth === 0
   const graceEnds = name.expiryDate + V1_GRACE_SECONDS
   // Like live bigname, an ENSv1 name is served active until its last 28 days of grace.
   const servedExpiry = graceEnds - V2_GRACE_SECONDS
+  const holder = node.holder.toLowerCase() as Address
+  // `managed` hands the registry to another account, so the registrant is not the manager.
+  const manager =
+    isDotEth2ld && name.type === 'managed'
+      ? (V1_DISTINCT_MANAGER.toLowerCase() as Address)
+      : holder
+  const resolver = resolverOf(node)
+  const resolverRef = resolver && {
+    chain_id: SEPOLIA_CHAIN_ID,
+    address: resolver,
+  }
   return {
-    name: `${name.label}.eth`,
-    display_name: `${name.label}.eth`,
+    name: node.fullName,
+    display_name: node.fullName,
     namespace: 'ens',
-    namehash: namehashFromLabelAndParent(labelhash(name.label), ETH_NODE),
-    owner: OWNER,
-    manager: OWNER,
-    registrant: OWNER,
+    namehash: node.node,
+    owner: holder,
+    manager,
+    ...(isDotEth2ld && { registrant: holder }),
     registered_at: created,
     created_at: created,
-    expires_at: String(servedExpiry),
-    grace_ends_at: String(graceEnds),
+    ...((isDotEth2ld || node.wrapped) && {
+      expires_at: String(servedExpiry),
+      grace_ends_at: String(graceEnds),
+    }),
     status:
       now < servedExpiry ? 'active' : now <= graceEnds ? 'expired' : 'released',
     authority: 'ens_v1',
-    ens_v1: wrapped
-      ? {
-          expires_at: expiry,
-          resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
-          wrapper_state: fuses & CANNOT_UNWRAP ? 'locked' : 'emancipated',
-          wrapper_fuses: toWrapperFuses(fuses),
-          wrapper_expires_at: String(graceEnds),
-        }
-      : { expires_at: expiry, resolver: null, wrapper_state: 'unwrapped' },
-    ...(wrapped && {
-      resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
-    }),
+    ens_v1: {
+      ...(isDotEth2ld && { expires_at: String(name.expiryDate) }),
+      resolver: resolverRef,
+      ...(node.wrapped
+        ? {
+            wrapper_state: wrapperStateOf(node.fuses),
+            wrapper_fuses: toWrapperFuses(node.fuses),
+            wrapper_expires_at: String(graceEnds),
+          }
+        : { wrapper_state: 'unwrapped' }),
+    },
+    ...(resolverRef && { resolver: resolverRef }),
     read_status: 'ok',
   }
 }
@@ -115,9 +150,22 @@ const toAddressRow = ({
   ...(expires_at != null && { expires_at }),
   ...(grace_ends_at != null && { grace_ends_at }),
   status: record.status ?? 'active',
-  relations: ['owner', 'manager'],
+  relations: [
+    ...(record.owner === OWNER ? (['owner'] as const) : []),
+    ...(record.manager === OWNER ? (['manager'] as const) : []),
+  ],
   is_primary: false,
 })
+
+/** The rows the account's name list gains: offered nodes it holds or manages. */
+export const listedRows = (
+  names: readonly ActiveName[],
+  now: number,
+): AddressName[] =>
+  nodesOf(names)
+    .filter(({ node }) => node.offer)
+    .map((mock) => toAddressRow(buildMockRecord(mock, now)))
+    .filter((row) => row.relations.length > 0)
 
 type ForkView = Readonly<{ names: ActiveName[]; now: number }>
 
@@ -140,9 +188,6 @@ async function readFork(names: readonly ActiveName[]): Promise<ForkView> {
   }
 }
 
-const findByName = (names: readonly ActiveName[], name: string | undefined) =>
-  names.find((active) => `${active.label}.eth` === name?.toLowerCase())
-
 /** Whether an address-names query could list an unmigrated ENSv1 name. */
 function listsV1Names(params: URLSearchParams): boolean {
   const authority = params.get('authority')
@@ -155,9 +200,8 @@ function listsV1Names(params: URLSearchParams): boolean {
   )
 }
 
-const matchesQuery = (name: ActiveName, params: URLSearchParams) => {
+const matchesQuery = (full: string, params: URLSearchParams) => {
   const query = params.get('q')?.toLowerCase() ?? ''
-  const full = `${name.label}.eth`
   return params.get('match') === 'contains'
     ? full.includes(query)
     : full.startsWith(query)
@@ -207,9 +251,9 @@ async function addressNames(
     ? ((await real.json()) as AddressNamesResponse)
     : EMPTY_PAGE
   const fork = await readFork(names)
-  const injected = fork.names
-    .filter((name) => matchesQuery(name, params))
-    .map((name) => toAddressRow(buildMockRecord(name, fork.now)))
+  const injected = listedRows(fork.names, fork.now).filter((row) =>
+    matchesQuery(row.name, params),
+  )
   const total = page.page?.total_count
   return json({
     ...page,
@@ -245,43 +289,53 @@ async function lookup(
   return json({
     ...response,
     data: response.data.map((result) => {
-      const name =
+      const mock =
         'name' in result.input
-          ? findByName(fork.names, result.input.name)
+          ? findNode(fork.names, result.input.name)
           : undefined
-      return name
-        ? { ...result, status: 'ok', record: buildMockRecord(name, fork.now) }
+      return mock
+        ? { ...result, status: 'ok', record: buildMockRecord(mock, fork.now) }
         : result
     }),
   })
 }
 
-async function nameDetail(name: ActiveName): Promise<Response> {
+async function nameDetail({ name, node }: MockNode): Promise<Response> {
   const fork = await readFork([name])
   const body: NameRecordResponse = {
-    data: buildMockRecord(fork.names[0] ?? name, fork.now),
+    data: buildMockRecord({ name: fork.names[0] ?? name, node }, fork.now),
     meta: { as_of: {} },
   }
   return json(body)
 }
 
-// The panel sets no records, so a name's inventory at its resolver is empty.
-function resolverRecords(name: ActiveName, resolver: string): Response {
-  if (
-    !isWrapped(name) ||
-    resolver.toLowerCase() !== V1_PUBLIC_RESOLVER.toLowerCase()
-  )
+const RECORD_KEYS: readonly string[] = [
+  ...QA_RECORD_TEXT_KEYS.map((key) => `text:${key}`),
+  ...QA_RECORD_COIN_TYPES.map((coinType) => `addr:${coinType}`),
+  'contenthash',
+]
+
+// A record preset's node holds the QA records; every other inventory is empty.
+function resolverRecords({ node }: MockNode, resolver: string): Response {
+  const address = resolverOf(node)
+  if (!address || resolver.toLowerCase() !== address.toLowerCase())
     return json({ error: { code: 'not_found', message: 'not found' } }, 404)
   const body: NameRecordsResponse = {
     data: {
       namespace: 'ens',
-      resolver: { chain_id: SEPOLIA_CHAIN_ID, address: V1_PUBLIC_RESOLVER },
-      records: { contenthash: { status: 'not_found' } },
+      resolver: { chain_id: SEPOLIA_CHAIN_ID, address },
+      records: {
+        contenthash: node.records
+          ? { status: 'ok', value: QA_RECORD_CONTENTHASH }
+          : { status: 'not_found' },
+      },
       inventory: {
-        known_keys: [],
+        known_keys: node.records ? [...RECORD_KEYS] : [],
         unset_keys: [],
         unsupported_keys: [],
-        abi_content_types: [],
+        abi_content_types: node.records
+          ? [String(QA_RECORD_ABI.contentType)]
+          : [],
       },
     },
     meta: { as_of: {} },
@@ -309,11 +363,11 @@ export async function answerBignameRequest(
   if (path === '/v1/lookup' && typeof init?.body === 'string')
     return lookup(forward, names, init.body)
   const resolverMatch = path.match(/^\/v1\/resolvers\/\d+\/([^/]+)\/records$/)
-  const resolverName = findByName(names, url.searchParams.get('name') ?? '')
-  if (resolverMatch?.[1] && resolverName)
-    return resolverRecords(resolverName, resolverMatch[1])
+  const resolverNode = findNode(names, url.searchParams.get('name') ?? '')
+  if (resolverMatch?.[1] && resolverNode)
+    return resolverRecords(resolverNode, resolverMatch[1])
   const nameMatch = path.match(/^\/v1\/names\/([^/]+)$/)
-  const name = findByName(names, decodeURIComponent(nameMatch?.[1] ?? ''))
-  if (name) return nameDetail(name)
+  const node = findNode(names, decodeURIComponent(nameMatch?.[1] ?? ''))
+  if (node) return nameDetail(node)
   return forward()
 }

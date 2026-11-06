@@ -55,12 +55,16 @@ import {
   makeV1Subname,
   readWrapperExpiry,
   wrapAndEmancipateRegistryChild,
+  wrapV1SubnameOfUnwrapped,
 } from '../../../fixtures/makeV1Subname.js'
 import { STANDALONE_HCA } from '../../../fixtures/makeV2Name.js'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import { setV1RecordsOn, type V1Records } from '../../../fixtures/v1-records.js'
 import { publicClient, testClient } from '../../../helpers/anvil-client.js'
-import { waitForBignameBlock } from '../../../helpers/bigname-sync.js'
+import {
+  isRealBigname,
+  waitForBignameBlock,
+} from '../../../helpers/bigname-sync.js'
 import {
   assertCopyExpiry,
   assertCopyRegistered,
@@ -839,6 +843,57 @@ test.describe('ENS V1 → V2 migration — subname edge cases (§G.GS)', () => {
   const chainNow = async () =>
     (await publicClient.getBlock({ blockTag: 'latest' })).timestamp
 
+  test('an unlocked subname wrapped under an UNWRAPPED 2LD is copied with its parent', {
+    tag: ['@scenario:GS10'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    test.fail(
+      true,
+      'E2E-025: the live preflight treats a zero wrapper expiry as expired, so the child is silently dropped',
+    )
+    const userAccount = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const parent = await createMakeV1Name({ userAccount })({
+      label: 'gs10-unwrapped',
+    })
+    // `NameWrapper.wrap` under an unwrapped parent: no fuses, and a wrapper
+    // expiry of 0 — no expiry of its own, which the copy route must not read
+    // as expired.
+    const child = await wrapV1SubnameOfUnwrapped({
+      parentLabel: labelOf(parent),
+      childLabel: 'wrapped',
+      parentOwnerAccount: userAccount,
+      ownerAccount: userAccount,
+    })
+
+    await serveV1Names(page, {
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      roots: [
+        {
+          kind: 'registration',
+          label: labelOf(parent),
+          children: [
+            {
+              kind: 'wrapped-child',
+              label: 'wrapped',
+              fuses: CHILD_FUSES.UNLOCKED_CHILD,
+              expiryDate: 0,
+            },
+          ],
+        },
+      ],
+    })
+    await openMigrationFlow(page)
+    await expect(rootRow(page, parent)).toBeVisible({ timeout: 60_000 })
+    await expect(
+      nestedRow(page, child),
+      'the wrapped child is offered as a copy under its root',
+    ).toBeVisible({ timeout: 30_000 })
+    await runMigrationFlow(page, wallet, { roots: [parent] })
+
+    await assertV2Registered(labelOf(parent))
+    await assertUserRegistryAttached(parent)
+    await assertCopyRegistered(child, HEADLESS_USER_ADDRESS)
+  })
+
   test('a four-level chain of unlocked subnames is copied level by level', {
     tag: ['@scenario:GS10'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
@@ -1439,6 +1494,102 @@ test.describe('ENS V1 → V2 migration — registry-only subnames by parent kind
     await assertCopyExpiry(child, MAX_UINT64)
   })
 
+  test('shows a registry-only subname under a LOCKED 2LD as not upgradable', {
+    tag: ['@scenario:GS20'],
+  }, async ({ migrationConnectedPage: page, accounts }) => {
+    // A locked 2LD migrates as a token into a WrapperRegistry; a registry-only
+    // child has no token to follow it, and the copy route needs an unwrapped or
+    // unlocked parent. Classification rejects it as `missing-parent` — correct —
+    // but the upgrade list renders only `missing-registration` and
+    // `not-reserved`, so the owner never sees it.
+    const { parent, child } = await seedParentWithRegistryChild(
+      accounts,
+      'miglockreg',
+      'locked',
+    )
+
+    await serveV1Names(page, {
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      roots: [
+        {
+          kind: 'registration',
+          label: labelOf(parent),
+          type: 'locked',
+          children: [{ kind: 'registry-child', label: 'sub' }],
+        },
+      ],
+    })
+
+    await openMigrationFlow(page)
+    // Precondition: the parent itself is offered, so the page has the data.
+    await expect(rootRow(page, parent)).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: child, exact: true }),
+      `${child} cannot be copied under a locked parent and must not be selectable`,
+    ).toHaveCount(0)
+
+    test.fail(
+      true,
+      'E2E-031: a registry-only subname under a locked 2LD is silently left off the upgrade list',
+    )
+    await expect(
+      page.getByText(child, { exact: true }),
+      `${child} is silently dropped instead of being shown as not upgradable`,
+    ).toBeVisible({ timeout: 15_000 })
+  })
+
+  test('shows a registry-only subname the index cannot name as not upgradable', {
+    tag: ['@scenario:GS21'],
+  }, async ({ migrationConnectedPage: page, accounts }) => {
+    test.skip(
+      !isRealBigname,
+      'needs a real index that lacks the label; the mock always serves full names',
+    )
+    // `setSubnodeOwner` puts only the labelhash on chain. Without a rainbow
+    // entry the index lists the child as `[labelhash].parent.eth`;
+    // classification rejects it as `unknown-label` before anything is sent —
+    // correct, since the copy must pass the label — but the upgrade list does
+    // not render that reason, so the owner never learns the subname exists.
+    // A label of its own: labels are global per hash, so one any other test
+    // seeds (`sub`) is known to the index for good.
+    const childLabel = `hidden${Date.now().toString(36)}`
+    const { parent, child } = await seedParentWithRegistryChild(
+      accounts,
+      'migunknown',
+      'unwrapped',
+      { seedLabel: false, childLabel },
+    )
+    const placeholder = `[${labelhash(childLabel).slice(2)}].${parent}`
+
+    await serveV1Names(page, {
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      roots: [
+        {
+          kind: 'registration',
+          label: labelOf(parent),
+          children: [{ kind: 'registry-child', label: childLabel }],
+        },
+      ],
+    })
+
+    await openMigrationFlow(page)
+    await expect(rootRow(page, parent)).toBeVisible({ timeout: 30_000 })
+    // Precondition: the label really is unknown to the index (the app would
+    // otherwise show `child` and offer the copy).
+    await expect(nestedRow(page, child)).toHaveCount(0)
+
+    test.fail(
+      true,
+      'E2E-032: a registry-only subname whose label the index does not know is silently left off the upgrade list',
+    )
+    await expect(
+      page
+        .getByText(placeholder, { exact: true })
+        .or(page.getByText(child, { exact: true })),
+      `${child} is silently dropped instead of being shown as not upgradable`,
+    ).toBeVisible({ timeout: 15_000 })
+  })
+
   test('a registry-only subname of a LOCKED 2LD, wrapped and emancipated first, migrates with it', {
     tag: ['@scenario:GS22'],
   }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
@@ -1485,6 +1636,49 @@ test.describe('ENS V1 → V2 migration — registry-only subnames by parent kind
     await assertWrappedChildMigrated(child, HEADLESS_USER_ADDRESS, {
       locked: false,
     })
+  })
+
+  test('migrating a LOCKED 2LD leaves its registry-only subname resolving', {
+    tag: ['@scenario:GS23'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    // What E2E-031 costs: the subname is not offered, but its parent is. After
+    // the parent moves to V2, does the left-behind subname still resolve?
+    const { parent, child, userAccount } = await seedParentWithRegistryChild(
+      accounts,
+      'migstrand',
+      'locked',
+    )
+    const records: V1Records = {
+      texts: [{ key: 'description', value: 'left behind in V1' }],
+      addresses: [{ coinType: 60, value: accounts.getAddress('user3') as Hex }],
+    }
+    await setV1RecordsOn(child, userAccount, false, records)
+    // Precondition: it resolves before anything moves.
+    await expectRecordsResolve(child, records)
+
+    await serveV1Names(page, {
+      ownerAddress: HEADLESS_USER_ADDRESS,
+      roots: [
+        {
+          kind: 'registration',
+          label: labelOf(parent),
+          type: 'locked',
+          children: [{ kind: 'registry-child', label: 'sub' }],
+        },
+      ],
+    })
+    await openMigrationFlow(page)
+    await expect(rootRow(page, parent)).toBeVisible({ timeout: 60_000 })
+    await runMigrationFlow(page, wallet, { roots: [parent] })
+    await assertLockedMigration(labelOf(parent))
+
+    // Measured 2026-10-14: it does not — resolution now walks the parent's
+    // V2 WrapperRegistry, which never received the subname.
+    test.fail(
+      true,
+      'E2E-031: migrating a locked 2LD silently stops its registry-only subname resolving',
+    )
+    await expectRecordsResolve(child, records)
   })
 })
 
