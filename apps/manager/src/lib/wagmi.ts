@@ -5,6 +5,7 @@ import { walletConnect } from 'wagmi/connectors'
 import { envConfig, l2Sources } from '@/config'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 import { failover } from '@/lib/rpc'
+import { readOnlyWalletConnector } from '@/lib/wallet/readOnlyWallet'
 
 /**
  * wagmi wiring. The network, chain and RPC endpoints are resolved in
@@ -50,6 +51,8 @@ export const wagmiConfig = createConfig({
       // light-only, so pin it.
       qrModalOptions: { themeMode: 'light' },
     }),
+    // Hidden read-only wallet, unlocked with C U S T O M in the connect dialog.
+    readOnlyWalletConnector,
     // Test-only: auto-signing wallet for Playwright/agents. Off in production.
     ...(isMockWalletEnabled ? [mockConnector] : []),
   ],

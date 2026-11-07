@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { useWalletDisconnect } from '@/lib/wallet'
+import { isReadOnlyWalletConnector } from '@/lib/wallet/readOnlyWallet'
 import { backendAuthStore } from '@/utils/backend-client'
 
 export const BackendAuthModal = () => {
@@ -21,7 +22,7 @@ export const BackendAuthModal = () => {
   const signIn = useMutation(signInBackendMutation)
   const [isConfirmingSkip, setIsConfirmingSkip] = useState(false)
 
-  const { isConnected: isWalletConnected } = useConnection()
+  const { isConnected: isWalletConnected, connector } = useConnection()
   const { disconnect, isDisconnecting } = useWalletDisconnect()
 
   // Hold this modal until the SCA is live. Hook is null before the
@@ -30,8 +31,13 @@ export const BackendAuthModal = () => {
   const walletClient = smartAccount?.walletClient
   const isSmartAccountReady =
     smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
+  // A read-only custom wallet can never sign the SIWE message, so asking would
+  // only leave a modal the tester has to dismiss.
   const shouldShowModal =
-    isWalletConnected && isNotAuthedOrDismissed && isSmartAccountReady
+    isWalletConnected &&
+    isNotAuthedOrDismissed &&
+    isSmartAccountReady &&
+    !isReadOnlyWalletConnector(connector)
 
   // The modal stays mounted while closed (SKIP hotkey, disconnect, dismiss),
   // so reset here to reopen at sign-in rather than the skip confirmation
