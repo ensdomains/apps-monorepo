@@ -82,6 +82,18 @@ const waitForStableSelection = (signal: AbortSignal): Promise<void> => {
   })
 }
 
+// The plan encodes the V1 controller and resolver, so a refresh that moves either rebuilds it.
+const v1SourceKeyOf = (domain: V1Domain): string =>
+  [
+    domain.id,
+    domain.owner.id,
+    domain.registrant?.id ?? '',
+    domain.wrappedOwner?.id ?? '',
+    domain.resolver?.address ?? '',
+  ]
+    .join(':')
+    .toLowerCase()
+
 const formatEstimatedEth = (wei: bigint): string => {
   const formatted = formatEther(wei)
   const [whole = '0', fraction = ''] = formatted.split('.')
@@ -136,6 +148,7 @@ export const useMigrationGasEstimate = ({
     () => domains.map((domain) => domain.id).sort(),
     [domains],
   )
+  const v1Sources = useMemo(() => domains.map(v1SourceKeyOf).sort(), [domains])
   const recoveryOperations = useMemo(
     () =>
       recoverySnapshot?.remainingOperations.map(
@@ -172,6 +185,7 @@ export const useMigrationGasEstimate = ({
       ownerAddress: ownerAddress?.toLowerCase() ?? '',
       hcaAddress: hcaAddress?.toLowerCase() ?? '',
       domainIds,
+      v1Sources,
       selectedNames: selectedNamesKey,
       managerRestorationNames: managerRestorationKey,
       recoveryOperations,
