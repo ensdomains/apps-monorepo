@@ -28,6 +28,7 @@ import {
   useReadContract,
 } from 'wagmi'
 import { waitFor } from 'xstate'
+import { isRunAtEthAddressRetry } from '@/features/register/utils/registrationPage'
 import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
@@ -377,6 +378,7 @@ export const useRegistrationTransactions = ({
       : undefined
   const isSuccess = machineState === 'success'
   const isRegistering = isInProgressState(machineState)
+  const isEthAddressRetryAhead = useSelector(actor, isRunAtEthAddressRetry)
   // Any run the modal can still act on, a failed one included: its steps
   // carry the retry.
   const hasActiveRun = machineState !== 'idle' && machineState !== 'success'
@@ -842,6 +844,7 @@ export const useRegistrationTransactions = ({
     actor,
     isRegistering,
     hasActiveRun,
+    isEthAddressRetryAhead,
     isSuccess,
     selectedToken,
     paid,

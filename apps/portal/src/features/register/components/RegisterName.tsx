@@ -13,6 +13,7 @@ import { useRegistrationResume } from '@/features/register/hooks/useRegistration
 import { useRegistrationSuccessRedirect } from '@/features/register/hooks/useRegistrationSuccessRedirect'
 import { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
+import { shouldShowNameTaken } from '@/features/register/utils/registrationPage'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
@@ -43,6 +44,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     transactions,
     isRegistering,
     hasActiveRun,
+    isEthAddressRetryAhead,
     suspendableRunOwner,
     suspendFlow,
     isSuccess,
@@ -154,7 +156,14 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     )
   }
 
-  if (isNameTaken && !isRegistering && !isSuccess) {
+  if (
+    shouldShowNameTaken({
+      isNameTaken: Boolean(isNameTaken),
+      isRegistering,
+      isSuccess,
+      isEthAddressRetryAhead,
+    })
+  ) {
     return (
       <MessageCard
         icon={<UserCheck className="size-6" strokeWidth={1.5} />}
