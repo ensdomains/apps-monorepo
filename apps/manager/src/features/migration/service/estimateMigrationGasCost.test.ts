@@ -26,6 +26,7 @@ const deploymentCall = buildStandaloneHcaDeploymentCall({
 })
 const DEPLOYMENT_ESTIMATE = 578_000n
 const APPROVAL_ESTIMATE = 130_000n
+const FALLBACK_APPROVAL_GAS = 55_000n
 
 const makeOperatorApproval = (
   id: MigrationOperatorApprovalId,
@@ -217,6 +218,53 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
     expect(estimate.gasUnits).toBe(APPROVAL_ESTIMATE + 100n)
+  })
+
+  it('budgets a token approval it cannot measure for a projected renewal', async () => {
+    const approval = makeTokenApproval(tokenIdOf('grace'))
+    // BaseRegistrar.ownerOf reverts during grace, so approve cannot be measured.
+    const publicClient = makePublicClient(
+      { maxFeePerGas: 1n },
+      buildMigrationApprovalCall(approval).data,
+    )
+    const plan = makePlan({
+      groups: unwrappedGroups('grace'),
+      preflight: {
+        skipFetchProfilesPhase: true,
+        migrationApprovals: [approval],
+      },
+      atomicBatches: [makeAtomicBatch(100n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({
+      plan,
+      publicClient,
+      budgetUnmeasurableApprovals: true,
+    })
+
+    expect(estimate.status).toBe('ready')
+    if (estimate.status !== 'ready') throw new Error('expected ready estimate')
+    expect(estimate.gasUnits).toBe(FALLBACK_APPROVAL_GAS + 100n)
+  })
+
+  it('still fails when a token approval cannot be measured for a real upgrade', async () => {
+    const approval = makeTokenApproval(tokenIdOf('alice'))
+    const publicClient = makePublicClient(
+      { maxFeePerGas: 1n },
+      buildMigrationApprovalCall(approval).data,
+    )
+    const plan = makePlan({
+      groups: unwrappedGroups('alice'),
+      preflight: {
+        skipFetchProfilesPhase: true,
+        migrationApprovals: [approval],
+      },
+      atomicBatches: [makeAtomicBatch(100n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+
+    expect(estimate.status).toBe('error')
   })
 
   it('counts one confirmation for an existing HCA with permissions', async () => {
