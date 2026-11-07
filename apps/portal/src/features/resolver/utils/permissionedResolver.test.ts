@@ -13,10 +13,9 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   decodeImplementationAddress,
-  filterPermissionedResolverAddresses,
   getVerifiedProxyImplementation,
-  type ProxyDeployedLog,
   parseProxyDeployedAddress,
+  selectContractsHoldingRoles,
 } from './permissionedResolver'
 
 describe('decodeImplementationAddress', () => {
@@ -60,72 +59,42 @@ describe('parseProxyDeployedAddress', () => {
   })
 })
 
-describe('filterPermissionedResolverAddresses', () => {
-  const expectedImpl = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' as Address
-
-  it('returns empty array for empty logs', () => {
-    expect(filterPermissionedResolverAddresses([], expectedImpl)).toEqual([])
+describe('selectContractsHoldingRoles', () => {
+  const REQUIRED = 0b1010n
+  const A = getAddress('0xa111111111111111111111111111111111111111')
+  const B = getAddress('0xb222222222222222222222222222222222222222')
+  const log = (address: Address, newRoleBitmap: bigint) => ({
+    address,
+    args: { newRoleBitmap },
   })
 
-  it('filters logs by implementation address', () => {
-    const logs: ProxyDeployedLog[] = [
-      {
-        args: {
-          implementation: expectedImpl,
-          proxyAddress: '0x1111111111111111111111111111111111111111' as Address,
-        },
-      },
-      {
-        args: {
-          implementation:
-            '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' as Address,
-          proxyAddress: '0x2222222222222222222222222222222222222222' as Address,
-        },
-      },
-    ]
-
-    const result = filterPermissionedResolverAddresses(logs, expectedImpl)
-    expect(result).toHaveLength(1)
-    expect(result[0]?.toLowerCase()).toBe(
-      '0x1111111111111111111111111111111111111111',
-    )
-  })
-
-  it('deduplicates addresses (case-insensitive)', () => {
-    const proxy = '0x1111111111111111111111111111111111111111' as Address
-    const logs: ProxyDeployedLog[] = [
-      { args: { implementation: expectedImpl, proxyAddress: proxy } },
-      { args: { implementation: expectedImpl, proxyAddress: proxy } },
-    ]
-
-    const result = filterPermissionedResolverAddresses(logs, expectedImpl)
-    expect(result).toHaveLength(1)
-  })
-
-  it('returns addresses in reverse log order (most recent first)', () => {
-    const logs: ProxyDeployedLog[] = [
-      {
-        args: {
-          implementation: expectedImpl,
-          proxyAddress: '0x1111111111111111111111111111111111111111' as Address,
-        },
-      },
-      {
-        args: {
-          implementation: expectedImpl,
-          proxyAddress: '0x2222222222222222222222222222222222222222' as Address,
-        },
-      },
-    ]
-
-    const result = filterPermissionedResolverAddresses(logs, expectedImpl)
-    expect(result).toHaveLength(2)
-    expect(result[0]?.toLowerCase()).toBe(
-      '0x2222222222222222222222222222222222222222',
-    )
-    expect(result[1]?.toLowerCase()).toBe(
-      '0x1111111111111111111111111111111111111111',
-    )
+  it.each([
+    ['nothing for no logs', [], []],
+    ['a contract granting every required role', [log(A, REQUIRED)], [A]],
+    ['a contract granting more than required', [log(A, 0b1111n)], [A]],
+    ['not a contract granting only some', [log(A, 0b1000n)], []],
+    [
+      'not a contract whose roles were later revoked',
+      [log(A, REQUIRED), log(B, REQUIRED), log(A, 0n)],
+      [B],
+    ],
+    [
+      'a contract whose roles were granted again after a revoke',
+      [log(A, REQUIRED), log(A, 0n), log(A, REQUIRED)],
+      [A],
+    ],
+    [
+      'each contract once, most recently changed first',
+      [log(A, REQUIRED), log(B, REQUIRED), log(A, REQUIRED)],
+      [A, B],
+    ],
+    [
+      'one checksummed contract across address casing',
+      [log(A, 0n), log(A.toLowerCase() as Address, REQUIRED)],
+      [A],
+    ],
+  ])('lists %s', (_, logs, expected) => {
+    expect(selectContractsHoldingRoles(logs, REQUIRED)).toEqual(expected)
   })
 })
 
