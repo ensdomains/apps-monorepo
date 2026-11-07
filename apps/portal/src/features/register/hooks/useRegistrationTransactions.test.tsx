@@ -59,6 +59,7 @@ vi.mock('@/utils/blockExplorer/verifyProxyContract', () => ({
 const resumeAtCommitPrompt = (
   commitmentOnChain: boolean,
   approvalNeeded = true,
+  stage = 'waitingForCommitment',
 ) => {
   const { result } = renderHook(() =>
     useRegistrationTransactions({ name: 'leon.eth', duration: 31_536_000 }),
@@ -66,7 +67,7 @@ const resumeAtCommitPrompt = (
   // Stored while the commit prompt was open: the commitment exists, but
   // nothing says it was sent.
   const record = buildRegistrationRecord(
-    'waitingForCommitment',
+    stage,
     {
       chainId: 11155111,
       name: 'leon.eth',
@@ -106,12 +107,11 @@ describe('useRegistrationTransactions after a resume', () => {
     // made the flow look as if it had moved on to payment.
     const result = resumeAtCommitPrompt(false)
 
-    // The ETH address comes first: the record may be from a bundle that never landed.
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
-      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 
@@ -123,6 +123,7 @@ describe('useRegistrationTransactions after a resume', () => {
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 
@@ -132,7 +133,24 @@ describe('useRegistrationTransactions after a resume', () => {
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
+  })
+
+  it('lists the ETH address on its own once a bundling run’s register went out', () => {
+    // That register may have gone out alone; the machine checks the resolver first.
+    wallet.canBatchAtomically = true
+    try {
+      const result = resumeAtCommitPrompt(true, false, 'waitingForRegistration')
+
+      expect(result.current.transactions.map(({ id }) => id)).toEqual([
+        REGISTRATION_TX_IDS.register,
+        REGISTRATION_TX_IDS.setEthAddress,
+      ])
+      expect(result.current.transactions[0]?.steps).toBeUndefined()
+    } finally {
+      wallet.canBatchAtomically = false
+    }
   })
 })
 
@@ -256,10 +274,10 @@ describe('useRegistrationTransactions before a run', () => {
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.deployResolver,
-      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 
@@ -270,7 +288,7 @@ describe('useRegistrationTransactions before a run', () => {
       true,
       true,
     ],
-    ["doesn't estimate the ETH address ahead of the deploy", null, true, false],
+    ["doesn't estimate it against a resolver with no code", null, true, false],
     [
       "doesn't estimate it while the resolver read has no answer",
       undefined,
@@ -301,9 +319,13 @@ describe('useRegistrationTransactions before a run', () => {
       ])
       expect(result.current.transactions[0]?.steps).toEqual([
         'Deploy resolver',
-        'Set ETH address',
         'Submit commitment',
         expect.stringMatching(/^Approve /),
+      ])
+      // The register bundle carries the ETH address.
+      expect(result.current.transactions[1]?.steps).toEqual([
+        'Register name',
+        'Set ETH address',
       ])
     } finally {
       wallet.canBatchAtomically = false
@@ -318,10 +340,10 @@ describe('useRegistrationTransactions before a run', () => {
     const result = render()
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
-      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 
@@ -335,10 +357,10 @@ describe('useRegistrationTransactions before a run', () => {
     const result = render()
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
-      REGISTRATION_TX_IDS.setEthAddress,
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 })

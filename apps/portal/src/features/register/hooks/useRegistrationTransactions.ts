@@ -5,6 +5,7 @@ import {
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
   encodeSetEthAddressCall,
+  getResumeTarget,
   hasDeployedCode,
   REGISTRATION_TX_IDS,
   registrationMachine,
@@ -79,17 +80,13 @@ function isInProgressState(
 
 /**
  * The steps before payment: deploying the wallet's resolver (its first
- * registration only), setting the name's ETH address on it, and the commit.
- * Whichever is listed first starts the run, unless a resumed run is already
- * under way.
+ * registration only) and the commit. Whichever is listed first starts the run,
+ * unless a resumed run is already under way.
  */
 function buildSetupSteps({
   name,
   owner,
-  resolverAddress,
-  isResolverDeployed,
   deploy,
-  shouldSetEthAddress,
   commit,
   resumed,
   onStart,
@@ -97,12 +94,7 @@ function buildSetupSteps({
 }: {
   readonly name: string
   readonly owner: Address | undefined
-  /** The wallet's resolver, deployed or not. */
-  readonly resolverAddress: Address | undefined
-  /** A read that succeeded found code at the resolver. */
-  readonly isResolverDeployed: boolean
   readonly deploy: boolean
-  readonly shouldSetEthAddress: boolean
   readonly commit: boolean
   readonly resumed: boolean
   readonly onStart: () => void
@@ -136,34 +128,12 @@ function buildSetupSteps({
     })
   }
 
-  if (shouldSetEthAddress) {
-    steps.push({
-      id: REGISTRATION_TX_IDS.setEthAddress,
-      title: 'Set ETH address',
-      transactionName: `Set the ETH address for ${name}`,
-      // Against a resolver with no code yet, the estimate would price a plain transfer.
-      intent: {
-        prepare:
-          owner && resolverAddress && isResolverDeployed
-            ? ({ walletClient }) =>
-                toEoaCustomIntent({
-                  from: walletClient.account.address,
-                  ...encodeSetEthAddressCall({ name, owner, resolverAddress }),
-                  chainId: ensChain.id,
-                })
-            : undefined,
-      },
-      onStart: resumed || deploy ? onProceed : onStart,
-      onDone: onProceed,
-    })
-  }
-
   if (commit) {
     steps.push({
       id: REGISTRATION_TX_IDS.commit,
       title: 'Submit commitment',
       transactionName: `Commit to register ${name}`,
-      onStart: resumed || deploy || shouldSetEthAddress ? onProceed : onStart,
+      onStart: resumed || deploy ? onProceed : onStart,
       onDone: onProceed,
     })
   }
@@ -173,14 +143,12 @@ function buildSetupSteps({
 
 /**
  * Everything before the cooldown as ONE confirmation, for a wallet that bundles
- * atomically: the resolver (first registration only), the ETH address, the
- * commit and the payment approval. Register stays its own step after the
- * cooldown.
+ * atomically: the resolver (first registration only), the commit and the
+ * payment approval. Register stays its own step after the cooldown.
  */
 function buildSetupBundleStep({
   name,
   owner,
-  resolverAddress,
   deploy,
   approval,
   resumed,
@@ -189,8 +157,6 @@ function buildSetupBundleStep({
 }: {
   readonly name: string
   readonly owner: Address | undefined
-  /** The wallet's resolver, deployed or deployed by this bundle. */
-  readonly resolverAddress: Address | undefined
   readonly deploy: boolean
   readonly approval:
     | {
@@ -211,7 +177,6 @@ function buildSetupBundleStep({
     transactionName: `Prepare to register ${name}`,
     steps: [
       ...(deploy ? ['Deploy resolver'] : []),
-      'Set ETH address',
       'Submit commitment',
       ...(approval ? [`Approve ${approval.tokenSymbol} for registration`] : []),
     ],
@@ -220,7 +185,7 @@ function buildSetupBundleStep({
     // the same for any fresh one.
     intent: {
       prepare:
-        owner && resolverAddress && (!approval || approval.payment)
+        owner && (!approval || approval.payment)
           ? ({ walletClient }) => {
               const from = walletClient.account.address
               return toEoaBatchIntent([
@@ -236,11 +201,6 @@ function buildSetupBundleStep({
                       }),
                     ]
                   : []),
-                toEoaCustomIntent({
-                  from,
-                  ...encodeSetEthAddressCall({ name, owner, resolverAddress }),
-                  chainId: ensChain.id,
-                }),
                 toEoaCustomIntent({
                   from,
                   ...encodeCommitCall({
@@ -269,6 +229,50 @@ function buildSetupBundleStep({
   }
 }
 
+/** Whether register carries the ETH address in its bundle; one sent before a reload may not have. */
+const isEthAddressInRegisterBundle = (
+  shouldBundleSetup: boolean,
+  resumed: { readonly isRegisterSent: boolean } | null,
+): boolean => shouldBundleSetup && !resumed?.isRegisterSent
+
+/** The name's ETH address, set once register has landed. */
+function buildEthAddressStep({
+  name,
+  owner,
+  resolverAddress,
+  isResolverDeployed,
+  onProceed,
+  onDone,
+}: {
+  readonly name: string
+  readonly owner: Address | undefined
+  readonly resolverAddress: Address | undefined
+  /** A read that succeeded found code at the resolver. */
+  readonly isResolverDeployed: boolean
+  readonly onProceed: () => void
+  readonly onDone: () => void
+}): Transaction {
+  return {
+    id: REGISTRATION_TX_IDS.setEthAddress,
+    title: 'Set ETH address',
+    transactionName: `Set the ETH address for ${name}`,
+    // Against a resolver with no code yet, the estimate would price a plain transfer.
+    intent: {
+      prepare:
+        owner && resolverAddress && isResolverDeployed
+          ? ({ walletClient }) =>
+              toEoaCustomIntent({
+                from: walletClient.account.address,
+                ...encodeSetEthAddressCall({ name, owner, resolverAddress }),
+                chainId: ensChain.id,
+              })
+          : undefined,
+    },
+    onStart: onProceed,
+    onDone,
+  }
+}
+
 export const useRegistrationTransactions = ({
   name,
   duration,
@@ -288,6 +292,7 @@ export const useRegistrationTransactions = ({
   // said about its commitment. The modal lists only the steps still ahead.
   const [resumed, setResumed] = useState<{
     readonly commitmentOnChain: boolean
+    readonly isRegisterSent: boolean
   } | null>(null)
 
   // Whether this run approves the registrar, fixed when it starts or resumes.
@@ -434,6 +439,10 @@ export const useRegistrationTransactions = ({
   // Not `!shouldDeployResolver`: a pending or failed read says nothing either way.
   const isWalletResolverDeployed =
     walletResolverQuery.isSuccess && hasDeployedCode(walletResolverQuery.data)
+  const isEthAddressBundled = isEthAddressInRegisterBundle(
+    shouldBundleSetup,
+    resumed,
+  )
 
   const handleProceed = useCallback(async () => {
     // A resumed run reads the chain before it takes a retry: a commit that was
@@ -562,8 +571,11 @@ export const useRegistrationTransactions = ({
       id: REGISTRATION_TX_IDS.register,
       title: 'Register name',
       transactionName: `Register ${name}`,
+      ...(isEthAddressBundled
+        ? { steps: ['Register name', 'Set ETH address'] }
+        : {}),
       // Known once commitment + resolver exist; gas cap covers the commitment-age
-      // window where live estimateGas reverts.
+      // window where live estimateGas reverts, and a bundled ETH address with it.
       intent: {
         prepare:
           commitment && resolverAddress && connection.address && savedParams
@@ -586,7 +598,8 @@ export const useRegistrationTransactions = ({
             : undefined,
       },
       onStart: handleProceed,
-      onDone: handleDone,
+      // Unbundled, the ETH address step still follows it.
+      onDone: isEthAddressBundled ? handleDone : handleProceed,
       waitUntil: registerWaitUntil,
     }),
     [
@@ -597,7 +610,33 @@ export const useRegistrationTransactions = ({
       commitment,
       registrationReferrer,
       resolverAddress,
+      isEthAddressBundled,
       registerWaitUntil,
+      handleProceed,
+      handleDone,
+    ],
+  )
+
+  const ethAddressSteps: readonly Transaction[] = useMemo(
+    () =>
+      isEthAddressBundled
+        ? []
+        : [
+            buildEthAddressStep({
+              name,
+              owner: connection.address as Address | undefined,
+              resolverAddress: walletResolverAddress,
+              isResolverDeployed: isWalletResolverDeployed,
+              onProceed: handleProceed,
+              onDone: handleDone,
+            }),
+          ],
+    [
+      isEthAddressBundled,
+      name,
+      connection.address,
+      walletResolverAddress,
+      isWalletResolverDeployed,
       handleProceed,
       handleDone,
     ],
@@ -633,7 +672,6 @@ export const useRegistrationTransactions = ({
         buildSetupBundleStep({
           name,
           owner: connection.address as Address | undefined,
-          resolverAddress: walletResolverAddress,
           deploy: !resumed && showResolverDeployStep,
           approval: setupBundleApproval,
           resumed: Boolean(resumed),
@@ -641,17 +679,14 @@ export const useRegistrationTransactions = ({
           onProceed: handleProceed,
         }),
         registerStep,
+        ...ethAddressSteps,
       ]
     }
 
     const steps: Transaction[] = buildSetupSteps({
       name,
       owner: connection.address as Address | undefined,
-      resolverAddress: walletResolverAddress,
-      isResolverDeployed: isWalletResolverDeployed,
       deploy: !resumed && showResolverDeployStep,
-      // A resumed commit that never landed may come from a bundle that never did; the machine sets it again.
-      shouldSetEthAddress: isSetupAhead,
       commit: isSetupAhead,
       resumed: Boolean(resumed),
       onStart: handleStart,
@@ -684,14 +719,12 @@ export const useRegistrationTransactions = ({
       })
     }
 
-    steps.push(registerStep)
+    steps.push(registerStep, ...ethAddressSteps)
 
     return steps
   }, [
     name,
     connection.address,
-    walletResolverAddress,
-    isWalletResolverDeployed,
     savedParams,
     resumed,
     shouldBundleSetup,
@@ -699,6 +732,7 @@ export const useRegistrationTransactions = ({
     showApprovalStep,
     setupBundleApproval,
     registerStep,
+    ethAddressSteps,
     handleStart,
     handleProceed,
   ])
@@ -743,7 +777,10 @@ export const useRegistrationTransactions = ({
         tokenPrice: record.context.tokenPrice,
         tokenDecimals: token.decimals,
       })
-      setResumed({ commitmentOnChain })
+      setResumed({
+        commitmentOnChain,
+        isRegisterSent: getResumeTarget(record) === 'verifyingRegistration',
+      })
       setApprovalPlanned(approvalNeeded)
       setIsSetupBundled(canBatchAtomically)
 
@@ -751,7 +788,6 @@ export const useRegistrationTransactions = ({
         type: 'RESUME',
         stage: record.stage,
         context: record.context,
-        // A commit that never landed is retried with the ETH address set first.
         deps: {
           signer,
           publicClient,

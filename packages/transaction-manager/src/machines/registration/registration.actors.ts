@@ -11,6 +11,7 @@ import {
   getDestinationContracts,
 } from '@ens-apps/smart-account'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
+import { publicResolverMultiAddrSnippet } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -25,6 +26,7 @@ import {
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   permissionedResolverInitializeSnippet,
+  permissionedResolverResolveSnippet,
   permissionedResolverSetAddressSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
@@ -46,6 +48,7 @@ import {
   bytesToHex,
   type Chain,
   decodeEventLog,
+  decodeFunctionResult,
   encodeFunctionData,
   erc20Abi,
   getChainContractAddress,
@@ -55,7 +58,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
-import { packetToBytes } from 'viem/ens'
+import { namehash, packetToBytes } from 'viem/ens'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
@@ -620,6 +623,43 @@ export function submitEthAddressActor(input: {
       ),
     (error) => new Error(`Failed to submit the ETH address: ${error}`),
   )().asyncAndThen((txId) => okAsync(txId))
+}
+
+/** Whether the wallet's resolver already points `name` at `owner`; it answers reads only through `resolve`. */
+export function readEthAddressActor(input: {
+  readonly name: string
+  readonly owner: Address
+  readonly resolverAddress: Address
+  readonly publicClient: PublicClient
+}): ResultAsync<boolean, Error> {
+  const toError = (error: unknown) =>
+    new Error(`Failed to read the ETH address: ${error}`)
+  return fromPromise(
+    readContract(input.publicClient, {
+      address: input.resolverAddress,
+      abi: permissionedResolverResolveSnippet,
+      functionName: 'resolve',
+      args: [
+        toHex(packetToBytes(input.name)),
+        encodeFunctionData({
+          abi: publicResolverMultiAddrSnippet,
+          functionName: 'addr',
+          args: [namehash(input.name), COIN_TYPE_ETH],
+        }),
+      ],
+    }),
+    toError,
+  ).andThen((data) =>
+    fromThrowable(
+      () =>
+        decodeFunctionResult({
+          abi: publicResolverMultiAddrSnippet,
+          functionName: 'addr',
+          data,
+        }),
+      toError,
+    )().map((value) => value.toLowerCase() === input.owner.toLowerCase()),
+  )
 }
 
 /**
@@ -1314,10 +1354,9 @@ export function submitApprovalActor(input: {
 /**
  * Pure-EOA on a wallet that bundles atomically (EIP-5792): everything before
  * the commitment cooldown goes out as ONE confirmation — the wallet's resolver
- * (first registration only), the ETH address when asked for, the commit, and
- * the payment approval when the live price isn't already covered. Returns the
- * approved price (null when no approve was needed) so the machine tracks what
- * was authorized.
+ * (first registration only), the commit, and the payment approval when the
+ * live price isn't already covered. Returns the approved price (null when no
+ * approve was needed) so the machine tracks what was authorized.
  */
 export function submitEoaSetupBundleActor(input: {
   readonly name: string
@@ -1325,10 +1364,6 @@ export function submitEoaSetupBundleActor(input: {
   /** The account the resolver grants its roles to. */
   readonly resolverOwner: Address
   readonly shouldDeployResolver: boolean
-  /** The wallet's resolver, deployed or deployed by this bundle. */
-  readonly resolverAddress: Address
-  /** Point the name at its owner there, before the commit. */
-  readonly shouldSetEthAddress: boolean
   /** The name owner, who pays the registrar. */
   readonly owner: Address
   readonly duration: bigint
@@ -1374,15 +1409,6 @@ export function submitEoaSetupBundleActor(input: {
                 encodeDeployDedicatedResolverCall({
                   owner: input.resolverOwner,
                   chain,
-                }),
-              ]
-            : []),
-          ...(input.shouldSetEthAddress
-            ? [
-                encodeSetEthAddressCall({
-                  name: input.name,
-                  owner: input.owner,
-                  resolverAddress: input.resolverAddress,
                 }),
               ]
             : []),
@@ -1445,6 +1471,8 @@ export function submitRegistrationActor(input: {
   owner: Address
   publicClient: PublicClient
   resolverAddress: Address
+  /** EOA that bundles: point the name at its owner in the same atomic bundle. */
+  readonly shouldSetEthAddress?: boolean
   id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = getChainContractAddress({
@@ -1486,12 +1514,28 @@ export function submitRegistrationActor(input: {
         resolverAddress: input.resolverAddress,
       })
 
-      const request = createTransactionRequest({
-        signer: input.signer,
-        from: accountAddress,
-        chainId: requireChainId(input.publicClient, 'registration'),
-        calls: [registerCall],
-      })
+      const chainId = requireChainId(input.publicClient, 'registration')
+      const request: TransactionRequest =
+        input.shouldSetEthAddress && input.signer.type === 'eoa'
+          ? {
+              type: 'eoa-batch',
+              from: accountAddress,
+              chainId,
+              calls: [
+                registerCall,
+                encodeSetEthAddressCall({
+                  name: input.name,
+                  owner: input.owner,
+                  resolverAddress: input.resolverAddress,
+                }),
+              ],
+            }
+          : createTransactionRequest({
+              signer: input.signer,
+              from: accountAddress,
+              chainId,
+              calls: [registerCall],
+            })
 
       const txId = transactionManager.startTransaction(
         {
