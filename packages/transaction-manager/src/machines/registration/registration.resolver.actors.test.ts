@@ -3,9 +3,18 @@ import {
   computeResolverSalt,
 } from '@ens-apps/smart-account'
 import { ensL1Contracts, extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { permissionedResolverSetAddressSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
-import type { Address, PublicClient, WalletClient } from 'viem'
-import { decodeFunctionData } from 'viem'
+import { publicResolverMultiAddrSnippet } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import {
+  permissionedResolverResolveSnippet,
+  permissionedResolverSetAddressSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import type { Address, Hex, PublicClient, WalletClient } from 'viem'
+import {
+  createPublicClient,
+  custom,
+  decodeFunctionData,
+  encodeFunctionResult,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
@@ -14,6 +23,7 @@ import type { EoaTransactionRequest } from '../../types/transaction.types'
 import {
   checkResolverDeploymentActor,
   computeDedicatedResolverAddress,
+  readEthAddressActor,
   submitEthAddressActor,
   submitResolverDeploymentActor,
 } from './registration.actors'
@@ -198,5 +208,59 @@ describe('submitEthAddressActor', () => {
     expect(functionName).toBe('setAddress')
     // DNS wire format of leon.eth, ETH's coin type, the owner.
     expect(args).toEqual(['0x046c656f6e0365746800', 60n, WALLET])
+  })
+})
+
+describe('readEthAddressActor', () => {
+  const RESOLVER = '0xcccc000000000000000000000000000000000003' as Address
+
+  /** A client whose resolver answers `addr(60)` with `stored`, recording each call. */
+  const resolverHolding = (stored: Hex) => {
+    const calls: { to: Address; data: Hex }[] = []
+    const publicClient = createPublicClient({
+      chain: sepolia,
+      transport: custom({
+        request: async ({ method, params }) => {
+          if (method !== 'eth_call') throw new Error(`unexpected ${method}`)
+          const [call] = params as readonly [{ to: Address; data: Hex }]
+          calls.push(call)
+          return encodeFunctionResult({
+            abi: permissionedResolverResolveSnippet,
+            functionName: 'resolve',
+            result: encodeFunctionResult({
+              abi: publicResolverMultiAddrSnippet,
+              functionName: 'addr',
+              result: stored,
+            }),
+          })
+        },
+      }),
+    })
+    return { calls, publicClient }
+  }
+
+  it.each([
+    ['points at the owner', WALLET, true],
+    ['points elsewhere', OTHER_WALLET, false],
+    ['is unset', '0x', false],
+  ] as const)('reads whether the record %s', async (_, stored, isSet) => {
+    const { calls, publicClient } = resolverHolding(stored)
+
+    const result = await readEthAddressActor({
+      name: 'leon.eth',
+      owner: WALLET,
+      resolverAddress: RESOLVER,
+      publicClient,
+    })
+
+    expect(result._unsafeUnwrap()).toBe(isSet)
+    const [call] = calls
+    expect(call?.to.toLowerCase()).toBe(RESOLVER)
+    const { args } = decodeFunctionData({
+      abi: permissionedResolverResolveSnippet,
+      data: call?.data ?? '0x',
+    })
+    // Through ENSIP-10 `resolve`, for leon.eth's DNS wire format.
+    expect(args?.[0]).toBe('0x046c656f6e0365746800')
   })
 })

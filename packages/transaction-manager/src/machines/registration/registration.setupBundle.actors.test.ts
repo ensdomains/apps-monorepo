@@ -43,21 +43,13 @@ const COMMITMENT = {
   secret: `0x${'55'.repeat(32)}` as Hex,
 }
 
-const RESOLVER = '0xcccc000000000000000000000000000000000003' as Address
-
-const submit = (
-  shouldDeployResolver: boolean,
-  paymentTokenAddress?: Address,
-  shouldSetEthAddress = false,
-) =>
+const submit = (shouldDeployResolver: boolean, paymentTokenAddress?: Address) =>
   submitEoaSetupBundleActor({
     paymentTokenAddress,
     name: 'myname',
     commitment: COMMITMENT,
     resolverOwner: WALLET,
     shouldDeployResolver,
-    resolverAddress: RESOLVER,
-    shouldSetEthAddress,
     owner: WALLET,
     duration: 31_536_000n,
     selectedToken: 'USDC',
@@ -104,19 +96,6 @@ describe('submitEoaSetupBundleActor', () => {
     expect(
       decodeFunctionData({ abi: erc20Abi, data: approve?.data ?? '0x' }).args,
     ).toEqual([registrar, authorizedPaymentAmount(7_000_000n)])
-  })
-
-  it('sets the ETH address after the deploy and before the commit', async () => {
-    mocks.multicall.mockResolvedValueOnce([10_000_000n, [6_000_000n, 0n]])
-
-    await submit(true, undefined, true)
-
-    const request = submittedRequest() as { calls: { to: Address }[] }
-    expect(request.calls.map(({ to }) => to)).toEqual([
-      factory,
-      RESOLVER,
-      registrar,
-    ])
   })
 
   it('sends a lone commit as a plain transaction', async () => {
