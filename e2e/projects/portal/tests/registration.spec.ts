@@ -1,5 +1,5 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { getAvailable } from '@ensdomains/ensjs/public'
+import { getAddressRecord, getAvailable } from '@ensdomains/ensjs/public'
 import { getExpiry, getOwner } from '@ensdomains/ensjs/public/v2'
 import {
   permissionedRegistryGetResolverSnippet,
@@ -76,7 +76,7 @@ const DOMAIN_TO_REGISTER =
 test.describe('Portal ENS name registration', () => {
   test('registers a name via headless wallet and stablecoin payment', {
     tag: ['@smoke'],
-  }, async ({ portalPage: page, wallet }) => {
+  }, async ({ portalPage: page, wallet, accounts }) => {
     test.setTimeout(300_000) // Registration involves multiple on-chain txs
 
     // ── 1. Connect wallet ──────────────────────────────────────────
@@ -123,10 +123,14 @@ test.describe('Portal ENS name registration', () => {
     })
 
     let hasRegisterTxSucceeded = false
+    let hasEthAddressTxSucceeded = false
     page.on('console', (msg) => {
       const text = msg.text()
       if (text.includes('Transaction tx-reg-register state: success')) {
         hasRegisterTxSucceeded = true
+      }
+      if (text.includes('Transaction tx-reg-set-eth-address state: success')) {
+        hasEthAddressTxSucceeded = true
       }
     })
 
@@ -140,8 +144,9 @@ test.describe('Portal ENS name registration', () => {
       timeout: 30_000,
     })
 
+    // The ETH address goes out after register, as the run's last step.
     const flowDeadline = Date.now() + 420_000
-    while (Date.now() < flowDeadline && !hasRegisterTxSucceeded) {
+    while (Date.now() < flowDeadline && !hasEthAddressTxSucceeded) {
       const openWalletButton = transactionDialog.getByRole('button', {
         name: /open wallet/i,
       })
@@ -185,6 +190,7 @@ test.describe('Portal ENS name registration', () => {
     }
 
     expect(hasRegisterTxSucceeded).toBe(true)
+    expect(hasEthAddressTxSucceeded).toBe(true)
 
     // ── 7. Assert success ──────────────────────────────────────────
     expect(monitor.getLastState()).toBe('success')
@@ -197,6 +203,15 @@ test.describe('Portal ENS name registration', () => {
     await expect(
       page.getByText(new RegExp(`You are the owner of ${DOMAIN_TO_REGISTER}`)),
     ).toBeVisible({ timeout: 30_000 })
+
+    // ── 8. The name resolves to the wallet that registered it (WEB-2143) ──
+    const ethAddress = (await getAddressRecord(publicClient as never, {
+      name: DOMAIN_TO_REGISTER,
+      coin: 60,
+    })) as { value?: string } | null
+    expect(ethAddress?.value?.toLowerCase()).toBe(
+      accounts.getAddress('user').toLowerCase(),
+    )
   })
 
   // Regression coverage for WEB-1464 / Immunefi #92461: the registration actor
@@ -513,7 +528,8 @@ async function readUsdcBalance(address: Address): Promise<bigint> {
 /**
  * Registers `name` for the default 1 year with USDC through the real register
  * page and transaction dialog — the same path the happy-path test above drives
- * — and returns once the register transaction has succeeded.
+ * — and returns once the register transaction and the ETH address after it
+ * have succeeded.
  */
 async function registerThroughUi(
   page: Page,
@@ -534,9 +550,14 @@ async function registerThroughUi(
   await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
 
   let hasRegisterTxSucceeded = false
+  let hasEthAddressTxSucceeded = false
   page.on('console', (msg) => {
-    if (msg.text().includes('Transaction tx-reg-register state: success')) {
+    const text = msg.text()
+    if (text.includes('Transaction tx-reg-register state: success')) {
       hasRegisterTxSucceeded = true
+    }
+    if (text.includes('Transaction tx-reg-set-eth-address state: success')) {
+      hasEthAddressTxSucceeded = true
     }
   })
 
@@ -546,7 +567,7 @@ async function registerThroughUi(
   })
 
   const deadline = Date.now() + 420_000
-  while (Date.now() < deadline && !hasRegisterTxSucceeded) {
+  while (Date.now() < deadline && !hasEthAddressTxSucceeded) {
     const openWalletButton = transactionDialog.getByRole('button', {
       name: /open wallet/i,
     })
@@ -590,6 +611,10 @@ async function registerThroughUi(
   expect(
     hasRegisterTxSucceeded,
     'the register transaction should succeed',
+  ).toBe(true)
+  expect(
+    hasEthAddressTxSucceeded,
+    'the ETH address after it should be set',
   ).toBe(true)
 }
 
@@ -1455,15 +1480,17 @@ async function failApproveForGood(
     .toBe(true)
 }
 
-/** Authorizes whatever the run still asks for until the register step lands. */
+/** Authorizes whatever the run still asks for until register and the ETH address after it land. */
 async function finishRegistration(
   dialog: Locator,
   wallet: Web3ProviderBackend,
   states: string[],
 ) {
   const deadline = Date.now() + 180_000
-  while (!states.includes('tx-reg-register:success')) {
-    expect(Date.now(), 'the register step never landed').toBeLessThan(deadline)
+  while (!states.includes('tx-reg-set-eth-address:success')) {
+    expect(Date.now(), 'the ETH address step never landed').toBeLessThan(
+      deadline,
+    )
     if (pendingSends(wallet) > 0) {
       await wallet.authorize(Web3RequestKind.SendTransaction)
       continue
