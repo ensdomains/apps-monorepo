@@ -366,6 +366,10 @@ describe('estimateGraceRenewalMigrationGas', () => {
       publicClient: input.publicClient,
       signal: undefined,
     })
+    // The chain cannot measure approvals for names still in grace.
+    expect(estimateMigrationGasCost).toHaveBeenCalledWith(
+      expect.objectContaining({ budgetUnmeasurableApprovals: true }),
+    )
     const projected = vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].domains
     expect(projected).toEqual([
       { ...unwrapped, registration: { expiryDate: TARGET.toString() } },
