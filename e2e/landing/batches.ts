@@ -22,6 +22,7 @@ export type BatchId =
   | 'B2'
   | 'B3'
   | 'B3b'
+  | 'B4b'
   | 'B4'
   | 'B5'
   | 'B6'
@@ -71,7 +72,12 @@ export const batches: Batch[] = [
     title:
       'Migration: stale guards to rewrite, record-preservation audit, and tests of open bugs',
   },
-  { id: 'B4', title: 'Transfer, fuses, 4LD: the rest' },
+  { id: 'B4', title: 'Transfer, fuses, 4LD: the tests that pass on main (B4a)' },
+  {
+    id: 'B4b',
+    title:
+      'Fuse tests that need subname creation back (paused by WEB-2097, #1654)',
+  },
   { id: 'B5', title: 'Registration, renewal, roles: the rest' },
   { id: 'B6', title: 'Display, history, metadata service' },
   { id: 'B7', title: 'V1 shape matrix' },
@@ -384,12 +390,30 @@ export const rules: Rule[] = [
 
   // ── B4 transfer / fuses / 4LD ────────────────────────────────────────────
   {
-    target: 'B4',
+    // Needs real bigname (skip under the route mock).
+    target: 'B11',
     globs: [
       'e2e/projects/manager/tests/transfer-observers.spec.ts',
-      'e2e/projects/portal/tests/{fuses,migrated-fuses,v1-4ld,v2-4ld-time}.spec.ts',
+      'e2e/projects/portal/tests/{v1-4ld,v2-4ld-time}.spec.ts',
+    ],
+  },
+  {
+    // GW8's control expects a "Create subname" link, a disabled button while
+    // WEB-2097 pauses creation; GW7 is the E2E-021 test.fail.
+    target: 'B4b',
+    globs: ['e2e/projects/portal/tests/migrated-fuses.spec.ts'],
+  },
+  {
+    // Walks through dev-migration-tool presets that land with B8.
+    target: 'B8',
+    globs: ['e2e/docs/manual-v1-transfer.md'],
+  },
+  {
+    target: 'B4',
+    globs: [
+      'e2e/projects/portal/tests/fuses.spec.ts',
       'e2e/scripts/{seed-transfer-names,seed-subname-transfer,seed-v1-transfer,seed-subname-grid,clear-own-resolver}.ts',
-      'e2e/docs/manual-{v1-transfer,subname-transfer}.md',
+      'e2e/docs/manual-subname-transfer.md',
     ],
   },
 
