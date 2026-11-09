@@ -29,6 +29,7 @@ import {
   FUSES,
   hasFuse,
   is2LD,
+  registryControllerOf,
   wrappedCopyExpiry,
 } from './classifyNames'
 import {
@@ -60,6 +61,7 @@ type CopyMigrationReadinessFailure =
   | 'reservation-expiry-mismatch'
   | 'source-lock-changed'
   | 'source-resolver-changed'
+  | 'source-manager-changed'
   | 'unsupported-resolver'
   | 'unexpected-registry'
   | 'missing-registry'
@@ -309,6 +311,124 @@ export const assertCopySourcesFresh = async (params: {
         copy,
       }),
     ),
+  )
+}
+
+type DirectSourceDrift = Extract<
+  CopyMigrationReadinessFailure,
+  'source-manager-changed' | 'source-resolver-changed'
+>
+
+const isSameOptionalAddress = (
+  left: Address | null,
+  right: Address | null,
+): boolean =>
+  left === null || right === null ? left === right : isAddressEqual(left, right)
+
+/** The planned V1 controller or resolver a direct name no longer matches, or null. */
+const directSourceDrift = (
+  name: DirectClassifiedName,
+  live: {
+    /** Read only for unwrapped names, the one case with a registry controller. */
+    readonly registryOwner: Address | null
+    readonly resolver: Address
+  },
+): DirectSourceDrift | null => {
+  if (live.registryOwner !== null) {
+    const controller = registryControllerOf({
+      ...name.domain,
+      owner: { id: live.registryOwner },
+    })
+    if (
+      !isSameOptionalAddress(controller, name.registryController) ||
+      (name.managerAddress !== null &&
+        !isSameOptionalAddress(controller, name.managerAddress))
+    ) {
+      return 'source-manager-changed'
+    }
+  }
+  return isAddressEqual(live.resolver, expectedSourceResolver(name))
+    ? null
+    : 'source-resolver-changed'
+}
+
+const DIRECT_SOURCE_DRIFT_MESSAGES = {
+  'source-manager-changed': (ensName: string) =>
+    `The V1 manager of "${ensName}" changed after selection`,
+  'source-resolver-changed': (ensName: string) =>
+    `The V1 resolver of "${ensName}" changed after selection`,
+} as const satisfies Record<DirectSourceDrift, (ensName: string) => string>
+
+const readDirectSource = async (
+  publicClient: PublicClient,
+  name: DirectClassifiedName,
+): Promise<{
+  readonly registryOwner: Address | null
+  readonly resolver: Address
+}> => {
+  const node = namehash(name.domain.name)
+  try {
+    const [registryOwner, resolver] = await Promise.all([
+      name.tokenType === 'unwrapped'
+        ? publicClient.readContract({
+            address: V1_CONTRACTS.LegacyRegistry,
+            abi: registryOwnerSnippet,
+            functionName: 'owner',
+            args: [node],
+          })
+        : null,
+      publicClient.readContract({
+        address: V1_CONTRACTS.LegacyRegistry,
+        abi: registryResolverSnippet,
+        functionName: 'resolver',
+        args: [node],
+      }),
+    ])
+    return { registryOwner, resolver }
+  } catch (cause) {
+    throw new CopyMigrationReadinessError({
+      message: `Could not verify the current V1 state of "${name.domain.name}"`,
+      reason: 'read-failed',
+      ensName: name.domain.name,
+      cause,
+    })
+  }
+}
+
+const assertDirectSourceFresh = async (params: {
+  readonly publicClient: PublicClient
+  readonly name: DirectClassifiedName
+}): Promise<void> => {
+  const { publicClient, name } = params
+  const drift = directSourceDrift(
+    name,
+    await readDirectSource(publicClient, name),
+  )
+  if (drift) {
+    throw sourceError(
+      name,
+      drift,
+      DIRECT_SOURCE_DRIFT_MESSAGES[drift](name.domain.name),
+    )
+  }
+}
+
+/** Re-read the V1 controller and resolver every unsubmitted direct name is encoded from. */
+const assertDirectSourcesFresh = async (params: {
+  readonly publicClient: PublicClient
+  readonly remaining: readonly ClassifiedName[]
+  readonly recordedAttemptNames?: ReadonlySet<string>
+}): Promise<void> => {
+  await Promise.all(
+    params.remaining
+      .filter(
+        (name): name is DirectClassifiedName =>
+          name.action === 'migrate' &&
+          !params.recordedAttemptNames?.has(name.domain.name),
+      )
+      .map((name) =>
+        assertDirectSourceFresh({ publicClient: params.publicClient, name }),
+      ),
   )
 }
 
@@ -908,6 +1028,11 @@ export const assertCopyMigrationReadiness = async (params: {
       publicClient: params.publicClient,
       wallet: params.wallet,
       copies: remainingCopies,
+    }),
+    assertDirectSourcesFresh({
+      publicClient: params.publicClient,
+      remaining: params.remaining,
+      recordedAttemptNames: params.recordedAttemptNames,
     }),
     assertRegistryRoutesReady({
       publicClient: params.publicClient,
