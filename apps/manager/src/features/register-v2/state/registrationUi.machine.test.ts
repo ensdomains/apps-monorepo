@@ -687,7 +687,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     actor.stop()
   })
 
-  it('counts verified registration once before optional primary setup fails', async () => {
+  it('waits for forward verification and preserves registration success when it fails', async () => {
     const verification = deferred<string>()
     startPrimaryNameForward.mockReturnValueOnce(verification.promise)
     const actor = startActorInTokens()
@@ -696,18 +696,25 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     const capture = vi.spyOn(analytics, 'capture')
     sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
+    expect(
+      actor
+        .getSnapshot()
+        .matches({ registering: { transaction: 'settingPrimaryNameForward' } }),
+    ).toBe(true)
     expect(capture).toHaveBeenCalledWith('registration:flow_complete', {
       flow_id: analytics.flow_id,
       chain_id: 11155111,
       execution_method: 'eoa',
     })
-    expect(
-      capture.mock.calls.filter(
-        ([name]) => name === 'registration:flow_complete',
-      ),
-    ).toHaveLength(1)
-    verification.reject(new Error('Forward verification unavailable'))
+    expect(waitForKnownTransaction).not.toHaveBeenCalled()
+    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
+    verification.reject(new Error('Name does not resolve to owner'))
     await flush()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
     expect(
       capture.mock.calls.filter(
         ([name]) => name === 'registration:flow_complete',
@@ -720,30 +727,6 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       stage: 'post_registration',
       is_retryable: false,
     })
-    actor.stop()
-  })
-
-  it('waits for forward verification and preserves registration success when it fails', async () => {
-    const verification = deferred<string>()
-    startPrimaryNameForward.mockReturnValueOnce(verification.promise)
-    const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, { enabled: true }))
-    sendToChild(actor, { type: 'FORCE_SUCCESS' })
-    await flush()
-    expect(
-      actor
-        .getSnapshot()
-        .matches({ registering: { transaction: 'settingPrimaryNameForward' } }),
-    ).toBe(true)
-    expect(waitForKnownTransaction).not.toHaveBeenCalled()
-    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
-    verification.reject(new Error('Name does not resolve to owner'))
-    await flush()
-    expect(
-      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
-    ).toBe(true)
-    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
-    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
     actor.stop()
   })
 

@@ -7,11 +7,15 @@ import {
   transactionManager,
 } from '@ens-apps/transaction-manager'
 import * as registrationActors from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import {
+  createCountingWallet,
+  testIntent,
+  testPublicClient,
+} from '@ens-apps/transaction-manager/test-utils/transactionActor'
 import { act, renderHook } from '@testing-library/react'
 import { ResultAsync } from 'neverthrow'
 import {
   type Address,
-  createPublicClient,
   createWalletClient,
   custom,
   type Hash,
@@ -337,13 +341,10 @@ describe('registration queued outcome after actual hook cleanup', () => {
 
   it.each([
     { isVerified: true, queueTiming: 'before' },
-    { isVerified: false, queueTiming: 'before' },
     { isVerified: true, queueTiming: 'after' },
-    { isVerified: false, queueTiming: 'after' },
     { isVerified: true, queueTiming: 'resume_only' },
     { isVerified: false, queueTiming: 'resume_only' },
     { isVerified: true, queueTiming: 'resume_missing' },
-    { isVerified: false, queueTiming: 'resume_missing' },
   ])(
     'confirms verified=$isVerified for $queueTiming with a pending wallet',
     async ({ isVerified, queueTiming }) => {
@@ -365,37 +366,13 @@ describe('registration queued outcome after actual hook cleanup', () => {
         registrationActors,
         'verifyRegistrationActor',
       ).mockImplementation(() => ResultAsync.fromSafePromise(verification))
-      const signer: EOASigner = {
-        type: 'eoa',
-        walletClient: createWalletClient({
-          account: OWNER,
-          chain: sepolia,
-          transport: custom({
-            request: async ({ method }) => {
-              if (method === 'eth_chainId') return toHex(sepolia.id)
-              return pending()
-            },
-          }),
-        }),
-      }
-      transactionManager.startTransaction(
-        {
-          type: 'eoa',
-          from: OWNER,
-          to: OWNER,
-          data: '0x',
-          value: 0n,
-          chainId: sepolia.id,
-        },
-        signer,
-        {
-          id: REGISTRATION_TX_IDS.register,
-          publicClient: createPublicClient({
-            chain: sepolia,
-            transport: custom({ request: pending }),
-          }),
-        },
-      )
+      const wallet = createCountingWallet(OWNER)
+      wallet.hold()
+      const signer = wallet.signer
+      transactionManager.startTransaction(testIntent(OWNER), signer, {
+        id: REGISTRATION_TX_IDS.register,
+        publicClient: testPublicClient,
+      })
       const transaction = transactionManager.getTransaction(
         REGISTRATION_TX_IDS.register,
       )

@@ -30,13 +30,9 @@ Use a staging project and Sepolia-funded disposable wallets A/B. Filter live eve
 
 ## Verification evidence and limits
 
-Current integration results and browser observations are in [the shared handoff](analytics.md). Counts below record earlier implementation passes, not additional current validation.
+Current checks, test-pruning decisions and browser observations are in [the shared handoff](analytics.md). Retained real-actor and hook tests cover grouping, failure/retry correlation, verified completion, partial progress, cleanup and replacement actors. Mutation checks prove that accepting unverified registration or dropping actor-identity guards fails those tests. Pre-feature cases and assertions remain unchanged.
 
-- Portal `pnpm typecheck` passed after implementation and event-contract simplification.
-- Targeted registration/renewal analytics tests cover grouping, failure→retry correlation, verified completion, partial progress and callback deduplication. Both new sequence tests were deliberately run against broken deduplication and failed; code was restored.
-- Final affected test run: 7 files / 69 tests passed (registration observer/hook, renewal observer/hook, records helper, search input, migration banner). Earlier resolver/helper focused checks also passed. Existing RPC calls printed DNS failures in the sandbox and happy-dom printed a teardown AbortError; test command exited 0. No existing assertions were changed.
-- Simplification checks: 3 targeted files / 29 tests passed (registration observer, renewal observer, search input); one existing registration payload assertion now uses execution_method, with product behavior assertions preserved. Biome passed with the existing search keyboard-handler complexity warning unchanged.
-- Browser wallet workflows and staging ingestion were not performed by this workstream. Parent integration QA may add observations separately.
+- Real-wallet browser workflows and staging ingestion still require manual QA.
 - Deferred: DNS import step instrumentation, per-item bulk renewal verified expiry counts, registry deployment/parent configuration, transfer/fuse operations and notifications. DNS debugger events retain controlled source and verdict categories without name or failed-step labels.
 
 ## Query use

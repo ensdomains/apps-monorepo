@@ -234,6 +234,22 @@ const migrationResult = (
   ...overrides,
 })
 
+const retryWithAnalyticsCheck = (
+  actor: ReturnType<typeof start>,
+  stage: 'renewal' | 'execution',
+) => {
+  const flow_id = actor.getSnapshot().context.analytics.flow_id
+  expect(capture).toHaveBeenCalledWith('migration:stage_fail', {
+    flow_id,
+    stage,
+    is_retryable: true,
+  })
+  actor.send({ type: 'retry' })
+  expect(
+    capture.mock.calls.filter(([event]) => event === 'migration:flow_retry'),
+  ).toEqual([['migration:flow_retry', { flow_id }]])
+}
+
 beforeEach(() => {
   capture.mockClear()
   executeMigrationMock.mockReset()
@@ -430,7 +446,7 @@ describe('migrationUiMachine', () => {
       expect(executeGraceRenewalMock).toHaveBeenCalledTimes(1)
       expect(prepareGraceRenewalMigrationMock).toHaveBeenCalledTimes(1)
 
-      actor.send({ type: 'retry' })
+      retryWithAnalyticsCheck(actor, 'execution')
       await vi.advanceTimersByTimeAsync(0)
 
       expect(actor.getSnapshot().value).toEqual({ migrate: 'running' })
@@ -467,7 +483,7 @@ describe('migrationUiMachine', () => {
       expect(prepareGraceRenewalMigrationMock).not.toHaveBeenCalled()
       expect(executeMigrationMock).not.toHaveBeenCalled()
 
-      actor.send({ type: 'retry' })
+      retryWithAnalyticsCheck(actor, 'renewal')
       await vi.advanceTimersByTimeAsync(0)
 
       expect(executeGraceRenewalMock).toHaveBeenCalledTimes(2)
@@ -1074,7 +1090,7 @@ describe('migrationUiMachine', () => {
       ])
 
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
-      actor.send({ type: 'retry' })
+      retryWithAnalyticsCheck(actor, 'execution')
 
       const ctx = actor.getSnapshot().context
       expect(ctx.selectedNames).toEqual(['bob.eth'])
@@ -1114,90 +1130,43 @@ describe('migrationUiMachine', () => {
   })
 })
 
-it('captures a confirmed migration result after its UI owner stops', async () => {
-  let confirm = (_result: MigrationResult) => {}
-  const confirmation = new Promise<MigrationResult>((resolve) => {
-    confirm = resolve
-  })
-  executeMigrationMock.mockReturnValue(confirmation)
-  const actor = start()
-  await vi.advanceTimersByTimeAsync(60_000)
-  expect(executeMigrationMock).toHaveBeenCalledOnce()
-  const flowId = actor.getSnapshot().context.analytics.flow_id
-  actor.stop()
-  confirm(migrationResult())
-  await vi.advanceTimersByTimeAsync(0)
-  expect(capture).toHaveBeenCalledWith(
-    'migration:flow_complete',
-    expect.objectContaining({
-      flow_id: flowId,
-      item_count: 1,
-      migrated_count: 1,
-      copied_count: 0,
-    }),
-  )
-  expect(
-    capture.mock.calls.filter(([event]) => event === 'migration:flow_complete'),
-  ).toHaveLength(1)
-})
-
-it('does not complete or fail analytics when an abandoned migration returns no confirmed work', async () => {
-  let confirm = (_result: MigrationResult) => {}
-  const confirmation = new Promise<MigrationResult>((resolve) => {
-    confirm = resolve
-  })
-  executeMigrationMock.mockReturnValue(confirmation)
-  const actor = start()
-  await vi.advanceTimersByTimeAsync(60_000)
-  actor.stop()
-  confirm(migrationResult({ completedOperations: [], txHashes: [] }))
-  await vi.advanceTimersByTimeAsync(0)
-  expect(
-    capture.mock.calls.filter(
+it.each([true, false])(
+  'reports detached migration only for confirmed work (%s)',
+  async (hasConfirmedWork) => {
+    let confirm = (_result: MigrationResult) => {}
+    const confirmation = new Promise<MigrationResult>((resolve) => {
+      confirm = resolve
+    })
+    executeMigrationMock.mockReturnValue(confirmation)
+    const actor = start()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(executeMigrationMock).toHaveBeenCalledOnce()
+    const flowId = actor.getSnapshot().context.analytics.flow_id
+    actor.stop()
+    confirm(
+      migrationResult(
+        hasConfirmedWork ? {} : { completedOperations: [], txHashes: [] },
+      ),
+    )
+    await vi.advanceTimersByTimeAsync(0)
+    const outcomes = capture.mock.calls.filter(
       ([event]) =>
         event === 'migration:flow_complete' || event === 'migration:stage_fail',
-    ),
-  ).toEqual([])
-})
-
-it.each(['renewal', 'preparation'] as const)(
-  'attributes a %s failure and reports its accepted retry on the same flow',
-  async (failure) => {
-    if (failure === 'renewal') {
-      executeGraceRenewalMock
-        .mockReturnValueOnce(
-          errAsync(
-            new GraceRenewalError({ cause: new Error('renewal failed') }),
-          ),
-        )
-        .mockReturnValueOnce(
-          fromPromise(
-            new Promise<V1Domain[]>(() => {}),
-            (cause) => new GraceRenewalError({ cause }),
-          ),
-        )
-    } else {
-      executeGraceRenewalMock.mockReturnValue(okAsync([domain('alice')]))
-      prepareGraceRenewalMigrationMock
-        .mockRejectedValueOnce(new Error('preparation failed'))
-        .mockImplementationOnce(() => new Promise(() => {}))
-    }
-    const actor = startRenewal()
-    const flowId = actor.getSnapshot().context.analytics.flow_id
-    await vi.advanceTimersByTimeAsync(1500)
-    expect(actor.getSnapshot().value).toBe('failure')
-    expect(capture).toHaveBeenCalledWith('migration:stage_fail', {
-      flow_id: flowId,
-      stage: failure === 'renewal' ? 'renewal' : 'execution',
-      is_retryable: true,
-    })
-    actor.send({ type: 'retry' })
-    expect(capture).toHaveBeenCalledWith('migration:flow_retry', {
-      flow_id: flowId,
-    })
-    expect(
-      capture.mock.calls.filter(([event]) => event === 'migration:flow_retry'),
-    ).toHaveLength(1)
-    actor.stop()
+    )
+    expect(outcomes).toEqual(
+      hasConfirmedWork
+        ? [
+            [
+              'migration:flow_complete',
+              expect.objectContaining({
+                flow_id: flowId,
+                item_count: 1,
+                migrated_count: 1,
+                copied_count: 0,
+              }),
+            ],
+          ]
+        : [],
+    )
   },
 )

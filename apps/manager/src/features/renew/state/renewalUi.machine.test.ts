@@ -656,51 +656,62 @@ describe('renewal paid with ETH', () => {
 })
 
 describe('renewal analytics operation lifetime', () => {
-  it('captures an EOA renewal when UI stops before submission publishes its queued ID', async () => {
-    let queued = (_txId: string) => {}
-    const pendingSubmission = new Promise<string>((resolve) => {
-      queued = resolve
-    })
-    let confirm = () => {}
-    const pendingReceipt = new Promise<void>((resolve) => {
-      confirm = resolve
-    })
-    mocks.submitRenewActor.mockReturnValue(
-      ResultAsync.fromPromise(pendingSubmission, (cause) => cause),
-    )
-    mocks.pollTransactionStatusActor.mockReturnValue(
-      ResultAsync.fromPromise(pendingReceipt, (cause) => cause),
-    )
-    const actor = startRenewal('v2', 'eoa')
-    await waitFor(actor, (snapshot) =>
-      snapshot.matches('submittingPlainRenewal'),
-    )
-    const flowId = actor.getSnapshot().context.analytics.flow_id
-    actor.stop()
-    queued('queued-after-unmount')
-    await vi.waitFor(() =>
-      expect(mocks.pollTransactionStatusActor).toHaveBeenCalledWith(
-        expect.objectContaining({ txId: 'queued-after-unmount' }),
-      ),
-    )
-    expect(
-      mocks.capture.mock.calls.filter(
-        ([event]) => event === 'renewal:flow_complete',
-      ),
-    ).toEqual([])
-    confirm()
-    await vi.waitFor(() =>
-      expect(mocks.capture).toHaveBeenCalledWith(
-        'renewal:flow_complete',
-        expect.objectContaining({ flow_id: flowId }),
-      ),
-    )
-    expect(
-      mocks.capture.mock.calls.filter(
-        ([event]) => event === 'renewal:flow_complete',
-      ),
-    ).toHaveLength(1)
-  })
+  it.each(['eoa', 'smart-account'] as const)(
+    'captures a detached %s renewal even when stopped before submission returns',
+    async (route) => {
+      let queued = (_txId: string) => {}
+      const submission = new Promise<string>((resolve) => {
+        queued = resolve
+      })
+      let confirm = () => {}
+      const receipt = new Promise<void>((resolve) => {
+        confirm = resolve
+      })
+      mocks.submitRenewActor.mockReturnValue(
+        ResultAsync.fromSafePromise(submission),
+      )
+      mocks.pollTransactionStatusActor.mockReturnValue(
+        ResultAsync.fromSafePromise(receipt),
+      )
+      mocks.submitHcaRenewal.mockImplementation(async () => {
+        await submission
+        await receipt
+        return { txId: 'confirmed-intent', quotedFeeUsdc: 1n }
+      })
+      const actor = startRenewal('v2', route)
+      await waitFor(actor, (snapshot) =>
+        route === 'eoa'
+          ? snapshot.matches('submittingPlainRenewal')
+          : snapshot.matches('submittingHcaRenewal'),
+      )
+      const flowId = actor.getSnapshot().context.analytics.flow_id
+      actor.stop()
+      queued('queued-after-unmount')
+      if (route === 'eoa')
+        await vi.waitFor(() =>
+          expect(mocks.pollTransactionStatusActor).toHaveBeenCalledWith(
+            expect.objectContaining({ txId: 'queued-after-unmount' }),
+          ),
+        )
+      expect(
+        mocks.capture.mock.calls.filter(
+          ([event]) => event === 'renewal:flow_complete',
+        ),
+      ).toEqual([])
+      confirm()
+      await vi.waitFor(() =>
+        expect(mocks.capture).toHaveBeenCalledWith(
+          'renewal:flow_complete',
+          expect.objectContaining({ flow_id: flowId, item_count: 1 }),
+        ),
+      )
+      expect(
+        mocks.capture.mock.calls.filter(
+          ([event]) => event === 'renewal:flow_complete',
+        ),
+      ).toHaveLength(1)
+    },
+  )
 
   it('starts a fresh flow after an abandoned attempt rather than sharing its completion scope', async () => {
     mocks.submitHcaRenewal.mockRejectedValueOnce(new Error('attempt failed'))
@@ -732,46 +743,6 @@ describe('renewal analytics operation lifetime', () => {
         ),
       ).toHaveLength(1)
       actor.stop()
-    },
-  )
-
-  it.each(['eoa', 'smart-account'] as const)(
-    'captures a confirmed %s renewal after its UI owner stops',
-    async (route) => {
-      let confirm = () => {}
-      const confirmation = new Promise<void>((resolve) => {
-        confirm = resolve
-      })
-      if (route === 'eoa') {
-        mocks.pollTransactionStatusActor.mockReturnValue(
-          ResultAsync.fromPromise(confirmation, (cause) => cause),
-        )
-      } else {
-        mocks.submitHcaRenewal.mockImplementation(async () => {
-          await confirmation
-          return { txId: 'confirmed-intent', quotedFeeUsdc: 1n }
-        })
-      }
-      const actor = startRenewal('v2', route)
-      await waitFor(actor, (snapshot) =>
-        route === 'eoa'
-          ? snapshot.matches('waitingForRenewal')
-          : snapshot.matches('submittingHcaRenewal'),
-      )
-      const flowId = actor.getSnapshot().context.analytics.flow_id
-      actor.stop()
-      confirm()
-      await vi.waitFor(() =>
-        expect(mocks.capture).toHaveBeenCalledWith(
-          'renewal:flow_complete',
-          expect.objectContaining({ flow_id: flowId, item_count: 1 }),
-        ),
-      )
-      expect(
-        mocks.capture.mock.calls.filter(
-          ([event]) => event === 'renewal:flow_complete',
-        ),
-      ).toHaveLength(1)
     },
   )
 })

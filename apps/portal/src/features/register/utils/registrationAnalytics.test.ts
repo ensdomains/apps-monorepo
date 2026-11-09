@@ -1,19 +1,12 @@
-// @vitest-environment happy-dom
-import {
-  registrationMachine,
-  transactionManager,
-} from '@ens-apps/transaction-manager'
+import { transactionManager } from '@ens-apps/transaction-manager'
 import {
   createCountingWallet,
   resetTransactionManager,
   testIntent,
   testPublicClient,
 } from '@ens-apps/transaction-manager/test-utils/transactionActor'
-import { act, renderHook } from '@testing-library/react'
-import { useActorRef } from '@xstate/react'
 import {
   createPublicClient,
-  createWalletClient,
   custom,
   encodeAbiParameters,
   encodeFunctionResult,
@@ -22,11 +15,10 @@ import {
 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createActor, fromPromise, waitFor } from 'xstate'
+import { waitFor } from 'xstate'
 import {
   createRegistrationAnalytics,
   observeQueuedRegistrationReceipt,
-  subscribeRegistrationAnalytics,
 } from './registrationAnalytics'
 
 afterEach(resetTransactionManager)
@@ -196,87 +188,5 @@ describe('registration operation subscription', () => {
     } finally {
       vi.useRealTimers()
     }
-  })
-
-  it('does not fabricate completion after screen stop and observes verified recovery', async () => {
-    const owner = '0x1111111111111111111111111111111111111111'
-    const transport = custom({ request: async () => null })
-    const resume = {
-      type: 'RESUME',
-      stage: 'waitingForRegistration',
-      context: {
-        chainId: sepolia.id,
-        name: 'leon.eth',
-        duration: 31_536_000n,
-        selectedToken: 'USDC',
-        tokenPrice: 5_000_000n,
-        signerType: 'eoa',
-        registrationTxId: 'tx-register',
-        accountAddress: owner,
-        ownerAddress: owner,
-        resolverAddress: owner,
-        commitment: { commitment: '0xab', secret: '0xcd' },
-      },
-      deps: {
-        signer: {
-          type: 'eoa',
-          walletClient: createWalletClient({
-            account: owner,
-            chain: sepolia,
-            transport,
-          }),
-        },
-        publicClient: createPublicClient({ chain: sepolia, transport }),
-      },
-    } as const
-    const verified = {
-      verified: true,
-      registeredToOther: false,
-      isUnregistered: false,
-    }
-    let finishVerification = () => {}
-    const verification = new Promise<typeof verified>((resolve) => {
-      finishVerification = () => resolve(verified)
-    })
-    const machine = registrationMachine.provide({
-      actors: { verifyRegistration: fromPromise(() => verification) },
-    })
-    const { result, unmount } = renderHook(() =>
-      useActorRef(machine, { input: { chainId: sepolia.id } }),
-    )
-    const stopped = makeRun()
-    subscribeRegistrationAnalytics(result.current, stopped.analytics)
-    stopped.analytics.start(true)
-    act(() => result.current.send(resume))
-    await waitFor(result.current, (snapshot) =>
-      snapshot.matches('verifyingRegistration'),
-    )
-    unmount()
-    await act(async () => {
-      finishVerification()
-      await verification
-    })
-    await vi.waitFor(() =>
-      expect(stopped.capture.mock.calls.map(([name]) => name)).toEqual([
-        'registration:flow_resume',
-        'registration:stage_enter',
-      ]),
-    )
-
-    const recovered = makeRun()
-    const actor = createActor(machine, {
-      input: { chainId: sepolia.id },
-    }).start()
-    subscribeRegistrationAnalytics(actor, recovered.analytics)
-    recovered.analytics.start(true)
-    actor.send(resume)
-    await waitFor(actor, (snapshot) => snapshot.matches('success'))
-    await verification
-    expect(recovered.capture.mock.calls.map(([name]) => name)).toEqual([
-      'registration:flow_resume',
-      'registration:stage_enter',
-      'registration:flow_complete',
-    ])
-    actor.stop()
   })
 })

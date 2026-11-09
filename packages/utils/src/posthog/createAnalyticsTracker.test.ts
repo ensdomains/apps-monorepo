@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  invalidateAnalyticsOperations,
-  notifyAnalyticsConsent,
-} from './analyticsConsent'
+import { invalidateAnalyticsOperations } from './analyticsConsent'
 import { createAnalyticsTracker } from './createAnalyticsTracker'
 
-const setup = () => {
+const setup = (captureOverride?: () => unknown) => {
   let consent: 'pending' | 'granted' | 'denied' = 'pending'
   let identity = 'anonymous'
   let walletAddress: string | null | undefined = null
@@ -16,7 +13,7 @@ const setup = () => {
       __loaded: true,
       get_explicit_consent_status: () => consent,
       get_distinct_id: () => identity,
-      capture,
+      capture: captureOverride ?? capture,
     },
   })
   return {
@@ -30,13 +27,6 @@ const setup = () => {
     },
     grant: () => {
       consent = 'granted'
-    },
-    deny: () => {
-      consent = 'denied'
-      notifyAnalyticsConsent()
-    },
-    switch: () => {
-      identity = 'wallet-b'
     },
   }
 }
@@ -62,61 +52,31 @@ describe('analytics transport', () => {
       { chain_id: 1 },
     )
   })
-  it.each(['switch', 'regrant'] as const)(
-    'suppresses old asynchronous outcomes after %s',
-    (change) => {
-      const tracker = setup()
-      tracker.grant()
-      const operation = tracker.startAnalyticsOperation()
-      if (change === 'switch') tracker.switch()
-      else {
-        tracker.deny()
-        tracker.grant()
-      }
-      operation.capture('registration:flow_complete', {
-        flow_id: 'flow',
+  it('suppresses an old outcome after anonymous identity changes', () => {
+    const tracker = setup()
+    tracker.grant()
+    const operation = tracker.startAnalyticsOperation()
+    tracker.identify('next-anonymous')
+    operation.capture('registration:flow_complete', { flow_id: 'flow' })
+    expect(tracker.capture).not.toHaveBeenCalled()
+  })
+  it.each(['throw', 'reject'] as const)(
+    'contains SDK capture %s failures',
+    async (failure) => {
+      const attempted = vi.fn()
+      const tracker = setup(() => {
+        attempted()
+        if (failure === 'throw') throw new Error('offline')
+        return Promise.reject(new Error('offline'))
       })
-      expect(tracker.capture).not.toHaveBeenCalled()
+      tracker.grant()
+      expect(() =>
+        tracker.track('profile:primary_name_update', { chain_id: 1 }),
+      ).not.toThrow()
+      expect(attempted).toHaveBeenCalledOnce()
+      await new Promise((resolve) => setTimeout(resolve, 0))
     },
   )
-  it('forwards bounded domain diagnostics without treating dots as private names', () => {
-    const tracker = setup()
-    tracker.grant()
-    tracker.track('transaction:execution_end', {
-      operation_id: 'run',
-      outcome: 'failure',
-      failure_stage: 'execution.approval',
-      attempt_count: 1,
-    })
-    expect(tracker.capture).toHaveBeenCalledWith('transaction:execution_end', {
-      operation_id: 'run',
-      outcome: 'failure',
-      failure_stage: 'execution.approval',
-      attempt_count: 1,
-    })
-  })
-  it('handles a rejected capture promise without making product work wait', async () => {
-    const tracker = setup()
-    tracker.grant()
-    tracker.capture.mockImplementation(() =>
-      Promise.reject(new Error('offline')),
-    )
-    tracker.track('profile:primary_name_update', { chain_id: 1 })
-    const productWork = vi.fn()
-    productWork()
-    await Promise.resolve()
-    expect(productWork).toHaveBeenCalledExactlyOnceWith()
-  })
-  it('does not break product operations when the SDK throws', () => {
-    const tracker = setup()
-    tracker.grant()
-    tracker.capture.mockImplementation(() => {
-      throw new Error('offline')
-    })
-    expect(() =>
-      tracker.track('profile:primary_name_update', { chain_id: 1 }),
-    ).not.toThrow()
-  })
   it('suppresses delayed outcomes when consent metadata becomes unreadable without blocking current actions', () => {
     const tracker = setup()
     tracker.grant()

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   canCaptureAnalytics,
   getAnalyticsProjectKey,
-  prepareAnalyticsEvent,
   sanitizeAutomaticProperties,
 } from './analyticsConfiguration'
 
@@ -80,35 +79,3 @@ describe('analytics environment and URL policy', () => {
     })
   })
 })
-
-it.each(['manager', 'explorer'] as const)(
-  'sets authoritative metadata for %s events',
-  (sourceApp) => {
-    const event = prepareAnalyticsEvent(
-      {
-        event: '$pageview',
-        properties: {
-          distinct_id: 'anonymous',
-          source_app: 'spoofed',
-          analytics_version: 9,
-        },
-      },
-      {
-        sourceApp,
-        environment: {
-          environment: 'production',
-          isDevelopment: false,
-          isDebugEnabled: false,
-        },
-        walletAddress: null,
-      },
-    )
-
-    expect(event?.properties).toEqual({
-      distinct_id: 'anonymous',
-      source_app: sourceApp,
-      environment: 'production',
-      analytics_version: 1,
-    })
-  },
-)

@@ -73,18 +73,15 @@ const run = (route: 'update' | 'setup') => {
   const pending = actor.getSnapshot().context.pendingSave
   if (!pending) throw new Error('Missing pending save')
   const client = new QueryClient()
-  const onSuccess = () =>
-    actor.send({ type: 'SAVE_SUCCEEDED', currentRecords: records })
   const outcome =
     pending.kind === 'update'
-      ? new MutationObserver(client, {
-          ...getSaveRecordsMutationOptions(),
-          onSuccess,
-        }).mutate({ ...pending.params, currentRecords: pending.currentRecords })
-      : new MutationObserver(client, {
-          ...getSetupResolverMutationOptions(),
-          onSuccess,
-        }).mutate({ pendingSave: pending })
+      ? new MutationObserver(client, getSaveRecordsMutationOptions()).mutate({
+          ...pending.params,
+          currentRecords: pending.currentRecords,
+        })
+      : new MutationObserver(client, getSetupResolverMutationOptions()).mutate({
+          pendingSave: pending,
+        })
   return {
     actor,
     confirm,
@@ -102,9 +99,14 @@ beforeEach(() => {
 })
 
 describe('profile record mutation outcomes', () => {
-  it.each(['update', 'setup'] as const)(
-    'captures a confirmed %s after the UI actor stops',
-    async (route) => {
+  it.each([
+    ['update', 'confirm'],
+    ['setup', 'confirm'],
+    ['update', 'reject'],
+    ['setup', 'reject'],
+  ] as const)(
+    'reports only confirmed %s records after dialog stop (%s)',
+    async (route, outcome) => {
       const save = run(route)
       await vi.waitFor(() =>
         expect(
@@ -116,31 +118,16 @@ describe('profile record mutation outcomes', () => {
       save.actor.stop()
       const laterCapture = vi.fn()
       mocks.bind.mockReturnValue({ capture: laterCapture })
-      save.confirm()
-      await save.outcome
-      expect(mocks.capture).toHaveBeenCalledWith('profile:records_update', {
-        chain_id: sepolia.id,
-      })
-      expect(mocks.capture).toHaveBeenCalledOnce()
-      expect(laterCapture).not.toHaveBeenCalled()
-    },
-  )
-
-  it.each(['update', 'setup'] as const)(
-    'does not report a rejected %s as a successful record update',
-    async (route) => {
-      const save = run(route)
-      await vi.waitFor(() =>
-        expect(
-          route === 'update'
-            ? mocks.saveRecords
-            : mocks.setupControlledResolver,
-        ).toHaveBeenCalledOnce(),
+      save[outcome]()
+      expect(await save.outcome).toEqual(
+        outcome === 'reject' ? new Error('Record write failed') : undefined,
       )
-      save.actor.stop()
-      save.reject()
-      expect(await save.outcome).toBeInstanceOf(Error)
-      expect(mocks.capture).not.toHaveBeenCalled()
+      expect(mocks.capture.mock.calls).toEqual(
+        outcome === 'confirm'
+          ? [['profile:records_update', { chain_id: sepolia.id }]]
+          : [],
+      )
+      expect(laterCapture).not.toHaveBeenCalled()
     },
   )
 })

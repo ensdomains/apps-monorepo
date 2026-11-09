@@ -118,7 +118,10 @@ describe('PostHog consent', () => {
     setAnalyticsConsent(client, true)
     history.pushState({}, '', '/alice.eth/records?signature=private#secret')
     document.title = 'alice.eth | ENS App'
-    const pageview = client.capture('$pageview')
+    const pageview = client.capture('$pageview', {
+      source_app: 'spoofed',
+      analytics_version: 9,
+    })
     expect(pageview?.properties.$current_url).toBe(
       'http://localhost:3000/:value/records',
     )

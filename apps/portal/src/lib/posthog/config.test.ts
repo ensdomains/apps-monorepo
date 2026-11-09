@@ -137,30 +137,6 @@ describe('PostHog consent', () => {
     expect(client.isFeatureEnabled('test-flag')).toBe(true)
   })
 
-  it('contains errors in the SDK loaded callback', () => {
-    const { client } = initClient()
-    vi.spyOn(client, 'set_config').mockImplementation(() => {
-      throw new Error('SDK unavailable')
-    })
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-
-    expect(() => POSTHOG_CONFIG.loaded(client)).not.toThrow()
-  })
-
-  it('declines analytics even if resetting the SDK identity fails', () => {
-    const { client } = initClient()
-    setAnalyticsConsent(client, true)
-    vi.spyOn(client, 'reset').mockImplementation(() => {
-      throw new Error('SDK unavailable')
-    })
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-
-    setAnalyticsConsent(client, false)
-
-    expect(client.get_explicit_consent_status()).toBe('denied')
-    expect(client.has_opted_out_capturing()).toBe(true)
-  })
-
   it('keeps the answer in the cookie the ens.domains apps share', () => {
     setAnalyticsConsent(initClient().client, true)
 

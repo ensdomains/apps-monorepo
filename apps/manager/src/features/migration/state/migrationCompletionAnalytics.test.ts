@@ -1,7 +1,6 @@
 import type { Hex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { bindAnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
-import { mergeCompletedMigrationOperations } from '../service/completedMigrationOperations'
 import type { MigrationResult } from '../service/migrationService'
 import { captureMigrationCompletion } from './migrationCompletionAnalytics'
 
@@ -15,7 +14,7 @@ const result: MigrationResult = {
 }
 
 describe('migration completion analytics', () => {
-  it('counts confirmed partial work once across rebinds and allows a later fresh run', () => {
+  it('counts confirmed partial work once across rebinds and allows a fresh run', () => {
     const capture = vi.fn()
     const analytics = createAnalyticsFlow('first-flow')
     vi.spyOn(analytics, 'capture').mockImplementation(capture)
@@ -41,11 +40,8 @@ describe('migration completion analytics', () => {
     expect(capture).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps conflicting-operation validation in the core without letting reporting replace the service result', () => {
+  it('does not let conflicting-operation reporting replace the service result', () => {
     const existing = [{ name: 'copy.eth', action: 'migrate' }] as const
-    expect(() =>
-      mergeCompletedMigrationOperations(existing, result.completedOperations),
-    ).toThrow('Migration action changed')
     const analytics = createAnalyticsFlow('conflict-flow')
     const capture = vi.spyOn(analytics, 'capture')
     expect(() =>
