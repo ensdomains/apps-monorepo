@@ -87,6 +87,10 @@ export default createApp()
     }
 
     if (uniqueSearchesResult.isErr()) {
+      logger.error('Failed to fetch name search statistics', {
+        error: uniqueSearchesResult.error,
+        name,
+      })
       return c.json({ error: 'Name search statistics unavailable' }, 503)
     }
 

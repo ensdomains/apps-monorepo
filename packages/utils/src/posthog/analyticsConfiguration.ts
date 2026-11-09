@@ -144,6 +144,9 @@ export const sanitizeAnalyticsUrl = (value: string): string => {
     const origin = [
       'app.ens.domains',
       'explorer.ens.domains',
+      'sepolia.app.ens.domains',
+      'legacy.sepolia.app.ens.domains',
+      'app.ens.dev',
       'localhost',
       '127.0.0.1',
     ].includes(url.hostname)

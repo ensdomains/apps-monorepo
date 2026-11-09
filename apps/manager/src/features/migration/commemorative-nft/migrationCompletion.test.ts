@@ -23,7 +23,7 @@ vi.mock('../service/migrationCompletionCheckpoint', async (importOriginal) => ({
   restoreMigrationCompletionCheckpoint: mocks.restoreCheckpoint,
 }))
 
-vi.mock('./diagnostics', () => ({ trackNftEvent: vi.fn() }))
+vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
 
 vi.mock('@wagmi/core', () => ({ getPublicClient: mocks.getPublicClient }))
 vi.mock('../service/v1Names', () => ({

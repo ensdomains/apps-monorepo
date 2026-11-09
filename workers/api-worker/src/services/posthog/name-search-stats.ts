@@ -24,6 +24,8 @@ const normalizeCount = (value: unknown): number | null => {
   return null
 }
 
+const POSTHOG_TIMEOUT_MS = 5000
+
 const UNIQUE_SEARCHES_COLUMN = 'unique_searches_last_30d'
 
 const extractCountFromResultRow = (row: unknown, columns: unknown): unknown => {
@@ -93,6 +95,7 @@ const fetchUniqueSearchesLast30d = ResultFn(async function* (
   const response = yield* fromPromise(
     fetch(endpointUrl, {
       method: 'POST',
+      signal: AbortSignal.timeout(POSTHOG_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${env.POSTHOG_PERSONAL_API_KEY}`,
         'Content-Type': 'application/json',

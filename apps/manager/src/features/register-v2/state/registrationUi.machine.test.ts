@@ -27,6 +27,7 @@ type RegistrationStubEvent =
       pendingEthSwap?: { hash: `0x${string}`; deadline: bigint }
     }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
+  | { type: 'FORCE_REGISTRATION' }
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_APPROVAL_SUCCESS' }
   | { type: 'FORCE_COMMITMENT_WITHOUT_TX_ID' }
@@ -44,6 +45,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     id: 'registrationStub',
     types: {} as { events: RegistrationStubEvent },
     on: {
+      FORCE_REGISTRATION: '.registeringDomain',
       FORCE_COMMITMENT_WITHOUT_TX_ID: {
         actions: assign({
           commitment: () => ({}),
@@ -137,6 +139,23 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           RETRY: {
             actions: assign({
               retryCount: ({ context }) => context.retryCount + 1,
+            }),
+          },
+        },
+      },
+      registeringDomain: {
+        on: {
+          FORCE_ERROR: {
+            target: 'error',
+            actions: assign({
+              error: ({ event }) =>
+                event.type === 'FORCE_ERROR' ? event.error : undefined,
+              nameUnavailable: ({ event }) =>
+                event.type === 'FORCE_ERROR'
+                  ? event.nameUnavailable
+                  : undefined,
+              retryTarget: ({ event }) =>
+                event.type === 'FORCE_ERROR' ? event.retryTarget : undefined,
             }),
           },
         },
@@ -604,6 +623,24 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ownerAddress: EOA_ADDRESS,
     walletClient: { account: { address: EOA_ADDRESS } } as any,
   } as unknown as SmartAccountContextValue
+
+  it('reports a registration failure against the observed child stage', async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    const capture = vi.spyOn(actor.getSnapshot().context.analytics, 'capture')
+    sendToChild(actor, { type: 'FORCE_REGISTRATION' })
+    await flush()
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('registration failed'),
+    })
+    await flush()
+    expect(capture).toHaveBeenCalledWith(
+      'registration:stage_fail',
+      expect.objectContaining({ stage: 'registration' }),
+    )
+    actor.stop()
+  })
 
   describe.each(['EOA', 'HCA'])(
     '%s canonical primary-name registration',

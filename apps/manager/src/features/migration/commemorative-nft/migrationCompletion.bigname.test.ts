@@ -20,7 +20,7 @@ vi.mock('./config', () => ({
   getCommemorativeNftContractAddress: () =>
     '0x2222222222222222222222222222222222222222',
 }))
-vi.mock('./diagnostics', () => ({ trackNftEvent: vi.fn() }))
+vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
 vi.mock('viem/actions', async (importOriginal) => ({
   ...(await importOriginal<typeof import('viem/actions')>()),
   multicall: vi.fn(),

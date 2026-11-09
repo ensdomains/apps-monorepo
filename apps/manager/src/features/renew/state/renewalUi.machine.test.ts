@@ -656,6 +656,33 @@ describe('renewal paid with ETH', () => {
 })
 
 describe('renewal analytics operation lifetime', () => {
+  it.each(['approval', 'execution', 'verification'] as const)(
+    'attributes a renewal failure to %s',
+    async (stage) => {
+      const failure = errAsync(new Error('rejected'))
+      if (stage === 'approval') {
+        mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(0n))
+        mocks.pollTransactionStatusActor.mockReturnValue(failure)
+      } else if (stage === 'execution') {
+        mocks.submitRenewActor.mockReturnValue(failure)
+      } else {
+        mocks.pollTransactionStatusActor.mockReturnValue(failure)
+      }
+      const actor = startRenewal()
+      await waitForState(actor, 'failure')
+      expect(mocks.capture).toHaveBeenCalledWith(
+        'renewal:stage_fail',
+        expect.objectContaining({ stage }),
+      )
+      expect(
+        mocks.capture.mock.calls.filter(
+          ([event]) => event === 'renewal:stage_fail',
+        ),
+      ).toHaveLength(1)
+      actor.stop()
+    },
+  )
+
   it.each(['eoa', 'smart-account'] as const)(
     'captures a detached %s renewal even when stopped before submission returns',
     async (route) => {

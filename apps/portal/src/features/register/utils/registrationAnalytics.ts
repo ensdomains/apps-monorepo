@@ -72,7 +72,8 @@ const getRegistrationTransition = (
       },
     }
   const stage =
-    typeof snapshot.value === 'string'
+    typeof snapshot.value === 'string' &&
+    Object.hasOwn(REGISTRATION_STAGES, snapshot.value)
       ? REGISTRATION_STAGES[snapshot.value]
       : undefined
   if (

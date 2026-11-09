@@ -62,7 +62,6 @@ const linkIntercomToAnalytics = () => {
   if (!hasAnalyticsConsent(posthog) || !isAnalyticsEnabled()) return
   updateIntercom({
     posthog_distinct_id: posthog.get_distinct_id(),
-    recent_replay: posthog.get_session_replay_url(),
   })
   const intercomVisitorId = getVisitorId()
   if (intercomVisitorId) {

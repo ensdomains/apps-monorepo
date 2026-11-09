@@ -34,6 +34,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
       'https://posthog.example/api/environments/test/query_endpoints/unique-searches/run/',
       expect.objectContaining({
         method: 'POST',
+        signal: expect.any(AbortSignal),
         headers: expect.objectContaining({
           Authorization: 'Bearer secret',
           'Content-Type': 'application/json',

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { track } from '@/lib/posthog/events'
 import { downloadCommemorativeNftImage } from './assets'
-import { trackNftEvent } from './diagnostics'
 
-vi.mock('./diagnostics', () => ({ trackNftEvent: vi.fn() }))
+vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
 const assetUrl = 'https://assets.example/card.webp'
 const filename = 'card.webp'
 
@@ -43,7 +43,7 @@ describe('NFT asset downloads', () => {
       }),
     ).rejects.toThrow('HTTP 404')
     expect(saveBlob).not.toHaveBeenCalled()
-    expect(trackNftEvent).toHaveBeenCalledWith('nft:download_failure', {
+    expect(track).toHaveBeenCalledWith('nft:download_failure', {
       reason: 'http',
     })
   })
@@ -72,7 +72,7 @@ describe('NFT asset downloads', () => {
     resolveBody?.(new Blob(['late']))
     await Promise.resolve()
     expect(saveBlob).not.toHaveBeenCalled()
-    expect(trackNftEvent).toHaveBeenCalledWith('nft:download_failure', {
+    expect(track).toHaveBeenCalledWith('nft:download_failure', {
       reason: 'timeout',
     })
     expect(vi.getTimerCount()).toBe(0)
@@ -93,7 +93,7 @@ describe('NFT asset downloads', () => {
     controller.abort()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
     expect(saveBlob).not.toHaveBeenCalled()
-    expect(trackNftEvent).toHaveBeenCalledWith('nft:download_failure', {
+    expect(track).toHaveBeenCalledWith('nft:download_failure', {
       reason: 'aborted',
     })
   })

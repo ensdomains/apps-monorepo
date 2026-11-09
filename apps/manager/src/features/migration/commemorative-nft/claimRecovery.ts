@@ -1,5 +1,6 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
+import { track } from '@/lib/posthog/events'
 import { withNftClaimSubmissionLock } from './claimSubmissionLock'
 import {
   CommemorativeNftClaimError,
@@ -8,7 +9,6 @@ import {
   readCommemorativeNftClaimed,
   waitForCommemorativeNftClaimReceipt,
 } from './contract'
-import { trackNftEvent } from './diagnostics'
 import {
   assertPendingNftClaimStorageReady,
   clearPendingNftClaim,
@@ -121,7 +121,7 @@ export const submitPendingNftClaim = async (params: {
       submittedAt: Date.now(),
     }
     keepSubmittedClaim(claim)
-    trackNftEvent('nft:claim_outcome', { outcome: 'submitted' })
+    track('nft:claim_outcome', { outcome: 'submitted' })
     return claim
   })
 }
@@ -174,7 +174,7 @@ export const reconcilePendingNftClaim = async (params: {
       /* Safely reconcile a retained record again if removal fails. */
     }
   }
-  trackNftEvent('nft:claim_outcome', {
+  track('nft:claim_outcome', {
     outcome: outcome.status === 'confirmed' ? 'minted' : outcome.status,
   })
   if (

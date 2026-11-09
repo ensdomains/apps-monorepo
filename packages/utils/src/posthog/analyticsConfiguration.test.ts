@@ -2,10 +2,22 @@ import { describe, expect, it } from 'vitest'
 import {
   canCaptureAnalytics,
   getAnalyticsProjectKey,
+  sanitizeAnalyticsUrl,
   sanitizeAutomaticProperties,
 } from './analyticsConfiguration'
 
 describe('analytics environment and URL policy', () => {
+  it('retains known staging origins while redacting names and external hosts', () => {
+    expect(
+      sanitizeAnalyticsUrl(
+        'https://sepolia.app.ens.domains/alice.eth?secret=1',
+      ),
+    ).toBe('https://sepolia.app.ens.domains/:value')
+    expect(
+      sanitizeAnalyticsUrl('https://alice.example/alice.eth?secret=1'),
+    ).toBe('[external]/:value')
+  })
+
   it.each([
     [undefined, false, false, false],
     ['production', true, true, false],

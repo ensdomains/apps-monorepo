@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { trackNftEvent } from '../../commemorative-nft/diagnostics'
+import { track } from '@/lib/posthog/events'
 
 const RENDERER_TIMEOUT_MS = 10_000
 const RENDERER_MESSAGE_TYPE = 'ens-commemorative-nft-renderer'
@@ -143,7 +143,7 @@ export const useCommemorativeNftRenderer = (params: {
       callbacks.current.onReady?.()
     } else if (failed && reportedStatus.current !== 'failed') {
       reportedStatus.current = 'failed'
-      trackNftEvent('nft:renderer_fallback', { reason: failureReason.current })
+      track('nft:renderer_fallback', { reason: failureReason.current })
       callbacks.current.onError?.()
     }
   }, [failed, ready])

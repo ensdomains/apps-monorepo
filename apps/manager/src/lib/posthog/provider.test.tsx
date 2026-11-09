@@ -138,7 +138,6 @@ describe('PostHog provider', () => {
     act(() => setAnalyticsConsent(posthog, true))
     expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
-      recent_replay: 'replay-url',
     })
   })
 

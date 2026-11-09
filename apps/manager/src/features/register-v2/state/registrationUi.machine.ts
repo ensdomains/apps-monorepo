@@ -498,7 +498,7 @@ const machineSetup = setup({
       if (context.isWalletBusy || context.restoredRun) return
       context.analytics.capture('registration:stage_fail', {
         ...getAnalyticsProperties(context),
-        stage: 'execution',
+        stage: context.lastAnalyticsStep ?? 'execution',
         is_retryable: !context.nameUnavailable,
       })
     },

@@ -1,5 +1,5 @@
+import { track } from '@/lib/posthog/events'
 import { withRequestDeadline } from '../service/requestDeadline'
-import { trackNftEvent } from './diagnostics'
 
 class CommemorativeNftAssetRequestError extends Error {
   override readonly name = 'CommemorativeNftAssetRequestError'
@@ -58,7 +58,7 @@ export const downloadCommemorativeNftImage = async (params: {
     const saveBlob = params.saveBlob ?? saveBlobToFile
     saveBlob(blob, params.filename)
   } catch (error) {
-    trackNftEvent('nft:download_failure', {
+    track('nft:download_failure', {
       reason: downloadFailureReason(error),
     })
     throw error

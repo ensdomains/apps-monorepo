@@ -7,6 +7,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
+import { track } from '@/lib/posthog/events'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
@@ -28,7 +29,6 @@ import {
   CommemorativeNftClaimError,
   decodeCommemorativeNftClaimError,
 } from './contract'
-import { trackNftEvent } from './diagnostics'
 import {
   type CommemorativeNftAdmission,
   type CommemorativeNftFlowStatus,
@@ -308,7 +308,7 @@ export const useCommemorativeNftFlow = ({
       queryClient.setQueryData(queryKey, true)
     },
     onError: async (error) => {
-      trackNftEvent('nft:claim_outcome', { outcome: 'error' })
+      track('nft:claim_outcome', { outcome: 'error' })
       if (
         decodeCommemorativeNftClaimError(error).reason === 'already-claimed' &&
         ownerAddress

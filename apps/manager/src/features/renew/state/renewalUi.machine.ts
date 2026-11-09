@@ -34,7 +34,6 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
-import { track } from '@/lib/posthog/events'
 import {
   type AnalyticsFlow,
   bindAnalyticsFlow,
@@ -391,17 +390,20 @@ export const renewalUiMachine = setup({
       )
         return
       if (event.origin === 'fallback') return
-      track('renewal:payment_option_select', {
+      context.analytics.capture('renewal:payment_option_select', {
         ...getAnalyticsProperties(context, envConfig.chain.id),
         payment_asset: context.paymentAsset,
         funding_chain_id: context.fundingSourceChainId,
       })
     },
     analyticsComplete: ({ context }) => captureRenewalComplete(context),
-    analyticsFailure: ({ context }) =>
+    analyticsFailure: (
+      { context },
+      params: { readonly stage: 'approval' | 'execution' | 'verification' },
+    ) =>
       context.analytics.capture('renewal:stage_fail', {
         ...getAnalyticsProperties(context, envConfig.chain.id),
-        stage: 'execution',
+        stage: params.stage,
         is_retryable: true,
       }),
     analyticsRetry: ({ context }) =>
@@ -733,12 +735,15 @@ export const renewalUiMachine = setup({
           },
           {
             target: 'failure',
-            actions: assign({
-              lastErrorMessage: ({ event }) =>
-                event.error instanceof Error
-                  ? event.error.message
-                  : 'Renewal failed',
-            }),
+            actions: [
+              { type: 'analyticsFailure', params: { stage: 'execution' } },
+              assign({
+                lastErrorMessage: ({ event }) =>
+                  event.error instanceof Error
+                    ? event.error.message
+                    : 'Renewal failed',
+              }),
+            ],
           },
         ],
       },
@@ -799,12 +804,15 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Token approval failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'approval' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Token approval failed',
+            }),
+          ],
         },
       },
     },
@@ -823,12 +831,15 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Token approval polling failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'approval' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Token approval polling failed',
+            }),
+          ],
         },
       },
     },
@@ -839,6 +850,7 @@ export const renewalUiMachine = setup({
       always: { target: 'submittingPlainRenewal' },
     },
     submittingPlainRenewal: {
+      entry: 'analyticsExecution',
       tags: 'renewing',
       invoke: {
         id: 'submitRenewal',
@@ -864,12 +876,15 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Renewal failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'execution' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Renewal failed',
+            }),
+          ],
         },
       },
     },
@@ -890,12 +905,15 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Renewal failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'verification' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Renewal failed',
+            }),
+          ],
         },
       },
     },
@@ -926,16 +944,18 @@ export const renewalUiMachine = setup({
         ],
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: () =>
-              "Couldn't confirm whether the last attempt renewed this name, so it wasn't retried. Please try again.",
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'verification' } },
+            assign({
+              lastErrorMessage: () =>
+                "Couldn't confirm whether the last attempt renewed this name, so it wasn't retried. Please try again.",
+            }),
+          ],
         },
       },
     },
     success: { entry: 'analyticsComplete' },
     failure: {
-      entry: 'analyticsFailure',
       on: {
         retry: {
           target: 'checkingRenewed',

@@ -8,6 +8,7 @@ import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import { readPendingNftClaim } from './pendingClaim'
 
 vi.mock('@/config', () => ({ envConfig: { network: 'sepolia' } }))
+vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
 
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),

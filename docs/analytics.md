@@ -64,7 +64,7 @@ All outgoing events receive `source_app: manager | explorer`, `environment: prod
 | `profile:records_update`, `profile:primary_name_update` | Confirmed write, `chain_id`, optional record count; no record values or manufactured operation UUID | Both |
 | `subname:name_create`, `resolver:configuration_update`, `roles:permissions_update`, `dns:manager_sync` | Receipt-backed operation; chain and bounded action where applicable | Explorer |
 | `notifications:preferences_update` | Successful preferences response; no destinations/preferences payload | Manager |
-| `transaction:execution_end` | Bounded failed TM run: opaque operation ID, failure/cancel outcome, stage, known method/chain, attempt count | Manager |
+| `transaction:execution_end` | Selected failed TM run metadata: opaque operation ID, failure/cancel outcome, stage, known method/chain, attempt count | Manager |
 | `$pageview`, `$pageleave`, `$rageclick` | Native SDK events; sanitized URLs and automatic properties | Both |
 
 Retained legacy events: `name:search_selected` carries normalized name solely for existing search-popularity statistics. Do not rename/drop its field until the saved endpoint is migrated. Existing NFT/Intercom/DNSSEC categories remain. DNSSEC includes controlled source/verdict, no raw names or name-bearing failed-step strings. Never sum canonical search selection and its legacy counterpart as two searches.
@@ -150,7 +150,7 @@ Use explicit environment/version filters and break down comparable outcomes by s
 - Registration: `flow_start` → `stage_enter(stage=registration)` → `flow_complete`, correlated by flow_id. Screen views are optional acquisition/UX observations, not completion prerequisites. Analyze known stage failures separately; stage entry is never step success.
 - Renewal: `flow_start` → execution stage → `flow_complete`; inspect confirmed progress and final item_count. Transaction confirmations include approval and must not be counted as renewed names.
 - Migration: actual migrated/copied/ineligible counts, distinct from Explorer handoff adoption. Do not count accumulated retry progress as new migrated items twice.
-- Reliability/adoption: bounded transaction failures by stage/chain/method, dedicated management outcomes by app; check missing source/environment metadata. Recent starts, paused operations and unobserved outcomes are not automatically failures.
+- Reliability/adoption: selected transaction failure metadata by internal stage/chain/method, dedicated management outcomes by app; check missing source/environment metadata. Recent starts, paused operations and unobserved outcomes are not automatically failures.
 
 In PostHog Funnels, use ordered events, hold `flow_id` constant and break down by `source_app`. Make approval/setup branches optional rather than requiring steps absent from another execution method. Use a realistic conversion window for commit/reveal; filter `environment` and `analytics_version` on every insight. A quick measurement-health query is:
 
@@ -177,3 +177,13 @@ Browser-only telemetry cannot guarantee ingestion after tab/process shutdown, lo
 Registration UI/protocol/global transaction ownership already spans actors and callbacks. This change observes confirmed facts without continuing paid orchestration on navigation. Deduplication is local to the operation/run, not an external journal. Registration and pending renewal observations distinguish actual actors when transaction IDs are reused; superseded renewal callbacks cannot overwrite their replacement. Imperative refs/listener registration and weak dedup caches are IO adapter state; business selection/count/transition decisions remain plain functions. A broader lifecycle consolidation should use the existing transaction seams rather than growing another event journal. No unrelated style-guide rewrite is included.
 
 Intended analytics contract changes: dedicated duration/payment views; execution stage_enter/stage_fail replace ambiguous step_view/step_result; no inferred stage successes; method/chain metadata consistent on Manager registration/renewal stages. Existing tests retain product assertions while event expectations change to the deliberate schema. Test harnesses supply real required Wagmi context or retain real exports in existing framework mocks; no behavior assertion was relaxed. The old renewal callback-only test is replaced with real transaction-actor receipt/unmount regressions.
+
+## Review follow-up
+
+Renewal failure stages are explicit on their owning error transitions; registration failures use the already observed child stage. This avoids a second stage status in renewal context. Known Sepolia and ens.dev origins remain visible while dynamic paths and external origins remain redacted.
+
+The name-demand endpoint logs failed PostHog queries and bounds them to five seconds. It deliberately returns 503 rather than reporting unknown searches as zero. Favorites and searches share this response, so the registration pricing demand section is unavailable during that outage; dashboard favorites use their separate endpoint. Independent nullable demand fields would be a separate API/UI contract change.
+
+Transaction diagnostics select internal TM state/request labels, numeric context and an opaque operation ID. These labels currently have string types; they are not a closed enum. No raw error, request or transaction payload is forwarded.
+
+Follow-up validation: Manager 146 tests in four files, Explorer 23 in three, shared analytics 27 in five, Worker eight in two, and transaction-manager registration 257 in thirteen passed. Typechecks passed in Manager, Explorer, utils and API Worker; changed-file Biome and whitespace checks passed. New renewal/registration stage and Sepolia URL regressions were observed failing on the old behavior. Intercom integration assertions now omit `recent_replay` because replay is disabled. No additional browser or real-wallet verification was performed in this pass.
