@@ -32,9 +32,7 @@ export const PaletteTrigger = ({
       <Search className="size-4 shrink-0" />
       {!iconOnly && (
         <>
-          <span className="min-w-0 flex-1 truncate text-left">
-            Search and actions
-          </span>
+          <span className="min-w-0 flex-1 truncate text-left">Search</span>
           <kbd className="hidden rounded border px-1 text-small text-muted-foreground md:inline-flex">
             {formatForDisplay('Mod+K')}
           </kbd>

@@ -36,7 +36,7 @@ export const SidebarBrandHeader = () => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <PaletteTrigger onOpen={openSearch} />
             </div>
             <SidebarTrigger className="shrink-0" />
