@@ -3334,10 +3334,6 @@ msgstr "Submitting the registration transaction"
 msgid "Submitting token approval"
 msgstr "Submitting token approval"
 
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
-msgstr "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
-
 #: src/features/migration/components/SubnameUpgradeExplanation.tsx
 msgid "Subname records aren't copied. Each subname keeps its current resolver, so its addresses, avatar and other records keep working."
 msgstr "Subname records aren't copied. Each subname keeps its current resolver, so its addresses, avatar and other records keep working."
