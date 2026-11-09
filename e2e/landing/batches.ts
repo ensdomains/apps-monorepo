@@ -72,7 +72,7 @@ export const batches: Batch[] = [
     title:
       'Migration: stale guards to rewrite, record-preservation audit, and tests of open bugs',
   },
-  { id: 'B4', title: 'Transfer, fuses, 4LD: the tests that pass on main (B4a)' },
+  { id: 'B4', title: 'Transfer, fuses, 4LD: the tests that pass on main (B4a)', pr: 1767 },
   {
     id: 'B4b',
     title:
