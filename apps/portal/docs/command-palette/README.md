@@ -18,10 +18,12 @@ Built-preview captures: [desktop](desktop.png), [entity actions](entity-actions.
 2. Type `website` or `avatar`. Choose **Edit records**, enter a name, and select
    it. Cancel wallet connection to show that the name and search step survive.
    Back returns to the original action query, with focus ready for typing.
-3. Search a complete name. Enter opens its profile. The selected row's
+3. Search a complete name. Enter opens its profile. Tab, the selected row's
    **Actions** pill, Right Arrow, or the footer's **Actions** button opens its
    action list, with the target shown as a chip in the input. Copy the name or
-   its Portal link.
+   its Portal link. Its **Related** rows (owner, ETH address, resolver, parent
+   name) open directly, and Tab on the owner continues into that address's
+   actions.
 4. Compare `renew` with `renew.eth`. The command comes first for the bare verb;
    the explicit name comes first when its suffix is supplied. `>renew` searches
    actions only. `renew example.eth` supplies an explicit target directly.
@@ -45,9 +47,14 @@ validation still determine whether a particular action can continue.
 - **View stays View.** Availability adds a separate Register action; it never
   changes what Enter does on a selected name result.
 - **Actions are visible.** A name or address row carries its own **Actions**
-  pill (shown on the selected row on desktop, on every row on touch). Right
-  Arrow and the footer's **Actions** button reach the same list for keyboard
-  and screen-reader users, so no interactive control sits inside an option.
+  pill (shown on the selected row on desktop, on every row on touch). Tab,
+  Right Arrow and the footer's **Actions** button reach the same list for
+  keyboard and screen-reader users, so no interactive control sits inside an
+  option. Shift+Tab, and Tab on a row without actions, move focus as usual.
+- **Relations are destinations.** A name's actions end with the names and
+  addresses it points at, read from the same queries as its pages. An address
+  lists its primary name. On a name page, typing `owner` finds the current
+  name's owner without opening its actions first.
 - **The target is explicit.** Entity-first, action-first, and current-page
   shortcuts share the same command. Route and account changes do not substitute
   another name.

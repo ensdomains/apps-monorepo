@@ -192,6 +192,12 @@ export const PaletteDialog = ({
   const secondaryRow = selectedRow && getSecondaryRow(selectedRow)
   const query = parsePaletteQuery(frame?.query ?? '').query
   const aria = useResultListAria(listRef, selectedId, listKey)
+  const shouldRevealSelection = useRef(false)
+  useLayoutEffect(() => {
+    if (!shouldRevealSelection.current || !listRef.current) return
+    shouldRevealSelection.current = false
+    revealRow(listRef.current, selectedId)
+  }, [selectedId])
   const activateAndFocus = (row: PaletteRow) => {
     onActivate(row)
     inputRef.current?.focus()
@@ -201,10 +207,11 @@ export const PaletteDialog = ({
     const action = getKeyboardAction({
       key: event.key,
       isComposing: event.nativeEvent.isComposing || event.keyCode === 229,
+      isShift: event.shiftKey,
       hasQuery: Boolean(frame?.query),
       canGoBack,
-      canOpenSecondary:
-        Boolean(secondaryRow) &&
+      hasSecondary: Boolean(secondaryRow),
+      isCaretAtEnd:
         input.selectionStart === input.value.length &&
         input.selectionEnd === input.value.length,
     })
@@ -213,15 +220,16 @@ export const PaletteDialog = ({
     if (action === 'composition') return
     event.preventDefault()
     match(action)
-      .with('down', 'up', (direction) =>
+      .with('down', 'up', (direction) => {
+        shouldRevealSelection.current = true
         onSelectionChange(
           getNextRowId(
             displayedRows,
             selectedId,
             direction === 'down' ? 1 : -1,
           ),
-        ),
-      )
+        )
+      })
       .with('activate', () => {
         if (selectedRow) onActivate(selectedRow)
       })
@@ -258,7 +266,7 @@ export const PaletteDialog = ({
         <DialogTitle className="sr-only">Search and actions</DialogTitle>
         <DialogDescription className="sr-only">
           Find ENS names, addresses, and actions. Use arrow keys to choose a
-          result, Enter to open it, Right Arrow to show a name’s actions, and
+          result, Enter to open it, Tab or Right Arrow to show its actions, and
           Escape to go back.
         </DialogDescription>
         <div className="box-content flex h-14 shrink-0 items-center gap-2 border-b pl-3 pr-2 pt-[env(safe-area-inset-top)] sm:h-13 sm:pt-0">
@@ -521,7 +529,7 @@ const PaletteFooter = ({
           aria-label={`Actions for ${getEntityLabel(secondaryRow.action.entity)}`}
           className="flex items-center gap-1.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Kbd>→</Kbd>
+          <Kbd>tab</Kbd>
           Actions
         </button>
       )}
@@ -688,7 +696,7 @@ const PaletteResultRow = ({
         </span>
       )}
       {secondary && (
-        // Pointer shortcut only; keyboard and screen readers use → or the footer's Actions button.
+        // Pointer shortcut only; keyboard and screen readers use Tab, → or the footer's Actions button.
         <span
           aria-hidden="true"
           data-palette-secondary
@@ -730,23 +738,41 @@ const SearchingRows = () => (
 const getKeyboardAction = ({
   key,
   isComposing,
+  isShift,
   hasQuery,
   canGoBack,
-  canOpenSecondary,
+  hasSecondary,
+  isCaretAtEnd,
 }: {
   readonly key: string
   readonly isComposing: boolean
+  readonly isShift: boolean
   readonly hasQuery: boolean
   readonly canGoBack: boolean
-  readonly canOpenSecondary: boolean
+  readonly hasSecondary: boolean
+  readonly isCaretAtEnd: boolean
 }) => {
   if (isComposing) return 'composition'
   if (key === 'ArrowDown') return 'down'
   if (key === 'ArrowUp') return 'up'
   if (key === 'Enter') return 'activate'
-  if (key === 'ArrowRight' && canOpenSecondary) return 'secondary'
+  if (key === 'Tab' && !isShift && hasSecondary) return 'secondary'
+  if (key === 'ArrowRight' && hasSecondary && isCaretAtEnd) return 'secondary'
   if (key === 'Backspace' && !hasQuery && canGoBack) return 'back'
   return 'native'
+}
+
+// Keeps the keyboard-selected row visible, with its group heading when it is the group's first row.
+const revealRow = (list: HTMLElement, id: string) => {
+  const row = Array.from(list.querySelectorAll('[cmdk-item]')).find(
+    (item) => item.getAttribute('data-value') === id,
+  )
+  const group = row?.closest('[cmdk-group]')
+  if (group?.querySelector('[cmdk-item]') === row)
+    group?.querySelector('[cmdk-group-heading]')?.scrollIntoView({
+      block: 'nearest',
+    })
+  row?.scrollIntoView({ block: 'nearest' })
 }
 
 const useResultListAria = (

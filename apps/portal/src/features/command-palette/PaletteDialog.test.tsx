@@ -313,6 +313,25 @@ describe('PaletteDialog', () => {
       ).toBeInTheDocument()
     })
 
+    it('opens actions with Tab wherever the caret is, leaving Shift+Tab to move focus', async () => {
+      const onActivate = vi.fn<(row: PaletteRow) => void>()
+      const user = userEvent.setup()
+      render(
+        <Harness
+          rows={(frame) => (frame.screen.type === 'root' ? [NAME] : [REGISTER])}
+          initialState={makeOpenState(makeFrame({ query: 'alice' }))}
+          onActivate={onActivate}
+        />,
+      )
+      await user.click(screen.getByRole('combobox'))
+      await user.keyboard('{Shift>}{Tab}{/Shift}')
+      expect(onActivate).not.toHaveBeenCalled()
+      screen.getByRole('combobox').focus()
+      await user.keyboard('{Home}{Tab}')
+      expect(openedActions(onActivate)).toEqual(['actions'])
+      expect(screen.getByRole('combobox')).toHaveFocus()
+    })
+
     it('opens actions from the footer button without viewing the name', async () => {
       const onActivate = vi.fn<(row: PaletteRow) => void>()
       const user = userEvent.setup()
@@ -345,5 +364,26 @@ describe('PaletteDialog', () => {
       await user.keyboard('{ArrowRight}')
       expect(onActivate).not.toHaveBeenCalled()
     })
+  })
+
+  it('scrolls the keyboard selection into view, with its heading when it starts a group', async () => {
+    const scrolled: string[] = []
+    const spy = vi
+      .spyOn(Element.prototype, 'scrollIntoView')
+      .mockImplementation(function (this: Element) {
+        scrolled.push(this.getAttribute('data-value') ?? 'heading')
+      })
+    const user = userEvent.setup()
+    render(<Harness rows={[VIEW, ACTIONS, REGISTER]} />)
+    await user.click(screen.getByRole('combobox'))
+    const fromKeyboard = scrolled.length
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
+    expect(scrolled.slice(fromKeyboard)).toEqual([
+      ACTIONS.id,
+      REGISTER.id,
+      'heading',
+      VIEW.id,
+    ])
+    spy.mockRestore()
   })
 })

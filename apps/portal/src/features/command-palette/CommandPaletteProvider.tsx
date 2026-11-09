@@ -66,6 +66,7 @@ import { buildPaletteRows, type PaletteRow } from './resultModel'
 import { getRouteEntity } from './routeContext'
 import { useCachedPaletteTarget } from './useCachedPaletteTarget'
 import { usePaletteRecents } from './usePaletteRecents'
+import { usePaletteRelatedEntities } from './usePaletteRelatedEntities'
 import { usePaletteRouteLifecycle } from './usePaletteRouteLifecycle'
 import { usePaletteSession } from './usePaletteSession'
 import { usePaletteShortcut } from './usePaletteShortcut'
@@ -375,9 +376,10 @@ export const CommandPaletteProvider = ({
     chainId: ensChain.id,
     walletAddress: address,
   })
-  const targetMetadata = useCachedPaletteTarget(
-    frame.screen.type === 'entity' ? frame.screen.entity : context.entity,
-  )
+  const subject =
+    frame.screen.type === 'entity' ? frame.screen.entity : context.entity
+  const targetMetadata = useCachedPaletteTarget(subject)
+  const related = usePaletteRelatedEntities(subject, state.status === 'open')
   const rows = buildPaletteRows({
     frame,
     context,
@@ -386,6 +388,7 @@ export const CommandPaletteProvider = ({
     pageCommands: Object.values(registrations).flat(),
     commands: ENABLED_COMMANDS,
     targetMetadata,
+    related,
   })
   const presentation = getPalettePresentation(frame, ENABLED_COMMANDS)
 

@@ -7,6 +7,7 @@ import type { RecentEntity } from './core/recents'
 import type { PaletteFrame } from './core/state'
 import type { PaletteContext, PaletteTargetMetadata } from './core/types'
 import { visibleSearchResults } from './presentation'
+import type { PaletteRelatedEntity } from './relatedEntities'
 import {
   buildPaletteRows,
   getRowEnterLabel,
@@ -63,6 +64,7 @@ const run = ({
   recents = [],
   pageCommands = [],
   targetMetadata,
+  related,
 }: {
   readonly frame?: PaletteFrame
   readonly context?: PaletteContext
@@ -70,6 +72,7 @@ const run = ({
   readonly recents?: readonly RecentEntity[]
   readonly pageCommands?: readonly PageCommand[]
   readonly targetMetadata?: PaletteTargetMetadata
+  readonly related?: readonly PaletteRelatedEntity[]
 } = {}) =>
   buildPaletteRows({
     frame,
@@ -78,6 +81,7 @@ const run = ({
     recents,
     pageCommands,
     targetMetadata,
+    related,
   })
 
 const commandIds = (rows: ReturnType<typeof run>) =>
@@ -486,6 +490,66 @@ describe('buildPaletteRows', () => {
     expect(titleOf(searched, 'name.edit-records')).toBe(
       'Edit records for alice.eth',
     )
+  })
+
+  describe('related names and addresses', () => {
+    const OWNER = { type: 'address', address: ADDRESS } as const
+    const RESOLVER = {
+      type: 'address',
+      address: '0x0000000000000000000000000000000000000002',
+    } as const
+    const related: readonly PaletteRelatedEntity[] = [
+      { entity: OWNER, relations: ['owner', 'eth-address'] },
+      { entity: RESOLVER, relations: ['resolver'] },
+    ]
+    const relatedRows = (rows: ReturnType<typeof run>) =>
+      rows.filter(({ group }) => group === 'Related')
+
+    it('follows a name’s actions, opening each relation with its own actions', () => {
+      const rows = run({
+        frame: makeFrame({ screen: { type: 'entity', entity: ALICE } }),
+        related,
+      })
+      expect(rows.at(-1)?.group).toBe('Related')
+      expect(
+        relatedRows(rows).map(({ meta, action, actionsFor }) => [
+          meta?.text,
+          action,
+          actionsFor,
+        ]),
+      ).toEqual([
+        [
+          'Owner · ETH address',
+          { type: 'view', entity: OWNER, resolver: false },
+          OWNER,
+        ],
+        [
+          'Resolver',
+          { type: 'view', entity: RESOLVER, resolver: true },
+          undefined,
+        ],
+      ])
+    })
+
+    it('surfaces the current page’s relations only for a matching query', () => {
+      const context: PaletteContext = {
+        chainId: 1,
+        developerEnabled: false,
+        entity: ALICE,
+      }
+      expect(relatedRows(run({ context, related }))).toEqual([])
+      const owner = relatedRows(
+        run({ context, related, frame: makeFrame({ query: 'owner' }) }),
+      )
+      expect(
+        owner.map(({ title, groupDetail }) => [title, groupDetail]),
+      ).toEqual([[ADDRESS, ALICE.name]])
+      expect(
+        relatedRows(
+          run({ context, related, frame: makeFrame({ query: '>owner' }) }),
+        ),
+      ).toEqual([])
+    })
   })
 
   it.each([

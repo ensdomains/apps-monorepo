@@ -24,6 +24,7 @@ import type {
   PaletteScope,
   PaletteTargetMetadata,
 } from './core/types'
+import type { PaletteRelatedEntity, PaletteRelation } from './relatedEntities'
 
 export type PaletteRowAction =
   | {
@@ -76,6 +77,7 @@ type BuildPaletteRowsParams = {
   readonly pageCommands: readonly PageCommand[]
   readonly commands?: readonly PaletteCommand[]
   readonly targetMetadata?: PaletteTargetMetadata
+  readonly related?: readonly PaletteRelatedEntity[]
 }
 
 const DEFAULT_NAME_COMMANDS = [
@@ -383,6 +385,63 @@ const getPageCommandMeta = (
     : undefined
 }
 
+const RELATION_LABELS = {
+  owner: 'Owner',
+  manager: 'Manager',
+  'eth-address': 'ETH address',
+  resolver: 'Resolver',
+  parent: 'Parent name',
+  'primary-name': 'Primary name',
+} as const satisfies Record<PaletteRelation, string>
+
+const getRelatedSubject = (
+  frame: PaletteFrame,
+  context: PaletteContext,
+): PaletteEntity | undefined => {
+  if (frame.screen.type === 'entity') return frame.screen.entity
+  const parsed = parsePaletteQuery(frame.query)
+  const isRootLookup =
+    frame.screen.type === 'root' && parsed.mode === 'unified' && parsed.query
+  return isRootLookup ? context.entity : undefined
+}
+
+// The entity screen lists every relation; on a page the current entity's relations need a query.
+const getRelatedRows = (
+  frame: PaletteFrame,
+  context: PaletteContext,
+  related: readonly PaletteRelatedEntity[],
+): readonly PaletteRow[] => {
+  const subject = getRelatedSubject(frame, context)
+  if (!subject) return []
+  return related
+    .map(({ entity, relations }) => ({
+      entity,
+      relations,
+      label: relations.map((relation) => RELATION_LABELS[relation]).join(' · '),
+    }))
+    .filter(
+      ({ entity, label }) =>
+        getCommandSearchScore(
+          { title: label, keywords: [getEntityLabel(entity)] },
+          frame.query,
+        ) > 0,
+    )
+    .map(({ entity, relations, label }): PaletteRow => {
+      const isResolver = relations.includes('resolver')
+      return {
+        id: `related:${context.chainId}:${getEntityId(subject)}:${relations.join('+')}:${getEntityId(entity)}`,
+        title: getEntityLabel(entity),
+        meta: { text: label, tone: 'muted' },
+        group: 'Related',
+        groupDetail:
+          frame.screen.type === 'entity' ? undefined : getEntityLabel(subject),
+        leading: { type: 'entity', entity },
+        action: { type: 'view', entity, resolver: isResolver },
+        actionsFor: isResolver ? undefined : entity,
+      }
+    })
+}
+
 const getNameEscapeHatch = (
   frame: PaletteFrame,
   hasCommandMatches: boolean,
@@ -479,6 +538,7 @@ export const buildPaletteRows = (
     pageCommands,
     commands = PALETTE_COMMANDS,
     targetMetadata,
+    related = [],
   } = params
   const query = parsePaletteQuery(frame.query).query
   const scope = frame.screen.type === 'developer' ? 'developer' : 'normal'
@@ -525,6 +585,7 @@ export const buildPaletteRows = (
   return getDisplayedRows(
     uniqueRows([
       ...leadingRows,
+      ...getRelatedRows(frame, context, related),
       ...another,
       ...pages,
       ...nameSearch,
