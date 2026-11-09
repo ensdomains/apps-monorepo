@@ -17,7 +17,7 @@ import {
 } from './ProfileAction.styles'
 
 type ProfileExploreActionProps = {
-  /** `ownerBar` fits beside the Edit button on narrow screens. */
+  /** `ownerBar` is an icon below xl, for the width-capped action bars. */
   readonly layout?: 'full' | 'ownerBar'
   readonly target: ExplorerTarget
 }

@@ -20,14 +20,14 @@ export const renewActionClassName =
 export const renewActionSymbolClassName =
   'ms-opsz-12 ms-wght-500 text-[12px] leading-none max-xs:hidden'
 
-// Beside Edit there is room only for an icon, so the Explore label hides below xs
-export const ownerBarExploreActionClassName = `${renewActionClassName} max-xs:w-11`
+// The bars are capped at 390px until xl, so Explore stays an icon until the bar grows
+export const ownerBarExploreActionClassName = `${renewActionClassName} max-xl:w-11`
 
 export const ownerBarExploreSymbolClassName =
-  'ms-opsz-20 ms-wght-500 text-[20px] leading-none xs:hidden'
+  'ms-opsz-20 ms-wght-500 text-[20px] leading-none xl:hidden'
 
 export const ownerBarExploreLabelClassName =
-  '[text-box-edge:cap_alphabetic] [text-box-trim:trim-both] max-xs:sr-only'
+  '[text-box-edge:cap_alphabetic] [text-box-trim:trim-both] max-xl:sr-only'
 
 export const editActionClassName =
   'h-15.25 w-full max-w-87 rounded border-none bg-(--theme-button-bg) px-6 py-0 font-semi-mono text-sm text-(--theme-button-text) uppercase tracking-[1.12px] shadow-none hover:bg-(--theme-button-hover-bg) xl:h-12.5 xl:w-42.75'

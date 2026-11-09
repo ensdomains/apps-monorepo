@@ -83,14 +83,11 @@ export const ProfileActions = ({
   useIntercomClearance(bar)
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
-  const renderBarActions = (exploreLayout?: 'ownerBar') => (
+  const renderBarActions = () => (
     <>
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-      <ProfileExploreAction
-        layout={exploreLayout}
-        target={{ kind: 'name', name }}
-      />
+      <ProfileExploreAction layout="ownerBar" target={{ kind: 'name', name }} />
       <ProfileRenewAction
         className={renewActionClassName}
         isOwner={isOwner}
@@ -109,7 +106,7 @@ export const ProfileActions = ({
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
         // Owned profiles keep favorite, share, and renew in this bar at every width.
-        leftActions={renderBarActions('ownerBar')}
+        leftActions={renderBarActions()}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
