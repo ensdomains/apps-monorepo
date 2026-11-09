@@ -1,4 +1,3 @@
-import type { EnsNetwork } from '@ens-apps/config'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -21,7 +20,6 @@ import {
   zeroAddress,
 } from 'viem'
 import { readContract } from 'viem/actions'
-import { envConfig } from '@/config'
 import { getGraceEndDate } from '@/features/grace/utils/gracePeriod'
 import { getNameDetail } from '@/features/shared/service/nameDetail'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -43,22 +41,6 @@ const NAME_WRAPPER = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensNameWrapper',
 })
-
-/** Graveyards claim expired V1 names; contracts-v2 `deployments/<network>/Graveyard.json`. */
-const V1_GRAVEYARDS: Readonly<Record<EnsNetwork, readonly Address[]>> = {
-  mainnet: ['0xDa021A2C1C2F99574D861Ef8c6fA745851BEB7F6'],
-  sepolia: [
-    '0xB58A90a39D13CcE1D0E192B5da5c47640855B04D',
-    '0x950b93885b33ce4c7e8571be2c88a1aa93d82f49',
-    '0xf83fe2658f702a072f3c7b0dc4a0ab8c7b044750',
-    '0x802453f2f077d5a0c3d0f9a6eb2a36dcfa3c6e0d',
-  ],
-}
-
-const isV1Graveyard = (address: Address): boolean =>
-  V1_GRAVEYARDS[envConfig.network].some((graveyard) =>
-    isAddressEqual(graveyard, address),
-  )
 
 export type ProfileProtocol = 'v1' | 'v2'
 
@@ -146,7 +128,7 @@ const getV1ProfileOwner = ResultFn(async function* (
       ? v1Owner.registrant
       : v1Owner?.owner
 
-  if (holder && holder !== zeroAddress && !isV1Graveyard(holder)) {
+  if (holder && holder !== zeroAddress) {
     return ok({
       owner: holder,
       protocol: 'v1',
