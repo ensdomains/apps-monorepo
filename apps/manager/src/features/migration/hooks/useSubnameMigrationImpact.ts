@@ -1,9 +1,7 @@
 import type { ClassifiedName } from '@ens-apps/migration'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { match } from 'ts-pattern'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient } from '@/lib/wagmi'
 import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
 import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
@@ -37,11 +35,6 @@ export const useSubnameMigrationImpact = ({
   const coordinator = useUpgradeReadCoordinator()
   const isCleanupRecovery =
     !!recoverySnapshot && recoverySnapshot.remainingOperations.length === 0
-  const isSubnameImportEnabled =
-    useFeatureFlagEnabled(
-      POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-      false,
-    ) === true
   const selected = new Set(selectedNames.map((name) => name.toLowerCase()))
   const migratingNames = [
     ...new Set([
@@ -59,7 +52,6 @@ export const useSubnameMigrationImpact = ({
     .filter(
       (name) =>
         name.action === 'copy' &&
-        (!name.recreationRoot || isSubnameImportEnabled) &&
         (selected.has(name.domain.name.toLowerCase()) ||
           (!!name.recreationRoot &&
             selected.has(name.recreationRoot.toLowerCase()))),
@@ -70,7 +62,6 @@ export const useSubnameMigrationImpact = ({
     selected: [...selected].sort(),
     migratingNames,
     copiedNames,
-    isSubnameImportEnabled,
     recovery: recoverySnapshot
       ? {
           source: recoverySnapshot.subnameRecreation,
@@ -110,7 +101,7 @@ export const useSubnameMigrationImpact = ({
   const query = useQuery(queryOptions)
   // Recovery first reconciles recorded transactions and temporary approvals.
   // A fresh indexer outage cannot stop that work. The execution service checks
-  // the saved source and feature availability before any further submission.
+  // the saved source before any further submission.
   const impact = recoverySnapshot
     ? {
         parents: [],

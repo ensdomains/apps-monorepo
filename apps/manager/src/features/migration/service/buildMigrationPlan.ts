@@ -96,8 +96,6 @@ export type MigrationPlan = {
   readonly temporaryRegistrationApproval?: TemporaryRegistrationApproval
   readonly requiresFreshDeploymentPreview?: true
   readonly subnameRecreation?: SubnameRecreationSnapshot
-  /** Recovery may reconcile receipts even while rollout is off. */
-  readonly isSubnameRecreationEnabled?: boolean
   readonly hcaAddress: Address
   readonly hcaDeploymentRequired: boolean
   readonly migrationOwner: Address

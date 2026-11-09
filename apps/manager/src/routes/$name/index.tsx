@@ -195,8 +195,15 @@ export const Route = createFileRoute('/$name/')({
         ? null
         : new Date(Number(expiryData.expiry) * 1000)
     const isPastGrace = isPastGracePeriod(expiryDate, ownerData.protocol)
+    // The Graveyard claims expired V1 names, so only the registrar knows they are free.
+    const isV1Eth2ld =
+      ownerData.protocol === 'v1' &&
+      getSearchNameKind(normalizedName).type === 'eth-2ld'
 
-    if (isPastGrace && (await isFreeToRegister(queryClient, normalizedName))) {
+    if (
+      (isPastGrace || isV1Eth2ld) &&
+      (await isFreeToRegister(queryClient, normalizedName))
+    ) {
       throw redirect({
         params: { name: normalizedName },
         to: '/register/$name',
