@@ -46,7 +46,7 @@ import {
   V1_ENS_REGISTRY,
 } from '../fixtures/makeV1Name.js'
 import { createAccounts } from '../fixtures/playwright.portal.fixture.js'
-import { publicClient } from '../helpers/anvil-client.js'
+import { publicClient, testClient } from '../helpers/anvil-client.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
@@ -62,23 +62,23 @@ const REGISTRY_ABI = parseAbi([
 const DAY = 86_400
 
 type Shape = {
-  what: string
+  readonly what: string
   /** The `getV1TransferGate` reason this produces. */
-  gate: string
+  readonly gate: string
   /** What the tester should see, and which automated scenario mirrors it. */
-  expect: string[]
-  scenario: string
-  type?: 'unwrapped' | 'wrapped' | 'locked'
-  fuses?: number
+  readonly expect: readonly string[]
+  readonly scenario: string
+  readonly type?: 'unwrapped' | 'wrapped' | 'locked'
+  readonly fuses?: number
   /** Seconds; negative means already expired by that much. */
-  duration?: number
+  readonly duration?: number
   /** Hand the ERC-721 to user2, leaving you as controller only. */
-  splitRegistrant?: boolean
+  readonly hasSplitRegistrant?: boolean
   /** Register the whole name to somebody else. */
-  owner?: 'user2'
+  readonly owner?: 'user2'
   /** Point the name's ETH address record at you (WEB-1508). */
-  ethRecord?: boolean
-  steps?: string[]
+  readonly hasEthRecord?: boolean
+  readonly steps?: readonly string[]
 }
 
 const SHAPES: Record<string, Shape> = {
@@ -87,7 +87,7 @@ const SHAPES: Record<string, Shape> = {
     scenario: 'WEB-1508',
     type: 'locked',
     fuses: FUSES.CANNOT_SET_RESOLVER,
-    ethRecord: true,
+    hasEthRecord: true,
     what: 'a locked V1 name with CANNOT_SET_RESOLVER burned and an ETH address record pointing at you',
     expect: [
       'no "Detach the resolver" switch, and a warning that the resolver stays attached',
@@ -100,7 +100,7 @@ const SHAPES: Record<string, Shape> = {
     gate: 'ok',
     scenario: 'WEB-1508',
     type: 'wrapped',
-    ethRecord: true,
+    hasEthRecord: true,
     what: 'a wrapped V1 name with an ETH address record pointing at you, resolver detach allowed',
     expect: [
       '"Detach the resolver" is on, and the ETH switch is greyed out as "Not needed while the resolver is being detached."',
@@ -129,7 +129,7 @@ const SHAPES: Record<string, Shape> = {
     gate: 'manager-only',
     scenario: 'F24',
     type: 'unwrapped',
-    splitRegistrant: true,
+    hasSplitRegistrant: true,
     what: 'you are the manager (controller) but user2 holds the registrant',
     expect: [
       '"You manage this name but don\'t own it"',
@@ -197,7 +197,7 @@ function warnIfFeatureMissing() {
   )
   if (existsSync(marker)) return
   console.warn(
-    '\n  ⚠  This checkout does not contain PR #1134, so the portal will not\n' +
+    '\n  Warning: this checkout does not contain PR #1134, so the portal will not\n' +
       '     offer transfer for any V1 name below. Seeding anyway — the chain\n' +
       '     data is fine — but switch branches before opening the URLs:\n\n' +
       '       git checkout qa/web-1396-v1-transfer\n',
@@ -206,7 +206,10 @@ function warnIfFeatureMissing() {
 
 async function seed(key: string, shape: Shape) {
   const accounts = createAccounts()
-  const signer = privateKeyToAccount(accounts.getPrivateKey('user'))
+  // makeV1Name registers to the account it was built with.
+  const signer = privateKeyToAccount(
+    accounts.getPrivateKey(shape.owner ?? 'user'),
+  )
   const makeV1Name = createMakeV1Name({ userAccount: signer })
 
   const name = await makeV1Name({
@@ -214,8 +217,7 @@ async function seed(key: string, shape: Shape) {
     type: shape.type ?? 'unwrapped',
     ...(shape.fuses ? { fuses: shape.fuses } : {}),
     ...(shape.duration ? { duration: shape.duration } : {}),
-    ...(shape.owner ? { owner: shape.owner } : {}),
-    ...(shape.ethRecord
+    ...(shape.hasEthRecord
       ? {
           records: {
             addresses: [{ coinType: 60, value: accounts.getAddress('user') }],
@@ -223,10 +225,16 @@ async function seed(key: string, shape: Shape) {
         }
       : {}),
   })
+  // A negative duration leaves the name one second past expiry; age it so it
+  // really expired |duration| ago (past grace for the 100-day shape).
+  if (shape.duration && shape.duration < 0) {
+    await testClient.increaseTime({ seconds: -shape.duration })
+    await testClient.mine({ blocks: 1 })
+  }
   const label = name.replace(/\.eth$/, '')
   const tokenId = BigInt(labelhash(label))
 
-  if (shape.splitRegistrant) {
+  if (shape.hasSplitRegistrant) {
     const wallet = createWalletClient({
       account: signer,
       chain: publicClient.chain,

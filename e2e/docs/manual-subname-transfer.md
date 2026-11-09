@@ -111,7 +111,7 @@ pnpm --filter @ens-apps/e2e probe:subname-transfer
 |---|---|---|---|
 | `all-powers` | parent owner holds all three powers; resolver inherited | Transfer offered; warning lists **three** powers joined `a; b; and c`; says `(you)`; **no** detach options | `F16` |
 | `separate-owners` | subname owned by `user2`, parent by you | as the default account: "Not authorized". Switch `VITE_MOCK_ACCOUNT` to `user2` to get the form and the non-self closer | `F16` |
-| `own-resolver` | subname has a resolver of its **own** | **both** detach options appear; after transferring, the subname's resolver clears and the parent's is unchanged | `F19` (mirror) |
+| `own-resolver` | subname has a resolver of its **own** | the resolver-detach option appears (no ETH-address option: the subname has no `addr(60)`); after transferring, the subname's resolver clears and the parent's is unchanged | `F19` (mirror) |
 | `no-transfer-role` | subname owned by `user3` **without** `ROLE_CAN_TRANSFER_ADMIN` | as the default account: "Not authorized". As `user3`: "Transfer not available", no form | `F21` |
 
 The owner in `no-transfer-role` is deliberately **not** the account that
@@ -173,7 +173,12 @@ SHAPE=stale-resolver pnpm --filter @ens-apps/e2e seed:subname-transfer
 
 That shape is the only one that gives the subname **both** its own resolver and
 an `addr(60)` — the two conditions that make the app offer "Set the ETH address
-to the recipient" at all. It prints numbered steps with the commands already
+to the recipient" at all.
+
+> **Currently blocked:** the per-name PermissionedResolver deployed today has no
+> `setAddr(bytes32,uint256,bytes)`, so writing the `addr(60)` reverts and the
+> script stops with that message. This shape works again once the fixtures
+> write ETH addresses through the resolver's current setter. It prints numbered steps with the commands already
 filled in; the shape of it is:
 
 1. Open the printed URL, paste any other address as the recipient.
