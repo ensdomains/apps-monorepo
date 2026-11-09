@@ -262,6 +262,24 @@ describe('getOwner', () => {
     })
   })
 
+  it.each([
+    ['current', '0xB58A90a39D13CcE1D0E192B5da5c47640855B04D'],
+    ['earlier', '0x950b93885b33ce4c7e8571be2c88a1aa93d82f49'],
+  ])(
+    'reports no owner for a V1 name the %s Graveyard holds',
+    async (_, graveyard) => {
+      mocks.getV1Owner.mockResolvedValue({
+        owner: graveyard,
+        registrant: graveyard,
+        ownershipLevel: 'registrar',
+      })
+
+      const result = await getOwner({ name: '89056.eth' })
+
+      expect(result._unsafeUnwrap()).toBeNull()
+    },
+  )
+
   it('skips the V2 2LD registration check for subnames', async () => {
     mocks.getV1Owner.mockResolvedValue({
       owner: '0x0000000000000000000000000000000000000001',
