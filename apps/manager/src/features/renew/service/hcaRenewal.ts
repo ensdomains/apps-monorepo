@@ -187,6 +187,8 @@ export interface SubmitHcaRenewalParams {
   readonly l2Funding?: HcaRenewalL2Funding
   /** Swap the wallet's ETH for the USDC its permit moves, before the funding is planned. */
   readonly ethFunding?: HcaRenewalEthFunding
+  /** The USDC the renewal and its fee are paid in when not the deployment's: the one ETH buys. */
+  readonly paymentToken?: Address
 }
 
 /** The batch's price, read now: the renewer charges exactly this, as its rates are fixed. */
@@ -220,6 +222,7 @@ const buildRenewalIntent = async (params: {
   readonly hca: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  readonly paymentToken?: Address
 }): Promise<RenewalIntent> => {
   const { items, renewerAddress, protocol, token, hca, publicClient } = params
   const [first, ...rest] = items
@@ -227,7 +230,7 @@ const buildRenewalIntent = async (params: {
     throw new Error('A renewal intent needs at least one name.')
   }
   const single = rest.length === 0 ? first : undefined
-  const tokenAddress = TOKENS[token].address
+  const tokenAddress = params.paymentToken ?? TOKENS[token].address
 
   // Unwrapped at this promise boundary: the service reports failures by
   // rejecting, and the reads themselves are composed as one Result.
@@ -350,6 +353,10 @@ export async function quoteHcaRenewalFee(
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error))
 
+/** The USDC a renewal's fee is paid in: the one it funds when not the deployment's. */
+const renewalFeeAsset = (paymentToken: Address | undefined): Address | 'USDC' =>
+  paymentToken ?? 'USDC'
+
 /**
  * Wait for a read that shows the HCA holding `atLeast`. One still below it when
  * the wait runs out is an error: the caller keeps the bridge pending rather
@@ -415,8 +422,9 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
   readonly hca: Address
   /** Why nothing is paid when a fee can't be quoted. */
   readonly unpricedMessage: string
+  readonly paymentToken?: Address
 }) {
-  const { intents, signer, publicClient, chainId, hca } = params
+  const { intents, signer, publicClient, chainId, hca, paymentToken } = params
   const fees = yield* ResultAsync.combine(
     intents.map((intent) =>
       fromPromise(
@@ -429,6 +437,7 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
           requiredUsdc: intent.rentTotal,
           gasLimit: intent.gasLimit,
           feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
+          paymentToken,
         }),
         toError,
       ),
@@ -448,6 +457,7 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
     hca,
     publicClient,
     chainId,
+    token: paymentToken,
   })
   const amount = getL2RenewalAmountOut({
     rentTotal: intents.reduce((sum, intent) => sum + intent.rentTotal, 0n),
@@ -738,6 +748,7 @@ export async function submitHcaRenewal(
       hca,
       publicClient,
       chainId,
+      paymentToken: params.paymentToken,
     })
 
   // Owner-signed on purpose: `renew` is not one of the calls
@@ -775,6 +786,7 @@ export async function submitHcaRenewal(
     },
     gasLimit,
     feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
+    paymentToken: params.paymentToken,
     ...(hcaBalanceAtLeast === undefined ? {} : { hcaBalanceAtLeast }),
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
     ...fundingConsent(params),
@@ -811,7 +823,7 @@ export async function submitHcaRenewal(
     rhinestoneParams: {
       calls: funding.calls,
       // User-paid in USDC, like every intent on this route.
-      feeAsset: 'USDC',
+      feeAsset: renewalFeeAsset(params.paymentToken),
       ...(funding.auxiliaryFunds
         ? { auxiliaryFunds: funding.auxiliaryFunds }
         : {}),

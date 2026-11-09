@@ -444,7 +444,13 @@ export function submitWarpTransaction(
         calls: [...calls],
         // Always user-paid; see UNSPONSORED above.
         sponsored: UNSPONSORED,
-        feeAsset: feeAsset ?? DEFAULT_FEE_ASSET,
+        // A session refunds only in its own token; "USDC" is ambiguous once the HCA holds two.
+        feeAsset:
+          (sessionSigners
+            ? enableData?.hcaSessionConfig?.refundToken
+            : undefined) ??
+          feeAsset ??
+          DEFAULT_FEE_ASSET,
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).
         // Cast needed: SDK's internal TokenRequests is a strict discriminated union

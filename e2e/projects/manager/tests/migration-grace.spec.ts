@@ -87,7 +87,7 @@ const test = baseTest.extend({
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-// The token the app renews with (Circle's on Sepolia), not ensjs's MockUSDC.
+// The token the app renews with (ensjs's MockUSDC on Sepolia).
 const USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
 const RENEWER = ensjsSepolia.ensEthRenewerV1.address as Address
 const BASE_REGISTRAR = ensjsSepolia.ensBaseRegistrarImplementation

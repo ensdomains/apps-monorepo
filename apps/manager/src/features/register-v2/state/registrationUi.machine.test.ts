@@ -18,6 +18,7 @@ type RegistrationStubEvent =
       l2Funding?: { chain: { id: number } }
       ethFunding?: { displayedCharge?: bigint }
       pendingEthSwap?: { hash: `0x${string}`; deadline: bigint }
+      paymentTokenAddress?: Address
     }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
@@ -68,6 +69,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       l2FundingChainId: undefined as number | undefined,
       /** The ETH payment the run was handed. */
       ethFunding: undefined as { displayedCharge?: bigint } | undefined,
+      /** The USDC the run was told to pay in, when not the deployment's. */
+      paymentTokenAddress: undefined as Address | undefined,
       /** The swap an abandoned run sent, as the run was handed it. */
       pendingEthSwap: undefined as
         | { hash: `0x${string}`; deadline: bigint }
@@ -100,6 +103,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
               pendingEthSwap: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.pendingEthSwap
+                  : undefined,
+              paymentTokenAddress: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.paymentTokenAddress
                   : undefined,
             }),
           },
@@ -245,6 +252,7 @@ const startPrimaryNameReverse = vi.mocked(submitPrimaryNameReverse)
 
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as const
 const EOA_ADDRESS = '0x2222222222222222222222222222222222222222' as const
+const CIRCLE_USDC = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const
 
 const startEvent = (
   account: SmartAccountContextValue,
@@ -1732,6 +1740,24 @@ describe('paying with ETH', () => {
     expect(getChild(actor).getSnapshot().context.ethFunding).toEqual({
       displayedCharge: 10n ** 16n,
     })
+    actor.stop()
+  })
+
+  // Sepolia's MockUSDC has no Uniswap pool, so ETH buys Circle's USDC.
+  it.each([
+    [
+      'an ETH payment in the USDC the swap buys',
+      { ethFunding: {} },
+      CIRCLE_USDC,
+    ],
+    ['any other payment in the deployment’s USDC', {}, undefined],
+  ])('has %s', (_case, funding, paymentTokenAddress) => {
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(smartAccount), ...funding })
+
+    expect(getChild(actor).getSnapshot().context.paymentTokenAddress).toBe(
+      paymentTokenAddress,
+    )
     actor.stop()
   })
 

@@ -637,6 +637,10 @@ describe('renewal paid with ETH', () => {
     expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].ethFunding).toBe(
       ethFunding,
     )
+    // The USDC the swap buys: Circle's, on Sepolia.
+    expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].paymentToken).toBe(
+      '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    )
     actor.stop()
   })
 

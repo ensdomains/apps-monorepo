@@ -10,15 +10,25 @@ import { DomainAttributePill } from '@/components/molecules/DomainResultCard/Dom
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
-import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import {
+  type EnabledSession,
+  type SmartAccountContextValue,
+  useSmartAccountContext,
+} from '@/lib/smart-account/SmartAccountContext'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
-import { type SUPPORTED_TOKEN, type TOKEN_SYMBOL, TOKENS } from '@/lib/tokens'
+import {
+  getRunPaymentToken,
+  type SUPPORTED_TOKEN,
+  type TOKEN_SYMBOL,
+  TOKENS,
+} from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import { getEthPaymentQuoteQueryOptions } from '../../../data/queries/ethPaymentQuote.query'
 import {
+  getEthPaymentBudgetQueryOptions,
   getHcaBudgetQueryOptions,
   isHcaBudgetQuoteRequired,
 } from '../../../data/queries/hcaBudget.query'
@@ -106,6 +116,35 @@ class BudgetQuoteUnavailableError extends TaggedError(
 )<{
   cause: unknown
 }> {}
+
+/** The session an ETH payment signs with was declined or could not be authorized. */
+class EthPaymentSessionError extends TaggedError('EthPaymentSessionError')<{
+  readonly isDeclined: boolean
+}> {}
+
+/** The session an ETH payment in another USDC signs with, reused or signed; none for any other payment. */
+const enableEthPaymentSession = async (
+  account: Pick<SmartAccountContextValue, 'enableSession'>,
+  isPaidWithEth: boolean,
+): Promise<EnabledSession | undefined> => {
+  const refundToken = getRunPaymentToken(isPaidWithEth)
+  if (!refundToken) return undefined
+  const outcome = await account.enableSession({ refundToken })
+  if (outcome.status === 'enabled') return outcome.session
+  throw new EthPaymentSessionError({
+    isDeclined: outcome.status === 'declined',
+  })
+}
+
+/** The signer and session proof a run signs with: an ETH payment's own, else the active session's. */
+const resolveRunSession = async (
+  account: Pick<SmartAccountContextValue, 'signer' | 'getSessionEnablePayload'>,
+  ethSession: EnabledSession | undefined,
+) =>
+  ethSession ?? {
+    signer: account.signer,
+    hcaSessionEnable: await account.getSessionEnablePayload(),
+  }
 
 /**
  * What the wallet is actually debited, itemised — `price + networkFee` on the
@@ -313,17 +352,21 @@ export const TokenPickerContent = () => {
   // takes; on the HCA route a missing quote blocks rather than falling back to
   // the price, which is not what the wallet pays.
   const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
-  // The page's figure, from the budget's own balance read, so the receipt's lines share one snapshot.
-  const registrationTotalRaw = getCheckoutTotalRaw(
-    pricingQuery.data?.totalPriceRaw,
-    budgetQuery.data?.hcaBalance,
-  )
-  const hasBudgetQuoteFailed = isBudgetRequired && budgetQuery.isError
 
   // Absent until the quote lands, and permanently absent if it fails.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
-    ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
+    hcaBalanceRaw: budgetQuery.data?.hcaBalance,
+    decimals: USDC_DECIMALS,
+  })
+
+  // ETH buys another USDC where the deployment's has no pool, so it is budgeted in that one.
+  const ethBudgetQuery = useQuery(
+    getEthPaymentBudgetQueryOptions(budgetQueryParams),
+  )
+  const ethPaymentFunding = computeRegistrationFunding({
+    budget: ethBudgetQuery.data,
+    hcaBalanceRaw: ethBudgetQuery.data?.hcaBalance,
     decimals: USDC_DECIMALS,
   })
 
@@ -354,15 +397,15 @@ export const TokenPickerContent = () => {
     getEthPaymentQuoteQueryOptions({
       owner: account.ownerAddress,
       permitValue:
-        funding && !budgetQuery.isPlaceholderData
-          ? funding.walletDebitRaw
+        ethPaymentFunding && !ethBudgetQuery.isPlaceholderData
+          ? ethPaymentFunding.walletDebitRaw
           : undefined,
       isEnabled: isEthOffered,
     }),
   )
   const ethPayment = isEthOffered
     ? {
-        row: getEthPaymentRow(ethQuoteQuery, funding?.walletDebitRaw),
+        row: getEthPaymentRow(ethQuoteQuery, ethPaymentFunding?.walletDebitRaw),
         isSelected: paymentAsset === 'eth',
         onSelect: () =>
           uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
@@ -377,6 +420,16 @@ export const TokenPickerContent = () => {
   const isPaidWithEth = ethPayment?.isSelected === true
   // Something other than the wallet's USDC pays, so that balance is no gate.
   const isPaidFromElsewhere = isPaidFromL2 || isPaidWithEth
+  // The budget the selected method pays: ETH's own once picked.
+  const { query: paymentBudgetQuery, funding: paymentFunding } = isPaidWithEth
+    ? { query: ethBudgetQuery, funding: ethPaymentFunding }
+    : { query: budgetQuery, funding }
+  // The page's figure, from the budget's own balance read, so the receipt's lines share one snapshot.
+  const registrationTotalRaw = getCheckoutTotalRaw(
+    pricingQuery.data?.totalPriceRaw,
+    paymentBudgetQuery.data?.hcaBalance,
+  )
+  const hasBudgetQuoteFailed = isBudgetRequired && paymentBudgetQuery.isError
   // Paid with ETH, the swap is bounded by the ETH shown.
   const ethFunding = isPaidWithEth
     ? { displayedCharge: ethPayment?.row.chargeRaw }
@@ -412,13 +465,15 @@ export const TokenPickerContent = () => {
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
+  // Only an ETH payment in another USDC brings its own session, from the click.
   const startRegistration = async (
     resolvedSetAsPrimary: boolean,
     pricingSnapshot: ReturnType<typeof uiActor.getSnapshot>,
+    ethSession: EnabledSession | undefined,
   ) => {
     if (!pricingQuery.data || !selectedToken) return
     // Resolve the session-enable payload up front; both legs are signed with it.
-    const hcaSessionEnable = await account.getSessionEnablePayload()
+    const session = await resolveRunSession(account, ethSession)
     // The availability check can finish after the user closes this dialog.
     // Reopening or changing the chooser also invalidates the old click.
     if (uiActor.getSnapshot() !== pricingSnapshot) return
@@ -429,8 +484,8 @@ export const TokenPickerContent = () => {
       duration: BigInt(Math.ceil(duration)),
       token: selectedToken,
       totalPrice: pricingQuery.data.rawPrice,
-      account,
-      hcaSessionEnable,
+      account: { ...account, signer: session.signer },
+      hcaSessionEnable: session.hcaSessionEnable,
       basePriceNumber: pricingQuery.data.basePriceNumber,
       premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
       postRegistrationSetup: resolvedSetAsPrimary
@@ -442,8 +497,8 @@ export const TokenPickerContent = () => {
       // never diverge from what was on screen. `undefined` when the quote
       // failed and only the price was shown; the machine's independent ceiling
       // still applies.
-      ...(funding && !budgetQuery.isPlaceholderData
-        ? { displayedWalletDebit: funding.walletDebitRaw }
+      ...(paymentFunding && !paymentBudgetQuery.isPlaceholderData
+        ? { displayedWalletDebit: paymentFunding.walletDebitRaw }
         : {}),
       // Paid from an L2, the funding is bridged in from there, not permitted.
       ...(l2FundingChainId === undefined ? {} : { l2FundingChainId }),
@@ -491,6 +546,9 @@ export const TokenPickerContent = () => {
         )
       }
 
+      // ETH buying another USDC pays in it, so the run signs with that USDC's session.
+      const ethSession = await enableEthPaymentSession(account, isPaidWithEth)
+
       const [availability, resolvedSetAsPrimary] = await Promise.all([
         queryClient.fetchQuery({
           ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
@@ -498,12 +556,18 @@ export const TokenPickerContent = () => {
         }),
         resolveSetAsPrimary(),
       ])
-      return { availability, resolvedSetAsPrimary, pricingSnapshot }
+      return {
+        availability,
+        resolvedSetAsPrimary,
+        pricingSnapshot,
+        ethSession,
+      }
     },
     onSuccess: async ({
       availability,
       resolvedSetAsPrimary,
       pricingSnapshot,
+      ethSession,
     }) => {
       if (!pricingQuery.data || !selectedToken) return
 
@@ -516,7 +580,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      await startRegistration(resolvedSetAsPrimary, pricingSnapshot)
+      await startRegistration(resolvedSetAsPrimary, pricingSnapshot, ethSession)
     },
   })
 
@@ -570,6 +634,13 @@ export const TokenPickerContent = () => {
       () => t`We couldn't calculate the total. Please try again.`,
     )
     .with(
+      { mutationError: P.instanceOf(EthPaymentSessionError) },
+      ({ mutationError }) =>
+        mutationError.isDeclined
+          ? t`Signature cancelled. You can try again.`
+          : t`We couldn't set up paying with ETH. Please try again.`,
+    )
+    .with(
       {
         isAvailabilityError: true,
         mutationError: P.not(P.instanceOf(InsufficientFundingError)),
@@ -580,8 +651,9 @@ export const TokenPickerContent = () => {
     .otherwise(() => null)
 
   const isBusy = availabilityMutation.isPending || approvalState.isApproving
-  const isPaymentApprovalRequired = !funding || funding.walletDebitRaw > 0n
-  const isQuoting = isBudgetQuoting(isBudgetRequired, budgetQuery)
+  const isPaymentApprovalRequired =
+    !paymentFunding || paymentFunding.walletDebitRaw > 0n
+  const isQuoting = isBudgetQuoting(isBudgetRequired, paymentBudgetQuery)
   const helpMessage = match({
     isPaymentApprovalRequired,
     l2Chain: getSelectedL2(l2Payment)?.option.source.chain.name,
@@ -620,7 +692,7 @@ export const TokenPickerContent = () => {
     isPaidWithEth,
     isQuoting,
     isLoadingBalances,
-    hasFunding: !!funding,
+    hasFunding: !!paymentFunding,
   })
     .with({ isBusy: true }, () => <Trans>Registering...</Trans>)
     .with(P.union({ isLoadingBalances: true }, { isQuoting: true }), () => (
@@ -645,14 +717,14 @@ export const TokenPickerContent = () => {
       }
       ethPayment={ethPayment}
       funding={
-        funding
+        paymentFunding
           ? {
-              registration: funding.registration,
-              networkFee: funding.networkFee,
-              total: funding.total,
-              walletDebit: funding.walletDebit,
-              hcaCredit: funding.hcaCredit,
-              isLoading: budgetQuery.isFetching,
+              registration: paymentFunding.registration,
+              networkFee: paymentFunding.networkFee,
+              total: paymentFunding.total,
+              walletDebit: paymentFunding.walletDebit,
+              hcaCredit: paymentFunding.hcaCredit,
+              isLoading: paymentBudgetQuery.isFetching,
             }
           : undefined
       }
@@ -663,9 +735,10 @@ export const TokenPickerContent = () => {
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
-      isQuoteStale={budgetQuery.isPlaceholderData}
+      isQuoteStale={paymentBudgetQuery.isPlaceholderData}
       isQuotingFunding={
-        isBudgetRequired && (budgetQuery.isFetching || budgetQuery.isPending)
+        isBudgetRequired &&
+        (paymentBudgetQuery.isFetching || paymentBudgetQuery.isPending)
       }
       l2Payment={l2Payment}
       label={label}
@@ -673,7 +746,7 @@ export const TokenPickerContent = () => {
       onNext={() => availabilityMutation.mutate()}
       onRetry={() => {
         availabilityMutation.reset()
-        budgetQuery.refetch()
+        paymentBudgetQuery.refetch()
       }}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data?.totalPriceNumber}

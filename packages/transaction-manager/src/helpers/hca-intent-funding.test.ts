@@ -68,13 +68,13 @@ const signer = {
 const publicClient = { chain: sepolia } as unknown as PublicClient
 const approvalSigner = { type: 'eoa' } as unknown as Signer
 
-/** A quote the orchestrator priced at `fee` USDC (6dp). */
-const quoteOf = (fee: bigint) => ({
+/** A quote the orchestrator priced at `fee` USDC (6dp), spent in `token`. */
+const quoteOf = (fee: bigint, token: Address = C.usdc) => ({
   intentRoute: {
     intentCost: {
       tokensSpent: {
         [String(sepolia.id)]: {
-          [C.usdc.toLowerCase()]: { locked: '0', unlocked: String(fee) },
+          [token.toLowerCase()]: { locked: '0', unlocked: String(fee) },
         },
       },
     },
@@ -291,7 +291,30 @@ describe('planHcaIntentFunding', () => {
       bridging: false,
       swaps: false,
     })
-    expect(quoted.feeAsset).toBe('USDC')
+    expect(quoted.feeAsset).toBe(C.usdc)
+  })
+
+  it('funds and pays in the payment token, ignoring the HCA’s other USDC', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    // Plenty of the deployment's USDC, none of the token this intent pays in.
+    mockReads({ tokens: { [C.usdc]: { hcaBalance: 5_000_000n } } })
+    prepareTransaction.mockResolvedValue(quoteOf(900_000n, circleUsdc))
+
+    const funding = await planHcaIntentFunding({
+      ...params,
+      paymentToken: circleUsdc,
+    })
+
+    expect(funding.calls.slice(0, 2).map((call) => call.to)).toEqual([
+      circleUsdc,
+      circleUsdc,
+    ])
+    expect(funding.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [circleUsdc]: 900_000n },
+    })
+    expect(prepareTransaction.mock.calls[0]?.[0]).toMatchObject({
+      feeAsset: circleUsdc,
+    })
   })
 
   it('declares a first-pass inflow so an empty HCA can be priced at all', async () => {

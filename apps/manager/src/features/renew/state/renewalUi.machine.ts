@@ -34,7 +34,7 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
-import type { RENEWAL_TOKEN } from '@/lib/tokens'
+import { getRunPaymentToken, type RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
@@ -90,6 +90,14 @@ const requireSubmissionData = (
 ): SubmissionData => {
   if (!submissionData) throw new Error('Renewal submission data is required')
   return submissionData
+}
+
+/** A renewal paid with ETH pays in the USDC the swap buys. */
+const paymentTokenOf = (
+  submission: Pick<SubmissionData, 'ethFunding'>,
+): { readonly paymentToken?: Address } => {
+  const paymentToken = getRunPaymentToken(!!submission.ethFunding)
+  return paymentToken ? { paymentToken } : {}
 }
 
 /**
@@ -547,6 +555,7 @@ export const renewalUiMachine = setup({
             ...(submission.ethFunding
               ? { ethFunding: submission.ethFunding }
               : {}),
+            ...paymentTokenOf(submission),
             items: [
               {
                 label: submission.label,

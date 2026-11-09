@@ -39,7 +39,7 @@ import {
   useHcaFundingPrompt,
   useSmartAccountContext,
 } from '@/lib/smart-account'
-import type { RENEWAL_TOKEN } from '@/lib/tokens'
+import { getRunPaymentToken, type RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
@@ -247,6 +247,8 @@ const runHcaRenewals = ResultFn(async function* (
     ownerAddress: ctx.ownerAddress,
     publicClient,
     chainId: envConfig.chain.id,
+    // Paid with ETH, every chunk pays in the USDC the one swap buys.
+    paymentToken: getRunPaymentToken(fundingSource?.kind === 'eth'),
   } as const
 
   if (fundingSource) {

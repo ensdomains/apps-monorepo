@@ -49,6 +49,15 @@ const containerMocks = vi.hoisted(() => ({
   /** What every quoted L2 row is charged. */
   l2AmountIn: undefined as bigint | undefined,
   l2QuoteKeys: [] as string[],
+  paymentAsset: undefined as 'eth' | undefined,
+  /** What the ETH row's quote reads, when it has one. */
+  ethQuote: null as {
+    swap: { maximumEth: bigint }
+    walletBalance: bigint
+    gasReserve: bigint
+    ethUsd: bigint
+  } | null,
+  enableSession: vi.fn(),
 }))
 
 vi.mock('@xstate/react', () => ({
@@ -61,6 +70,7 @@ vi.mock('@xstate/react', () => ({
             selectedToken: 'USDC',
             fundingSourceChainId: containerMocks.fundingSourceChainId,
             fundingSourceOrigin: containerMocks.fundingSourceOrigin,
+            paymentAsset: containerMocks.paymentAsset,
             approvalOutcome: containerMocks.approvalOutcome,
             lastErrorMessage: containerMocks.lastErrorMessage,
             confirmedData: containerMocks.isApproving
@@ -101,6 +111,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
     isLoadingBalances: false,
     isConnected: true,
     getSessionEnablePayload: containerMocks.getSessionEnablePayload,
+    enableSession: containerMocks.enableSession,
   }),
 }))
 
@@ -112,6 +123,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const React = await import('react')
+  const ethQuoteResult = () => ({
+    data: containerMocks.ethQuote ?? undefined,
+    isPending: false,
+    isPlaceholderData: false,
+    isError: false,
+  })
   return {
     ...(await importOriginal<typeof import('@tanstack/react-query')>()),
     useQuery: (options: {
@@ -138,6 +155,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
           isPlaceholderData: containerMocks.isBudgetStale,
         }
       }
+      if (key.includes('eth-payment-quote')) return ethQuoteResult()
       if (key.includes('l2-usdc-balances')) {
         const balances = containerMocks.l2Balances
         return {
@@ -288,6 +306,9 @@ describe('TokenPickerContent', () => {
     containerMocks.fundingSourceOrigin = undefined
     containerMocks.l2AmountIn = undefined
     containerMocks.l2QuoteKeys = []
+    containerMocks.paymentAsset = undefined
+    containerMocks.ethQuote = null
+    containerMocks.enableSession.mockReset()
   })
 
   it('keeps the wallet locked while payment approval takes longer than a minute', () => {
@@ -337,6 +358,41 @@ describe('TokenPickerContent', () => {
         }),
       ),
     )
+  })
+
+  it('starts an ETH payment on the session of the USDC the swap buys', async () => {
+    const ethSession = {
+      signer: { type: 'rhinestone', session: 'circle' },
+      hcaSessionEnable: { stub: 'circle' },
+    }
+    containerMocks.paymentAsset = 'eth'
+    containerMocks.ethQuote = {
+      swap: { maximumEth: 10n ** 16n },
+      walletBalance: 10n ** 18n,
+      gasReserve: 0n,
+      ethUsd: 2_000_00000000n,
+    }
+    containerMocks.enableSession.mockResolvedValue({
+      status: 'enabled',
+      session: ethSession,
+    })
+    renderContainer()
+    fireEvent.click(screen.getByRole('button', { name: 'Swap and Register' }))
+
+    await waitFor(() =>
+      expect(containerMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'registration.start',
+          account: expect.objectContaining({ signer: ethSession.signer }),
+          hcaSessionEnable: ethSession.hcaSessionEnable,
+        }),
+      ),
+    )
+    // Sepolia's MockUSDC has no pool, so ETH buys and pays in Circle's USDC.
+    expect(containerMocks.enableSession).toHaveBeenCalledWith({
+      refundToken: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    })
+    expect(containerMocks.getSessionEnablePayload).not.toHaveBeenCalled()
   })
 
   it('ignores a click when the pricing snapshot changes while preparation is pending', async () => {

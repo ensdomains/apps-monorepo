@@ -826,6 +826,24 @@ describe('submitHcaRenewal paid with ETH', () => {
     expect(readPendingEthSwap(params.chainId, OWNER)).toBeUndefined()
   })
 
+  it('pays the renewal and its fee in the USDC the swap buys', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+
+    await submitHcaRenewal({ ...params, ethFunding, paymentToken: circleUsdc })
+
+    expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
+      expect.objectContaining({ hca: OWNER, token: circleUsdc }),
+    )
+    expect(fundingParams()).toMatchObject({
+      paymentToken: circleUsdc,
+      tokenSpend: { token: circleUsdc },
+    })
+    expect(actionCalls()?.[0]?.to).toBe(circleUsdc)
+    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
+      request: { rhinestoneParams: { feeAsset: circleUsdc } },
+    })
+  })
+
   it('counts a swap an earlier attempt sent instead of buying again', async () => {
     savePendingEthSwap(params.chainId, OWNER, sent)
 

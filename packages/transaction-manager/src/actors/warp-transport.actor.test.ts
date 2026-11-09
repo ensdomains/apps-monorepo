@@ -381,7 +381,7 @@ describe('submitWarpTransaction — session refund caps', () => {
   const USDC = getDestinationContracts(sepolia.id).usdc
 
   /** A session's proof, carrying the caps it was authorized with. */
-  const enableDataWithCaps = (quotedOverhead?: bigint) =>
+  const enableDataWithCaps = (quotedOverhead?: bigint, refundToken?: Address) =>
     ({
       userSignature: '0x',
       hashesAndChainIds: [],
@@ -393,6 +393,7 @@ describe('submitWarpTransaction — session refund caps', () => {
         validUntil: 1_800_000_000n,
         resolver: '0x3333333333333333333333333333333333333333',
         refundCaps: sizeRefundCaps(quotedOverhead),
+        refundToken,
       }),
     }) as never
 
@@ -447,6 +448,22 @@ describe('submitWarpTransaction — session refund caps', () => {
     expect(capError.requiredGasOverhead).toBe(2_972_344n)
     expect(signer.account.signTransaction).not.toHaveBeenCalled()
     expect(signer.account.submitTransaction).not.toHaveBeenCalled()
+  })
+
+  it('pays the fee in the session’s refund token, whatever the request names', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    const signer = createMockSigner()
+    signer.session = {
+      session: MOCK_SESSION,
+      enableData: enableDataWithCaps(undefined, circleUsdc),
+    }
+
+    await submitWarpTransaction({ request: createRhinestoneRequest(), signer })
+
+    const prepare = signer.account.prepareTransaction as ReturnType<
+      typeof vi.fn
+    >
+    expect(prepare.mock.calls[0]?.[0]).toMatchObject({ feeAsset: circleUsdc })
   })
 
   it('signs a quote within the caps the session was sized with', async () => {

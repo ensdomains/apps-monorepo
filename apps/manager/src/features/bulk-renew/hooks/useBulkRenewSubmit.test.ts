@@ -347,8 +347,12 @@ describe('useBulkRenewSubmit (smart account)', () => {
     ])
     expect(funding.ethFunding).toEqual({ displayedCharge: 10n ** 16n })
     expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+    // Every chunk pays in the USDC the swap bought: Circle's, on Sepolia.
+    const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    expect(funding.paymentToken).toBe(circleUsdc)
     for (const [input] of mocks.submitHcaRenewal.mock.calls) {
       expect(input).not.toHaveProperty('ethFunding')
+      expect(input.paymentToken).toBe(circleUsdc)
     }
   })
 

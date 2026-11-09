@@ -183,8 +183,7 @@ async function hcaOf(owner: Address): Promise<Address> {
  * impersonating the holder; returns what moved.
  */
 /**
- * The USDC the app pays with: the manifest's (Circle's on Sepolia since #1395),
- * not ensjs's MockUSDC.
+ * The USDC the app pays with: the manifest's (ensjs's MockUSDC on Sepolia).
  */
 const PAYMENT_USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
 

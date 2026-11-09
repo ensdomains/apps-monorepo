@@ -161,13 +161,15 @@ export function hcaRegistrarAddress(chainId: number): Address {
 export function readUsdcSpend(
   cost: IntentCostShape | undefined,
   chainId: number,
+  /** The USDC the intent pays in. Defaults to the deployment's. */
+  paymentToken: Address = getDestinationContracts(chainId).usdc,
 ): bigint | null {
   const perToken = cost?.tokensSpent?.[String(chainId)]
 
   // The orchestrator echoes token addresses LOWERCASED while our contract
   // constants are checksummed, so an exact key lookup silently misses and
   // degrades to the fallback -- the same class of bug this function fixes.
-  const usdc = getDestinationContracts(chainId).usdc.toLowerCase()
+  const usdc = paymentToken.toLowerCase()
   const entry = perToken
     ? Object.entries(perToken).find(
         ([token]) => token.toLowerCase() === usdc,
@@ -224,21 +226,21 @@ async function quoteIntentSpendUsdc(
    * and the budget silently degrades to the gas-limit fallback.
    */
   incomingUsdc?: bigint,
+  /** The USDC the HCA pays in, as the transport will name it. */
+  paymentToken: Address = getDestinationContracts(chain.id).usdc,
 ): Promise<QuoteLegResult> {
   const prepared = (await account.prepareTransaction({
     sourceChains: [chain],
     targetChain: chain,
     calls: [...calls],
     sponsored: { gas: false, bridging: false, swaps: false },
-    feeAsset: 'USDC',
+    feeAsset: paymentToken,
     tokenRequests: [],
     gasLimit,
     ...(incomingUsdc !== undefined && incomingUsdc > 0n
       ? {
           auxiliaryFunds: {
-            [chain.id]: {
-              [getDestinationContracts(chain.id).usdc]: incomingUsdc,
-            },
+            [chain.id]: { [paymentToken]: incomingUsdc },
           } as Transaction['auxiliaryFunds'],
         }
       : {}),
@@ -246,7 +248,7 @@ async function quoteIntentSpendUsdc(
   } as Transaction)) as PreparedQuote
 
   const route = prepared.intentRoute
-  const spend = readUsdcSpend(route?.intentCost, chain.id)
+  const spend = readUsdcSpend(route?.intentCost, chain.id, paymentToken)
 
   // The same response carries the orchestrator's own ETH/USDC prices and the
   // destination gas price. Surface them so the fallback model never needs the
@@ -412,6 +414,8 @@ export function estimateHcaBudgetActor(input: {
    * batch, and this budget sizes the funding permit.
    */
   primaryName?: string
+  /** The USDC the run pays in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
 }): ResultAsync<HcaBudgetBreakdown, Error> {
   // This label prices the registration and sizes the funding permit, so a
   // non-canonical one funds a different name than the reveal batch registers.
@@ -423,6 +427,8 @@ export function estimateHcaBudgetActor(input: {
   const label = labelResult.value
 
   const chainId = input.chainId
+  const paymentToken =
+    input.paymentToken ?? getDestinationContracts(chainId).usdc
 
   // Build a best-effort per-leg quoter whenever we have a Rhinestone account.
   //
@@ -472,6 +478,7 @@ export function estimateHcaBudgetActor(input: {
               commitLegGasLimit({ isHcaDeployed }),
               signers,
               incomingUsdc,
+              paymentToken,
             )
           }
           // register leg: full reveal batch at the current price, signed with
@@ -481,6 +488,7 @@ export function estimateHcaBudgetActor(input: {
             chainId,
             label,
             duration: input.duration,
+            paymentToken,
           })
           const revealCalls = buildRevealBatch({
             chainId,
@@ -495,6 +503,7 @@ export function estimateHcaBudgetActor(input: {
             price,
             duration: input.duration,
             referrer: input.referrer,
+            paymentToken,
             // Quote the SAME batch `submitRevealBatchActor` submits.
             //
             // This is for fidelity, NOT for pricing. Measured against the live
@@ -517,6 +526,7 @@ export function estimateHcaBudgetActor(input: {
             }),
             signers,
             incomingUsdc,
+            paymentToken,
           )
         }
       : undefined
@@ -535,6 +545,7 @@ export function estimateHcaBudgetActor(input: {
             hca,
             publicClient: input.publicClient,
             chainId,
+            token: paymentToken,
           }).unwrapOr(0n)
         : 0n
 
@@ -639,29 +650,32 @@ function buildUserPaidRequest(params: {
   incomingUsdc?: bigint
   /** USDC (6dp) an L2 payment delivers to the HCA. */
   deliveredUsdc?: bigint
+  /** The USDC the HCA pays in. Defaults to the deployment's. */
+  paymentToken?: Address
 }): RhinestoneTransactionRequest {
-  const contracts = getDestinationContracts(params.chainId)
+  const paymentToken =
+    params.paymentToken ?? getDestinationContracts(params.chainId).usdc
   return {
     type: 'rhinestone-intent',
     from: params.from,
     chainId: params.chainId,
     rhinestoneParams: {
       calls: params.calls,
-      feeAsset: 'USDC',
+      feeAsset: paymentToken,
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
         : {}),
       ...(params.deliveredUsdc !== undefined
         ? {
             tokenRequests: [
-              { address: contracts.usdc, amount: params.deliveredUsdc },
+              { address: paymentToken, amount: params.deliveredUsdc },
             ],
           }
         : {}),
       ...(params.incomingUsdc !== undefined && params.incomingUsdc > 0n
         ? {
             auxiliaryFunds: {
-              [params.chainId]: { [contracts.usdc]: params.incomingUsdc },
+              [params.chainId]: { [paymentToken]: params.incomingUsdc },
             },
           }
         : {}),
@@ -677,11 +691,12 @@ export function readHcaUsdcBalanceActor(input: {
   hca: Address
   publicClient: PublicClient
   chainId: number
+  /** The USDC to read. Defaults to the deployment's. */
+  readonly token?: Address
 }): ResultAsync<bigint, Error> {
-  const contracts = getDestinationContracts(input.chainId)
   return fromPromise(
     readContract(input.publicClient, {
-      address: contracts.usdc,
+      address: input.token ?? getDestinationContracts(input.chainId).usdc,
       abi: erc2612Abi,
       functionName: 'balanceOf',
       args: [input.hca],
@@ -702,6 +717,7 @@ export const readHcaUsdcBalanceAtLeastActor = ResultFn(async function* (input: {
   readonly hca: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  readonly token?: Address
   readonly atLeast: bigint
   readonly signal?: AbortSignal
   readonly pollIntervalMs?: number
@@ -1354,6 +1370,8 @@ export function submitFundingAndCommitActor(input: {
   signer: Signer
   publicClient: PublicClient
   id?: string
+  /** The USDC the permit moves and the HCA pays in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
 }): ResultAsync<
   { txId: string; resolverAddress: Address; commitment: CommitmentData },
   Error
@@ -1361,7 +1379,8 @@ export function submitFundingAndCommitActor(input: {
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
-      const contracts = getDestinationContracts(chainId)
+      const paymentToken =
+        input.paymentToken ?? getDestinationContracts(chainId).usdc
       const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
@@ -1390,7 +1409,7 @@ export function submitFundingAndCommitActor(input: {
       // Funding pair — only when the HCA balance did not cover the budget.
       if (input.permit) {
         calls.push({
-          to: contracts.usdc,
+          to: paymentToken,
           value: 0n,
           data: encodeFunctionData({
             abi: erc2612Abi,
@@ -1407,7 +1426,7 @@ export function submitFundingAndCommitActor(input: {
           }),
         })
         calls.push({
-          to: contracts.usdc,
+          to: paymentToken,
           value: 0n,
           data: encodeFunctionData({
             abi: erc2612Abi,
@@ -1437,6 +1456,7 @@ export function submitFundingAndCommitActor(input: {
         // `budget - balance`, so the permit value IS the inflow; declaring the
         // whole budget would double-count the standing balance.
         ...(input.permit ? { incomingUsdc: input.permit.value } : {}),
+        paymentToken,
       })
 
       const txId = transactionManager.startTransaction(
@@ -1640,10 +1660,14 @@ export function submitRevealBatchActor(input: {
   id?: string
   /** Receives the orchestrator's intent id the moment the intent is accepted. */
   onIntentSubmitted?: (intentId: bigint) => void
+  /** The USDC the registrar is paid in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
       const chainId = requireChainId(input.publicClient, 'HCA registration')
+      const paymentToken =
+        input.paymentToken ?? getDestinationContracts(chainId).usdc
       const label = canonicalLabel(input.name)
 
       const resolverAddress = computeResolverAddress({
@@ -1657,6 +1681,7 @@ export function submitRevealBatchActor(input: {
         chainId,
         label,
         duration: input.duration,
+        paymentToken,
       })
 
       const resolverDeployed = await isResolverDeployed({
@@ -1684,6 +1709,7 @@ export function submitRevealBatchActor(input: {
         price,
         duration: input.duration,
         referrer: input.referrer,
+        paymentToken,
         ...(input.primaryName
           ? { setPrimaryName: input.primaryName, clearAddrReverse }
           : {}),
@@ -1694,6 +1720,7 @@ export function submitRevealBatchActor(input: {
         chainId,
         calls: toCalls(revealCalls),
         sessionEnableData: input.sessionEnable?.enableData,
+        paymentToken,
       })
 
       const txId = transactionManager.startTransaction(

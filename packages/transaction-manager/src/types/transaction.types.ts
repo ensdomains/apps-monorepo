@@ -77,8 +77,8 @@ export interface RhinestoneIntentParams {
    * summaries/telemetry; see {@link getPrimaryCall}. Must be non-empty.
    */
   readonly calls: readonly Call[]
-  /** Fee asset the HCA pays from. Defaults to USDC in the transport. */
-  readonly feeAsset?: 'USDC'
+  /** Fee asset the HCA pays from, by symbol or address. Defaults to USDC; a session pays in its refund token. */
+  readonly feeAsset?: 'USDC' | Address
   /**
    * Per-request session enable payload, overriding the signer session's own
    * `enableData`. The validator needs one on every session-signed intent.

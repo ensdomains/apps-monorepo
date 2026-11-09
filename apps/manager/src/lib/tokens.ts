@@ -1,5 +1,7 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { PermitKind } from '@ens-apps/transaction-manager'
+import { getEthSwapUsdc } from '@ens-apps/transaction-manager/helpers/eth-usdc-swap'
+import type { Address } from 'viem'
 import { chain, envConfig } from '@/config'
 
 const { dai } = chain.contracts
@@ -12,9 +14,9 @@ const daiPermitKind: PermitKind =
   envConfig.network === 'mainnet' ? 'dai-legacy' : 'eip2612'
 
 /**
- * USDC is the HCA route's payment token from the manifest (not ensjs' MockUSDC),
- * so every flow pays in the same token. Decimals, symbols and permit shapes are
- * declared here.
+ * USDC is the HCA route's payment token from the manifest — ensjs' MockUSDC on
+ * Sepolia, the same token the Explorer pays in — so every flow pays in the same
+ * token. Decimals, symbols and permit shapes are declared here.
  */
 export const TOKENS = {
   USDC: {
@@ -30,6 +32,20 @@ export const TOKENS = {
     permitKind: daiPermitKind,
   },
 } as const
+
+/** The USDC ETH buys and pays in where not `TOKENS.USDC`: Sepolia's MockUSDC has no pool, so Circle's. */
+export const ETH_PAYMENT_TOKEN: Address | undefined = (() => {
+  const token = getEthSwapUsdc(chain.id)
+  // Lowercased rather than `isAddressEqual`, which throws on a mocked address.
+  return token?.toLowerCase() === TOKENS.USDC.address.toLowerCase()
+    ? undefined
+    : token
+})()
+
+/** The USDC a run pays in when not `TOKENS.USDC`: only a run paid with ETH has one. */
+export const getRunPaymentToken = (
+  isPaidWithEth: boolean,
+): Address | undefined => (isPaidWithEth ? ETH_PAYMENT_TOKEN : undefined)
 
 /** Any stable the app can price in or show a balance for. */
 export type TOKEN_SYMBOL = keyof typeof TOKENS

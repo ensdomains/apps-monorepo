@@ -119,10 +119,10 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     wrapperRegistryImpl: '0xBe768b63E5fBBFBB0Ae97E9064E0002dF8001880',
     publicResolverV2: '0xdC4a563d00F5c3012b699794eB9e13A561Be386F',
 
-    // Circle's Sepolia USDC, deliberately not ensjs' `usdc` (MockUSDC): bridges
-    // deliver it from L2s, and MockUSDC has no cross-chain route. The registrar
-    // accepts both; the faucet only mints MockUSDC.
-    usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    // MockUSDC (L1 Sepolia only), the token the Explorer pays in and the
+    // api-worker faucet mints. The registrar's oracle accepts it and the
+    // orchestrator lists it (`ensUSDC4`), so the intent fee and refund settle in it.
+    usdc: ensjsSepolia.usdc.address,
   },
   [mainnet.id]: {
     standaloneHcaFactory: ensjsMainnet.ensHcaFactory.address,
