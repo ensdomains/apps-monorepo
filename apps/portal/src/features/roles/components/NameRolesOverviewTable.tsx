@@ -1,9 +1,9 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useQuery } from '@tanstack/react-query'
+import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -11,14 +11,19 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
+import { chain } from '@/config'
+import { getPaletteWorkflowReadiness } from '@/features/command-palette/handoff'
+import { usePaletteHandoff } from '@/features/command-palette/usePaletteHandoff'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getRegistryRootRoleHoldersQueryOptions } from '@/features/roles/hooks/useRegistryRootRoleHolders'
 import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { canCallerSetManagerRole, permissions } from '@/lib/roles/permissions'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -194,21 +199,36 @@ export const NameRolesOverviewTable = ({
   registryAddress: Address
 }) => {
   const [addUserOpen, setAddUserOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const { address } = useConnection()
 
   // Asked about the name's id, not the label: the two disagree for an encoded
   // (`[<64 hex>]`) label, which would either lock an admin out or show controls
   // for a transaction that reverts (WEB-1458).
-  const { data: resourceId = null } = useQuery(
+  const resourceQuery = useQuery(
     getVersionedResourceQueryOptions({ name, registryAddress }),
   )
+  const resourceId = resourceQuery.data ?? null
 
   const callerAdminRoles = useCallerAdminRoles({
     registryAddress,
     resource: resourceId,
     account: address,
   })
+
+  const roleReads = useIsFetching({
+    queryKey: ['getNameRolesForAccount', { registryAddress, account: address }],
+  })
+  const roleReadStates = [resourceId, ROOT_RESOURCE_ID].map((resource) =>
+    queryClient.getQueryState(
+      getNameRolesForAccountQueryOptions({
+        registryAddress,
+        resource,
+        account: address ?? zeroAddress,
+      }).queryKey,
+    ),
+  )
 
   // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
   const canManageRoles = callerAdminRoles.size > 0
@@ -217,6 +237,31 @@ export const NameRolesOverviewTable = ({
       is2LD: name.split('.').length === 2,
     }),
   )
+
+  usePaletteHandoff({
+    kind: 'grant-role',
+    name,
+    chainId: chain.id,
+    account: address,
+    readiness: getPaletteWorkflowReadiness({
+      isChecking:
+        roleReads > 0 ||
+        resourceQuery.isPending ||
+        (Boolean(address) &&
+          resourceId !== null &&
+          roleReadStates.some(
+            (state) => state === undefined || state.status === 'pending',
+          )),
+      canOpen: Boolean(address) && canAddUser && resourceId !== null,
+      blockedReason: `This wallet cannot grant roles for ${name}.`,
+      failureReason:
+        resourceQuery.isError ||
+        roleReadStates.some((state) => state?.status === 'error')
+          ? `Could not check roles for ${name}. Refresh its roles page and try again.`
+          : null,
+    }),
+    onOpen: () => setAddUserOpen(true),
+  })
 
   return (
     <Fragment>

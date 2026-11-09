@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { LogoSVG } from '@/assets/logo'
+import { PaletteTrigger } from '@/features/command-palette/PaletteTrigger'
 import { SidebarTrigger } from './ui/sidebar'
 
 /**
@@ -15,6 +16,11 @@ export const MobileHeader = () => (
     <Link to="/">
       <LogoSVG width={35} height={40} className="text-foreground" />
     </Link>
-    <SidebarTrigger />
+    <div className="flex items-center gap-2">
+      <span data-palette-mobile-trigger="">
+        <PaletteTrigger iconOnly />
+      </span>
+      <SidebarTrigger />
+    </div>
   </header>
 )

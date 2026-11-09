@@ -19,6 +19,31 @@ describe('buildSearchSuggestions', () => {
     mockNavigateToName.mockClear()
   })
 
+  it('keeps address navigation primary when resolver support is discovered', () => {
+    const value = '0x205d2686da3bf33f64c17f21462c51b5ead462cf'
+    const navigateToResolver = vi.fn()
+    const before = buildSearchSuggestions({ ...defaultOptions, value })
+    const after = buildSearchSuggestions({
+      ...defaultOptions,
+      value,
+      isResolver: true,
+      navigateToResolver,
+    })
+
+    expect(after.map(({ id }) => id)).toEqual([
+      before[0]?.id,
+      'resolver:0x205d2686da3Bf33f64C17f21462c51B5eaD462CF',
+    ])
+    after[0]?.action()
+    after[1]?.action()
+    expect(mockNavigateToAddress).toHaveBeenCalledWith(
+      '0x205d2686da3Bf33f64C17f21462c51B5eaD462CF',
+    )
+    expect(navigateToResolver).toHaveBeenCalledWith(
+      '0x205d2686da3Bf33f64C17f21462c51B5eaD462CF',
+    )
+  })
+
   describe('Empty Input', () => {
     it('should return empty array for empty value', () => {
       const result = buildSearchSuggestions({

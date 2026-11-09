@@ -112,17 +112,29 @@ type WalletOption = {
 
 type ConnectWalletDialogProps = {
   readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
+  readonly pendingId: string | null
+  readonly onPendingIdChange: (pendingId: string | null) => void
+  readonly onOpenChange: (
+    open: boolean,
+    reason?: 'external-modal' | 'connected',
+  ) => void
+  readonly onAttemptStart?: () => void
+  readonly onAttemptEnd?: (result: 'connected' | 'cancelled' | 'failed') => void
+  readonly onCloseAutoFocus?: (event: Event) => void
 }
 
 export const ConnectWalletDialog = ({
   open,
+  pendingId,
+  onPendingIdChange: setPendingId,
   onOpenChange,
+  onAttemptStart,
+  onAttemptEnd,
+  onCloseAutoFocus,
 }: ConnectWalletDialogProps) => {
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
-  const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Clear the error when the dialog closes so the next open starts fresh. We
@@ -162,9 +174,13 @@ export const ConnectWalletDialog = ({
   // failure (timeout, relay error) would otherwise vanish with both modals
   // closed, so reopen ours with the error.
   const handleConnectError = (e: unknown, usesOwnModal: boolean) => {
-    if (usesOwnModal && isConnectionCancelled(e)) return
+    if (usesOwnModal && isConnectionCancelled(e)) {
+      onAttemptEnd?.('cancelled')
+      return
+    }
 
     setError(normalizeConnectError(e))
+    onAttemptEnd?.('failed')
     if (usesOwnModal) onOpenChange(true)
   }
 
@@ -178,13 +194,14 @@ export const ConnectWalletDialog = ({
     // is closed), so reopening the dialog from elsewhere can't start a second
     // connect. Cleared in `finally`.
     setPendingId(connector.uid)
+    onAttemptStart?.()
 
     // WalletConnect renders its own full-screen QR modal, so close ours first
     // to avoid stacking; injected/Coinbase keep ours open with a per-row
     // "Connecting…" state and dismiss it only on success.
     const usesOwnModal = connector.id === WALLETCONNECT_ID
     if (usesOwnModal) {
-      onOpenChange(false)
+      onOpenChange(false, 'external-modal')
     }
 
     try {
@@ -198,7 +215,8 @@ export const ConnectWalletDialog = ({
         onChainSwitchFailed: (error) =>
           logger.error('[wallet] connected, but chain switch failed', error),
       })
-      onOpenChange(false)
+      onAttemptEnd?.('connected')
+      onOpenChange(false, 'connected')
     } catch (e) {
       handleConnectError(e, usesOwnModal)
     } finally {
@@ -285,8 +303,11 @@ export const ConnectWalletDialog = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-5 p-8 sm:max-w-100">
+    <Dialog open={open} onOpenChange={(next) => onOpenChange(next)}>
+      <DialogContent
+        className="gap-5 p-8 sm:max-w-100"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <DialogHeader>
           <DialogTitle>Connect a wallet</DialogTitle>
         </DialogHeader>

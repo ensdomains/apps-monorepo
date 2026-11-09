@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Suggestion } from './buildSearchSuggestions'
 import {
   buildSearchResultItems,
+  getInlineSearchKeyAction,
+  getSearchNameVerification,
   sortExactMatchFirst,
 } from './searchResultsUtils'
 
@@ -19,6 +21,21 @@ function suggestion(
 }
 
 describe('buildSearchResultItems', () => {
+  it('keeps view actions ahead of separate registration actions', () => {
+    const available = suggestion({ id: 'name:fox.eth', inputValue: 'fox.eth' })
+    const result = buildSearchResultItems({
+      suggestions: [available],
+      availableNames: [available],
+      ownedNamesFiltered: [{ name: 'other.eth' }],
+    })
+
+    expect(result.map(({ type, value }) => ({ type, value }))).toEqual([
+      { type: 'suggestion', value: 'name:fox.eth' },
+      { type: 'register', value: 'register:fox.eth' },
+      { type: 'owned', value: 'owned:other.eth' },
+    ])
+  })
+
   it('returns empty array when all inputs are empty', () => {
     expect(
       buildSearchResultItems({
@@ -106,6 +123,83 @@ describe('buildSearchResultItems', () => {
       ownedNamesFiltered: [{ name: 'my.eth' }],
     })
     expect(result[0].type === 'owned' && result[0].value).toBe('owned:my.eth')
+  })
+})
+
+describe('getInlineSearchKeyAction', () => {
+  const items = buildSearchResultItems({
+    suggestions: [suggestion({ id: 'name:fox.eth', inputValue: 'fox.eth' })],
+    ownedNamesFiltered: [{ name: 'other.eth' }],
+  })
+
+  it('does not activate a neighbor when the deliberately selected result disappears', () => {
+    expect(
+      getInlineSearchKeyAction({
+        key: 'Enter',
+        isComposing: false,
+        isCurrentQuery: true,
+        items,
+        selectedValue: 'register:fox.eth',
+        verification: new Map(),
+      }),
+    ).toEqual({ type: 'ignore' })
+  })
+
+  it.each([
+    ['ArrowDown', 'owned:other.eth', 'name:fox.eth'],
+    ['ArrowUp', 'name:fox.eth', 'owned:other.eth'],
+    ['ArrowUp', 'register:fox.eth', 'owned:other.eth'],
+  ])(
+    'wraps %s without changing result identities',
+    (key, selectedValue, value) => {
+      expect(
+        getInlineSearchKeyAction({
+          key,
+          selectedValue,
+          isComposing: false,
+          isCurrentQuery: true,
+          items,
+          verification: new Map(),
+        }),
+      ).toEqual({ type: 'move', value })
+    },
+  )
+})
+
+describe('getSearchNameVerification', () => {
+  const verify = (
+    overrides: Partial<Parameters<typeof getSearchNameVerification>[0]> = {},
+  ) =>
+    getSearchNameVerification({
+      isSubname: true,
+      isEnabled: true,
+      owner: 'absent',
+      records: 'empty',
+      availability: 'unchecked',
+      ...overrides,
+    })
+
+  it.each([
+    ['owner', { owner: 'failed' }],
+    ['records', { records: 'failed' }],
+    ['availability', { availability: 'failed' }],
+  ] as const)(
+    'preserves a failed %s check instead of claiming absence',
+    (source, overrides) => {
+      expect(verify(overrides)).toEqual({ status: 'failed', source })
+    },
+  )
+
+  it.each([
+    [{ owner: 'pending' }, 'checking'],
+    [{ records: 'pending' }, 'checking'],
+    [{ owner: 'present' }, 'registered'],
+    [{ records: 'resolved' }, 'offchain'],
+    [{ availability: 'available' }, 'available'],
+    [{}, 'not-found'],
+    [{ owner: 'pending', isEnabled: false }, 'unchecked'],
+  ] as const)('distinguishes verification states for %o', (input, status) => {
+    expect(verify(input)).toEqual({ status })
   })
 })
 

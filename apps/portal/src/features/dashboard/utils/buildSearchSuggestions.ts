@@ -69,25 +69,27 @@ export const buildSearchSuggestions = ({
     try {
       const checksum = checksumAddress(trimmedValue as Address)
 
+      const addressSuggestion: Suggestion = {
+        id: `address:${checksum}`,
+        label: isMobile ? truncateAddress(checksum) : checksum,
+        description: 'View address details',
+        inputValue: checksum,
+        action: () => navigateToAddress(checksum),
+      }
       if (isResolver && navigateToResolver) {
-        items.push({
-          id: `resolver:${checksum}`,
-          label: isMobile ? truncateAddress(checksum) : checksum,
-          description: 'View resolver details',
-          inputValue: checksum,
-          action: () => navigateToResolver(checksum),
-        })
-      } else {
-        items.push({
-          id: `address:${checksum}`,
-          label: isMobile ? truncateAddress(checksum) : checksum,
-          description: 'View address details',
-          inputValue: checksum,
-          action: () => navigateToAddress(checksum),
-        })
+        return [
+          addressSuggestion,
+          {
+            id: `resolver:${checksum}`,
+            label: isMobile ? truncateAddress(checksum) : checksum,
+            description: 'View resolver details',
+            inputValue: checksum,
+            action: () => navigateToResolver(checksum),
+          },
+        ]
       }
 
-      return items
+      return [addressSuggestion]
     } catch {
       return []
     }
