@@ -188,7 +188,7 @@ function EditRecordsPage() {
           </Link>
           <h1 className="text-h1">{name}</h1>
         </div>
-        <ConnectWalletAlert className="mx-auto my-4 max-w-lg" />
+        <ConnectWalletAlert />
       </div>
     )
   }
