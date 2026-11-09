@@ -310,6 +310,20 @@ describe('submitL2BridgeActor', () => {
     expect(options.retryCount).toBe(0)
   })
 
+  it('delivers the run’s payment token', async () => {
+    await submitL2BridgeActor({
+      hca: HCA,
+      payment: { source, amount: 15_000_000n },
+      signer: hcaSigner,
+      publicClient,
+      paymentToken: CIRCLE_USDC,
+    })
+
+    expect(submittedRequest().rhinestoneParams.tokenRequests).toEqual([
+      { address: CIRCLE_USDC, amount: 15_000_000n },
+    ])
+  })
+
   it('refuses an amount above what checkout showed, before the wallet is asked', async () => {
     const result = await submitL2BridgeActor({
       hca: HCA,

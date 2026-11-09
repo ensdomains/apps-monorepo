@@ -660,6 +660,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         id?: string
         onIntentSubmitted?: (intentId: bigint) => void
+        paymentToken?: Address
       }) => {
         return submitL2BridgeActor(input)
       },
@@ -1514,6 +1515,7 @@ export const registrationMachine = setup({
             id: REGISTRATION_TX_IDS.l2Bridge,
             onIntentSubmitted: (intentId: bigint) =>
               self.send({ type: 'L2_BRIDGE_SUBMITTED', intentId, fundsHcaTo }),
+            paymentToken: context.paymentTokenAddress,
           }
         },
         onDone: {

@@ -788,7 +788,7 @@ const getStartFunding = (
   | {
       l2Funding?: L2FundingSource
       ethFunding?: EthFunding
-      /** What an ETH run pays in, when not the deployment's USDC. */
+      /** What an ETH- or L2-paid run pays in, when not the deployment's USDC. */
       paymentTokenAddress?: Address
     }
   | Error => {
@@ -801,7 +801,9 @@ const getStartFunding = (
   if (event.ethFunding && !isHcaRegistration) {
     return new Error('Cannot register: paying with ETH needs an ENS account.')
   }
-  const paymentTokenAddress = getRunPaymentToken(!!event.ethFunding)
+  const paymentTokenAddress = getRunPaymentToken(
+    !!event.ethFunding || l2Funding !== undefined,
+  )
   return {
     l2Funding,
     ethFunding: event.ethFunding,

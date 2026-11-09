@@ -319,8 +319,12 @@ describe('useBulkRenewSubmit (smart account)', () => {
     })
     // The bridge funded the account, so no chunk pays from the L2 again.
     expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+    // Every chunk pays in the USDC the bridge delivered: Circle's, on Sepolia.
+    const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    expect(funding.paymentToken).toBe(circleUsdc)
     for (const [input] of mocks.submitHcaRenewal.mock.calls) {
       expect(input).not.toHaveProperty('l2Funding')
+      expect(input.paymentToken).toBe(circleUsdc)
     }
   })
 

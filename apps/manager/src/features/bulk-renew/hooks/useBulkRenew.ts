@@ -140,10 +140,10 @@ export const useBulkRenew = ({
   const route = getRenewalPaymentRoute(signer)
   const balances = useRenewalBalances({ enabled: open })
   const { wallet: stablecoinBalances, isLoading: isLoadingBalances } = balances
-  const { accountCredit, accountCreditRaw } = getPaymentBalances(
-    balances,
-    isEthSelected,
-  )
+  const { accountCredit, accountCreditRaw } = getPaymentBalances(balances, {
+    isPaidWithEth: isEthSelected,
+    l2ChainId: fundingSourceChainId,
+  })
 
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(
@@ -312,7 +312,7 @@ export const useBulkRenew = ({
   const l2Payment = useRenewalL2Payment({
     rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
     feeRaw: intentFunding.feeRaw,
-    hcaBalanceRaw: balances.accountCreditRaw.USDC,
+    hcaBalanceRaw: balances.circleCreditRaw,
     isEnabled: isUsdcMethodQuotable,
     selectedChainId: fundingSourceChainId,
     selectedOrigin: fundingSourceOrigin,
@@ -325,7 +325,7 @@ export const useBulkRenew = ({
   const ethPayment = useRenewalEthPayment({
     rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
     feeRaw: intentFunding.feeRaw,
-    hcaBalanceRaw: balances.ethPaymentCreditRaw,
+    hcaBalanceRaw: balances.circleCreditRaw,
     isEnabled: isUsdcMethodQuotable,
     isSelected: isEthSelected,
     onSelect: () => onSelectEth(),

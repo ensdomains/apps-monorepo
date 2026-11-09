@@ -613,6 +613,20 @@ describe('registrationMachine — paid from an L2', () => {
     expect(input.sessionEnable).toBe(SESSION_ENABLE)
   })
 
+  it('bridges in the token the run pays in', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n],
+      l2Funding,
+      paymentTokenAddress: circleUsdc,
+      pollTransactionStatus: vi.fn(async () => undefined),
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(submitL2Bridge.mock.calls[0][0].input.paymentToken).toBe(circleUsdc)
+  })
+
   it('bridges nothing when the HCA already holds the budget', async () => {
     const { actor, submitL2Bridge } = startHcaRegistration({
       balances: [BUDGET],

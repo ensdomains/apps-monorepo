@@ -1072,6 +1072,8 @@ export function submitL2BridgeActor(input: {
   readonly id?: string
   /** Receives the bridge intent's id once the orchestrator accepts it. */
   readonly onIntentSubmitted?: (intentId: bigint) => void
+  /** The USDC the bridge delivers and the run pays in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
 }): ResultAsync<string, Error> {
   const { payment, signer } = input
   // Like the permit: a refusal must never reach the wallet.
@@ -1089,6 +1091,7 @@ export function submitL2BridgeActor(input: {
         chainId,
         calls: [],
         deliveredUsdc: payment.amount,
+        paymentToken: input.paymentToken,
       })
       return transactionManager.startTransaction(
         {

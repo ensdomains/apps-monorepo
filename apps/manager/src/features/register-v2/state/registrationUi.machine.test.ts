@@ -1743,11 +1743,16 @@ describe('paying with ETH', () => {
     actor.stop()
   })
 
-  // Sepolia's MockUSDC has no Uniswap pool, so ETH buys Circle's USDC.
+  // Sepolia's MockUSDC has no Uniswap pool or bridge, so ETH and L2s bring in Circle's USDC.
   it.each([
     [
       'an ETH payment in the USDC the swap buys',
       { ethFunding: {} },
+      CIRCLE_USDC,
+    ],
+    [
+      'an L2 payment in the USDC the bridge delivers',
+      { l2FundingChainId: baseSepolia.id },
       CIRCLE_USDC,
     ],
     ['any other payment in the deployment’s USDC', {}, undefined],

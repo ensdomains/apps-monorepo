@@ -4205,7 +4205,7 @@ msgid "We couldn't safely retry. A transaction may already be pending or confirm
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "We couldn't set up paying with ETH. Please try again."
+msgid "We couldn't set up this payment. Please try again."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

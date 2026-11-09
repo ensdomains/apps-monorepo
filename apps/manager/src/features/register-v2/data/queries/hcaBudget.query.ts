@@ -13,7 +13,7 @@ import { keepPreviousData } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { chain } from '@/config'
-import { ETH_PAYMENT_TOKEN } from '@/lib/tokens'
+import { CIRCLE_PAYMENT_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 
 /**
@@ -98,7 +98,7 @@ export interface HcaBudgetQueryParams {
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnableParams | undefined
   >
-  /** An ETH payment's USDC when not the deployment's; quoted owner-signed, as the session refunds in the other. */
+  /** An ETH or L2 payment's USDC when not the deployment's; quoted owner-signed, as the session refunds in the other. */
   readonly paymentToken?: Address
 }
 
@@ -179,10 +179,14 @@ const getLoggedHcaBudget = (params: HcaBudgetQueryParams) =>
     return error
   })
 
-/** The budget an ETH payment pays: in the USDC the swap buys, where that is not the deployment's. */
-export const getEthPaymentBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
+/** The budget an ETH or L2 payment pays: in Circle's USDC, where that is not the deployment's. */
+export const getCirclePaymentBudgetQueryOptions = (
+  params: HcaBudgetQueryParams,
+) =>
   getHcaBudgetQueryOptions(
-    ETH_PAYMENT_TOKEN ? { ...params, paymentToken: ETH_PAYMENT_TOKEN } : params,
+    CIRCLE_PAYMENT_TOKEN
+      ? { ...params, paymentToken: CIRCLE_PAYMENT_TOKEN }
+      : params,
   )
 
 export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>

@@ -28,7 +28,7 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import { getEthPaymentQuoteQueryOptions } from '../../../data/queries/ethPaymentQuote.query'
 import {
-  getEthPaymentBudgetQueryOptions,
+  getCirclePaymentBudgetQueryOptions,
   getHcaBudgetQueryOptions,
   isHcaBudgetQuoteRequired,
 } from '../../../data/queries/hcaBudget.query'
@@ -117,31 +117,31 @@ class BudgetQuoteUnavailableError extends TaggedError(
   cause: unknown
 }> {}
 
-/** The session an ETH payment signs with was declined or could not be authorized. */
-class EthPaymentSessionError extends TaggedError('EthPaymentSessionError')<{
+/** The session an ETH or L2 payment signs with was declined or could not be authorized. */
+class PaymentSessionError extends TaggedError('PaymentSessionError')<{
   readonly isDeclined: boolean
 }> {}
 
-/** The session an ETH payment in another USDC signs with, reused or signed; none for any other payment. */
-const enableEthPaymentSession = async (
+/** The session an ETH or L2 payment in Circle's USDC signs with, reused or signed; none for any other payment. */
+const enableCirclePaymentSession = async (
   account: Pick<SmartAccountContextValue, 'enableSession'>,
-  isPaidWithEth: boolean,
+  paysInCircleUsdc: boolean,
 ): Promise<EnabledSession | undefined> => {
-  const refundToken = getRunPaymentToken(isPaidWithEth)
+  const refundToken = getRunPaymentToken(paysInCircleUsdc)
   if (!refundToken) return undefined
   const outcome = await account.enableSession({ refundToken })
   if (outcome.status === 'enabled') return outcome.session
-  throw new EthPaymentSessionError({
+  throw new PaymentSessionError({
     isDeclined: outcome.status === 'declined',
   })
 }
 
-/** The signer and session proof a run signs with: an ETH payment's own, else the active session's. */
+/** The signer and session proof a run signs with: a Circle payment's own, else the active session's. */
 const resolveRunSession = async (
   account: Pick<SmartAccountContextValue, 'signer' | 'getSessionEnablePayload'>,
-  ethSession: EnabledSession | undefined,
+  circleSession: EnabledSession | undefined,
 ) =>
-  ethSession ?? {
+  circleSession ?? {
     signer: account.signer,
     hcaSessionEnable: await account.getSessionEnablePayload(),
   }
@@ -360,13 +360,13 @@ export const TokenPickerContent = () => {
     decimals: USDC_DECIMALS,
   })
 
-  // ETH buys another USDC where the deployment's has no pool, so it is budgeted in that one.
-  const ethBudgetQuery = useQuery(
-    getEthPaymentBudgetQueryOptions(budgetQueryParams),
+  // ETH and L2s pay in Circle's USDC where the deployment's has no pool or bridge, budgeted in it.
+  const circleBudgetQuery = useQuery(
+    getCirclePaymentBudgetQueryOptions(budgetQueryParams),
   )
-  const ethPaymentFunding = computeRegistrationFunding({
-    budget: ethBudgetQuery.data,
-    hcaBalanceRaw: ethBudgetQuery.data?.hcaBalance,
+  const circleFunding = computeRegistrationFunding({
+    budget: circleBudgetQuery.data,
+    hcaBalanceRaw: circleBudgetQuery.data?.hcaBalance,
     decimals: USDC_DECIMALS,
   })
 
@@ -381,8 +381,8 @@ export const TokenPickerContent = () => {
             config: account.signer.account.config,
           }
         : undefined,
-    budget: budgetQuery.data,
-    isQuoteStale: budgetQuery.isPlaceholderData,
+    budget: circleBudgetQuery.data,
+    isQuoteStale: circleBudgetQuery.isPlaceholderData,
     isEnabled: isBudgetRequired,
     fundingSourceChainId,
     fundingSourceOrigin,
@@ -397,15 +397,15 @@ export const TokenPickerContent = () => {
     getEthPaymentQuoteQueryOptions({
       owner: account.ownerAddress,
       permitValue:
-        ethPaymentFunding && !ethBudgetQuery.isPlaceholderData
-          ? ethPaymentFunding.walletDebitRaw
+        circleFunding && !circleBudgetQuery.isPlaceholderData
+          ? circleFunding.walletDebitRaw
           : undefined,
       isEnabled: isEthOffered,
     }),
   )
   const ethPayment = isEthOffered
     ? {
-        row: getEthPaymentRow(ethQuoteQuery, ethPaymentFunding?.walletDebitRaw),
+        row: getEthPaymentRow(ethQuoteQuery, circleFunding?.walletDebitRaw),
         isSelected: paymentAsset === 'eth',
         onSelect: () =>
           uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
@@ -420,10 +420,11 @@ export const TokenPickerContent = () => {
   const isPaidWithEth = ethPayment?.isSelected === true
   // Something other than the wallet's USDC pays, so that balance is no gate.
   const isPaidFromElsewhere = isPaidFromL2 || isPaidWithEth
-  // The budget the selected method pays: ETH's own once picked.
-  const { query: paymentBudgetQuery, funding: paymentFunding } = isPaidWithEth
-    ? { query: ethBudgetQuery, funding: ethPaymentFunding }
-    : { query: budgetQuery, funding }
+  // The budget the selected method pays: Circle's USDC for ETH or an L2.
+  const { query: paymentBudgetQuery, funding: paymentFunding } =
+    isPaidFromElsewhere
+      ? { query: circleBudgetQuery, funding: circleFunding }
+      : { query: budgetQuery, funding }
   // The page's figure, from the budget's own balance read, so the receipt's lines share one snapshot.
   const registrationTotalRaw = getCheckoutTotalRaw(
     pricingQuery.data?.totalPriceRaw,
@@ -465,15 +466,15 @@ export const TokenPickerContent = () => {
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
-  // Only an ETH payment in another USDC brings its own session, from the click.
+  // Only an ETH or L2 payment in Circle's USDC brings its own session, from the click.
   const startRegistration = async (
     resolvedSetAsPrimary: boolean,
     pricingSnapshot: ReturnType<typeof uiActor.getSnapshot>,
-    ethSession: EnabledSession | undefined,
+    circleSession: EnabledSession | undefined,
   ) => {
     if (!pricingQuery.data || !selectedToken) return
     // Resolve the session-enable payload up front; both legs are signed with it.
-    const session = await resolveRunSession(account, ethSession)
+    const session = await resolveRunSession(account, circleSession)
     // The availability check can finish after the user closes this dialog.
     // Reopening or changing the chooser also invalidates the old click.
     if (uiActor.getSnapshot() !== pricingSnapshot) return
@@ -546,8 +547,11 @@ export const TokenPickerContent = () => {
         )
       }
 
-      // ETH buying another USDC pays in it, so the run signs with that USDC's session.
-      const ethSession = await enableEthPaymentSession(account, isPaidWithEth)
+      // ETH or an L2 pays in Circle's USDC, so the run signs with that USDC's session.
+      const circleSession = await enableCirclePaymentSession(
+        account,
+        isPaidFromElsewhere,
+      )
 
       const [availability, resolvedSetAsPrimary] = await Promise.all([
         queryClient.fetchQuery({
@@ -560,14 +564,14 @@ export const TokenPickerContent = () => {
         availability,
         resolvedSetAsPrimary,
         pricingSnapshot,
-        ethSession,
+        circleSession,
       }
     },
     onSuccess: async ({
       availability,
       resolvedSetAsPrimary,
       pricingSnapshot,
-      ethSession,
+      circleSession,
     }) => {
       if (!pricingQuery.data || !selectedToken) return
 
@@ -580,7 +584,11 @@ export const TokenPickerContent = () => {
         return
       }
 
-      await startRegistration(resolvedSetAsPrimary, pricingSnapshot, ethSession)
+      await startRegistration(
+        resolvedSetAsPrimary,
+        pricingSnapshot,
+        circleSession,
+      )
     },
   })
 
@@ -634,11 +642,11 @@ export const TokenPickerContent = () => {
       () => t`We couldn't calculate the total. Please try again.`,
     )
     .with(
-      { mutationError: P.instanceOf(EthPaymentSessionError) },
+      { mutationError: P.instanceOf(PaymentSessionError) },
       ({ mutationError }) =>
         mutationError.isDeclined
           ? t`Signature cancelled. You can try again.`
-          : t`We couldn't set up paying with ETH. Please try again.`,
+          : t`We couldn't set up this payment. Please try again.`,
     )
     .with(
       {

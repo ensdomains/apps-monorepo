@@ -66,7 +66,10 @@ export const TokenPickerContent = () => {
       ] as const,
   )
   const token = selectedToken ?? TOKENS.USDC.symbol
-  const credit = getPaymentBalances(balances, paymentAsset === 'eth')
+  const credit = getPaymentBalances(balances, {
+    isPaidWithEth: paymentAsset === 'eth',
+    l2ChainId: fundingSourceChainId,
+  })
   const isAwaitingApproval = useIsAwaitingRenewalApproval(uiActor)
   const paymentUpdate = useRenewalPaymentUpdate(uiActor)
   const isReviewingPayment = paymentUpdate?.status === 'reviewing'
@@ -108,7 +111,7 @@ export const TokenPickerContent = () => {
     isEnabled: isUsdcMethodQuotable,
     rentTotalRaw: pricingQuery.data?.fundedRaw,
     feeRaw,
-    hcaBalanceRaw: balances.accountCreditRaw.USDC,
+    hcaBalanceRaw: balances.circleCreditRaw,
     selectedChainId: fundingSourceChainId,
     selectedOrigin: fundingSourceOrigin,
     onSelect: (chainId) =>
@@ -129,7 +132,7 @@ export const TokenPickerContent = () => {
     isEnabled: isUsdcMethodQuotable,
     rentTotalRaw: pricingQuery.data?.fundedRaw,
     feeRaw,
-    hcaBalanceRaw: balances.ethPaymentCreditRaw,
+    hcaBalanceRaw: balances.circleCreditRaw,
     isSelected: paymentAsset === 'eth',
     onSelect: () =>
       uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),

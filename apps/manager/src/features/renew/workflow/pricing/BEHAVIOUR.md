@@ -88,7 +88,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 - Bulk renewal has no in-sheet review of an increased amount: a batch quoted above what the sheet showed stops the run, and Try again goes back through the sheet.
 - On Sepolia, paying from an L2 fails above about 8 USDC (Across caps transfers into Sepolia), as in registration.
-- On Sepolia, ETH buys Circle's USDC and the renewal and its fee are paid in it, counted against what the account holds of it; renewal is owner-signed, so no extra session.
+- On Sepolia, ETH buys and an L2 bridges Circle's USDC, and the renewal and its fee are paid in it, counted against what the account holds of it; renewal is owner-signed, so no extra session.
 - Prices are slightly above round numbers ($8.01 for a year): a year is charged as at least 365.25 days.
 - The renewal failure screen can show the wallet's raw rejection text.
 

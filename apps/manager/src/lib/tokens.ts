@@ -33,8 +33,8 @@ export const TOKENS = {
   },
 } as const
 
-/** The USDC ETH buys and pays in where not `TOKENS.USDC`: Sepolia's MockUSDC has no pool, so Circle's. */
-export const ETH_PAYMENT_TOKEN: Address | undefined = (() => {
+/** Circle's USDC where not `TOKENS.USDC` (Sepolia's MockUSDC has no pool or bridge): what ETH buys and an L2 bridges. */
+export const CIRCLE_PAYMENT_TOKEN: Address | undefined = (() => {
   const token = getEthSwapUsdc(chain.id)
   // Lowercased rather than `isAddressEqual`, which throws on a mocked address.
   return token?.toLowerCase() === TOKENS.USDC.address.toLowerCase()
@@ -42,10 +42,10 @@ export const ETH_PAYMENT_TOKEN: Address | undefined = (() => {
     : token
 })()
 
-/** The USDC a run pays in when not `TOKENS.USDC`: only a run paid with ETH has one. */
+/** The USDC a run pays in when not `TOKENS.USDC`: one paid with ETH or from an L2 pays in Circle's. */
 export const getRunPaymentToken = (
-  isPaidWithEth: boolean,
-): Address | undefined => (isPaidWithEth ? ETH_PAYMENT_TOKEN : undefined)
+  paysInCircleUsdc: boolean,
+): Address | undefined => (paysInCircleUsdc ? CIRCLE_PAYMENT_TOKEN : undefined)
 
 /** Any stable the app can price in or show a balance for. */
 export type TOKEN_SYMBOL = keyof typeof TOKENS

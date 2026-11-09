@@ -245,6 +245,13 @@ const insufficientDai = {
   balance: '0',
 } as unknown as StablecoinBalance
 
+// What ETH and L2s pay in on Sepolia, and the session such a run signs with.
+const CIRCLE_USDC = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+const CIRCLE_SESSION = {
+  signer: { type: 'rhinestone', session: 'circle' },
+  hcaSessionEnable: { stub: 'circle' },
+}
+
 const renderContainer = () =>
   render(
     <I18nProvider i18n={i18n}>
@@ -308,7 +315,9 @@ describe('TokenPickerContent', () => {
     containerMocks.l2QuoteKeys = []
     containerMocks.paymentAsset = undefined
     containerMocks.ethQuote = null
-    containerMocks.enableSession.mockReset()
+    containerMocks.enableSession
+      .mockReset()
+      .mockResolvedValue({ status: 'enabled', session: CIRCLE_SESSION })
   })
 
   it('keeps the wallet locked while payment approval takes longer than a minute', () => {
@@ -361,10 +370,6 @@ describe('TokenPickerContent', () => {
   })
 
   it('starts an ETH payment on the session of the USDC the swap buys', async () => {
-    const ethSession = {
-      signer: { type: 'rhinestone', session: 'circle' },
-      hcaSessionEnable: { stub: 'circle' },
-    }
     containerMocks.paymentAsset = 'eth'
     containerMocks.ethQuote = {
       swap: { maximumEth: 10n ** 16n },
@@ -372,10 +377,6 @@ describe('TokenPickerContent', () => {
       gasReserve: 0n,
       ethUsd: 2_000_00000000n,
     }
-    containerMocks.enableSession.mockResolvedValue({
-      status: 'enabled',
-      session: ethSession,
-    })
     renderContainer()
     fireEvent.click(screen.getByRole('button', { name: 'Swap and Register' }))
 
@@ -383,14 +384,14 @@ describe('TokenPickerContent', () => {
       expect(containerMocks.send).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'registration.start',
-          account: expect.objectContaining({ signer: ethSession.signer }),
-          hcaSessionEnable: ethSession.hcaSessionEnable,
+          account: expect.objectContaining({ signer: CIRCLE_SESSION.signer }),
+          hcaSessionEnable: CIRCLE_SESSION.hcaSessionEnable,
         }),
       ),
     )
     // Sepolia's MockUSDC has no pool, so ETH buys and pays in Circle's USDC.
     expect(containerMocks.enableSession).toHaveBeenCalledWith({
-      refundToken: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+      refundToken: CIRCLE_USDC,
     })
     expect(containerMocks.getSessionEnablePayload).not.toHaveBeenCalled()
   })
@@ -635,6 +636,15 @@ describe('TokenPickerContent', () => {
           l2FundingChainId: baseSepolia.id,
         }),
       ),
+    )
+    // The bridge delivers Circle's USDC, so the run signs with that USDC's session.
+    expect(containerMocks.enableSession).toHaveBeenCalledWith({
+      refundToken: CIRCLE_USDC,
+    })
+    expect(containerMocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: expect.objectContaining({ signer: CIRCLE_SESSION.signer }),
+      }),
     )
   })
 

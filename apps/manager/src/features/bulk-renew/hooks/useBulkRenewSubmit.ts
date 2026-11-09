@@ -247,8 +247,8 @@ const runHcaRenewals = ResultFn(async function* (
     ownerAddress: ctx.ownerAddress,
     publicClient,
     chainId: envConfig.chain.id,
-    // Paid with ETH, every chunk pays in the USDC the one swap buys.
-    paymentToken: getRunPaymentToken(fundingSource?.kind === 'eth'),
+    // Paid with ETH or from an L2, every chunk pays in the Circle USDC it brought in.
+    paymentToken: getRunPaymentToken(fundingSource !== undefined),
   } as const
 
   if (fundingSource) {

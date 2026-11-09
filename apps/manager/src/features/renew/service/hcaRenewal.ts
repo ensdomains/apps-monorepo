@@ -367,6 +367,8 @@ const awaitHcaBalance = ResultFn(async function* (params: {
   readonly publicClient: PublicClient
   readonly chainId: number
   readonly atLeast: bigint
+  /** The USDC the bridge delivers. Defaults to the deployment's. */
+  readonly token?: Address
 }) {
   const balance = yield* readHcaUsdcBalanceAtLeastActor(params)
   return balance >= params.atLeast
@@ -390,8 +392,10 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
   readonly hca: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  /** The USDC bridges deliver. Defaults to the deployment's. */
+  readonly token?: Address
 }) {
-  const { hca, publicClient, chainId } = params
+  const { hca, publicClient, chainId, token } = params
   const pending = readPendingL2Bridge(chainId, hca)
   if (!pending) return ok(undefined)
 
@@ -405,6 +409,7 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
       hca,
       publicClient,
       chainId,
+      token,
       atLeast: pending.fundsHcaTo,
     })
   }
@@ -481,8 +486,10 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
   readonly ownerAddress: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  /** The USDC the bridge delivers and the renewal pays in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
 }) {
-  const { l2Funding, signer, publicClient, chainId } = params
+  const { l2Funding, signer, publicClient, chainId, paymentToken } = params
   const { source } = l2Funding
   if (params.token !== 'USDC') {
     return err(
@@ -491,7 +498,12 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
   }
 
   const hca = getSmartAccountAddress(signer)
-  yield* settlePendingL2Bridge({ hca, publicClient, chainId })
+  yield* settlePendingL2Bridge({
+    hca,
+    publicClient,
+    chainId,
+    token: paymentToken,
+  })
 
   const { amount, hcaBalance } = yield* sizeRenewalShortfall({
     ...params,
@@ -513,10 +525,17 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
         fundsHcaTo,
       })
     },
+    paymentToken,
   })
   yield* fromPromise(waitForTransaction(txId), toError)
   // A lagging read would otherwise ask the wallet to fund it all over again.
-  yield* awaitHcaBalance({ hca, publicClient, chainId, atLeast: fundsHcaTo })
+  yield* awaitHcaBalance({
+    hca,
+    publicClient,
+    chainId,
+    atLeast: fundsHcaTo,
+    token: paymentToken,
+  })
   clearPendingL2Bridge(chainId, hca)
   return ok(fundsHcaTo)
 })
@@ -675,6 +694,7 @@ const prefundRenewal = ResultFn(async function* (
       ownerAddress,
       publicClient,
       chainId,
+      paymentToken: params.paymentToken,
     })
     return ok<bigint | undefined>(balance)
   }

@@ -92,11 +92,13 @@ const requireSubmissionData = (
   return submissionData
 }
 
-/** A renewal paid with ETH pays in the USDC the swap buys. */
+/** A renewal paid with ETH or from an L2 pays in the Circle USDC it brings in. */
 const paymentTokenOf = (
-  submission: Pick<SubmissionData, 'ethFunding'>,
+  submission: Pick<SubmissionData, 'ethFunding' | 'l2Funding'>,
 ): { readonly paymentToken?: Address } => {
-  const paymentToken = getRunPaymentToken(!!submission.ethFunding)
+  const paymentToken = getRunPaymentToken(
+    !!submission.ethFunding || !!submission.l2Funding,
+  )
   return paymentToken ? { paymentToken } : {}
 }
 
