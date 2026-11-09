@@ -79,7 +79,7 @@ export const batches: Batch[] = [
     title:
       'Fuse tests that need subname creation back (paused by WEB-2097, #1654)',
   },
-  { id: 'B5', title: 'Roles and recreated subnames: the tests that pass on main (B5a)', pr: 1768 },
+  { id: 'B5', title: 'Roles and recreated subnames: the tests that pass on main (B5a)', pr: 1767 },
   {
     id: 'B5b',
     title:
@@ -430,7 +430,11 @@ export const rules: Rule[] = [
     // back, keep these tests.
     target: 'B5',
     incremental: true,
-    globs: ['e2e/projects/portal/tests/{roles,recreated-subnames}.spec.ts'],
+    globs: [
+      'e2e/projects/portal/tests/roles.spec.ts',
+      // Moved to cross-app on #1767 (it sets up through the manager).
+      'e2e/projects/{portal,cross-app}/tests/recreated-subnames.spec.ts',
+    ],
   },
   {
     target: 'B5',
