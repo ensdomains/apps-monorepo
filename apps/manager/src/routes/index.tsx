@@ -34,7 +34,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-[20vh] pb-[min(10vh,5rem)]">
         {/* The hero design uses a one-off 56px size and -2px letter spacing, outside the shared type scale. */}
-        <h1 className="whitespace-nowrap text-center text-[56px] leading-none tracking-[-2px]">
+        <h1 className="whitespace-nowrap text-center text-[min(56px,14.5vw)] leading-none tracking-[-2px]">
           <span
             className={
               themeColor ? 'font-serif' : 'font-serif text-ens-lapis-core'

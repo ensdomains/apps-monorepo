@@ -15,7 +15,7 @@ export const AnalyticsConsentBanner = () => {
   return (
     <section
       aria-label="Analytics consent"
-      className="fixed inset-x-4 bottom-4 z-40 flex flex-col gap-3 rounded-md border bg-popover p-4 text-popover-foreground shadow-md sm:left-auto sm:w-88"
+      className="fixed inset-x-4 bottom-4 z-40 flex max-h-[calc(100dvh-2rem)] flex-col gap-3 overflow-y-auto rounded-md border bg-popover p-4 text-popover-foreground shadow-md sm:left-auto sm:w-88"
     >
       <div className="flex flex-col gap-1">
         <p className="font-medium">Help us improve ENS</p>
@@ -33,9 +33,9 @@ export const AnalyticsConsentBanner = () => {
           </a>
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
-          className="flex-1"
+          className="h-auto min-h-9 grow basis-auto whitespace-normal"
           onClick={() => setAnalyticsConsent(posthog, true)}
           type="button"
           variant="outline"
@@ -43,7 +43,7 @@ export const AnalyticsConsentBanner = () => {
           Yes, happy to help
         </Button>
         <Button
-          className="flex-1"
+          className="h-auto min-h-9 grow basis-auto whitespace-normal"
           onClick={() => setAnalyticsConsent(posthog, false)}
           type="button"
           variant="outline"

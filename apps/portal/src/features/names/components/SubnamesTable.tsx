@@ -46,7 +46,13 @@ import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
 // A child neither bigname nor this browser can label is shown as
 // `[labelhash].parent`, never linked.
-const SubnameBadge = ({ name }: { readonly name: string }) => {
+const SubnameBadge = ({
+  name,
+  format,
+}: {
+  readonly name: string
+  readonly format?: 'inline' | 'truncate'
+}) => {
   const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
   return (
     <EntityBadge
@@ -54,6 +60,7 @@ const SubnameBadge = ({ name }: { readonly name: string }) => {
       name={isLabelled ? name : undefined}
       copyValue={name}
       showAvatar
+      format={format}
     >
       {name}
     </EntityBadge>
@@ -410,7 +417,10 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <SubnameBadge name={row.getValue<string>('name')} />
+                    <SubnameBadge
+                      name={row.getValue<string>('name')}
+                      format="truncate"
+                    />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"

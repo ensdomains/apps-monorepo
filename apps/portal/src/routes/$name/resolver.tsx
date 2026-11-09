@@ -87,7 +87,7 @@ const ResolverAddressValue = ({ address }: { address: Address }) => (
     variant="contract"
     address={address}
     etherscanHref={`${blockExplorerUrl}/address/${address}`}
-    className="max-w-full truncate"
+    format="truncate"
   >
     {address}
   </EntityBadge>
@@ -230,8 +230,8 @@ const ResolverInfoList = ({
         </div>
       </InfoRow>
       <InfoRow label="Node">
-        <div className="flex items-center gap-2">
-          <EntityBadge variant="name" name={name} showAvatar>
+        <div className="flex min-w-0 items-center gap-2">
+          <EntityBadge variant="name" name={name} showAvatar format="truncate">
             {name}
           </EntityBadge>
           {isLinked && <Badge variant="outline">Linked</Badge>}

@@ -419,7 +419,7 @@ function RouteComponent() {
             </span>
           </div>
           <Tabs defaultValue={labels[0]} className="gap-0">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
               <TabsList>
                 {labels.map((label, idx) => (
                   <div key={label} className="contents">

@@ -90,7 +90,7 @@ export function MessageCard({
         <h2
           data-slot="title"
           className={cn(
-            'font-serif text-3xl font-normal leading-none tracking-[-0.02em]',
+            'font-serif text-3xl font-normal leading-none tracking-[-0.02em] max-w-full wrap-anywhere',
             titleClassName,
           )}
         >

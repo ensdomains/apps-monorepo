@@ -68,7 +68,7 @@ export const BackendAuthModal = () => {
   return (
     <AlertDialog.Root open={shouldShowModal}>
       <AlertDialog.Content
-        className="gap-6 border-ens-gray-two p-6 sm:max-w-sm sm:p-8"
+        className="grid-cols-[minmax(0,1fr)] gap-6 border-ens-gray-two p-6 sm:max-w-sm sm:p-8"
         onEscapeKeyDown={(event) => {
           event.preventDefault()
         }}
@@ -91,9 +91,9 @@ export const BackendAuthModal = () => {
               <Trans>You can sign in anytime from your wallet menu.</Trans>
             </p>
 
-            <AlertDialog.Footer className="flex-row sm:justify-stretch">
+            <AlertDialog.Footer className="flex-row flex-wrap sm:justify-stretch">
               <Button
-                className="min-w-0 flex-1 uppercase tracking-wider"
+                className="min-w-fit flex-1 uppercase tracking-wider"
                 onClick={() => backendAuthStore.trigger.dismissModal()}
                 size="lg"
                 type="button"
@@ -102,7 +102,7 @@ export const BackendAuthModal = () => {
                 <Trans>Continue</Trans>
               </Button>
               <Button
-                className="min-w-0 flex-1 bg-ens-blue uppercase tracking-wider hover:bg-ens-blue-hover"
+                className="min-w-fit flex-1 bg-ens-blue uppercase tracking-wider hover:bg-ens-blue-hover"
                 disabled={!walletClient}
                 onClick={() => {
                   setIsConfirmingSkip(false)
@@ -143,9 +143,9 @@ export const BackendAuthModal = () => {
               </p>
             )}
 
-            <AlertDialog.Footer className="flex-row sm:justify-stretch">
+            <AlertDialog.Footer className="flex-row flex-wrap sm:justify-stretch">
               <Button
-                className="min-w-0 flex-1 uppercase tracking-wider"
+                className="min-w-fit flex-1 uppercase tracking-wider"
                 disabled={signIn.isPending || isDisconnecting}
                 onClick={() => void disconnect()}
                 size="lg"
@@ -159,7 +159,7 @@ export const BackendAuthModal = () => {
                 )}
               </Button>
               <Button
-                className="min-w-0 flex-1 bg-ens-blue uppercase tracking-wider hover:bg-ens-blue-hover"
+                className="min-w-fit flex-1 bg-ens-blue uppercase tracking-wider hover:bg-ens-blue-hover"
                 disabled={signIn.isPending || isDisconnecting || !walletClient}
                 onClick={handleSignIn}
                 size="lg"
