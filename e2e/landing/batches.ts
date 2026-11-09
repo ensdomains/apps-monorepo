@@ -23,6 +23,7 @@ export type BatchId =
   | 'B3'
   | 'B3b'
   | 'B4b'
+  | 'B5b'
   | 'B4'
   | 'B5'
   | 'B6'
@@ -78,7 +79,12 @@ export const batches: Batch[] = [
     title:
       'Fuse tests that need subname creation back (paused by WEB-2097, #1654)',
   },
-  { id: 'B5', title: 'Registration, renewal, roles: the rest' },
+  { id: 'B5', title: 'Roles and recreated subnames: the tests that pass on main (B5a)' },
+  {
+    id: 'B5b',
+    title:
+      'Role tests that read indexed role history (WEB-1469/1484/1487, C11, E2E-009): need the real indexer or a rewrite; a recreated child showing stale V1 records',
+  },
   { id: 'B6', title: 'Display, history, metadata service' },
   { id: 'B7', title: 'V1 shape matrix' },
   { id: 'B8', title: 'Unit tests in apps/ and packages/' },
@@ -419,12 +425,37 @@ export const rules: Rule[] = [
 
   // ── B5 registration / renewal / roles ────────────────────────────────────
   {
+    // Landed (B5a) without the tests that need indexed role history or show
+    // the stale-V1-records case; those stay here for B5b. When merging main
+    // back, keep these tests.
+    target: 'B5',
+    incremental: true,
+    globs: ['e2e/projects/portal/tests/{roles,recreated-subnames}.spec.ts'],
+  },
+  {
     target: 'B5',
     globs: [
-      'e2e/projects/portal/tests/{roles,recreated-subnames,temporaryPremium}.spec.ts',
+      'e2e/docs/transaction-scope-web1418-test-plan.md',
+      'apps/portal/src/features/transfer/hooks/useTransferRoleRevocations.test.ts',
+    ],
+  },
+  {
+    target: 'B5b',
+    globs: [
+      'e2e/docs/{missing-privileges-web1469,role-holders-verified-web1484}-test-plan.md',
+    ],
+  },
+  {
+    // Cites useRemoveUserPlan.test.ts, whose mocks predate #1387 (B8).
+    target: 'B8',
+    globs: ['e2e/docs/roles-remove-user-web1487-test-plan.md'],
+  },
+  {
+    target: 'B5',
+    globs: [
+      'e2e/projects/portal/tests/temporaryPremium.spec.ts',
       'e2e/projects/manager/tests/{registration-resume,temporaryPremium}.spec.ts',
       'e2e/projects/manager/playwright.premium.config.ts',
-      'e2e/docs/{missing-privileges-web1469,role-holders-verified-web1484,roles-remove-user-web1487,transaction-scope-web1418}-test-plan.md',
     ],
   },
 
