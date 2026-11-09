@@ -88,6 +88,7 @@ export const RpcSettingsDialog = ({
             {current && (
               <Button
                 variant="ghost"
+                size="xs"
                 type="button"
                 className="order-last basis-full sm:order-none sm:basis-auto"
                 onClick={() => void reset()}
@@ -95,7 +96,7 @@ export const RpcSettingsDialog = ({
                 Reset to default
               </Button>
             )}
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" size="xs" disabled={isSaving}>
               {isSaving ? 'Saving…' : 'Save'}
             </Button>
           </div>
