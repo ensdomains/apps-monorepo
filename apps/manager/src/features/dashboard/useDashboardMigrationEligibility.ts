@@ -10,7 +10,6 @@ import { envConfig } from '@/config'
 import {
   getGraceRenewalEligibilityQueryOptions,
   getMigrationEligibilityQueryOptions,
-  useIsSubnameImportEnabled,
 } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1NameClassificationTime } from '@/features/migration/hooks/useV1NameClassificationTime'
 import { getV1NamesQueryOptions } from '@/features/migration/hooks/useV1Names'
@@ -47,7 +46,6 @@ export const useDashboardMigrationEligibility = ({
     isError,
   } = useQuery(getV1NamesQueryOptions(namesAddress))
   const nowSeconds = useV1NameClassificationTime(v1Names)
-  const isSubnameImportEnabled = useIsSubnameImportEnabled()
 
   const holders = useMemo(
     () =>
@@ -67,7 +65,6 @@ export const useDashboardMigrationEligibility = ({
       getMigrationEligibilityQueryOptions({
         names: classified,
         ownerAddress: holder,
-        isSubnameImportEnabled,
       }),
     ),
     combine: combineEligibility,
@@ -77,7 +74,6 @@ export const useDashboardMigrationEligibility = ({
       getGraceRenewalEligibilityQueryOptions({
         names: renewedGraceNames,
         ownerAddress: holder,
-        isSubnameImportEnabled,
       }),
     ),
     combine: combineEligibility,
