@@ -61,35 +61,37 @@ const IconAction = ({
   </span>
 )
 
-// The owner's floating bar, its fullest layout, built from the same classes.
+// The owner's floating bar at its fullest, same classes and width cap as the real one
 export const InOwnerBar: Story = {
   decorators: [
     (Story) => (
-      <div className={cn(ownerBarContentClassName, 'bg-white')}>
-        <div className={profileBarActionsClassName}>
-          <IconAction className={favoriteActionClassName} symbol="favorite" />
-          <IconAction symbol="ios_share" />
-          <Story />
-          <span className={renewActionClassName}>
-            <span className={iconActionInnerClassName}>
-              <span className={actionLabelClassName}>Renew Name</span>
-              <MSymbol
-                className={renewActionSymbolClassName}
-                symbol="double_arrow"
-              />
+      <div className="mx-auto w-full max-w-97.5 overflow-hidden bg-white xl:max-w-226.25">
+        <div className={ownerBarContentClassName}>
+          <div className={profileBarActionsClassName}>
+            <IconAction className={favoriteActionClassName} symbol="favorite" />
+            <IconAction symbol="ios_share" />
+            <Story />
+            <span className={renewActionClassName}>
+              <span className={iconActionInnerClassName}>
+                <span className={actionLabelClassName}>Renew Name</span>
+                <MSymbol
+                  className={renewActionSymbolClassName}
+                  symbol="double_arrow"
+                />
+              </span>
             </span>
-          </span>
-        </div>
-        <div className={ownerBarEditActionsClassName}>
-          <span
-            className={cn(
-              barEditActionClassName,
-              'inline-flex items-center bg-ens-lapis-core text-white',
-            )}
-          >
-            <MSymbol className={barEditActionSymbolClassName} symbol="edit" />
-            <span className={actionLabelClassName}>Edit</span>
-          </span>
+          </div>
+          <div className={ownerBarEditActionsClassName}>
+            <span
+              className={cn(
+                barEditActionClassName,
+                'inline-flex items-center bg-ens-lapis-core text-white',
+              )}
+            >
+              <MSymbol className={barEditActionSymbolClassName} symbol="edit" />
+              <span className={actionLabelClassName}>Edit</span>
+            </span>
+          </div>
         </div>
       </div>
     ),
