@@ -8,7 +8,7 @@ interface NoResultsMessageProps {
   description?: React.ReactNode
   icon?: React.ReactNode
   /** Icon + description only, for empty states inside a page section */
-  compact?: boolean
+  readonly compact?: boolean
   className?: string
 }
 
