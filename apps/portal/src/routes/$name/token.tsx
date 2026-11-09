@@ -79,7 +79,11 @@ const TokenInfoCard = ({
       </HeaderInfoRow>
 
       <HeaderInfoRow label="Contract">
-        <EntityBadge variant="contract" address={contractAddress}>
+        <EntityBadge
+          variant="contract"
+          address={contractAddress}
+          format="truncate"
+        >
           {contractAddress}
         </EntityBadge>
       </HeaderInfoRow>

@@ -35,7 +35,7 @@ export const AnalyticsConsentBanner = () => {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button
-          className="h-auto min-h-9 grow basis-auto whitespace-normal"
+          className="h-auto min-h-9 shrink grow basis-auto whitespace-normal"
           onClick={() => setAnalyticsConsent(posthog, true)}
           type="button"
           variant="outline"
@@ -43,7 +43,7 @@ export const AnalyticsConsentBanner = () => {
           Yes, happy to help
         </Button>
         <Button
-          className="h-auto min-h-9 grow basis-auto whitespace-normal"
+          className="h-auto min-h-9 shrink grow basis-auto whitespace-normal"
           onClick={() => setAnalyticsConsent(posthog, false)}
           type="button"
           variant="outline"
