@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
@@ -41,7 +42,7 @@ export const AddressRecordHistory = ({
     )
   }
   if (transactions.length === 0) {
-    return <div className="text-muted-foreground">No history available</div>
+    return <NoResultsMessage compact description="No history available." />
   }
 
   return (

@@ -85,9 +85,11 @@ const runLoader = async (
   {
     owner = { owner: PROFILE_OWNER, protocol: 'v2' },
     records = { coins: [], texts: [] },
+    availability = { isAvailable: false },
   }: {
     readonly owner?: object | null
     readonly records?: Records | Error
+    readonly availability?: { readonly isAvailable: boolean }
   } = {},
 ) => {
   vi.mocked(profileRecordsQuery).mockImplementation(
@@ -115,7 +117,9 @@ const runLoader = async (
       return records
     },
   )
-  const fetchQuery = vi.fn().mockResolvedValue(owner)
+  const fetchQuery = vi.fn(async (query: { readonly kind?: string }) =>
+    query.kind === 'owner' ? owner : availability,
+  )
   const prefetchQuery = vi.fn().mockResolvedValue(undefined)
   const loader = Route.options.loader as (args: {
     params: { name: string }
@@ -215,6 +219,35 @@ describe('/$name client-rendered profile route', () => {
     expect(profileRegistrationQuery).toHaveBeenCalledWith('alice.eth', 'v2')
     expect(profileReverseNameQuery).not.toHaveBeenCalled()
   })
+
+  const registerRedirect = {
+    options: {
+      params: { name: '89056.eth' },
+      to: '/register/$name',
+      replace: true,
+    },
+  }
+  const profile = {
+    fallback: undefined,
+    description: undefined,
+    name: '89056.eth',
+  }
+
+  it.each([
+    { protocol: 'v1', isAvailable: true, expected: registerRedirect },
+    { protocol: 'v1', isAvailable: false, expected: profile },
+    { protocol: 'v2', isAvailable: true, expected: profile },
+  ])(
+    'sends a $protocol owned name the registrar calls available ($isAvailable) to the right page',
+    async ({ protocol, isAvailable, expected }) => {
+      const { outcome } = await runLoader('89056.eth', {
+        owner: { owner: PROFILE_OWNER, protocol },
+        availability: { isAvailable },
+      })
+
+      expect(outcome).toEqual(expected)
+    },
+  )
 
   it.each([
     {

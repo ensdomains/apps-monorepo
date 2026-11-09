@@ -15,6 +15,7 @@ import { V2SendName } from '@/features/transfer/components/V2SendName'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
 import { getSubnameExpiryQueryOptions } from '@/features/transfer/queries/getSubnameExpiry'
 import { V1Transfer } from '@/features/transfer/v1/V1Transfer'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { isCanonicalName } from '@/utils/token/isNormalized'
 
@@ -96,13 +97,7 @@ function RouteComponent() {
             />
           ))
           .with({ address: P.nullish }, () => (
-            <MessageCard
-              icon={<ShieldX className="size-8" />}
-              title="Connect your wallet"
-              description={
-                <p>Connect the wallet that owns this name to transfer it.</p>
-              }
-            />
+            <ConnectWalletAlert className="mx-auto my-4 max-w-lg" />
           ))
           // V1 ownership isn't one address: an unwrapped 2LD splits it between
           // registrant and controller, and `getEnsOwner` reports the latter. The
