@@ -304,7 +304,7 @@ describe('submitHcaRenewal', () => {
       gasLimit: SEPOLIA_GAS.base + SEPOLIA_GAS.tokenFunding,
     })
     expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
-      request: { rhinestoneParams: { feeAsset: 'USDC' } },
+      request: { rhinestoneParams: { feeAsset: USDC } },
     })
   })
 
@@ -341,7 +341,7 @@ describe('submitHcaRenewal', () => {
         from: HCA,
         chainId: params.chainId,
         rhinestoneParams: {
-          feeAsset: 'USDC',
+          feeAsset: USDC,
           calls: actionCalls(),
         },
       },

@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   type Call,
   getSmartAccountAddress,
@@ -214,8 +215,8 @@ export async function setPrimaryNameWithHca(
     chainId,
     rhinestoneParams: {
       calls: funding.calls,
-      // User-paid in USDC, like every intent on this route.
-      feeAsset: 'USDC',
+      // User-paid in USDC, like every intent on this route: the one funded, by address.
+      feeAsset: getDestinationContracts(chainId).usdc,
       ...(funding.auxiliaryFunds
         ? { auxiliaryFunds: funding.auxiliaryFunds }
         : {}),

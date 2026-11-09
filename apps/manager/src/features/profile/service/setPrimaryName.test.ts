@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Connector } from 'wagmi'
@@ -65,6 +66,8 @@ const REVERSE_ADAPTER = '0x00000000000000000000000000000000000000e1'
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as Address
 const EOA_OWNER = '0x3333333333333333333333333333333333333333' as Address
 const CHAIN_ID = 11155111
+// The fee is named by the address of the USDC the funding was planned in.
+const USDC = getDestinationContracts(CHAIN_ID).usdc
 const publicClient = {} as PublicClient
 
 const adapterAbi = parseAbi([
@@ -269,7 +272,7 @@ describe('setPrimaryNameWithHca', () => {
         type: 'rhinestone-intent',
         from: HCA_ADDRESS,
         chainId: CHAIN_ID,
-        rhinestoneParams: { feeAsset: 'USDC' },
+        rhinestoneParams: { feeAsset: USDC },
       },
     })
     expect(opts).toMatchObject({ operation: 'set-primary-name' })
@@ -353,7 +356,7 @@ describe('setPrimaryNameWithHca funding', () => {
       }
     ).request
 
-    expect(rhinestoneParams.feeAsset).toBe('USDC')
+    expect(rhinestoneParams.feeAsset).toBe(USDC)
     expect(rhinestoneParams).not.toHaveProperty('sponsored')
   })
 

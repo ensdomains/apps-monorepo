@@ -353,9 +353,9 @@ export async function quoteHcaRenewalFee(
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error))
 
-/** The USDC a renewal's fee is paid in: the one it funds when not the deployment's. */
-const renewalFeeAsset = (paymentToken: Address | undefined): Address | 'USDC' =>
-  paymentToken ?? 'USDC'
+/** The USDC a renewal's fee is paid in: the one its funding was planned in, by address. */
+const renewalFeeAsset = (paymentToken: Address | undefined): Address =>
+  paymentToken ?? TOKENS.USDC.address
 
 /**
  * Wait for a read that shows the HCA holding `atLeast`. One still below it when
