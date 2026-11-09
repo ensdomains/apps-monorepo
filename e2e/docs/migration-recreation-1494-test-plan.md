@@ -19,7 +19,7 @@ not write.
 
 | Area | Change |
 |---|---|
-| WEB-1934 recreation | Direct 3LDs are recreated in a deterministic UserRegistry inside the parent's atomic batch: effective V1 holder, token `ALL`, `maxUint64`, the exact V1 resolver (including custom and zero). Wallet and HCA hold root `ALL`. No record replay for children. Behind `migration-subname-recreation` |
+| WEB-1934 recreation | Direct 3LDs are recreated in a deterministic UserRegistry inside the parent's atomic batch: effective V1 holder, token `ALL`, `maxUint64`, the exact V1 resolver (including custom and zero). Wallet and HCA hold root `ALL`. No record replay for children. Always on, without a feature flag |
 | WEB-1933 blocks | 4LD+ trees, WrapperRegistry trees, nonzero-fuse wrapped children, incomplete or stale inventories and oversized families keep the parent on ENSv1, at preparation, before every batch and in recovery. No acknowledgement bypass |
 | WEB-1938 kept manager | An opted-in distinct V1 controller gets `ROLE_SET_RESOLVER` on the token and the seven record setters (`0x1111111`) on a per-name resolver |
 | WEB-1938 resolver copy | Copy, review and replace into a wallet-controlled PermissionedResolver; the pointer moves only after the target is verified; a populated pubkey or a failed required read blocks the switch |
