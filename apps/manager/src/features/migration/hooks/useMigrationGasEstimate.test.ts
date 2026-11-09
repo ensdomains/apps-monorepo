@@ -3,10 +3,12 @@ import { act, renderHook } from '@testing-library/react'
 import { type Address, TimeoutError, zeroHash } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chain } from '@/config'
+import { V1_CONTRACTS } from '../contracts/addresses'
 import { makeClassified, makeDomain } from '../service/_fixtures'
 import { makeRpcSubnameInventory } from '../service/_fixtures/rpcSubnameInventory'
 import { DirectMigrationRouteError } from '../service/directMigrationRoutes'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
+import { getRpcSubnameInventoryCacheKey } from '../service/rpcSubnameInventoryCache'
 import { getSubnameMigrationImpactQueryOptions } from '../service/subnameMigrationImpactQuery'
 import { discoverSubnameRecreation } from '../service/subnameRecreation'
 import { useMigrationGasEstimate } from './useMigrationGasEstimate'
@@ -25,10 +27,6 @@ const mocks = vi.hoisted(() => ({
     getQueryData: vi.fn(),
     setQueryData: vi.fn(),
   },
-  isRecreationEnabled: false,
-}))
-vi.mock('@posthog/react', () => ({
-  useFeatureFlagEnabled: () => mocks.isRecreationEnabled,
 }))
 vi.mock('../service/subnameRecreation', () => ({
   discoverSubnameRecreation: vi.fn(),
@@ -77,6 +75,24 @@ const params: Parameters<typeof useMigrationGasEstimate>[0] = {
   selectedNames: [domain.name],
   v1Names: [domain] as Parameters<typeof useMigrationGasEstimate>[0]['v1Names'],
 }
+const noRecreation = (): Awaited<
+  ReturnType<typeof discoverSubnameRecreation>
+> => ({
+  domains: [domain],
+  inventory: makeRpcSubnameInventory({
+    domains: [domain],
+    rootNames: [domain.name],
+  }),
+  snapshot: {
+    version: 5,
+    roots: [],
+    names: [domain.name],
+    blockNumber: '1',
+    blockHash: zeroHash,
+    timestamp: '1',
+  },
+  unrecoverable: [],
+})
 const invokeQuery = () => {
   const options = mocks.query.mock.lastCall?.[0] as {
     queryFn: (context: { signal: AbortSignal }) => Promise<unknown>
@@ -86,7 +102,7 @@ const invokeQuery = () => {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.isRecreationEnabled = false
+  vi.mocked(discoverSubnameRecreation).mockResolvedValue(noRecreation())
   mocks.client.mockReturnValue({})
   mocks.query.mockReturnValue({ isPending: true })
   mocks.recovery.mockReturnValue(null)
@@ -104,7 +120,6 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 it('starts parent preflight while independent child discovery is still pending', async () => {
-  mocks.isRecreationEnabled = true
   let release = (
     _value: Awaited<ReturnType<typeof discoverSubnameRecreation>>,
   ): void => {}
@@ -122,22 +137,7 @@ it('starts parent preflight while independent child discovery is still pending',
   try {
     expect(mocks.preflight).toHaveBeenCalledTimes(1)
   } finally {
-    release({
-      domains: [domain],
-      inventory: makeRpcSubnameInventory({
-        domains: [domain],
-        rootNames: [domain.name],
-      }),
-      snapshot: {
-        version: 5,
-        roots: [],
-        names: [domain.name],
-        blockNumber: '1',
-        blockHash: zeroHash,
-        timestamp: '1',
-      },
-      unrecoverable: [],
-    })
+    release(noRecreation())
     await pending
   }
 })
@@ -182,32 +182,37 @@ it('publishes the actual verified plan impact before displaying the gas estimate
     isPrepared: true,
     hasSelectedNames: true,
   }).queryKey
-  expect(mocks.queryClient.setQueryData).toHaveBeenCalledExactlyOnceWith(
-    expectedKey,
-    impact,
-    { updatedAt: checkedAt },
-  )
+  const inventoryKey = getRpcSubnameInventoryCacheKey({
+    ownerAddress: OWNER,
+    chainId: chain.id,
+    registryAddress: V1_CONTRACTS.LegacyRegistry,
+    nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+  })
+  expect(mocks.queryClient.setQueryData.mock.calls).toEqual([
+    [inventoryKey, noRecreation().inventory],
+    [expectedKey, impact, { updatedAt: checkedAt }],
+  ])
 })
 
-it('marks fresh plans with the rollout state and refreshes it when the flag changes', async () => {
-  mocks.isRecreationEnabled = true
-  const { result, rerender } = renderHook(() => useMigrationGasEstimate(params))
-  const prepared = (await invokeQuery()) as {
-    plan: { isSubnameRecreationEnabled?: boolean }
+it.each([
+  { field: 'V1 manager', changed: { ...domain, owner: { id: HCA } } },
+  {
+    field: 'V1 resolver',
+    changed: { ...domain, resolver: { address: HCA } },
+  },
+])('rebuilds the plan when a refresh changes the $field', ({ changed }) => {
+  const lastKey = () => {
+    const [options] = mocks.query.mock.lastCall ?? []
+    return (options as { readonly queryKey?: unknown } | undefined)?.queryKey
   }
-  expect(prepared.plan.isSubnameRecreationEnabled).toBe(true)
-  mocks.isRecreationEnabled = false
-  mocks.query.mockReturnValue({
-    data: {
-      estimate: { feeWei: 2n, gasUnits: 1n, transactionCount: 1 },
-      plan: prepared.plan,
-    },
-  })
-  rerender()
-  expect(result.current).toMatchObject({
-    status: 'ready',
-    plan: { isSubnameRecreationEnabled: false },
-  })
+  const { rerender } = renderHook(
+    (props: Parameters<typeof useMigrationGasEstimate>[0]) =>
+      useMigrationGasEstimate(props),
+    { initialProps: params },
+  )
+  const before = lastKey()
+  rerender({ ...params, v1Names: [changed] })
+  expect(lastKey()).not.toEqual(before)
 })
 
 describe('useMigrationGasEstimate failure stages', () => {

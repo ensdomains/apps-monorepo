@@ -44,13 +44,6 @@ const SubnameBlockReason = ({
         </Trans>
       )
     }
-    case 'imports-disabled':
-      return (
-        <Trans>
-          Subname copying is not available in this session. Keep this parent on
-          ENSv1 so its subnames keep working.
-        </Trans>
-      )
     case 'unsupported-parent':
       return (
         <Trans>
