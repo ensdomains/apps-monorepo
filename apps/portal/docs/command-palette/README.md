@@ -21,8 +21,8 @@ Built-preview captures: [desktop](desktop.png), [entity actions](entity-actions.
 3. Search a complete name. Enter opens its profile. Tab, the selected row's
    **Actions** pill, Right Arrow, or the footer's **Actions** button opens its
    action list, with the target shown as a chip in the input. Copy the name or
-   its Portal link. Its **Related** rows (owner, ETH address, resolver, parent
-   name) open directly, and Tab on the owner continues into that address's
+   its Portal link. Its **Related** rows at the top (owner, ETH address,
+   resolver, parent name) open directly, and Tab on the owner continues into that address's
    actions.
 4. Compare `renew` with `renew.eth`. The command comes first for the bare verb;
    the explicit name comes first when its suffix is supplied. `>renew` searches
@@ -51,8 +51,9 @@ validation still determine whether a particular action can continue.
   Right Arrow and the footer's **Actions** button reach the same list for
   keyboard and screen-reader users, so no interactive control sits inside an
   option. Shift+Tab, and Tab on a row without actions, move focus as usual.
-- **Relations are destinations.** A name's actions end with the names and
-  addresses it points at, read from the same queries as its pages. An address
+- **Relations are destinations.** A name's actions start with the names and
+  addresses it points at, read from the same queries as its pages. Enter on
+  the first row therefore opens the owner. An address
   lists its primary name. On a name page, typing `owner` finds the current
   name's owner without opening its actions first.
 - **The target is explicit.** Entity-first, action-first, and current-page

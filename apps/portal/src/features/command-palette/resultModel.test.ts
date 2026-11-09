@@ -505,12 +505,16 @@ describe('buildPaletteRows', () => {
     const relatedRows = (rows: ReturnType<typeof run>) =>
       rows.filter(({ group }) => group === 'Related')
 
-    it('follows a name’s actions, opening each relation with its own actions', () => {
+    it('leads a name’s actions, opening each relation with its own actions', () => {
       const rows = run({
         frame: makeFrame({ screen: { type: 'entity', entity: ALICE } }),
         related,
       })
-      expect(rows.at(-1)?.group).toBe('Related')
+      expect(rows.map(({ group }) => group).slice(0, 3)).toEqual([
+        'Related',
+        'Related',
+        'Go to',
+      ])
       expect(
         relatedRows(rows).map(({ meta, action, actionsFor }) => [
           meta?.text,
@@ -538,9 +542,18 @@ describe('buildPaletteRows', () => {
         entity: ALICE,
       }
       expect(relatedRows(run({ context, related }))).toEqual([])
-      const owner = relatedRows(
-        run({ context, related, frame: makeFrame({ query: 'owner' }) }),
-      )
+      const searched = run({
+        context,
+        related,
+        frame: makeFrame({ query: 'owner' }),
+        data: makeData({ suggestions: [makeSuggestion('owner.eth')] }),
+      })
+      expect([...new Set(searched.map(({ group }) => group))]).toEqual([
+        'Go to',
+        'Related',
+        'Names and addresses',
+      ])
+      const owner = relatedRows(searched)
       expect(
         owner.map(({ title, groupDetail }) => [title, groupDetail]),
       ).toEqual([[ADDRESS, ALICE.name]])

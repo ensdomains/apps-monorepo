@@ -579,13 +579,22 @@ export const buildPaletteRows = (
   const nameSearch = getNameEscapeHatch(frame, matches.length > 0)
   const explicitEntity =
     query.includes('.') || isAddress(query, { strict: false })
-  const leadingRows = explicitEntity
-    ? [...entities, ...commandRows]
-    : [...commandRows, ...entities]
+  const relatedRows = getRelatedRows(frame, context, related)
+  // A scoped entity's relations lead; on a page they follow the matching commands.
+  const leadingRows = match({
+    isScoped: frame.screen.type === 'entity',
+    explicitEntity,
+  })
+    .with({ isScoped: true }, () => [...relatedRows, ...commandRows])
+    .with({ explicitEntity: true }, () => [
+      ...entities,
+      ...commandRows,
+      ...relatedRows,
+    ])
+    .otherwise(() => [...commandRows, ...relatedRows, ...entities])
   return getDisplayedRows(
     uniqueRows([
       ...leadingRows,
-      ...getRelatedRows(frame, context, related),
       ...another,
       ...pages,
       ...nameSearch,
