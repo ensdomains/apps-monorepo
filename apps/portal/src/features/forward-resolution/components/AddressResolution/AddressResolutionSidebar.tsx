@@ -61,6 +61,7 @@ import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
 import { ensChain } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
+import { validateRecord } from '@/utils/records/validateRecord'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
@@ -173,6 +174,7 @@ const AddressField = ({
   canEdit,
   addressInput,
   setAddressInput,
+  error,
   disabled,
   saveDisabled,
   saveLabel,
@@ -183,6 +185,7 @@ const AddressField = ({
   canEdit: boolean
   addressInput: string
   setAddressInput: (v: string) => void
+  readonly error: string | null
   disabled: boolean
   saveDisabled: boolean
   saveLabel: string
@@ -215,23 +218,29 @@ const AddressField = ({
         <span className="text-entity-base text-muted-foreground/50">null</span>
       )}
       {canEdit && (
-        <div className="flex gap-2">
-          <Input
-            value={addressInput}
-            onChange={(e) => setAddressInput(e.target.value)}
-            placeholder="0x…"
-            disabled={disabled}
-            className="font-mono"
-          />
-          <Button
-            type="button"
-            onClick={onSave}
-            disabled={saveDisabled}
-            className="h-9 shrink-0"
-          >
-            {saveLabel}
-          </Button>
-        </div>
+        <>
+          <div className="flex gap-2">
+            <Input
+              value={addressInput}
+              onChange={(e) => setAddressInput(e.target.value)}
+              placeholder="0x…"
+              disabled={disabled}
+              aria-invalid={!!error}
+              className="font-mono"
+            />
+            <Button
+              type="button"
+              onClick={onSave}
+              disabled={saveDisabled}
+              className="h-9 shrink-0"
+            >
+              {saveLabel}
+            </Button>
+          </div>
+          {error && (
+            <span className="text-small text-danger-text">{error}</span>
+          )}
+        </>
       )}
     </div>
   </InfoRow>
@@ -329,6 +338,7 @@ const ResolutionDetails = ({
   editLock,
   addressInput,
   setAddressInput,
+  addressError,
   isBusy,
   hasResolver,
   saveLabel,
@@ -344,6 +354,7 @@ const ResolutionDetails = ({
   readonly editLock: RecordEditLock | undefined
   addressInput: string
   setAddressInput: (v: string) => void
+  readonly addressError: string | null
   isBusy: boolean
   hasResolver: boolean
   saveLabel: string
@@ -417,8 +428,11 @@ const ResolutionDetails = ({
           canEdit={canEdit}
           addressInput={addressInput}
           setAddressInput={setAddressInput}
+          error={addressError}
           disabled={isBusy}
-          saveDisabled={!addressInput || isBusy || !hasResolver}
+          saveDisabled={
+            !addressInput.trim() || !!addressError || isBusy || !hasResolver
+          }
           saveLabel={saveLabel}
           onSave={onSave}
         />
@@ -499,6 +513,14 @@ const useAddressRecordEditor = (
   const setAddressInput = (value: string) => {
     if (data) setEdit({ coinType: data.coinType, value })
   }
+  // Validated before Save, so an address the coin can't encode never reaches the wallet.
+  const record: EditableRecord | null = data && {
+    type: 'address',
+    key: data.label,
+    value: addressInput,
+    id: data.coinType,
+  }
+  const addressError = record && validateRecord(record)
 
   // Root `ROLE_SET_ADDRESS`, or the role scoped to this row's coin type.
   const { canEdit, editLock } = useCanEditRecords({
@@ -560,13 +582,7 @@ const useAddressRecordEditor = (
   }
 
   const startSetAddr = () => {
-    if (!resolverAddress || !data) return
-    const record: EditableRecord = {
-      type: 'address',
-      key: data.label,
-      value: addressInput,
-      id: data.coinType,
-    }
+    if (!resolverAddress || !record) return
     saveRecords({
       name,
       resolverAddress,
@@ -680,6 +696,7 @@ const useAddressRecordEditor = (
     hasResolver: !!resolverAddress,
     addressInput,
     setAddressInput,
+    addressError,
     isBusy: isWriting || isConfirming || isSyncing || isSwitchingChain,
     saveLabel: saveButtonLabel({
       isConnected,
@@ -689,7 +706,7 @@ const useAddressRecordEditor = (
       isSyncing,
     }),
     onSave: () => {
-      if (!addressInput || !resolverAddress) return
+      if (!addressInput.trim() || addressError || !resolverAddress) return
       openFlow('addr')
     },
     isSettingPrimaryName: isSettingL2PrimaryName,
@@ -741,6 +758,7 @@ export const AddressResolutionSidebar: FC<
               editLock={editor.editLock}
               addressInput={editor.addressInput}
               setAddressInput={editor.setAddressInput}
+              addressError={editor.addressError}
               isBusy={editor.isBusy}
               hasResolver={editor.hasResolver}
               saveLabel={editor.saveLabel}
