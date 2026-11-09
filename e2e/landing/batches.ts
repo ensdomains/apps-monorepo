@@ -79,7 +79,7 @@ export const batches: Batch[] = [
     title:
       'Fuse tests that need subname creation back (paused by WEB-2097, #1654)',
   },
-  { id: 'B5', title: 'Roles and recreated subnames: the tests that pass on main (B5a)' },
+  { id: 'B5', title: 'Roles and recreated subnames: the tests that pass on main (B5a)', pr: 1768 },
   {
     id: 'B5b',
     title:
