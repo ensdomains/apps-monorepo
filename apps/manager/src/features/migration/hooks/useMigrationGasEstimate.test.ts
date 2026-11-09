@@ -210,6 +210,27 @@ it('marks fresh plans with the rollout state and refreshes it when the flag chan
   })
 })
 
+it.each([
+  { field: 'V1 manager', changed: { ...domain, owner: { id: HCA } } },
+  {
+    field: 'V1 resolver',
+    changed: { ...domain, resolver: { address: HCA } },
+  },
+])('rebuilds the plan when a refresh changes the $field', ({ changed }) => {
+  const lastKey = () => {
+    const [options] = mocks.query.mock.lastCall ?? []
+    return (options as { readonly queryKey?: unknown } | undefined)?.queryKey
+  }
+  const { rerender } = renderHook(
+    (props: Parameters<typeof useMigrationGasEstimate>[0]) =>
+      useMigrationGasEstimate(props),
+    { initialProps: params },
+  )
+  const before = lastKey()
+  rerender({ ...params, v1Names: [changed] })
+  expect(lastKey()).not.toEqual(before)
+})
+
 describe('useMigrationGasEstimate failure stages', () => {
   it('recovers from a transient preflight failure with one fresh preparation attempt', async () => {
     mocks.preflight.mockRejectedValueOnce(
