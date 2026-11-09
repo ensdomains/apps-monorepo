@@ -1,11 +1,9 @@
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions } from '@tanstack/react-query'
 import { getPublicClient, type Config as WagmiConfig } from '@wagmi/core'
-import posthog from 'posthog-js/dist/module.full.no-external'
 import { type Address, isAddress, type PublicClient, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { abortablePublicClient } from '../service/abortablePublicClient'
 import { classifyNames } from '../service/classifyNames'
 import { getMigratedNamesCount } from '../service/getMigratedNamesCount'
@@ -164,10 +162,6 @@ const checkMigrationCompletion = async (
       }
       const migratable = await resolveMigratableNames({
         eligible: eligibility.eligible,
-        isSubnameImportEnabled:
-          posthog.isFeatureEnabled(
-            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-          ) === true,
         owner: params.ownerAddress,
         publicClient: client,
         signal,

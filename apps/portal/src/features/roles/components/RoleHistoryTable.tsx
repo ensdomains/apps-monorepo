@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import {
   EventsSidebar,
   type EventsTableData,
@@ -173,9 +174,7 @@ export const RoleHistoryTable = ({
   }
 
   if (!data || data.length === 0) {
-    return (
-      <p className="text-muted-foreground text-p p-4">No role history found.</p>
-    )
+    return <NoResultsMessage compact description="No role history found." />
   }
 
   return (

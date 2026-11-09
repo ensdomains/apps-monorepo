@@ -24,7 +24,6 @@ type PrepareUpgradeParameters = {
   readonly recoverySnapshot: MigrationRecoverySnapshot | null
   readonly recoverySelectionMatches: boolean
   readonly domains: readonly V1Domain[]
-  readonly shouldRecreateSubnames: boolean
   readonly managerRestorationNames: readonly string[]
   readonly canBatchAtomically: boolean
   readonly signal: AbortSignal
@@ -98,28 +97,20 @@ const prepareWithReads = async (params: PrepareUpgradeParameters) => {
     })
     params.signal.throwIfAborted()
     await report('checking-fee', selectedNames)
-    return {
-      estimate,
-      plan: {
-        ...plan,
-        isSubnameRecreationEnabled: params.shouldRecreateSubnames,
-      },
-    }
+    return { estimate, plan }
   }
   const [discovery, preflight] = await Promise.all([
-    params.shouldRecreateSubnames
-      ? runMigrationPreparationStage('plan', () =>
-          discoverSubnameRecreation({
-            onNamesChecked: (names) => report('checking-names', names),
-            domains: params.domains,
-            owner: ownerAddress,
-            publicClient,
-            verificationClient: params.verificationClient,
-            inventory: params.inventory,
-            signal: params.signal,
-          }),
-        )
-      : Promise.resolve(undefined),
+    runMigrationPreparationStage('plan', () =>
+      discoverSubnameRecreation({
+        onNamesChecked: (names) => report('checking-names', names),
+        domains: params.domains,
+        owner: ownerAddress,
+        publicClient,
+        verificationClient: params.verificationClient,
+        inventory: params.inventory,
+        signal: params.signal,
+      }),
+    ),
     runMigrationPreparationStage('preflight', async () => {
       await report('finding-records')
       return params.ensurePreflight(params.domains, {
@@ -136,8 +127,8 @@ const prepareWithReads = async (params: PrepareUpgradeParameters) => {
     }),
   ])
   params.signal.throwIfAborted()
-  if (discovery) await params.onInventory?.(discovery.inventory)
-  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
+  await params.onInventory?.(discovery.inventory)
+  const recreation = discovery.snapshot.roots.length ? discovery : undefined
   await report('checking-names', selectedNames)
   await report('finding-records', selectedNames)
   const plan = await runMigrationPreparationStage('plan', () =>
@@ -165,8 +156,8 @@ const prepareWithReads = async (params: PrepareUpgradeParameters) => {
         publicClient,
         verificationClient: params.verificationClient,
         classified: plan.classified,
-        inventory: discovery?.inventory,
-        unknownLabelNames: discovery?.unrecoverable,
+        inventory: discovery.inventory,
+        unknownLabelNames: discovery.unrecoverable,
         signal: params.signal,
       })
       await report('checking-upgrade', selectedNames)
@@ -181,14 +172,7 @@ const prepareWithReads = async (params: PrepareUpgradeParameters) => {
   ])
   params.signal.throwIfAborted()
   await report('checking-fee', selectedNames)
-  return {
-    estimate,
-    subnameImpact,
-    plan: {
-      ...plan,
-      isSubnameRecreationEnabled: params.shouldRecreateSubnames,
-    },
-  }
+  return { estimate, subnameImpact, plan }
 }
 
 /** One preparation lifetime; independent producers share the coordinator's read queue. */
