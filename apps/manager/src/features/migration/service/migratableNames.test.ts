@@ -53,7 +53,6 @@ describe('resolveMigratableNames', () => {
     const result = await resolveMigratableNames({
       eligible: names,
       owner: OWNER,
-      isSubnameImportEnabled: true,
       publicClient: createPublicClient({
         chain: envConfig.chain,
         transport: http(),
@@ -89,7 +88,6 @@ describe('resolveMigratableNames', () => {
       eligible: selected,
       previousInventory,
       owner: OWNER,
-      isSubnameImportEnabled: true,
       publicClient: createPublicClient({
         chain: envConfig.chain,
         transport: http(),
@@ -119,7 +117,6 @@ describe('resolveMigratableNames', () => {
       const result = await resolveMigratableNames({
         eligible: [name],
         owner: OWNER,
-        isSubnameImportEnabled: true,
         publicClient: createPublicClient({
           chain: envConfig.chain,
           transport: http(),
@@ -172,7 +169,6 @@ describe('resolveMigratableNames', () => {
     const result = await resolveMigratableNames({
       eligible: names,
       owner: OWNER,
-      isSubnameImportEnabled: true,
       publicClient: createPublicClient({
         chain: envConfig.chain,
         transport: http(),
@@ -248,7 +244,6 @@ describe('resolveMigratableNames', () => {
       const result = await resolveMigratableNames({
         eligible: names,
         owner: OWNER,
-        isSubnameImportEnabled: true,
         onInventory,
         publicClient: createPublicClient({
           chain: envConfig.chain,
@@ -300,7 +295,6 @@ describe('resolveMigratableNames', () => {
       resolveMigratableNames({
         eligible: names,
         owner: OWNER,
-        isSubnameImportEnabled: true,
         publicClient: createPublicClient({
           chain: envConfig.chain,
           transport: http(),
@@ -343,7 +337,6 @@ describe('resolveMigratableNames', () => {
     const result = await resolveMigratableNames({
       eligible: [bad, good],
       owner: OWNER,
-      isSubnameImportEnabled: true,
       publicClient: createPublicClient({
         chain: envConfig.chain,
         transport: http(),
@@ -363,7 +356,7 @@ describe('resolveMigratableNames', () => {
       name: 'label.eth',
       id: namehash('label.eth'),
     })
-    const run = (isSubnameImportEnabled: boolean) => {
+    const run = () => {
       mocks.readRpcSubnameInventory.mockResolvedValueOnce({
         roots: [{ node: name.domain.id, name: name.domain.name }],
         nodes: [{ parentNode: name.domain.id, node: namehash(UNKNOWN) }],
@@ -371,7 +364,6 @@ describe('resolveMigratableNames', () => {
       return resolveMigratableNames({
         eligible: [name],
         owner: OWNER,
-        isSubnameImportEnabled,
         publicClient: createPublicClient({
           chain: envConfig.chain,
           transport: http(),
@@ -388,40 +380,13 @@ describe('resolveMigratableNames', () => {
         unrecoverable,
       })
 
-    it.each([
-      {
-        path: 'the import',
-        isSubnameImportEnabled: true,
-        setup: () => discovered([UNKNOWN]),
-      },
-      {
-        path: 'the impact check',
-        isSubnameImportEnabled: false,
-        setup: () =>
-          mocks.getSubnameMigrationImpact.mockResolvedValueOnce([
-            {
-              name: name.domain.name,
-              result: {
-                status: 'complete',
-                impact: {
-                  affectedCount: 0,
-                  parents: [],
-                  unrecoverable: [UNKNOWN],
-                },
-              },
-            },
-          ]),
-      },
-    ])(
-      'keeps a name upgradable and reports what $path leaves behind',
-      async ({ isSubnameImportEnabled, setup }) => {
-        setup()
-        const result = await run(isSubnameImportEnabled)
-        expect(result.eligible).toEqual([name])
-        expect(result.blockedSubnames).toEqual([])
-        expect(result.unrecoverableSubnames).toEqual([UNKNOWN])
-      },
-    )
+    it('keeps a name upgradable and reports what the import leaves behind', async () => {
+      discovered([UNKNOWN])
+      const result = await run()
+      expect(result.eligible).toEqual([name])
+      expect(result.blockedSubnames).toEqual([])
+      expect(result.unrecoverableSubnames).toEqual([UNKNOWN])
+    })
 
     it.each([
       { count: 5, isBlocked: false },
@@ -434,7 +399,7 @@ describe('resolveMigratableNames', () => {
           (_, index) => `[${index.toString(16).padStart(64, '0')}].label.eth`,
         )
         discovered(unrecoverable)
-        const result = await run(true)
+        const result = await run()
         expect(result.blockedSubnames).toEqual(
           isBlocked ? [{ name, reason: 'too-many-unknown-labels' }] : [],
         )
@@ -572,7 +537,6 @@ describe('resolveMigratableNames', () => {
         unsupportedChild,
         unreadableChild,
       ],
-      isSubnameImportEnabled: true,
       owner: OWNER,
       publicClient,
     })

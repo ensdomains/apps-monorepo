@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -9,7 +10,6 @@ import {
   NAME_HISTORY_PAGE_SIZE,
 } from '@/features/profile/hooks/useNameHistory'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
-import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import {
   groupEventsByTransactionId,
   type HistoryTableEvent,
@@ -96,7 +96,16 @@ export const NameEventsHistory = ({
   })
 
   if (!hasEvents && isLoading) return <LoadingSpinner title="Loading..." />
-  if (!hasEvents && error) return <div>Error: {extractErrorMessage(error)}</div>
+  if (!hasEvents && error)
+    return (
+      <div className="flex flex-col gap-4 w-full">
+        {enableHeader && <HistorySectionHeader />}
+        <ErrorMessage
+          compact
+          description="Error fetching history. Please refresh the page."
+        />
+      </div>
+    )
 
   const data =
     prefetchedEvents ??
