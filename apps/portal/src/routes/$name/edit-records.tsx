@@ -33,6 +33,7 @@ import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
@@ -187,10 +188,7 @@ function EditRecordsPage() {
           </Link>
           <h1 className="text-h1">{name}</h1>
         </div>
-        <ErrorMessage
-          title="Wallet Not Connected"
-          description="Please connect your wallet to edit records."
-        />
+        <ConnectWalletAlert />
       </div>
     )
   }

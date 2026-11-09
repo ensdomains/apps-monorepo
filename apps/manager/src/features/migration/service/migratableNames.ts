@@ -28,7 +28,6 @@ import {
 const DISCOVERY_CONCURRENCY = 4
 
 export type SubnameMigrationBlockReason =
-  | 'imports-disabled'
   | 'unsupported-parent'
   | 'deeper-subnames'
   | 'wrapped-protections'
@@ -114,11 +113,9 @@ const verifiedCandidate = (
 const getImportCandidates = (params: {
   readonly candidates: readonly ClassifiedName[]
   readonly nonemptyNodes: ReadonlySet<string>
-  readonly isSubnameImportEnabled: boolean
 }): readonly ClassifiedName[] =>
   params.candidates.filter(
     (name) =>
-      params.isSubnameImportEnabled &&
       canImportDirectSubnames(name) &&
       params.nonemptyNodes.has(namehash(name.domain.name)),
   )
@@ -165,7 +162,6 @@ const copiedChildrenOf = (
 
 const checkSubnameCandidates = async (params: {
   readonly candidates: readonly ClassifiedName[]
-  readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
   readonly verificationClient?: PublicClient
@@ -242,7 +238,6 @@ const checkSubnameCandidates = async (params: {
   const importCandidates = getImportCandidates({
     candidates: params.candidates,
     nonemptyNodes,
-    isSubnameImportEnabled: params.isSubnameImportEnabled,
   })
   const recreated =
     importCandidates.length > 1
@@ -266,7 +261,7 @@ const checkSubnameCandidates = async (params: {
   })
   if (preparedInventory) await params.onInventory?.(preparedInventory)
   const unsupportedNames = params.candidates.filter(
-    (name) => !params.isSubnameImportEnabled || !canImportDirectSubnames(name),
+    (name) => !canImportDirectSubnames(name),
   )
   const impact =
     unsupportedNames.length === 0
@@ -292,8 +287,7 @@ const checkSubnameCandidates = async (params: {
         .slice(offset, offset + DISCOVERY_CONCURRENCY)
         .map(async (name): Promise<SubnameCandidateResult> => {
           try {
-            const canImport = canImportDirectSubnames(name)
-            if (params.isSubnameImportEnabled && canImport) {
+            if (canImportDirectSubnames(name)) {
               if (!nonemptyNodes.has(namehash(name.domain.name)))
                 return { status: 'verified', subnames: [], unrecoverable: [] }
               const verified =
@@ -328,12 +322,7 @@ const checkSubnameCandidates = async (params: {
             return affectedCount > 0
               ? {
                   status: 'blocked',
-                  block: {
-                    name,
-                    reason: canImport
-                      ? 'imports-disabled'
-                      : 'unsupported-parent',
-                  },
+                  block: { name, reason: 'unsupported-parent' },
                 }
               : {
                   status: 'verified',
@@ -450,7 +439,6 @@ const checkDirectParentRoutes = async (params: {
  */
 export const resolveMigratableNames = async (params: {
   readonly eligible: readonly ClassifiedName[]
-  readonly isSubnameImportEnabled: boolean
   readonly owner: Address
   readonly publicClient: PublicClient
   readonly verificationClient?: PublicClient
@@ -473,7 +461,6 @@ export const resolveMigratableNames = async (params: {
   // alone cannot establish that the complete tree can be preserved.
   const checked = await checkSubnameCandidates({
     candidates: direct,
-    isSubnameImportEnabled: params.isSubnameImportEnabled,
     owner: params.owner,
     publicClient: coalesceLatestBlockReads(params.publicClient),
     verificationClient: params.verificationClient,

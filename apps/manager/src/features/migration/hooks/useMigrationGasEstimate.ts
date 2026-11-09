@@ -2,7 +2,6 @@
 
 import type { V1Domain } from '@ens-apps/migration'
 import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
@@ -14,7 +13,6 @@ import {
   migrationPreparationFailure,
   shouldRetryMigrationPreparation,
 } from '@/features/migration/service/migrationPreparationError'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import type { MigrationEstimateProgress } from '../service/migrationEstimateProgress'
 import { prepareUpgrade } from '../service/prepareUpgrade'
@@ -82,6 +80,18 @@ const waitForStableSelection = (signal: AbortSignal): Promise<void> => {
   })
 }
 
+// The plan encodes the V1 controller and resolver, so a refresh that moves either rebuilds it.
+const v1SourceKeyOf = (domain: V1Domain): string =>
+  [
+    domain.id,
+    domain.owner.id,
+    domain.registrant?.id ?? '',
+    domain.wrappedOwner?.id ?? '',
+    domain.resolver?.address ?? '',
+  ]
+    .join(':')
+    .toLowerCase()
+
 const formatEstimatedEth = (wei: bigint): string => {
   const formatted = formatEther(wei)
   const [whole = '0', fraction = ''] = formatted.split('.')
@@ -98,13 +108,7 @@ export const useMigrationGasEstimate = ({
   v1Names,
   enabled: estimateEnabled = true,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
-  // Roll out the reviewed-snapshot import independently of ordinary migration.
   const queryClient = useQueryClient()
-  const helperFlag = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-    false,
-  )
-  const shouldRecreateSubnames = helperFlag === true
   const publicClient = usePublicClient({ chainId: chain.id })
   const coordinator = useUpgradeReadCoordinator()
   const { ensure: ensurePreflight } = useMigrationPreflight({
@@ -136,6 +140,7 @@ export const useMigrationGasEstimate = ({
     () => domains.map((domain) => domain.id).sort(),
     [domains],
   )
+  const v1Sources = useMemo(() => domains.map(v1SourceKeyOf).sort(), [domains])
   const recoveryOperations = useMemo(
     () =>
       recoverySnapshot?.remainingOperations.map(
@@ -168,10 +173,10 @@ export const useMigrationGasEstimate = ({
   const queryKey = [
     'migration-gas-estimate',
     {
-      shouldRecreateSubnames,
       ownerAddress: ownerAddress?.toLowerCase() ?? '',
       hcaAddress: hcaAddress?.toLowerCase() ?? '',
       domainIds,
+      v1Sources,
       selectedNames: selectedNamesKey,
       managerRestorationNames: managerRestorationKey,
       recoveryOperations,
@@ -218,7 +223,6 @@ export const useMigrationGasEstimate = ({
         publicClient: publicClient as unknown as PublicClient | undefined,
         recoverySnapshot,
         recoverySelectionMatches,
-        shouldRecreateSubnames,
         domains,
         managerRestorationNames: managerRestorationKey,
         canBatchAtomically,
@@ -285,9 +289,6 @@ export const useMigrationGasEstimate = ({
     gasUnits: query.data.estimate.gasUnits,
     feeWei: query.data.estimate.feeWei,
     transactionCount: query.data.estimate.transactionCount,
-    plan: {
-      ...query.data.plan,
-      isSubnameRecreationEnabled: shouldRecreateSubnames,
-    },
+    plan: query.data.plan,
   }
 }

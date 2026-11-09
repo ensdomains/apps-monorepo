@@ -187,7 +187,7 @@ export const shouldRetrySubnameInventoryRead = (cause: unknown): boolean => {
     .otherwise(() => false)
 }
 
-/** The original mainnet registry's pre-REVERT compiler traps on a missing selector. */
+/** The original mainnet registry's pre-REVERT compiler traps on a missing selector; geth and reth word it differently. */
 export const isMissingRegistryFallbackGetter = (params: {
   readonly chainId: number
   readonly address: Address
@@ -199,7 +199,7 @@ export const isMissingRegistryFallbackGetter = (params: {
       (params.chainId === 1 &&
         params.address.toLowerCase() ===
           '0x314159265dd8dbb310642f98f50c066173c1259b' &&
-        /EVM error:?\s*InvalidJump/.test(message)),
+        /EVM error:?\s*InvalidJump|invalid jump destination/i.test(message)),
   )
 
 /** Historical assignments establish identities, never current ownership or liveness. */

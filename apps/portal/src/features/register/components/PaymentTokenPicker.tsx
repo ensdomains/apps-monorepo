@@ -14,6 +14,7 @@ import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewa
 import { getPaymentHeading } from '@/features/register/utils/paymentHeading'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { getRenewerAddress } from '@/features/renew/utils/renewer'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { ensChain } from '@/lib/wagmi'
 import {
   buildTokenData,
@@ -167,16 +168,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     return <Skeleton />
   }
 
-  if (!address) {
-    return (
-      <MessageCard
-        icon={<AlertTriangle className="size-6" />}
-        title="Connect your wallet"
-        className="xl:min-w-none"
-        description="Connect your wallet to view available payment tokens for your ENS registration."
-      />
-    )
-  }
+  if (!address) return <ConnectWalletAlert />
 
   if (!resolvedPrices || isPriceFailed) {
     return (

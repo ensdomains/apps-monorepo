@@ -226,6 +226,32 @@ describe('RPC subname inventory', () => {
       ).toBe(false)
     },
   )
+  it.each([
+    {
+      chainId: 1,
+      address: '0x314159265dD8dbb310642f98f50C066173C1259b',
+      expected: true,
+    },
+    {
+      chainId: 11155111,
+      address: '0x314159265dD8dbb310642f98f50C066173C1259b',
+      expected: false,
+    },
+    { chainId: 1, address: REGISTRY, expected: false },
+  ] as const)(
+    'recognizes a geth-style invalid jump only for the original mainnet registry ($chainId, $address)',
+    ({ chainId, address, expected }) => {
+      expect(
+        isMissingRegistryFallbackGetter({
+          chainId,
+          address,
+          cause: new Error('Missing or invalid parameters.', {
+            cause: { code: -32000, message: 'invalid jump destination' },
+          }),
+        }),
+      ).toBe(expected)
+    },
+  )
   it('covers every registry layer, block and parent without overlapping windows', () => {
     const plan = planSubnameLogReads({
       registries: [

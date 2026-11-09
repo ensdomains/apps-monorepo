@@ -89,7 +89,7 @@ const RESERVATION_BONUSES = [
   },
 ] as const
 
-test.describe('#1494 flag off: plain 2LD migration (R2)', () => {
+test.describe('#1494 plain 2LD migration (R2)', () => {
   test.describe.configure({ timeout: 300_000 })
 
   for (const { title, bonus, tag } of RESERVATION_BONUSES)
@@ -112,7 +112,7 @@ test.describe('#1494 flag off: plain 2LD migration (R2)', () => {
         },
       ])
       await mockSubnameInventory(page, [{ name }])
-      await connectWithFlags(page, wallet, { recreation: false })
+      await connectWithFlags(page, wallet)
 
       await openMigrationFlow(page)
       await selectOnlyRoots(page, [name])
@@ -199,7 +199,7 @@ test.describe('#1494 WEB-1934 flag on: direct 3LD recreation', () => {
         children: [{ name: bobName }, { name: carolName }, { name: zedName }],
       },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
 
     await openMigrationFlow(page)
     await expect(rootRow(page, parent)).toBeVisible({ timeout: 60_000 })
@@ -275,63 +275,6 @@ async function expectNotSelectable(page: Page, parent: string) {
   await expect(row, `${parent} must not become selected`).not.toBeChecked()
 }
 
-test.describe('#1494 WEB-1933 flag off: a parent with subnames stays on ENSv1', () => {
-  test.describe.configure({ timeout: 300_000 })
-
-  test('the parent is disabled with its reason while a childless name upgrades', async ({
-    page,
-    wallet,
-    accounts,
-  }) => {
-    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
-    const other = privateKeyToAccount(accounts.getPrivateKey('user2'))
-    await asPlainEoas(other)
-    const parent = await createMakeV1Name({ userAccount: owner })({
-      label: 'w1933-off',
-    })
-    const child = await registryChild({
-      parent,
-      label: 'kid',
-      parentOwner: owner,
-      holder: other,
-    })
-    const control = await controlName(owner, 'w1933-ctl')
-
-    await serveV1Names(page, [
-      {
-        name: parent,
-        ownerAddress: owner.address,
-        expiryDate: await v1Expiry(parent.replace(/\.eth$/, '')),
-      },
-      control.entry,
-    ])
-    await mockSubnameInventory(page, [
-      { name: parent, children: [{ name: child }] },
-      { name: control.name },
-    ])
-    await connectWithFlags(page, wallet, { recreation: false })
-
-    await openMigrationFlow(page)
-    await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
-    await expect(page.getByText(parent).first()).toBeVisible()
-    await page.waitForTimeout(5_000)
-    await expect(
-      page
-        .getByText(
-          'Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working.',
-        )
-        .first(),
-    ).toBeVisible()
-    await expectNotSelectable(page, parent)
-
-    await selectOnlyRoots(page, [control.name])
-    await confirmAndAuthorize(page, wallet)
-
-    await assertV2Registered(control.name.replace(/\.eth$/, ''))
-    await assertV2Reserved(parent.replace(/\.eth$/, ''))
-  })
-})
-
 test.describe('#1494 WEB-1933 flag on: unsupported trees cannot be selected', () => {
   test.describe.configure({ timeout: 300_000 })
 
@@ -391,7 +334,7 @@ test.describe('#1494 WEB-1933 flag on: unsupported trees cannot be selected', ()
       [{ name: partial, children: [{ name: partialChild }] }],
       { partial: true },
     )
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
 
     await openMigrationFlow(page)
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
@@ -457,7 +400,7 @@ test.describe('#1494 R1: RESERVED V1 profile reads', () => {
       },
     ])
     await mockSubnameInventory(page, [{ name }])
-    await connectWithFlags(page, wallet, { recreation: false })
+    await connectWithFlags(page, wallet)
 
     await page.goto(`/p/${name}`)
     await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible({
@@ -535,7 +478,7 @@ test.describe('#1494 WEB-1938 kept manager', () => {
       ],
     })
     await mockSubnameInventory(page, [{ name }])
-    await connectWithFlags(page, wallet, { recreation: false })
+    await connectWithFlags(page, wallet)
 
     await openMigrationFlow(page)
     await expect(rootRow(page, name)).toBeVisible({ timeout: 60_000 })
@@ -698,7 +641,7 @@ test.describe('#1494 WEB-1938 resolver copy/review/replace', () => {
     await mockSubnameInventory(page, [
       { name: parent, children: [{ name: amy }, { name: pk }] },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     await confirmAndAuthorize(page, wallet)
@@ -803,104 +746,6 @@ const reviewCheckbox = (page: Page) =>
   })
 
 // ---------------------------------------------------------------------------
-// Rollout gate: the flag is re-read before anything is submitted
-// ---------------------------------------------------------------------------
-
-test.describe('#1494 rollout gate: migration-subname-recreation re-checked before submit', () => {
-  test.describe.configure({ timeout: 420_000 })
-
-  test('turning the flag off after a recreation plan is prepared submits nothing', async ({
-    page,
-    wallet,
-    accounts,
-  }) => {
-    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
-    const other = privateKeyToAccount(accounts.getPrivateKey('user2'))
-    await asPlainEoas(other)
-    const parent = await createMakeV1Name({ userAccount: owner })({
-      label: 'gate-off',
-    })
-    const child = await registryChild({
-      parent,
-      label: 'kid',
-      parentOwner: owner,
-      holder: other,
-      resolver: V1_PUBLIC_RESOLVER,
-    })
-    await serveV1Names(page, [
-      {
-        name: parent,
-        ownerAddress: owner.address,
-        expiryDate: await v1Expiry(parent.replace(/\.eth$/, '')),
-      },
-    ])
-    await mockSubnameInventory(page, [
-      { name: parent, children: [{ name: child }] },
-    ])
-    await connectWithFlags(page, wallet, { recreation: true })
-    await openMigrationFlow(page)
-    await selectOnlyRoots(page, [parent])
-    const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
-    await expect(upgrade, 'the recreation plan is ready').toBeEnabled({
-      timeout: 120_000,
-    })
-
-    // Rollout is withdrawn while the page sits on a prepared plan.
-    await page.evaluate(() => {
-      const posthog = (
-        window as Window & {
-          posthog?: {
-            featureFlags: {
-              overrideFeatureFlags(o: { flags: Record<string, boolean> }): void
-            }
-          }
-        }
-      ).posthog
-      posthog?.featureFlags.overrideFeatureFlags({
-        flags: {
-          migration: true,
-          'profile-view-new': true,
-          'migration-subname-recreation': false,
-        },
-      })
-    })
-
-    const from = (await publicClient.getBlockNumber({ cacheTime: 0 })) + 1n
-    let done = false
-    const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
-    if (await upgrade.isEnabled().catch(() => false))
-      await upgrade.click({ timeout: 5_000 }).catch(() => {})
-    await page.waitForTimeout(30_000)
-    done = true
-    await Promise.race([authorizing, page.waitForTimeout(5_000)])
-    console.log(
-      `[gate] page after flip:\n${await page.locator('main').innerText()}`,
-    )
-
-    await expect(
-      page.getByRole('heading', {
-        name: /your names? (has|have) been upgraded/i,
-      }),
-    ).toHaveCount(0)
-    await assertV2Reserved(parent.replace(/\.eth$/, ''))
-    const sent = await publicClient.getBlockNumber({ cacheTime: 0 })
-    let fromOwner = 0
-    for (let n = from; n <= sent; n++) {
-      const block = await publicClient.getBlock({
-        blockNumber: n,
-        includeTransactions: true,
-      })
-      fromOwner += block.transactions.filter(
-        (tx) =>
-          typeof tx !== 'string' &&
-          tx.from.toLowerCase() === owner.address.toLowerCase(),
-      ).length
-    }
-    expect(fromOwner, 'no wallet transaction after the flag went off').toBe(0)
-  })
-})
-
-// ---------------------------------------------------------------------------
 // #1497 (merged into #1494): ENSv1 names in the primary-name picker
 // ---------------------------------------------------------------------------
 
@@ -931,7 +776,7 @@ test.describe('#1494 + #1497 primary name picker offers ENSv1 names', () => {
       (await ethRegistryState(resolving.replace(/\.eth$/, ''))).status,
     ).toBe(1)
 
-    await connectWithFlags(page, wallet, { recreation: false })
+    await connectWithFlags(page, wallet)
     await page.goto('/dashboard')
     await page
       .getByRole('button', { name: /set primary name/i })
@@ -1189,7 +1034,7 @@ test.describe('#1494 WEB-1934 acceptance: permissions, stale source, docs link',
     await mockSubnameInventory(page, [
       { name: parent, children: [{ name: bobName }] },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
@@ -1268,7 +1113,7 @@ test.describe('#1494 WEB-1934 acceptance: permissions, stale source, docs link',
       { name: parent, children: [{ name: mid, children: [{ name: leaf }] }] },
       { name: control.name },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await expect(
       page
@@ -1329,7 +1174,7 @@ test.describe('#1494 WEB-1933 on a phone: blocked parents explain themselves', (
       { name: parent, children: [{ name: mid, children: [{ name: leaf }] }] },
       { name: control.name },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
     const reason = page
@@ -1393,7 +1238,7 @@ async function wrappedChildWithFuses(params: {
   readonly label: string
   readonly parentOwner: Signer
   readonly holder: Address
-}): Promise<{ name: string; forged: boolean }> {
+}): Promise<{ name: string; isForged: boolean }> {
   const name = `${params.label}.${params.parent}`
   const { timestamp } = await publicClient.getBlock()
   try {
@@ -1413,7 +1258,7 @@ async function wrappedChildWithFuses(params: {
       }),
       `wrapper setSubnodeOwner(${name}, CAN_EXTEND_EXPIRY)`,
     )
-    return { name, forged: false }
+    return { name, isForged: false }
   } catch {
     // The NameWrapper refuses fuses on a child of an unlocked parent: wrap
     // it plainly, then forge the fuse bits in its `_tokens` slot.
@@ -1463,7 +1308,7 @@ async function wrappedChildWithFuses(params: {
           functionName: 'getData',
           args: [id],
         })
-        if (fuses !== 0) return { name, forged: true }
+        if (fuses !== 0) return { name, isForged: true }
       }
     }
     throw new Error(`could not give ${name} non-zero fuses`)
@@ -1508,7 +1353,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       { name: parent, children: [{ name: child }] },
       { name: control.name },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
     await expectBlockedParent(
@@ -1541,7 +1386,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       holder: other.address,
     })
     console.log(
-      `[A2] ${child.name}: fuses ${child.forged ? 'FORGED in NameWrapper storage (the wrapper refused the real shape)' : 'set through NameWrapper.setSubnodeOwner'}`,
+      `[A2] ${child.name}: fuses ${child.isForged ? 'FORGED in NameWrapper storage (the wrapper refused the real shape)' : 'set through NameWrapper.setSubnodeOwner'}`,
     )
     const control = await controlName(owner, 'a2-ctl')
     await serveV1Names(page, [
@@ -1557,7 +1402,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       { name: parent, children: [{ name: child.name }] },
       { name: control.name },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
     await expectBlockedParent(
@@ -1590,7 +1435,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       { name: parent, children: [], subnameCount: 201 },
       { name: control.name },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
     await expectBlockedParent(
@@ -1631,7 +1476,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       { name: control.name },
     ])
     void child
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await expect(rootRow(page, control.name)).toBeVisible({ timeout: 60_000 })
     await expectBlockedParent(
@@ -1672,7 +1517,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
     await mockSubnameInventory(page, [
       { name: parent, children: children.map((name) => ({ name })) },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
@@ -1690,6 +1535,8 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
     if (prepared === 'ready') {
       const outcome = await upgradeAndSettle(page, wallet)
       console.log(`[A5] outcome: ${outcome}`)
+      // A refusal or a completed upgrade, never a page left hanging.
+      expect(outcome).not.toBe('stuck')
     }
     // The invariant either way: never a partial family.
     const status = (await ethRegistryState(parent.replace(/\.eth$/, ''))).status
@@ -1732,7 +1579,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
     await mockSubnameInventory(page, [
       { name: parent, children: [{ name: known }] },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     await expect(
@@ -1746,7 +1593,8 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
       holder: owner,
     })
     const outcome = await upgradeAndSettle(page, wallet)
-    expect(outcome).not.toBe('success')
+    // The app re-checks the subname inventory at submit and refuses.
+    expect(outcome).toBe('subnamesNotPreserved')
     await expectUntouched(parent)
   })
 
@@ -1778,7 +1626,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
     await mockSubnameInventory(page, [
       { name: parent, children: [{ name: bobName }] },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     await expect(
@@ -1832,7 +1680,7 @@ test.describe('#1494 WEB-1933 remaining block reasons and conflicts', () => {
     await mockSubnameInventory(page, [
       { name: parent, children: [{ name: child }] },
     ])
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
@@ -1996,7 +1844,7 @@ test.describe('#1494 failure, retry, abandonment and recovery', () => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const { parent, child } = await simpleTree(owner, 'c1-abandon')
     await serveTree(page, owner, parent, child)
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     const plan = await readPlan(page)
@@ -2023,11 +1871,11 @@ test.describe('#1494 failure, retry, abandonment and recovery', () => {
     console.log(`[C1] on return: ${await upgradePageState(page)}`)
     const finish = page.getByRole('button', { name: 'Finish upgrade' })
     if (await finish.isVisible().catch(() => false)) {
-      let done = false
-      const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+      let isDone = false
+      const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
       await finish.click()
       await page.waitForTimeout(20_000)
-      done = true
+      isDone = true
       await Promise.race([authorizing, page.waitForTimeout(5_000)])
     }
 
@@ -2049,7 +1897,7 @@ test.describe('#1494 failure, retry, abandonment and recovery', () => {
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const { parent, child } = await simpleTree(owner, 'c2-revert')
     await serveTree(page, owner, parent, child)
-    await connectWithFlags(page, wallet, { recreation: true })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [parent])
     const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
@@ -2128,7 +1976,7 @@ test.describe('#1494 failure, retry, abandonment and recovery', () => {
       ],
     })
     await mockSubnameInventory(page, [{ name }, { name: spare.name }])
-    await connectWithFlags(page, wallet, { recreation: false })
+    await connectWithFlags(page, wallet)
     await openMigrationFlow(page)
     await selectOnlyRoots(page, [name])
     const optIn = page.getByRole('checkbox', { name: /^Keep .* as a manager/ })
@@ -2209,7 +2057,7 @@ test.describe('#1494 failure, retry, abandonment and recovery', () => {
       await mockSubnameInventory(page, [
         { name: parent, children: [{ name: child }] },
       ])
-      await connectWithFlags(page, wallet, { recreation: true })
+      await connectWithFlags(page, wallet)
       await openMigrationFlow(page)
       await selectOnlyRoots(page, [parent])
       const optIn = page.getByRole('checkbox', {
@@ -2262,13 +2110,13 @@ test.describe('#1494 failure, retry, abandonment and recovery', () => {
         timeout: 60_000,
       })
       const from = (await publicClient.getBlockNumber({ cacheTime: 0 })) + 1n
-      let done = false
-      const authorizing = authorizeTransactionsWhile(page, wallet, () => done)
+      let isDone = false
+      const authorizing = authorizeTransactionsWhile(page, wallet, () => isDone)
       await finish.click()
       await expect
         .poll(() => isApprovedForAll(owner.address, hca), { timeout: 120_000 })
         .toBe(false)
-      done = true
+      isDone = true
       await Promise.race([authorizing, page.waitForTimeout(5_000)])
       expect(
         await txsFrom(owner.address, from),

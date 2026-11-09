@@ -4,6 +4,7 @@ import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadge } from '@/components/EntityBadge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -713,10 +714,10 @@ const TransferDetachOptions = ({
 
 /** One account and the permissions it holds on the name. */
 const RoleHolderLine = ({ grant }: { readonly grant: NameRoleGrant }) => (
-  <li className="flex flex-col">
-    <span className="text-foreground font-medium break-all">
-      {grant.account}
-    </span>
+  <li className="flex flex-wrap items-center gap-x-3">
+    <EntityBadge variant="address" address={grant.account} compact>
+      {truncateAddress(grant.account)}
+    </EntityBadge>
     <span className="text-muted-foreground">
       {grant.roles.length === 1 ? 'Permission' : 'Permissions'}:{' '}
       {grant.roles.map(formatRoleLabel).join(', ')}

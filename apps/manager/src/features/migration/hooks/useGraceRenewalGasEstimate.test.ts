@@ -128,7 +128,6 @@ describe('useGraceRenewalGasEstimate', () => {
       wagmiConfig,
       managerRestorationNames: [],
       canBatchAtomically: false,
-      isSubnameRecreationEnabled: false,
       signal,
     })
     unmount()

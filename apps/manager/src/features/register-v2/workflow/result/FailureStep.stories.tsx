@@ -70,3 +70,12 @@ export const NameNoLongerAvailable: Story = {
     nameUnavailable: true,
   },
 }
+
+/** Smart session access was reset mid-run; Back to Quote leads, as Try Again reuses the old session. */
+export const SessionAccessReset: Story = {
+  args: {
+    message:
+      'Failed to submit transaction: Simulation failed: InvalidSignature() (errorType=Bad Request statusCode=400)',
+    isSessionRevoked: true,
+  },
+}

@@ -3194,6 +3194,14 @@ msgstr "Smart account receiving allowance"
 msgid "Smart session access reset"
 msgstr "Smart session access reset"
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Smart Session Access Reset"
+msgstr "Smart Session Access Reset"
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Smart session access was reset while {label}.eth was registering, so this registration can't continue with the old session."
+msgstr "Smart session access was reset while {label}.eth was registering, so this registration can't continue with the old session."
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart session access was reset, but your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
 msgstr "Smart session access was reset, but your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
@@ -3325,10 +3333,6 @@ msgstr "Submitting the registration transaction"
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Submitting token approval"
 msgstr "Submitting token approval"
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
-msgstr "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
 
 #: src/features/migration/components/SubnameUpgradeExplanation.tsx
 msgid "Subname records aren't copied. Each subname keeps its current resolver, so its addresses, avatar and other records keep working."
@@ -3773,6 +3777,10 @@ msgstr "Try again and allow notifications when your browser asks."
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
 msgstr "Try it out"
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Trying again would use the old session and fail the same way. Go back to the quote to start the registration again with a new smart session."
+msgstr "Trying again would use the old session and fail the same way. Go back to the quote to start the registration again with a new smart session."
 
 #: src/features/notifications/settings/contact-methods/push.tsx
 msgid "Turn notifications back on"

@@ -1613,6 +1613,7 @@ describe('TokenPickerContentBase ETH row', () => {
       chargeRaw: 2_600_000_000_000_000n,
       balanceRaw: 10n ** 18n,
       gasReserveRaw: 0n,
+      walletUsdcRaw: 0n,
       ethUsdRaw: undefined,
       isQuoteLoading: false,
       hasQuoteFailed: false,
@@ -1699,6 +1700,24 @@ describe('TokenPickerContentBase ETH row', () => {
 
     expect(receiptRow('You pay')).toHaveTextContent('up to')
     expect(receiptRow('You pay')).toHaveTextContent('$5.20')
+  })
+
+  it('shows the ETH the swap sends, and the USDC the wallet spends first, as what it pays', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      ethPayment: ethPaymentOf(
+        { ethUsdRaw: 200_000_000_000n, walletUsdcRaw: 3_200_000n },
+        true,
+      ),
+      checkoutReceipt: { totalRaw: 5_000_000n },
+    })
+
+    expect(receiptRow('You pay')).toHaveTextContent(
+      /3\.20\s*USDC\s*\+\s*up to\s*0\.0026\s*ETH/,
+    )
+    expect(receiptRow('You pay')).toHaveTextContent('≈ $8.40 USD')
   })
 
   it('stays on a wallet coin that can pay rather than swapping ETH', () => {

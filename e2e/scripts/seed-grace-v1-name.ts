@@ -43,10 +43,14 @@ const PANEL_WRAPPED_RESOLVER = CERTIFIED_V1_RESOLVER
 const USDC = ensL1Contracts[supportedL1Chains.sepolia].usdc.address
 
 type InjectedName = {
-  label: string
-  type: 'grace-renewable-unwrapped' | 'wrapped' | 'locked' | 'unwrapped'
-  id: string
-  expiryDate: number
+  readonly label: string
+  readonly type:
+    | 'grace-renewable-unwrapped'
+    | 'wrapped'
+    | 'locked'
+    | 'unwrapped'
+  readonly id: string
+  readonly expiryDate: number
 }
 
 const accounts = createAccounts()

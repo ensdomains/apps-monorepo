@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  formatRoleHolderCount,
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   invalidateResolverOverview,
@@ -461,6 +462,20 @@ describe('resolverCollectionCount', () => {
     expect(resolverCollectionCount(0, 'partial')).toBe('0+')
     expect(resolverCollectionCount(12, 'partial')).toBe('12+')
   })
+})
+
+describe('formatRoleHolderCount', () => {
+  it.each([
+    { count: 1, status: 'full', expected: '1 role holder' },
+    { count: 2, status: 'full', expected: '2 role holders' },
+    { count: 1, status: 'partial', expected: '1+ role holders' },
+    { count: undefined, status: undefined, expected: 'Role holders unknown' },
+  ] as const)(
+    '$count ($status) reads $expected',
+    ({ count, status, expected }) => {
+      expect(formatRoleHolderCount(count, status)).toBe(expected)
+    },
+  )
 })
 
 describe('invalidateResolverOverview', () => {
