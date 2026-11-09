@@ -75,7 +75,7 @@ export const RpcSettingsDialog = ({
             void save()
           }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               className="flex-1"
               value={value}
@@ -89,6 +89,7 @@ export const RpcSettingsDialog = ({
               <Button
                 variant="ghost"
                 type="button"
+                className="order-last basis-full sm:order-none sm:basis-auto"
                 onClick={() => void reset()}
               >
                 Reset to default
