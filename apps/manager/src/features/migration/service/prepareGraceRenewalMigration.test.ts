@@ -41,8 +41,28 @@ const params = {
   wagmiConfig: {} as Config,
 }
 
+const withoutRecreation: typeof discoverSubnameRecreation = async ({
+  domains,
+}) => ({
+  inventory: makeRpcSubnameInventory({ domains: [], rootNames: [] }),
+  domains,
+  snapshot: {
+    version: 5,
+    roots: [],
+    names: domains.map(({ name }) => name),
+    blockNumber: '1',
+    blockHash: namehash('no-recreation'),
+    timestamp: '1',
+    chainId: chain.id,
+    inventoryDigest: namehash('no-recreation-inventory'),
+  },
+  unrecoverable: [],
+})
+
 beforeEach(() => {
-  vi.mocked(discoverSubnameRecreation).mockReset()
+  vi.mocked(discoverSubnameRecreation)
+    .mockReset()
+    .mockImplementation(withoutRecreation)
   vi.mocked(computeMigrationPreflight)
     .mockReset()
     .mockResolvedValue({ skipFetchProfilesPhase: false })
@@ -126,7 +146,6 @@ describe('prepareGraceRenewalMigration', () => {
         ...params,
         domains: selected,
         renewedDomains,
-        isSubnameRecreationEnabled: true,
       })
 
       expect(discoverSubnameRecreation).toHaveBeenCalledExactlyOnceWith({

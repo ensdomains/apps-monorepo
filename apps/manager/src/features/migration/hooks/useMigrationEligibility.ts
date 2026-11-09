@@ -1,12 +1,10 @@
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Address, PublicClient } from 'viem'
 import { chain } from '@/config'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import { resolveMigratableNames } from '@/features/migration/service/migratableNames'
 import { runEligibilityChecks } from '@/features/migration/service/preflightChecks'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient } from '@/lib/wagmi'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import type { RpcSubnameInventory } from '../service/readRpcSubnameInventory'
@@ -28,27 +26,17 @@ type EligibilityQueryParams = {
   readonly coordinator?: UpgradeReadCoordinator
   readonly names: readonly ClassifiedName[]
   readonly ownerAddress?: string | null
-  readonly isSubnameImportEnabled: boolean
 }
-
-/** Whether subname recreation is on, which changes what an upgrade can move. */
-export const useIsSubnameImportEnabled = (): boolean =>
-  useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-    false,
-  ) === true
 
 export const getMigrationEligibilityQueryOptions = ({
   names,
   ownerAddress,
-  isSubnameImportEnabled,
   coordinator,
 }: EligibilityQueryParams) =>
   queryOptions({
     queryKey: qk('migration', 'eligibility', {
       ...(coordinator && { readScope: 'upgrade' }),
       owner: ownerAddress?.toLowerCase(),
-      isSubnameImportEnabled,
       names: names.map((name) => ({
         id: name.domain.id,
         action: name.action,
@@ -78,7 +66,6 @@ export const getMigrationEligibilityQueryOptions = ({
           ...result,
           ...(await resolveMigratableNames({
             eligible: result.eligible,
-            isSubnameImportEnabled,
             owner,
             publicClient: client,
             verificationClient,
@@ -109,13 +96,11 @@ export const useMigrationEligibility = (
   names: readonly ClassifiedName[],
   ownerAddress?: string | null,
 ) => {
-  const isSubnameImportEnabled = useIsSubnameImportEnabled()
   const coordinator = useUpgradeReadCoordinator()
   return useQuery(
     getMigrationEligibilityQueryOptions({
       names,
       ownerAddress,
-      isSubnameImportEnabled,
       coordinator: coordinator ?? undefined,
     }),
   )
@@ -129,14 +114,12 @@ export const useMigrationEligibility = (
 export const getGraceRenewalEligibilityQueryOptions = ({
   names,
   ownerAddress,
-  isSubnameImportEnabled,
   coordinator,
 }: EligibilityQueryParams) =>
   queryOptions({
     queryKey: qk('migration', 'grace-renewal-eligibility', {
       ...(coordinator && { readScope: 'upgrade' }),
       owner: ownerAddress?.toLowerCase(),
-      isSubnameImportEnabled,
       names: names.map((name) => ({
         id: name.domain.id,
         action: name.action,
@@ -152,7 +135,6 @@ export const getGraceRenewalEligibilityQueryOptions = ({
       }: UpgradeReadClients) =>
         resolveMigratableNames({
           eligible: names,
-          isSubnameImportEnabled,
           owner: ownerAddress as Address,
           publicClient: client,
           verificationClient,
