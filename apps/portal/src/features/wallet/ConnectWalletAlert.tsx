@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useConnectModal } from './ConnectModalProvider'
 
-/** The Figma "Wallet not connected" message, for pages that act as the connected wallet. */
 export const ConnectWalletAlert = ({
   className,
 }: {
