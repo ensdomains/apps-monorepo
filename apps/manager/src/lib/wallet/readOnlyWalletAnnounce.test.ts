@@ -1,4 +1,4 @@
-import { announceReadOnlyWallet } from '@ens-apps/read-only-wallet'
+import { announceReadOnlyWallet } from '@ens-apps/utils/readOnlyWallet'
 import { connect, createConfig } from '@wagmi/core'
 import { type Address, http } from 'viem'
 import { sepolia } from 'viem/chains'

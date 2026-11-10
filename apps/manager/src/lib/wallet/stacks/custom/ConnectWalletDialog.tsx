@@ -1,4 +1,3 @@
-import { ReadOnlyWalletTrigger } from '@ens-apps/read-only-wallet'
 import { logger } from '@ens-apps/utils/logger'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
@@ -26,6 +25,7 @@ import {
   normalizeConnectError,
   WALLETCONNECT_ID,
 } from './connect.helpers'
+import { ReadOnlyWalletTrigger } from './ReadOnlyWalletTrigger'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
 
 type WalletRowProps = {

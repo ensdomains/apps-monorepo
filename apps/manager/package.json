@@ -37,7 +37,6 @@
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/migration": "workspace:*",
     "@ens-apps/og": "workspace:*",
-    "@ens-apps/read-only-wallet": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",

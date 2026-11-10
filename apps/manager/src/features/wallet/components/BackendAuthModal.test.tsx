@@ -1,4 +1,4 @@
-import { READ_ONLY_WALLET_RDNS } from '@ens-apps/read-only-wallet'
+import { READ_ONLY_WALLET_RDNS } from '@ens-apps/utils/readOnlyWallet'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { backendAuthStore } from '@/utils/backend-client'

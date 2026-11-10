@@ -1,4 +1,4 @@
-import { isReadOnlyWalletConnector } from '@ens-apps/read-only-wallet'
+import { isReadOnlyWalletConnector } from '@ens-apps/utils/readOnlyWallet'
 import { Trans } from '@lingui/react/macro'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { useMutation } from '@tanstack/react-query'
