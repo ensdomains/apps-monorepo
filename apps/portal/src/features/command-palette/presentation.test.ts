@@ -6,6 +6,7 @@ import {
   getEnabledCommands,
   getEntityQueryPolicy,
   getFailedSearchReads,
+  getPaletteReadError,
   getSearchFeedback,
   getTitleParts,
   visibleSearchResults,
@@ -154,3 +155,36 @@ describe('getTitleParts', () => {
     expect(getTitleParts(title, query)).toEqual(parts)
   })
 })
+
+it.each([
+  [
+    true,
+    true,
+    true,
+    'Could not load some relationships. Retry or open the entity to continue.',
+  ],
+  [
+    true,
+    false,
+    true,
+    'Could not verify some name information. You can retry the lookup.',
+  ],
+  [
+    false,
+    false,
+    true,
+    'Could not load your names. You can still search any name.',
+  ],
+  [false, false, false, undefined],
+] as const)(
+  'prioritizes active query recovery messages',
+  (hasSearchError, hasRelationshipError, hasPortfolioError, expected) => {
+    expect(
+      getPaletteReadError({
+        hasSearchError,
+        hasRelationshipError,
+        hasPortfolioError,
+      }),
+    ).toBe(expected)
+  },
+)

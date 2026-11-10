@@ -159,20 +159,20 @@ row. A complete name or address can be opened before metadata arrives. Bare
 labels have a bounded set of suffix suggestions; these are candidates, not
 claims that a DNS name supports ENS or is available to register.
 
-The palette supplies explicit `suggestionTlds` and `verificationLimit: 1` to the
-shared search hook. Its existing callers retain DNSSEC discovery and full
-verification by default. Search helpers and TanStack Query factories remain
+The palette supplies explicit `suggestionTlds`, `verificationLimit: 1`, and
+`verificationMode: availability-only` to the shared search hook. Its existing
+callers retain DNSSEC discovery and full verification by default. Search helpers and TanStack Query factories remain
 shared; there is no second cache or relationship registry.
 
 | Interaction | Palette-initiated reads |
 | --- | --- |
 | Closed, empty root, or `>` command search | None; cached facts and avatars can render |
-| Ambiguous input or complete name | After debounce: owner and registrable availability for the leading candidate only; records only for an ownerless subname |
+| Ambiguous input or complete name | After debounce: registrable availability for the leading candidate only; no owner or profile reads |
 | Complete address | After debounce: resolver-interface detection |
-| Explicitly open an entity's actions | Owner, records, resolver, or primary name through existing query options |
+| Explicitly open an entity's actions | Check the governing `.eth` registration, then load owner, ETH address, and resolver; addresses load their primary name |
 | Name target picker | Existing portfolio query; recent targets are local shortcuts |
 | Arrow through results or scroll | No new entity lookups |
-| Retry | Only failed search reads or the failed picker portfolio |
+| Retry | Only failed reads for the current search, entity relationships, or picker portfolio |
 
 These are query boundaries, not counts of underlying RPC calls. A factory may
 perform multiple contract or indexer operations, and normal app queries can
@@ -180,7 +180,7 @@ continue independently. Existing requests may finish after the input changes;
 query keys keep their results attached to the old target.
 
 Exact action phrases suppress entity reads; `>` makes intent explicit. Partial
-verbs remain ambiguous and can verify one name after the debounce. The optional
+verbs remain ambiguous and can check one name’s availability after the debounce. The optional
 `renew example.eth` syntax still binds that target directly. Entity and target
 selection, workflow readiness, and connection recovery keep their existing
 semantics. Workflow validation remains authoritative; cached facts only curate
@@ -198,6 +198,64 @@ when moving between frames or recovering from a failed action, rather than
 rerendering the provider for every scroll event. The existing reducer still owns
 navigation state. The keyed cmdk list and mounted input remain in place because
 they protect selection and caret behavior during structural result changes.
+
+## Registration-aware relationships
+
+The `luc.eth` report was reproduced against chain `11155111` and
+`sepolia.api.bigname.sh`. Sepolia reported the name as available, while its legacy
+registry still held an owner and its old resolver still held records. The old
+palette treated those records as current relationships. The trace did not show
+a mainnet ENS lookup; the misleading facts were returned on Sepolia itself.
+
+`getRelationshipReadState` now distinguishes inactive, checking, available,
+failed, and ready reads. A `.eth` name checks its registration first; a deeper
+name checks the governing `.eth` 2LD. While that verdict is pending or failed,
+the palette withholds owner, resolver, and payment-address facts. An available
+registration suppresses them even if older queries contain cached legacy data.
+Static parent links remain useful. DNS names can resolve offchain without a
+registry owner, so they do not use the `.eth` registration gate.
+
+Once eligible, the palette reads the existing owner, resolver, and
+`getEthAddressQueryOptions` queries in parallel. It no longer fetches the full
+profile inventory, text records, other coin records, contenthash, or ABI just to
+find one ETH address. The ETH record uses coin 60 on the configured ENS network;
+the coin identifier does not select the mainnet RPC.
+
+Search checks availability only. Unchecked candidates stay navigable, rather
+than claiming registration, absence, or offchain resolution before exploration.
+Existing inline search retains its full verification behavior. Palette queries
+use explicit freshness: 30 seconds for search and registration checks, 60 seconds
+for relationships. Fresh results are reused on reopening; stale registration is
+rechecked before loading dependent relationships. These windows curate the UI;
+feature workflows still perform their authoritative eligibility checks.
+
+Relationship errors are visible and retryable. A failed read does not replace
+successful relations, and a failed revalidation does not expose its cached value
+as current. Registration-check failures block the dependent reads and can be
+retried independently. The existing TanStack Query cache remains the only cache;
+query factories retain their shared keys and default behavior for other callers.
+
+A live desktop/mobile check of the corrected `luc.eth` journey made one Sepolia
+RPC call for search, zero additional RPC calls when opening its available-name
+actions, and showed no Related rows or resolved-address copy action. No page
+errors were reported. Query-level tests also cover cache reuse, subnames,
+ownerless DNS names, partial failures, and selective retry. Final checks passed:
+236 tests across 22 affected files, changed-file lint without complexity warnings,
+and the production build including Portal typecheck. Deliberate cache/retry
+regressions were confirmed to fail before restoring the implementation.
+
+Intentional test updates in this audit:
+
+- The provider's bounded-search and search-retry tests now require zero owner
+  reads, because the palette explicitly requests availability-only verification.
+- The command-only test waits through debounce directly; it no longer waits for
+  an owner-query observer that the palette intentionally does not create.
+- The ETH-address copy test supplies its value through the narrow ETH-record
+  boundary. The existing clipboard and disconnected-wallet assertions remain.
+
+The name picker still uses the existing portfolio query when it needs uncached
+wallet names. That query can page through a large portfolio; a bounded name-search
+endpoint is a separate follow-up, with expired/former-owner name coverage retained.
 
 ## Design review questions
 

@@ -4,6 +4,7 @@ import {
   buildSearchResultItems,
   getInlineSearchKeyAction,
   getSearchNameVerification,
+  getSearchNameVerificationFromQueries,
   sortExactMatchFirst,
 } from './searchResultsUtils'
 
@@ -225,3 +226,28 @@ describe('sortExactMatchFirst', () => {
     expect(sortExactMatchFirst(suggestions, '')).toBe(suggestions)
   })
 })
+
+it.each([
+  [undefined, 'checking'],
+  [false, 'unchecked'],
+  [true, 'available'],
+] as const)(
+  'does not treat intentionally omitted ownership as a pending read with availability %s',
+  (isAvailable, status) => {
+    expect(
+      getSearchNameVerificationFromQueries({
+        name: 'helgesson.eth',
+        isEnabled: true,
+        isOwnerEnabled: false,
+        owner: undefined,
+        records: undefined,
+        hasResolution: false,
+        availability: {
+          data: isAvailable === undefined ? undefined : { isAvailable },
+          isPending: isAvailable === undefined,
+          isError: false,
+        },
+      }),
+    ).toEqual({ status })
+  },
+)

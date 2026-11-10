@@ -136,7 +136,7 @@ export const getInlineSearchKeyAction = ({
 type SearchNameVerificationParams = {
   readonly isSubname: boolean
   readonly isEnabled: boolean
-  readonly owner: 'pending' | 'failed' | 'absent' | 'present'
+  readonly owner: 'unchecked' | 'pending' | 'failed' | 'absent' | 'present'
   readonly records: 'unchecked' | 'pending' | 'failed' | 'resolved' | 'empty'
   readonly availability:
     | 'unchecked'
@@ -219,6 +219,7 @@ const getAvailabilityReadState = (
     .otherwise(() => 'unavailable' as const)
 
 export const getSearchNameVerificationFromQueries = ({
+  isOwnerEnabled = true,
   name,
   isEnabled,
   owner,
@@ -226,6 +227,7 @@ export const getSearchNameVerificationFromQueries = ({
   hasResolution,
   availability,
 }: {
+  readonly isOwnerEnabled?: boolean
   readonly name: string
   readonly isEnabled: boolean
   readonly owner: SearchQuerySnapshot | undefined
@@ -238,7 +240,7 @@ export const getSearchNameVerificationFromQueries = ({
   getSearchNameVerification({
     isSubname: isSubname(name),
     isEnabled,
-    owner: getOwnerReadState(owner),
+    owner: isOwnerEnabled ? getOwnerReadState(owner) : 'unchecked',
     records: getRecordsReadState(records, hasResolution),
     availability: getAvailabilityReadState(availability),
   })

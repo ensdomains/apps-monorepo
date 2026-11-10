@@ -197,6 +197,55 @@ describe('useSearchResults', () => {
     expect(reads.tlds).toHaveBeenLastCalledWith(false)
   })
 
+  it('can check availability without querying ownership or full profile records', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () =>
+        useSearchResults({
+          ...navigation,
+          searchValue: 'helgesson.eth',
+          fetchOwnedNames: false,
+          suggestionTlds: ['eth'],
+          verificationLimit: 1,
+          verificationMode: 'availability-only',
+        }),
+      { wrapper },
+    )
+    await waitFor(() =>
+      expect(result.current.pendingAvailabilityIds.size).toBe(0),
+    )
+    expect(reads.availability).toHaveBeenCalledExactlyOnceWith('helgesson.eth')
+    expect(reads.owner).not.toHaveBeenCalled()
+    expect(reads.profile).not.toHaveBeenCalled()
+    expect(
+      result.current.nameVerificationBySuggestionId.get('name:helgesson.eth'),
+    ).toEqual({ status: 'unchecked' })
+  })
+
+  it('reuses fresh availability results when reopening an availability-only search', async () => {
+    const { wrapper } = makeWrapper()
+    const { result, rerender } = renderHook(
+      ({ enabled }) =>
+        useSearchResults({
+          ...navigation,
+          searchValue: 'helgesson.eth',
+          enabled,
+          fetchOwnedNames: false,
+          suggestionTlds: ['eth'],
+          verificationLimit: 1,
+          verificationMode: 'availability-only',
+          queryStaleTime: 60_000,
+        }),
+      { wrapper, initialProps: { enabled: true } },
+    )
+    await waitFor(() =>
+      expect(result.current.pendingAvailabilityIds.size).toBe(0),
+    )
+    rerender({ enabled: false })
+    rerender({ enabled: true })
+    expect(reads.availability).toHaveBeenCalledExactlyOnceWith('helgesson.eth')
+  })
+
   it('does not turn a failed owner lookup into an absent name', async () => {
     reads.owner.mockRejectedValue(new Error('RPC unavailable'))
     const { wrapper } = makeWrapper()

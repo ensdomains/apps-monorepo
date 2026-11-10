@@ -147,3 +147,28 @@ export const getTitleParts = (title: string, query: string): TitleParts => {
     after: title.slice(index + needle.length),
   }
 }
+
+export const getPaletteReadError = ({
+  hasSearchError,
+  hasRelationshipError,
+  hasPortfolioError,
+}: {
+  readonly hasSearchError: boolean
+  readonly hasRelationshipError: boolean
+  readonly hasPortfolioError: boolean
+}): string | undefined =>
+  match({ hasSearchError, hasRelationshipError, hasPortfolioError })
+    .with(
+      { hasRelationshipError: true },
+      () =>
+        'Could not load some relationships. Retry or open the entity to continue.',
+    )
+    .with(
+      { hasSearchError: true },
+      () => 'Could not verify some name information. You can retry the lookup.',
+    )
+    .with(
+      { hasPortfolioError: true },
+      () => 'Could not load your names. You can still search any name.',
+    )
+    .otherwise(() => undefined)

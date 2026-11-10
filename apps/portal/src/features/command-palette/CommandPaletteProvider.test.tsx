@@ -47,6 +47,7 @@ const io = vi.hoisted(() => {
     owner: vi.fn(),
     availability: vi.fn(),
     profile: vi.fn(),
+    ethAddress: vi.fn(),
     portfolio: vi.fn(),
     interfaces: vi.fn(),
     dns: vi.fn(),
@@ -117,6 +118,12 @@ vi.mock('@/features/profile/hooks/useProfile', () => ({
   getProfileQueryOptions: ({ name }: { readonly name: string }) => ({
     queryKey: ['test-profile', { name }],
     queryFn: () => io.profile(name),
+  }),
+}))
+vi.mock('@/features/transfer/queries/getEthAddress', () => ({
+  getEthAddressQueryOptions: ({ name }: { readonly name: string }) => ({
+    queryKey: ['test-eth-address', { name }],
+    queryFn: () => io.ethAddress(name),
   }),
 }))
 vi.mock('@/features/records/hooks/useNameResolverAddress', () => ({
@@ -277,6 +284,7 @@ beforeEach(() => {
   io.portfolio.mockResolvedValue([])
   io.interfaces.mockResolvedValue([])
   io.dns.mockResolvedValue(false)
+  io.ethAddress.mockResolvedValue(null)
   io.avatar.mockResolvedValue(null)
   io.resolver.mockResolvedValue(null)
   io.primaryName.mockResolvedValue(null)
@@ -361,14 +369,10 @@ describe('CommandPaletteProvider integration', () => {
   })
 
   it('keeps command-only search from starting entity RPC after the actual debounce settles', async () => {
-    const { user, queryClient } = await setup()
+    const { user } = await setup()
     await user.click(screen.getByRole('button', { name: 'Open search' }))
     await user.type(screen.getByRole('combobox'), '>renew')
-    await waitFor(() =>
-      expect(
-        queryClient.getQueryState(['test-owner', { name: 'renew.eth' }]),
-      ).not.toBeUndefined(),
-    )
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)))
     expect(io.owner).not.toHaveBeenCalled()
     expect(io.availability).not.toHaveBeenCalled()
     expect(io.dns).not.toHaveBeenCalled()
@@ -396,7 +400,7 @@ describe('CommandPaletteProvider integration', () => {
     await user.click(screen.getByRole('button', { name: 'Open search' }))
     await user.type(screen.getByRole('combobox'), 'fox')
     await waitFor(() => expect(io.availability).toHaveBeenCalledWith('fox.eth'))
-    expect(io.owner.mock.calls).toEqual([['fox.eth']])
+    expect(io.owner).not.toHaveBeenCalled()
     expect(io.availability.mock.calls).toEqual([['fox.eth']])
     expect(io.dns).not.toHaveBeenCalled()
     expect(io.avatar).not.toHaveBeenCalled()
@@ -419,9 +423,7 @@ describe('CommandPaletteProvider integration', () => {
 
   it('copies a name’s resolved ETH address without substituting the connected wallet', async () => {
     const resolvedAddress = '0x2222222222222222222222222222222222222222'
-    io.profile.mockResolvedValue({
-      records: { coins: [{ coinType: 60, value: resolvedAddress }], texts: [] },
-    })
+    io.ethAddress.mockResolvedValue(resolvedAddress)
     const { user } = await setup()
     const writeClipboard = vi
       .spyOn(navigator.clipboard, 'writeText')
@@ -438,7 +440,7 @@ describe('CommandPaletteProvider integration', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('retries a failed availability read without refetching successful ownership or other candidates', async () => {
+  it('retries a failed availability read without fetching ownership or other candidates', async () => {
     io.availability.mockRejectedValueOnce(new Error('RPC unavailable'))
     const { user } = await setup()
     await user.click(screen.getByRole('button', { name: 'Open search' }))
@@ -449,7 +451,7 @@ describe('CommandPaletteProvider integration', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
     )
     expect(io.availability.mock.calls).toEqual([['fox.eth'], ['fox.eth']])
-    expect(io.owner.mock.calls).toEqual([['fox.eth']])
+    expect(io.owner).not.toHaveBeenCalled()
     expect(io.profile).not.toHaveBeenCalled()
   })
 

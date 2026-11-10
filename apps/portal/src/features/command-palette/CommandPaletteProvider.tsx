@@ -57,9 +57,11 @@ import {
   getEntityQueryPolicy,
   getFailedSearchReads,
   getPalettePresentation,
+  getPaletteReadError,
   getSearchFeedback,
   visibleSearchResults,
 } from './presentation'
+import { PALETTE_AVAILABILITY_STALE_TIME_MS } from './queryPolicy'
 import { buildPaletteRows, type PaletteRow } from './resultModel'
 import { getRouteEntity } from './routeContext'
 import { useCachedPaletteTarget } from './useCachedPaletteTarget'
@@ -366,6 +368,8 @@ export const CommandPaletteProvider = ({
     fetchOwnedNames: state.status === 'open' && policy.shouldFetchOwnedNames,
     suggestionTlds: SUGGESTION_TLDS,
     verificationLimit: 1,
+    verificationMode: 'availability-only',
+    queryStaleTime: PALETTE_AVAILABILITY_STALE_TIME_MS,
     navigateToName: NO_NAVIGATION,
     navigateToAddress: NO_NAVIGATION,
     navigateToResolver: NO_NAVIGATION,
@@ -395,7 +399,7 @@ export const CommandPaletteProvider = ({
     pageCommands: Object.values(registrations).flat(),
     commands: ENABLED_COMMANDS,
     targetMetadata,
-    related,
+    related: related.entities,
   })
   const presentation = getPalettePresentation(frame, ENABLED_COMMANDS)
 
@@ -497,6 +501,10 @@ export const CommandPaletteProvider = ({
       retryCommand.current()
       return
     }
+    if (frame.screen.type === 'entity') {
+      void related.retry()
+      return
+    }
     const failedQueries = getFailedSearchReads(visibleData).map(
       ({ name, source }) =>
         match(source)
@@ -545,14 +553,14 @@ export const CommandPaletteProvider = ({
         }
         error={
           error ??
-          (hasReadFailure
-            ? 'Could not verify some name information. You can retry the lookup.'
-            : undefined) ??
-          (frame.screen.type === 'target' && data.hasOwnedNamesError
-            ? 'Could not load your names. You can still search any name.'
-            : undefined)
+          getPaletteReadError({
+            hasSearchError: hasReadFailure,
+            hasRelationshipError: related.hasError,
+            hasPortfolioError:
+              frame.screen.type === 'target' && data.hasOwnedNamesError,
+          })
         }
-        isSearching={isSearching}
+        isSearching={isSearching || related.isLoading}
         onClose={closePalette}
         onBack={() => {
           session.invalidate()

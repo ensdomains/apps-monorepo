@@ -47,6 +47,8 @@ export type UseSearchResultsParams = {
   readonly fetchOwnedNames?: boolean
   readonly suggestionTlds?: readonly string[]
   readonly verificationLimit?: number
+  readonly verificationMode?: 'full' | 'availability-only'
+  readonly queryStaleTime?: number
 }
 
 export type { SearchResultItem } from '../utils/searchResultsUtils'
@@ -101,7 +103,11 @@ export const useSearchResults = ({
   fetchOwnedNames = true,
   suggestionTlds,
   verificationLimit = Number.POSITIVE_INFINITY,
+  verificationMode = 'full',
+  queryStaleTime,
 }: UseSearchResultsParams): UseSearchResultsReturn => {
+  const freshness =
+    queryStaleTime === undefined ? {} : { staleTime: queryStaleTime }
   const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
   const { validTlds: discoveredTlds, isLoading: isTldsLoading } =
@@ -120,6 +126,7 @@ export const useSearchResults = ({
         '0x0000000000000000000000000000000000000000') as Address,
       interfaces: Object.values(RESOLVER_INTERFACE_IDS),
     }),
+    ...freshness,
     enabled: enabled && Boolean(searchedAddress),
   })
 
@@ -152,6 +159,7 @@ export const useSearchResults = ({
   // Disabled observers still expose cached names without fetching a cold portfolio.
   const namesQuery = useQuery({
     ...getAddressNamesQueryOptions({ address: addressForOwned }),
+    ...freshness,
     enabled: fetchOwnedNames && Boolean(connectedAddress),
   })
 
@@ -205,9 +213,17 @@ export const useSearchResults = ({
     [suggestionsFiltered],
   )
 
+  const ownerSuggestions = useMemo(
+    () =>
+      verificationMode === 'full'
+        ? nameSuggestions.slice(0, verificationLimit)
+        : [],
+    [nameSuggestions, verificationLimit, verificationMode],
+  )
   const ownerQueries = useQueries({
-    queries: nameSuggestions.slice(0, verificationLimit).map((s) => ({
+    queries: ownerSuggestions.map((s) => ({
       ...getEnsOwnerQueryOptions({ name: s.inputValue }),
+      ...freshness,
       enabled,
     })),
   })
@@ -215,20 +231,19 @@ export const useSearchResults = ({
   // An offchain (CCIP-Read) subname has no registry owner but still resolves.
   const ownerlessSubnames = useMemo(
     () =>
-      nameSuggestions
-        .slice(0, verificationLimit)
-        .filter(
-          (s, i) =>
-            ownerQueries[i]?.data === null &&
-            !ownerQueries[i]?.isError &&
-            isSubname(s.inputValue),
-        ),
-    [nameSuggestions, ownerQueries, verificationLimit],
+      ownerSuggestions.filter(
+        (s, i) =>
+          ownerQueries[i]?.data === null &&
+          !ownerQueries[i]?.isError &&
+          isSubname(s.inputValue),
+      ),
+    [ownerSuggestions, ownerQueries],
   )
 
   const recordsQueries = useQueries({
     queries: ownerlessSubnames.map((s) => ({
       ...getProfileQueryOptions({ name: s.inputValue }),
+      ...freshness,
       enabled,
     })),
   })
@@ -283,6 +298,7 @@ export const useSearchResults = ({
   const availabilityQueries = useQueries({
     queries: namesToCheckAvailability.map((s) => ({
       ...getNameAvailabilityQueryOptions({ name: s.inputValue }),
+      ...freshness,
       enabled,
     })),
   })
@@ -333,6 +349,7 @@ export const useSearchResults = ({
       const availabilityQuery = availabilityQueries[availabilityIndex]
       const verification = getSearchNameVerificationFromQueries({
         name: suggestion.inputValue,
+        isOwnerEnabled: verificationMode === 'full',
         isEnabled: enabled && index < verificationLimit,
         owner: ownerQuery,
         records: recordQuery,
