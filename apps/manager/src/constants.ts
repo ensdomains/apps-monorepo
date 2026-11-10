@@ -1,9 +1,9 @@
 import type { EnsNetwork } from '@ens-apps/config'
 import { envConfig } from '@/config'
 
-// No mainnet explorer is deployed yet, so mainnet links to none.
+// A network without a deployed explorer maps to null, so it links to none.
 const EXPLORER_URLS: Readonly<Record<EnsNetwork, string | null>> = {
-  mainnet: null,
+  mainnet: 'https://explorer.ens.domains',
   sepolia: 'https://sepolia.explorer.ens.domains',
 }
 
