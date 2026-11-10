@@ -16,6 +16,7 @@ import {
   toSelectableDomain,
 } from '../bulkRenewSelection'
 import { isHeldName } from '../dashboardNames'
+import { firstOpenChip, resolveSelectedChip } from '../filterChipSelection'
 import { useAccountSelection } from '../hooks/useAccountSelection'
 import type { NameVersion, SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
@@ -67,8 +68,7 @@ const toScopeFilter = (scope: NameScope | null) => ({
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
   const [filter, setFilter] = useState<FilterKey>('owned')
-  const [scope, setScope] = useState<NameScope | null>(null)
-  const { version, isSubnamesOnly, canSelectAll } = toScopeFilter(scope)
+  const [selectedScope, setScope] = useState<NameScope | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
@@ -77,7 +77,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     parseDirectionalSort<FavoritesSortField>(favoritesSort)
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
+  const selectedFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
   // Searching reads bigname, so wait for typing to pause.
   const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
@@ -196,8 +196,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     {
       value: 'owned',
       label: t`Owned`,
-      // The base list stays reachable when empty; a zero count is never shown.
-      count: ownedCount || undefined,
+      count: ownedCount,
       activeClassName:
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
@@ -232,6 +231,14 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
       count: countOf(v2Names),
     },
   ]
+  // A hidden chip can't be clicked, so an emptied selection falls back.
+  const activeFilter = resolveSelectedChip(
+    chips,
+    selectedFilter,
+    firstOpenChip(chips, 'owned'),
+  )
+  const scope = resolveSelectedChip(scopeChips, selectedScope, null)
+  const { version, isSubnamesOnly, canSelectAll } = toScopeFilter(scope)
   const changeScope = (next: NameScope | null) => {
     setScope(next)
     clearSelection()

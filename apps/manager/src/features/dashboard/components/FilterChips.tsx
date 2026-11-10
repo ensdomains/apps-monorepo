@@ -17,7 +17,7 @@ interface FilterChipsProps<T extends string> {
   readonly onChange: (value: T) => void
   /** Clicking the active chip clears the selection */
   readonly onClear?: () => void
-  /** Hide chips counted as empty, except the selected one */
+  /** Hide chips counted as empty; resolve the selection with `resolveSelectedChip` */
   readonly shouldHideEmpty?: boolean
 }
 
@@ -45,12 +45,6 @@ const chipCountVariants = cva(
   },
 )
 
-// The selected filter stays even when empty, so it can be cleared.
-const isEmptyChip = <T extends string>(
-  chip: FilterChipDef<T>,
-  value: T | null,
-): boolean => chip.count === 0 && chip.value !== value
-
 export const FilterChips = <T extends string>({
   value,
   chips,
@@ -60,7 +54,7 @@ export const FilterChips = <T extends string>({
 }: FilterChipsProps<T>) => (
   <div className="flex flex-wrap items-center gap-3 empty:hidden">
     {chips.map((chip) => {
-      if (shouldHideEmpty && isEmptyChip(chip, value)) return null
+      if (shouldHideEmpty && chip.count === 0) return null
       const isActive = chip.value === value
 
       return (

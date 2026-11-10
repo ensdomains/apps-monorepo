@@ -30,13 +30,10 @@ describe('FilterChips', () => {
     expect(screen.queryByRole('button', { name: /V1/ })).toBeNull()
   })
 
-  it('keeps an empty filter while it is selected, so it can be cleared', () => {
+  it('hides an empty filter even when it is selected', () => {
     renderChips('v1')
 
-    expect(screen.getByRole('button', { name: 'V1' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    expect(screen.queryByRole('button', { name: /V1/ })).toBeNull()
   })
 
   it('shows empty filters unless asked to hide them', () => {
