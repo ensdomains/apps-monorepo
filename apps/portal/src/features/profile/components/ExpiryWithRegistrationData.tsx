@@ -120,7 +120,7 @@ export const ExpiryWithRegistrationData = ({
   const expiryDate = data?.expiry ? new Date(data.expiry * 1000) : null
   // An ENSv1 subname keeps resolving past its parent's lease, so only ENSv2 gets the row.
   const ancestors =
-    data && protocolVersion === 'ENSv2'
+    protocolVersion === 'ENSv2'
       ? ethAncestorsOf({ name, expiryDate, protocolVersion })
       : []
   const ancestorExpiry = useEarliestExpiry(ancestors)

@@ -75,12 +75,15 @@ export const toLapsedItem = (row: AddressName): AddressNameItem => ({
   protocolVersion: row.authority === 'ens_v2' ? 'ENSv2' : 'ENSv1',
 })
 
-/**
- * The names above a `.eth` subname whose expiry it lapses with, nearest first.
- * An ENSv2 subname stops resolving when any of them expires. An ENSv1 subname
- * lapses with its 2LD alone, and needs none when it has its own expiry, which
- * is capped at its parent's.
- */
+/** A new subname's parent and every name above it, nearest first; any of them expiring stops it resolving. */
+export const getNamesAbove = (parentName: string): readonly string[] => {
+  const labels = parentName.split('.')
+  return Array.from({ length: labels.length - 1 }, (_, index) =>
+    labels.slice(index).join('.'),
+  )
+}
+
+/** The names above a `.eth` subname it lapses with: all of them for ENSv2, the 2LD for an undated ENSv1 one. */
 export const ethAncestorsOf = ({
   name,
   expiryDate,
@@ -93,9 +96,7 @@ export const ethAncestorsOf = ({
   if (labels.length < 3 || labels.at(-1) !== 'eth') return []
   if (protocolVersion === 'ENSv1')
     return expiryDate ? [] : [labels.slice(-2).join('.')]
-  return Array.from({ length: labels.length - 2 }, (_, index) =>
-    labels.slice(index + 1).join('.'),
-  )
+  return getNamesAbove(labels.slice(1).join('.'))
 }
 
 /** The earliest expiry among `names`; null when one couldn't be read or none expires. */
