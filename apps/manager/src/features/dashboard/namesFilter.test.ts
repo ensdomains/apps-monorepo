@@ -3,30 +3,29 @@ import { resolveNamesFilter, shouldShowFavoritesFilter } from './namesFilter'
 
 describe('shouldShowFavoritesFilter', () => {
   it.each([
-    [true, 3, true],
-    [true, 0, false],
-    [false, 0, false],
-    [false, 3, false],
-  ])(
-    'signed in %s with %i favorites shows the chip: %s',
-    (isAuthed, favoritesCount, expected) => {
-      expect(shouldShowFavoritesFilter({ isAuthed, favoritesCount })).toBe(
-        expected,
-      )
-    },
-  )
+    ['signed in with favorites', true, 3, 'owned', true],
+    ['signed in with none', true, 0, 'owned', false],
+    ['emptied while selected', true, 0, 'favorites', true],
+    ['signed out', false, 3, 'owned', false],
+    ['signed out while selected', false, 3, 'favorites', false],
+  ] as const)('%s: %s', (_, isAuthed, favoritesCount, filter, expected) => {
+    expect(
+      shouldShowFavoritesFilter({ isAuthed, favoritesCount, filter }),
+    ).toBe(expected)
+  })
 })
 
 describe('resolveNamesFilter', () => {
-  it('falls back to owned names once the last favorite is gone', () => {
-    expect(
-      resolveNamesFilter('favorites', { isAuthed: true, favoritesCount: 0 }),
-    ).toBe('owned')
-  })
-
-  it('keeps favorites while there are some', () => {
-    expect(
-      resolveNamesFilter('favorites', { isAuthed: true, favoritesCount: 2 }),
-    ).toBe('favorites')
+  it.each([
+    [
+      'keeps favorites selected after the last one is removed',
+      'favorites',
+      true,
+      'favorites',
+    ],
+    ['keeps owned when favorites appear', 'owned', true, 'owned'],
+    ['shows owned names while signed out', 'favorites', false, 'owned'],
+  ] as const)('%s', (_, filter, isAuthed, expected) => {
+    expect(resolveNamesFilter(filter, isAuthed)).toBe(expected)
   })
 })

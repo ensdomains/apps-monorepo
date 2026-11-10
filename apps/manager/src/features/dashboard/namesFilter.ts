@@ -3,17 +3,19 @@ export type NamesFilter = 'owned' | 'favorites'
 type FavoritesFilterRead = {
   readonly isAuthed: boolean
   readonly favoritesCount: number
+  readonly filter: NamesFilter
 }
 
-/** Favorites can only be read signed in, and an empty filter is hidden. */
+/** Favorites need a sign-in; an empty chip hides unless it is the one selected. */
 export const shouldShowFavoritesFilter = ({
   isAuthed,
   favoritesCount,
-}: FavoritesFilterRead): boolean => isAuthed && favoritesCount > 0
+  filter,
+}: FavoritesFilterRead): boolean =>
+  isAuthed && (favoritesCount > 0 || filter === 'favorites')
 
-/** The filter the table shows: owned names once the favorites chip is hidden. */
+/** Owned names show while signed out; otherwise the filter changes only on a click. */
 export const resolveNamesFilter = (
   filter: NamesFilter,
-  read: FavoritesFilterRead,
-): NamesFilter =>
-  filter === 'favorites' && !shouldShowFavoritesFilter(read) ? 'owned' : filter
+  isAuthed: boolean,
+): NamesFilter => (!isAuthed && filter === 'favorites' ? 'owned' : filter)

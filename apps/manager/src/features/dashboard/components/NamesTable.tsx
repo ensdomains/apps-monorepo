@@ -94,8 +94,7 @@ export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
   })
 
   const favoritesCount = favorites.length
-  const favoritesRead = { isAuthed, favoritesCount }
-  const activeFilter = resolveNamesFilter(filter, favoritesRead)
+  const activeFilter = resolveNamesFilter(filter, isAuthed)
   // V1 does not filter registry-only names, so keep its bigname total while
   // paging. V2 and mixed totals require all permission checks to finish.
   const countOf = (
@@ -197,7 +196,7 @@ export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
     },
-    ...(shouldShowFavoritesFilter(favoritesRead)
+    ...(shouldShowFavoritesFilter({ isAuthed, favoritesCount, filter })
       ? [
           {
             value: 'favorites' as const,
