@@ -384,6 +384,10 @@ msgstr ""
 msgid "Additional fee"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "addresses"
+#~ msgstr ""
+
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Addresses"
 msgstr ""
@@ -965,6 +969,10 @@ msgstr ""
 msgid "Contact methods"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "content hash"
+#~ msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
 #: src/features/profile/components/view/ProfileContentHashSection.tsx
 msgid "Content hash"
@@ -1003,6 +1011,10 @@ msgstr ""
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Continue without signing in?"
 msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "contract ABI"
+#~ msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/OtherRecordsTab.tsx
 msgid "Contract ABI (JSON)"
@@ -3438,6 +3450,10 @@ msgstr ""
 msgid "Terms of Use"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "text records"
+#~ msgstr ""
+
 #: src/features/register-v2/state/useOrphanRegistrationCleanup.ts
 msgid "That name was registered by someone else. You were not charged."
 msgstr ""
@@ -4657,6 +4673,26 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Your wallet does not have permission to change the resolver for this name. For a subname, the parent name’s owner controls this."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+#~ msgid "Your wallet doesn’t have permission to change this name’s {records} on its resolver."
+#~ msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s addresses."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s content hash."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s contract ABI."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/LockedRecordsNotice.tsx
+msgid "Your wallet doesn’t have permission to change this name’s text records."
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx

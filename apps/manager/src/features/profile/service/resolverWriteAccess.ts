@@ -22,15 +22,81 @@ import {
 } from './changeResolver'
 import { getProfileEthAddressSnapshot } from './profileEthAddress'
 import {
+  type EditableRecordTypes,
+  hasEditableRecordType,
+  NO_EDITABLE_RECORD_TYPES,
+} from './recordTypeLocks'
+import {
   encodeResolverRecordsCall,
   getResolverSetterKind,
+  type ResolverRecords,
+  type ResolverSetterKind,
 } from './resolverRecordCalls'
 
 const ETH_COIN_TYPE = 60
+const PROFILE_PROBE_TEXT_KEY = 'description'
+
+/** Which write the probe dry-runs: the ETH address, or any profile record. */
+export type ResolverWriteAccess = 'eth-address' | 'profile'
 
 class ResolverWriteAccessError extends TaggedError('ResolverWriteAccessError')<{
   cause: unknown
 }> {}
+
+type RecordWriteProbe = {
+  readonly resolverAddress: Address
+  readonly kind: ResolverSetterKind
+  readonly name: string
+  readonly ownerAddress: Address
+}
+
+const getRecordWriteProbe = async (
+  resolverAddress: Address,
+  name: string,
+  ownerAddress: Address,
+): Promise<RecordWriteProbe | undefined> => {
+  const client = publicClient as PublicClient
+  const code = await client.getCode({ address: resolverAddress })
+  if (!code || code === '0x') return undefined
+  return {
+    resolverAddress,
+    kind: await getResolverSetterKind(client, resolverAddress),
+    name,
+    ownerAddress,
+  }
+}
+
+const canWriteRecords = async (
+  probe: RecordWriteProbe,
+  records: ResolverRecords,
+): Promise<boolean> => {
+  const data = await encodeResolverRecordsCall({
+    kind: probe.kind,
+    name: probe.name,
+    records,
+  })
+  try {
+    // Probe from the same owner EOA used by profile record writes.
+    await (publicClient as PublicClient).call({
+      account: probe.ownerAddress,
+      to: probe.resolverAddress,
+      data,
+    })
+    return true
+  } catch (error) {
+    if (
+      error instanceof BaseError &&
+      error.walk((e) => e instanceof ExecutionRevertedError)
+    ) {
+      return false
+    }
+    throw error
+  }
+}
+
+const ethAddressRecords = (ownerAddress: Address): ResolverRecords => ({
+  coins: [{ coin: ETH_COIN_TYPE, value: ownerAddress }],
+})
 
 /**
  * Dry-run the exact ETH-address write the "set primary name" flow performs
@@ -47,27 +113,27 @@ export const canWriteEthAddressRecord = async (
   name: string,
   ownerAddress: Address,
 ): Promise<boolean> => {
-  const client = publicClient as PublicClient
-  const code = await client.getCode({ address: resolverAddress })
-  if (!code || code === '0x') return false
-  const data = await encodeResolverRecordsCall({
-    kind: await getResolverSetterKind(client, resolverAddress),
-    name,
-    records: { coins: [{ coin: ETH_COIN_TYPE, value: ownerAddress }] },
-  })
-  try {
-    // Probe from the same owner EOA used by profile record writes.
-    await client.call({ account: ownerAddress, to: resolverAddress, data })
-    return true
-  } catch (error) {
-    if (
-      error instanceof BaseError &&
-      error.walk((e) => e instanceof ExecutionRevertedError)
-    ) {
-      return false
-    }
-    throw error
-  }
+  const probe = await getRecordWriteProbe(resolverAddress, name, ownerAddress)
+  return probe ? canWriteRecords(probe, ethAddressRecords(ownerAddress)) : false
+}
+
+// The non-address probes clear a value, so they need no real data.
+const getEditableRecordTypes = async (
+  resolverAddress: Address,
+  name: string,
+  ownerAddress: Address,
+): Promise<EditableRecordTypes> => {
+  const probe = await getRecordWriteProbe(resolverAddress, name, ownerAddress)
+  if (!probe) return NO_EDITABLE_RECORD_TYPES
+  const [address, text, contentHash, abi] = await Promise.all([
+    canWriteRecords(probe, ethAddressRecords(ownerAddress)),
+    canWriteRecords(probe, {
+      texts: [{ key: PROFILE_PROBE_TEXT_KEY, value: '' }],
+    }),
+    canWriteRecords(probe, { contentHash: null }),
+    canWriteRecords(probe, { abi: { encodeAs: 'json', data: null } }),
+  ])
+  return { address, text, contentHash, abi }
 }
 
 /** The resolver set for `name` in the ENSv1 registry, if any. */
@@ -84,15 +150,7 @@ export const readV1RegistryResolver = async (
   return isAddressEqual(resolver, zeroAddress) ? undefined : resolver
 }
 
-/** The name's resolver (undefined when none is set) and whether the owner wallet can write it. */
-export const getResolverWriteState = ResultFn(async function* (
-  name?: string,
-  ownerAddress?: Address,
-) {
-  if (!name || !ownerAddress) {
-    return ok({ resolverAddress: undefined, canWrite: false })
-  }
-
+const findRecordsResolver = ResultFn(async function* (name: string) {
   const v2Resolver = yield* fromPromise(
     (async () => {
       try {
@@ -115,22 +173,69 @@ export const getResolverWriteState = ResultFn(async function* (
     })(),
     (cause) => new ResolverWriteAccessError({ cause }),
   )
-  if (v2Resolver.hasV2Entry)
-    return ok({ resolverAddress: undefined, canWrite: false })
+  if (v2Resolver.hasV2Entry) return ok(undefined)
   const { resolverAddress: reachedResolver } = v2Resolver.resolver
     ? { resolverAddress: v2Resolver.resolver }
     : yield* getProfileEthAddressSnapshot(name)
-  if (!reachedResolver)
-    return ok({ resolverAddress: undefined, canWrite: false })
+  if (!reachedResolver) return ok(undefined)
 
   // Resolution reaches an ENSv1 name through a read-only forwarding resolver;
   // its records live on the resolver in the ENSv1 registry.
-  const resolverAddress = v2Resolver.resolver
+  const resolverAddress: Address = v2Resolver.resolver
     ? reachedResolver
     : ((yield* fromPromise(
         readV1RegistryResolver(publicClient as PublicClient, name),
         (cause) => new ResolverWriteAccessError({ cause }),
       )) ?? reachedResolver)
+  return ok(resolverAddress)
+})
+
+/** The name's resolver and which record types the owner wallet can write on it. */
+export const getProfileRecordAccess = ResultFn(async function* (
+  name?: string,
+  ownerAddress?: Address,
+) {
+  const noAccess = {
+    resolverAddress: undefined,
+    canWrite: false,
+    editableTypes: NO_EDITABLE_RECORD_TYPES,
+  }
+  if (!name || !ownerAddress) return ok(noAccess)
+  const resolverAddress = yield* findRecordsResolver(name)
+  if (!resolverAddress) return ok(noAccess)
+
+  const editableTypes = yield* fromPromise(
+    getEditableRecordTypes(resolverAddress, name, ownerAddress),
+    (cause) => new ResolverWriteAccessError({ cause }),
+  )
+
+  return ok({
+    resolverAddress,
+    canWrite: hasEditableRecordType(editableTypes),
+    editableTypes,
+  })
+})
+
+/** The name's resolver (undefined when none is set) and whether the owner wallet can write it. */
+export const getResolverWriteState = ResultFn(async function* (
+  name?: string,
+  ownerAddress?: Address,
+  access: ResolverWriteAccess = 'eth-address',
+) {
+  if (access === 'profile') {
+    const { resolverAddress, canWrite } = yield* getProfileRecordAccess(
+      name,
+      ownerAddress,
+    )
+    return ok({ resolverAddress, canWrite })
+  }
+  if (!name || !ownerAddress) {
+    return ok({ resolverAddress: undefined, canWrite: false })
+  }
+
+  const resolverAddress = yield* findRecordsResolver(name)
+  if (!resolverAddress)
+    return ok({ resolverAddress: undefined, canWrite: false })
 
   const canWrite = yield* fromPromise(
     canWriteEthAddressRecord(resolverAddress, name, ownerAddress),
@@ -143,17 +248,24 @@ export const getResolverWriteState = ResultFn(async function* (
 export const resolverWriteAccessQuery = (
   name?: string,
   ownerAddress?: Address,
+  access: ResolverWriteAccess = 'eth-address',
 ) =>
   resultQueryOptions({
-    queryKey: qk('profile', 'resolver_write_access', { name, ownerAddress }),
+    queryKey: qk('profile', 'resolver_write_access', {
+      name,
+      ownerAddress,
+      access,
+    }),
     queryFn: () =>
-      getResolverWriteState(name, ownerAddress).map(({ canWrite }) => canWrite),
+      getResolverWriteState(name, ownerAddress, access).map(
+        ({ canWrite }) => canWrite,
+      ),
   })
 
 export const resolverWriteStateQuery = (name: string, ownerAddress?: Address) =>
   resultQueryOptions({
     queryKey: qk('profile', 'resolver_write_state', { name, ownerAddress }),
-    queryFn: () => getResolverWriteState(name, ownerAddress),
+    queryFn: () => getProfileRecordAccess(name, ownerAddress),
   })
 
 /** Bind a draft to its reviewed source, even when another resolver is writable. */
@@ -168,7 +280,7 @@ export const assertProfileResolverState = async ({
   readonly ownerAddress: Address
   readonly requireWriteAccess?: boolean
 }): Promise<void> => {
-  const result = await getResolverWriteState(name, ownerAddress)
+  const result = await getResolverWriteState(name, ownerAddress, 'profile')
   if (result.isErr())
     throw new Error(
       'Could not verify the current resolver. Your draft has been kept; check permissions and try again.',
