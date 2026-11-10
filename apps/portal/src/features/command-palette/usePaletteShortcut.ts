@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { hasBlockingPaletteDialog } from './dialogBoundary'
 
 const isPaletteShortcut = (event: KeyboardEvent): boolean =>
   !event.isComposing &&
@@ -21,11 +22,7 @@ export const usePaletteShortcut = ({
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isPaletteShortcut(event)) return
       if (!isOpen && isBlocked) return
-      if (
-        !isOpen &&
-        document.querySelector('[role="dialog"][data-state="open"]')
-      )
-        return
+      if (!isOpen && hasBlockingPaletteDialog()) return
       event.preventDefault()
       if (isOpen) close()
       else open()

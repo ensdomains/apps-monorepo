@@ -1,8 +1,8 @@
 # Search and action palette prototype
 
 The Portal has one global search and action palette. Open it with `Cmd+K` or
-`Ctrl+K`, sidebar search, the mobile header search button, or **Search actions**
-below the homepage's entity search.
+`Ctrl+K`, sidebar search, the mobile header search button, or the shortcut
+control inside the homepage's entity search.
 
 This is a working prototype for designer review. It uses the existing Portal
 routes, editors, wallet chooser, renewal forms, role sheet, and names table.
@@ -73,6 +73,57 @@ validation still determine whether a particular action can continue.
 
 The empty state, View/Register choice, contextual density, vocabulary, mobile
 entry point, and optional command syntax are proposed defaults for review.
+
+## Feedback applied from Joe
+
+[Entry point feedback](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794332654097989):
+the existing shortcut hint inside the homepage search field now opens the
+palette, carrying over the query. Clicking, keyboard activation of the button,
+and the global shortcut work while inline results are open. The shared dialog
+guard exempts only this inline search popover; other dialogs and wallet flows
+still block opening.
+
+[Inline search feedback](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794332531043879):
+the homepage retains its inline dropdown. It now opts into the focused
+completion policy, a one-candidate verification limit, and the palette's
+availability freshness window. Its existing full verification still recognizes
+offchain names. Sharing the palette's result presentation inside that dropdown
+remains a separate implementation step.
+
+[Entity feedback](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794332174465039):
+address rows reuse `EntityBadge`; resolver rows select its contract variant.
+Standalone badges omit native links and hover actions, leaving navigation and
+copying to the palette's own controls. They do not enable badge metadata queries.
+
+[Permission feedback](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794332076700119)
+is still outstanding. Integrate feature-owned capability adapters for an opened
+entity, reusing `useCanTransfer`, `useCanEditRecords`, and the create-subname
+feature's gates. Preserve unknown, denied, and allowed states; owner equality
+cannot represent resolver delegates or registry roles. Global action discovery
+should remain available for choosing another target. Do not run permission
+queries for every search suggestion.
+
+### Regression check
+
+- Checked the provider, shortcut hook, both entity row builders, homepage search,
+  and existing `EntityBadge` callers. Shared component defaults are unchanged.
+- The delayed-metadata selection test now uses a real cached owned name instead
+  of a generated `.box` suggestion, retaining its original selection assertion.
+  This reflects the deliberate removal of speculative suffix recommendations.
+- Added coverage for focused homepage results, the trigger placement, handoff
+  while inline results are open, unrelated dialog blocking, resolver presentation,
+  and inert entity badges. New regressions were checked against broken behavior. The affected 331 tests,
+  Portal typecheck, production build, and changed-file Biome checks pass. Desktop
+  and mobile checks include live Sepolia resolver classification and both entry
+  paths from the inline dropdown.
+
+### Design notes
+
+Homepage and palette still have separate row renderers and verification needs.
+Share their presentation through a small results component while preserving each
+surface's interaction model. Permission presentation belongs on the selected
+entity and should consume existing feature decisions; it should not add another
+command execution or authorization framework.
 
 ## Running locally
 

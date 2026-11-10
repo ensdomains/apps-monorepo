@@ -1,6 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  fireEvent,
+  render as renderWithQueries,
+  screen,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useReducer } from 'react'
+import { type ReactNode, useReducer } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { PALETTE_COMMANDS } from './catalog'
 import {
@@ -16,6 +22,17 @@ vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
   useEnsAvatar: () => ({ data: undefined, error: null, isLoading: false }),
 }))
+
+const render = (ui: ReactNode) => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return renderWithQueries(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  })
+}
 
 const ENTITY = { type: 'name', name: 'alice.eth' } as const
 
@@ -122,6 +139,28 @@ const Harness = ({
 }
 
 describe('PaletteDialog', () => {
+  it('keeps address badges inert inside options, with palette activation owning navigation', async () => {
+    const entity = {
+      type: 'address',
+      address: '0x1111111111111111111111111111111111111111',
+    } as const
+    const resolver = makeRow({
+      id: 'resolver',
+      title: entity.address,
+      leading: { type: 'entity', entity, variant: 'contract' },
+      action: { type: 'view', entity, resolver: true },
+    })
+    const onActivate = vi.fn()
+    const user = userEvent.setup()
+    render(<Harness rows={[resolver]} onActivate={onActivate} />)
+    const option = screen.getByRole('option')
+    await user.hover(option)
+    expect(within(option).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(option).queryByRole('button')).not.toBeInTheDocument()
+    await user.click(option)
+    expect(onActivate).toHaveBeenCalledExactlyOnceWith(resolver)
+  })
+
   it('changes hover selection only after actual pointer movement or a deliberate press', async () => {
     const user = userEvent.setup()
     const onActivate = vi.fn()

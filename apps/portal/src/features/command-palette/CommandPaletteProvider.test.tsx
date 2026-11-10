@@ -354,6 +354,40 @@ describe('CommandPaletteProvider integration', () => {
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
   })
 
+  it.each(['click', 'keyboard', 'button keyboard'])(
+    'opens the palette from the homepage via %s while its inline results are open',
+    async (mode) => {
+      const { user } = await setup()
+      await user.type(screen.getByRole('combobox'), 'helgesson')
+      await screen.findByRole('listbox')
+      if (mode === 'click')
+        await user.click(screen.getByRole('button', { name: 'Search actions' }))
+      else if (mode === 'button keyboard') {
+        screen.getByRole('button', { name: 'Search actions' }).focus()
+        await user.keyboard('{Enter}')
+      } else await user.keyboard('{Control>}k{/Control}')
+      await screen.findByRole('dialog', { name: 'Search and actions' })
+      expect(screen.getByRole('combobox')).toHaveValue('helgesson')
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    },
+  )
+
+  it('continues to block palette opening while another dialog is open', async () => {
+    const { user } = await setup()
+    const dialog = document.createElement('div')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('data-state', 'open')
+    document.body.appendChild(dialog)
+    try {
+      await user.click(screen.getByRole('button', { name: 'Open search' }))
+      expect(
+        screen.queryByRole('dialog', { name: 'Search and actions' }),
+      ).not.toBeInTheDocument()
+    } finally {
+      dialog.remove()
+    }
+  })
+
   it('keeps closed and empty normal search free of entity reads and cold portfolio fetches', async () => {
     io.wallet = { isConnected: true, address: WALLET_ADDRESS }
     const { user } = await setup()

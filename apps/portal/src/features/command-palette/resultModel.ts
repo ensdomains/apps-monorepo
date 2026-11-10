@@ -48,7 +48,11 @@ export type PaletteRowAction =
   | { readonly type: 'copy'; readonly value: string; readonly label: string }
 
 export type PaletteRowLeading =
-  | { readonly type: 'entity'; readonly entity: PaletteEntity }
+  | {
+      readonly type: 'entity'
+      readonly entity: PaletteEntity
+      readonly variant?: 'address' | 'contract'
+    }
   | { readonly type: 'icon'; readonly icon: PaletteIcon }
 
 export type PaletteRowMeta = {
@@ -197,7 +201,11 @@ const getSuggestionRows = ({
       ? { text: 'Resolver', tone: 'muted' }
       : getVerificationMeta(suggestion, data),
     group: isPicker ? 'Choose a target' : 'Names and addresses',
-    leading: { type: 'entity', entity },
+    leading: {
+      type: 'entity',
+      entity,
+      variant: isResolver ? 'contract' : undefined,
+    },
     action: isPicker
       ? { type: 'pick', entity }
       : { type: 'view', entity, resolver: isResolver },
@@ -507,7 +515,11 @@ const getRelatedRows = (
         group: 'Related',
         groupDetail:
           frame.screen.type === 'entity' ? undefined : getEntityLabel(subject),
-        leading: { type: 'entity', entity },
+        leading: {
+          type: 'entity',
+          entity,
+          variant: isResolver ? 'contract' : undefined,
+        },
         action: { type: 'view', entity, resolver: isResolver },
         actionsFor: isResolver ? undefined : entity,
       }

@@ -52,6 +52,7 @@ import {
   useState,
 } from 'react'
 import { match } from 'ts-pattern'
+import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -558,7 +559,13 @@ const Kbd = ({
   </kbd>
 )
 
-const EntityMark = ({ entity }: { readonly entity: PaletteEntity }) =>
+const EntityMark = ({
+  entity,
+  variant,
+}: {
+  readonly entity: PaletteEntity
+  readonly variant?: 'address' | 'contract'
+}) =>
   entity.type === 'name' ? (
     <span
       aria-hidden="true"
@@ -575,9 +582,16 @@ const EntityMark = ({ entity }: { readonly entity: PaletteEntity }) =>
   ) : (
     <span
       aria-hidden="true"
-      className="flex size-5 shrink-0 items-center justify-center rounded-full bg-success-fill"
+      className={cn(
+        'flex size-5 shrink-0 items-center justify-center rounded-full',
+        variant === 'contract' ? 'bg-danger-fill' : 'bg-success-fill',
+      )}
     >
-      <Wallet className="size-3 text-success-text" />
+      {variant === 'contract' ? (
+        <Server className="size-3 text-danger-text" />
+      ) : (
+        <Wallet className="size-3 text-success-text" />
+      )}
     </span>
   )
 
@@ -608,7 +622,8 @@ const ScopeChip = ({
 }
 
 const RowLeading = ({ leading }: { readonly leading: PaletteRowLeading }) => {
-  if (leading.type === 'entity') return <EntityMark entity={leading.entity} />
+  if (leading.type === 'entity')
+    return <EntityMark entity={leading.entity} variant={leading.variant} />
   const Icon = ICONS[leading.icon]
   return (
     <span className="flex size-5 shrink-0 items-center justify-center">
@@ -633,8 +648,13 @@ const RowTitle = ({
         className="min-w-0 flex-1 truncate text-entity-base"
         title={row.title}
       >
-        <span aria-hidden="true">{truncateAddress(row.title)}</span>
-        <span className="sr-only">{row.title}</span>
+        <EntityBadge
+          variant={row.leading.variant ?? 'address'}
+          format="truncate"
+        >
+          <span aria-hidden="true">{truncateAddress(row.title)}</span>
+          <span className="sr-only">{row.title}</span>
+        </EntityBadge>
       </span>
     )
   const parts = getTitleParts(row.title, query)

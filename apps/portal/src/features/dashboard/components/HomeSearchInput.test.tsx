@@ -3,10 +3,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PaletteActionsContext } from '@/features/command-palette/context'
+import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 import { HomeSearchInput } from './HomeSearchInput'
 
 const boundary = vi.hoisted(() => ({
   navigate: vi.fn(),
+  address: undefined as `0x${string}` | undefined,
   availability: vi.fn(),
   tlds: vi.fn(() => ({ validTlds: ['eth'], isLoading: false })),
 }))
@@ -20,7 +22,7 @@ vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
     ...actual,
-    useConnection: () => ({ address: undefined }),
+    useConnection: () => ({ address: boundary.address }),
   }
 })
 
@@ -116,8 +118,28 @@ async function openSearchDialog(user: ReturnType<typeof userEvent.setup>) {
 describe('HomeSearchInput', () => {
   beforeEach(() => {
     boundary.navigate.mockClear()
+    boundary.address = undefined
     boundary.availability.mockResolvedValue({ isAvailable: false })
     boundary.tlds.mockReturnValue({ validTlds: ['eth'], isLoading: false })
+  })
+
+  it('keeps the homepage dropdown while showing focused name completions', async () => {
+    boundary.tlds.mockReturnValue({
+      validTlds: ['eth', 'box'],
+      isLoading: false,
+    })
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper() })
+    const input = await openSearchDialog(user)
+    await user.type(input, 'helgesson')
+    await screen.findByRole('option', { name: /helgesson.eth/ })
+    expect(
+      screen.queryByRole('option', { name: /helgesson.box/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('listbox')).toBeVisible()
+    expect(
+      screen.queryByRole('dialog', { name: 'Search and actions' }),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps View distinct from the explicit Register action', async () => {
@@ -145,18 +167,29 @@ describe('HomeSearchInput', () => {
   })
 
   it('preserves keyboard selection when delayed registration metadata adds a row', async () => {
-    boundary.tlds.mockReturnValue({
-      validTlds: ['eth', 'box'],
-      isLoading: false,
-    })
+    const address = '0x1111111111111111111111111111111111111111'
+    boundary.address = address
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
+    queryClient.setQueryData(
+      getAddressNamesQueryOptions({ address }).queryKey,
+      [
+        {
+          name: 'foxglove.eth',
+          relations: ['owner'],
+          expiryDate: null,
+          graceEndDate: null,
+          status: 'active',
+          protocolVersion: 'ENSv2',
+        },
+      ],
+    )
     const user = userEvent.setup()
     render(<HomeSearchInput />, { wrapper: createWrapper(queryClient) })
     const input = await openSearchDialog(user)
     await user.type(input, 'fox')
-    await screen.findByRole('option', { name: /fox.box/ })
+    await screen.findByRole('option', { name: /foxglove.eth/ })
     await user.keyboard('{ArrowDown}')
     queryClient.setQueryData(['check-name-availability', { name: 'fox.eth' }], {
       isAvailable: true,
@@ -165,7 +198,7 @@ describe('HomeSearchInput', () => {
     await user.keyboard('{Enter}')
     expect(boundary.navigate).toHaveBeenLastCalledWith({
       to: '/$name',
-      params: { name: 'fox.box' },
+      params: { name: 'foxglove.eth' },
     })
   })
 
@@ -196,6 +229,9 @@ describe('HomeSearchInput', () => {
       { wrapper: createWrapper() },
     )
     await user.type(screen.getByRole('combobox'), 'fox.eth')
+    expect(
+      screen.getByRole('combobox').closest('[data-slot="popover-trigger"]'),
+    ).toContainElement(screen.getByRole('button', { name: /Search actions/ }))
     await user.click(screen.getByRole('button', { name: /Search actions/ }))
     expect(openPalette).toHaveBeenCalledWith({ query: 'fox.eth' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

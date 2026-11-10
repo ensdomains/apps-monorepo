@@ -38,6 +38,7 @@ import type {
   PaletteContext,
   PaletteEntity,
 } from './core/types'
+import { hasBlockingPaletteDialog } from './dialogBoundary'
 import {
   describeExecutionError,
   type ExecutionDependencies,
@@ -139,13 +140,7 @@ export const CommandPaletteProvider = ({
 
   const openPalette = useCallback(
     (options?: PaletteOpenOptions) => {
-      if (
-        isConnectFlowActive ||
-        document.querySelector(
-          '[role="dialog"][data-state="open"]:not([data-command-palette])',
-        )
-      )
-        return
+      if (isConnectFlowActive || hasBlockingPaletteDialog()) return
       session.invalidate()
       activeSnapshot.current = null
       expectedNavigation.current = null
@@ -158,7 +153,12 @@ export const CommandPaletteProvider = ({
           ? document.activeElement
           : null
       setError(undefined)
-      dispatch({ type: 'open', query: options?.query })
+      const inlineQuery =
+        document.activeElement instanceof HTMLInputElement &&
+        document.activeElement.hasAttribute('data-palette-inline-input')
+          ? document.activeElement.value
+          : undefined
+      dispatch({ type: 'open', query: options?.query ?? inlineQuery })
       if (options?.entity)
         dispatch({
           type: 'push',

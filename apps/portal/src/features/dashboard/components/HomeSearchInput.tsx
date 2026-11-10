@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/popover'
 import { useCommandPalette } from '@/features/command-palette/context'
 import { PaletteTrigger } from '@/features/command-palette/PaletteTrigger'
+import { PALETTE_AVAILABILITY_STALE_TIME_MS } from '@/features/command-palette/queryPolicy'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
@@ -87,6 +88,9 @@ export const HomeSearchInput = ({
     searchValue: trimmedSearch,
     enabled: Boolean(trimmedSearch),
     fetchOwnedNames: false,
+    suggestionMode: 'focused',
+    verificationLimit: 1,
+    queryStaleTime: PALETTE_AVAILABILITY_STALE_TIME_MS,
     navigateToName,
     navigateToAddress,
     navigateToResolver,
@@ -169,6 +173,19 @@ export const HomeSearchInput = ({
       .exhaustive()
   }
 
+  const shortcutHint = (
+    <kbd
+      className={cn(
+        'pointer-events-none select-none items-center gap-1',
+        isHero
+          ? 'flex font-sans text-base font-normal text-neutral-5'
+          : 'hidden h-5 rounded border px-1.5 text-smallmono font-medium text-muted-foreground sm:flex',
+      )}
+    >
+      <span className="translate-y-px">{formatForDisplay('Mod+K')}</span>
+    </kbd>
+  )
+
   if (iconOnly) return <PaletteTrigger iconOnly className={className} />
 
   return (
@@ -195,6 +212,7 @@ export const HomeSearchInput = ({
               />
             </InputGroupAddon>
             <InputGroupInput
+              data-palette-inline-input
               id={listboxId}
               role="combobox"
               aria-expanded={isPopoverOpen}
@@ -230,23 +248,35 @@ export const HomeSearchInput = ({
                 <EntityBadge variant="contract">contract</EntityBadge>
               </span>
             )}
-            <InputGroupAddon align="inline-end">
-              <kbd
-                className={cn(
-                  'pointer-events-none select-none items-center gap-1',
-                  isHero
-                    ? 'flex font-sans text-base font-normal text-neutral-5'
-                    : 'hidden h-5 rounded border px-1.5 text-smallmono font-medium text-muted-foreground sm:flex',
-                )}
-              >
-                <span className="translate-y-px">
-                  {formatForDisplay('Mod+K')}
-                </span>
-              </kbd>
+            <InputGroupAddon
+              align="inline-end"
+              role="group"
+              tabIndex={-1}
+              onKeyDown={undefined}
+            >
+              {isPaletteAvailable ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 px-1.5"
+                  aria-label="Search actions"
+                  aria-keyshortcuts="Control+K Meta+K"
+                  onClick={() => {
+                    closePopover()
+                    openPalette({ query: searchValue })
+                  }}
+                >
+                  {shortcutHint}
+                </Button>
+              ) : (
+                shortcutHint
+              )}
             </InputGroupAddon>
           </InputGroup>
         </PopoverTrigger>
         <PopoverContent
+          data-palette-inline-search
           onEscapeKeyDown={(event) => {
             if (event.isComposing) event.preventDefault()
           }}
@@ -290,28 +320,6 @@ export const HomeSearchInput = ({
           )}
         </PopoverContent>
       </Popover>
-
-      {isHero && isPaletteAvailable && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-small text-muted-foreground"
-            aria-label="Search actions"
-            aria-keyshortcuts="Control+K Meta+K"
-            onClick={() => {
-              closePopover()
-              openPalette({ query: searchValue })
-            }}
-          >
-            Search actions
-            <kbd className="rounded border px-1 text-small">
-              {formatForDisplay('Mod+K')}
-            </kbd>
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

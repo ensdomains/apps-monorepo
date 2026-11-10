@@ -111,6 +111,19 @@ describe('buildPaletteRows', () => {
     },
   )
 
+  it('presents resolver relationships as contract entities', () => {
+    const resolver = { type: 'address', address: ADDRESS } as const
+    const rows = run({
+      frame: makeFrame({ screen: { type: 'entity', entity: ALICE } }),
+      related: [{ entity: resolver, relations: ['resolver'] }],
+    })
+    expect(rows.find(({ group }) => group === 'Related')?.leading).toEqual({
+      type: 'entity',
+      entity: resolver,
+      variant: 'contract',
+    })
+  })
+
   it('curates a confirmed available name to inspection, registration, and copy actions', () => {
     const rows = run({
       frame: makeFrame({ screen: { type: 'entity', entity: ALICE } }),
