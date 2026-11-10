@@ -20,6 +20,11 @@ import {
 import { isHeldName } from '../dashboardNames'
 import { useAccountSelection } from '../hooks/useAccountSelection'
 import type { NameVersion, SortDir, SortField } from '../mergedNames'
+import {
+  type NamesFilter,
+  resolveNamesFilter,
+  shouldShowFavoritesFilter,
+} from '../namesFilter'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { getRenewableDashboardNamesQueryOptions } from '../service/queries/getDashboardNames'
@@ -34,8 +39,6 @@ import { type FilterChipDef, FilterChips } from './FilterChips'
 import { MyNamesList, type Sort } from './MyNamesList'
 import { SelectionCheckbox } from './SelectionCheckbox'
 import { SortMenu, type SortOption } from './SortMenu'
-
-type FilterKey = 'owned' | 'favorites'
 
 interface NamesTableProps {
   /** The connected wallet, linked to its address page in Explorer. */
@@ -62,7 +65,7 @@ const reverseSortDir = (dir: SortDir): SortDir =>
 
 export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
-  const [filter, setFilter] = useState<FilterKey>('owned')
+  const [filter, setFilter] = useState<NamesFilter>('owned')
   const [version, setVersion] = useState<NameVersion | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
@@ -72,7 +75,6 @@ export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
     parseDirectionalSort<FavoritesSortField>(favoritesSort)
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
   // Searching reads bigname, so wait for typing to pause.
   const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
@@ -92,6 +94,8 @@ export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
   })
 
   const favoritesCount = favorites.length
+  const favoritesRead = { isAuthed, favoritesCount }
+  const activeFilter = resolveNamesFilter(filter, favoritesRead)
   // V1 does not filter registry-only names, so keep its bigname total while
   // paging. V2 and mixed totals require all permission checks to finish.
   const countOf = (
@@ -184,7 +188,7 @@ export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
     { value: 'addedAt', label: t`Created` },
   ]
 
-  const chips: FilterChipDef<FilterKey>[] = [
+  const chips: FilterChipDef<NamesFilter>[] = [
     {
       value: 'owned',
       label: t`Owned`,
@@ -193,15 +197,18 @@ export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
     },
-    {
-      value: 'favorites',
-      label: t`Favorites`,
-      count: favoritesCount,
-      disabled: !isAuthed,
-      activeClassName:
-        'bg-ens-garnet-100 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
-      activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
-    },
+    ...(shouldShowFavoritesFilter(favoritesRead)
+      ? [
+          {
+            value: 'favorites' as const,
+            label: t`Favorites`,
+            count: favoritesCount,
+            activeClassName:
+              'bg-ens-garnet-100 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
+            activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
+          },
+        ]
+      : []),
   ]
 
   // v1 / v2 are mutually exclusive; clicking the active one shows all again.
