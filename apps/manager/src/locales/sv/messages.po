@@ -777,6 +777,10 @@ msgstr ""
 msgid "Checking whether your resolver is already deployed"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Checking which names can be upgraded"
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Checking your account…"
 msgstr ""

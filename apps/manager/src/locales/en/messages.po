@@ -772,6 +772,10 @@ msgstr "Checking whether a payment approval is needed"
 msgid "Checking whether your resolver is already deployed"
 msgstr "Checking whether your resolver is already deployed"
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Checking which names can be upgraded"
+msgstr "Checking which names can be upgraded"
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Checking your account…"
 msgstr "Checking your account…"
