@@ -352,7 +352,7 @@ describe('PaletteDialog', () => {
       ).toBeInTheDocument()
     })
 
-    it('opens actions with Tab wherever the caret is, leaving Shift+Tab to move focus', async () => {
+    it('leaves Tab and Shift+Tab to move focus without opening actions', async () => {
       const onActivate = vi.fn<(row: PaletteRow) => void>()
       const user = userEvent.setup()
       render(
@@ -367,11 +367,11 @@ describe('PaletteDialog', () => {
       expect(onActivate).not.toHaveBeenCalled()
       screen.getByRole('combobox').focus()
       await user.keyboard('{Home}{Tab}')
-      expect(openedActions(onActivate)).toEqual(['actions'])
-      expect(screen.getByRole('combobox')).toHaveFocus()
+      expect(onActivate).not.toHaveBeenCalled()
+      expect(screen.getByRole('combobox')).not.toHaveFocus()
     })
 
-    it('opens actions from the footer button without viewing the name', async () => {
+    it('opens actions from the inline button without viewing the name', async () => {
       const onActivate = vi.fn<(row: PaletteRow) => void>()
       const user = userEvent.setup()
       render(<Harness rows={[NAME]} onActivate={onActivate} />)
@@ -384,12 +384,24 @@ describe('PaletteDialog', () => {
     it('treats a click on the row pill as actions, not as the row', () => {
       const onActivate = vi.fn<(row: PaletteRow) => void>()
       render(<Harness rows={[NAME]} onActivate={onActivate} />)
-      const pill = screen
-        .getByRole('option')
-        .querySelector('[data-palette-secondary]')
-      if (!pill) throw new Error('The selected name row shows its actions pill')
-      fireEvent.click(pill)
+      const button = screen.getByRole('button', {
+        name: 'Actions for alice.eth',
+      })
+      expect(screen.getByRole('option')).not.toContainElement(button)
+      fireEvent.click(button)
       expect(openedActions(onActivate)).toEqual(['actions'])
+    })
+
+    it('shows primary and secondary keyboard labels inline without a footer', () => {
+      render(<Harness rows={[NAME]} />)
+      const option = screen.getByRole('option')
+      expect(within(option).getByText('Open name')).toBeInTheDocument()
+      expect(within(option).getByText('↵')).toBeInTheDocument()
+      const actions = screen.getByRole('button', {
+        name: 'Actions for alice.eth',
+      })
+      expect(within(actions).getByText('→')).toBeInTheDocument()
+      expect(screen.queryByText('Actions only')).not.toBeInTheDocument()
     })
 
     it('offers no actions shortcut for rows without a name target', async () => {

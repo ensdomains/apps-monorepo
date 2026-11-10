@@ -18,11 +18,11 @@ Built-preview captures: [desktop](desktop.png), [entity actions](entity-actions.
 2. Type `website` or `avatar`. Choose **Edit records**, enter a name, and select
    it. Cancel wallet connection to show that the name and search step survive.
    Back returns to the original action query, with focus ready for typing.
-3. Search a complete name. Enter opens its profile. Tab, the selected row's
-   **Actions** pill, Right Arrow, or the footer's **Actions** button opens its
+3. Search a complete name. Enter opens its profile. The selected row's
+   **→ Actions** button or Right Arrow at the end of the query opens its
    action list, with the target shown as a chip in the input. Copy the name or
    its Portal link. View and suggested actions precede **Related** rows (owner,
-   ETH address, resolver, parent name). Enter opens a related destination; Tab
+   ETH address, resolver, parent name). Enter opens a related destination; Right Arrow
    on the owner continues into that address's actions.
 4. Compare `renew` with `renew.eth`. The command comes first for the bare verb;
    the explicit name comes first when its suffix is supplied. `>renew` searches
@@ -46,15 +46,16 @@ validation still determine whether a particular action can continue.
 
 - **View stays View.** Availability adds a separate Register action; it never
   changes what Enter does on a selected name result.
-- **Actions are visible.** A name or address row carries its own **Actions**
-  pill (shown on the selected row on desktop, on every row on touch). Tab,
-  Right Arrow and the footer's **Actions** button reach the same list for
-  keyboard and screen-reader users, so no interactive control sits inside an
-  option. Shift+Tab, and Tab on a row without actions, move focus as usual.
+- **Actions are visible.** The selected row shows its primary keyboard hint
+  inline on desktop and a separate **→ Actions** button. Actions stays visible
+  on touch. Hover or focus darkens that button; clicking the row still opens
+  the entity. The button is a sibling of the option, avoiding nested controls.
+  Right Arrow at the end of the query opens Actions. Tab and Shift+Tab move
+  focus normally. The modal has no footer.
 - **View stays first inside an entity.** Its action view starts with View, then
   suggested actions, then relationships. Async facts never insert a new
   destination ahead of View. Relationships use the same queries as the pages;
-  Enter opens their destination and Tab explores their actions. An address
+  Enter opens their destination and Right Arrow explores their actions. An address
   lists its primary name. On a name page, typing `owner` can surface cached
   owner information without opening its actions first; fresh relationship
   lookups wait until the entity is explicitly opened.
@@ -103,6 +104,19 @@ cannot represent resolver delegates or registry roles. Global action discovery
 should remain available for choosing another target. Do not run permission
 queries for every search suggestion.
 
+### Inline controls refinement
+
+[Joe's follow-up](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794341062476689)
+removes the footer and moves action labels onto the selected row. His
+[agreement on Right Arrow](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794341524207709)
+replaces Tab activation. Existing tests intentionally change the Tab expectation
+to focus movement, rename the footer-button case to the inline-button case, and
+check the secondary click target outside the option. New coverage verifies the
+inline hints and footer removal. Existing primary activation, composition,
+caret movement, asynchronous selection, and navigation tests remain unchanged.
+This pass verifies 193 palette tests, Portal typecheck and production build,
+changed-file Biome checks, and desktop/mobile pointer and keyboard behavior.
+
 ### Regression check
 
 - Checked the provider, shortcut hook, both entity row builders, homepage search,
@@ -112,8 +126,9 @@ queries for every search suggestion.
   This reflects the deliberate removal of speculative suffix recommendations.
 - Added coverage for focused homepage results, the trigger placement, handoff
   while inline results are open, unrelated dialog blocking, resolver presentation,
-  and inert entity badges. New regressions were checked against broken behavior. The affected 331 tests,
-  Portal typecheck, production build, and changed-file Biome checks pass. Desktop
+  and inert entity badges. New regressions were checked against broken behavior.
+  Earlier entry-point verification covered 331 tests, Portal typecheck, production
+  build, and changed-file Biome checks. Desktop
   and mobile checks include live Sepolia resolver classification and both entry
   paths from the inline dropdown.
 
@@ -162,8 +177,8 @@ or GitHub action is part of these commands.
 
 Rows are single-line: an icon declared by each command (or the name's avatar),
 the title with the matched text in bold, and optional right-aligned meta such
-as availability or a page action's disabled reason. The footer names what Enter
-does for the selected row.
+as availability or a page action's disabled reason. The selected row names what
+Enter does inline; its separate Actions button carries the Right Arrow hint.
 
 The dialog keeps its input mounted outside the keyed cmdk result store. That
 preserves text focus and caret state while application-owned selection remains
@@ -241,7 +256,7 @@ the palette and do not prove permission, current availability, or eligibility.
 
 Inside an entity, View is the stable default. Common actions are suggested ahead
 of technical destinations; typing searches all applicable entries. Related rows
-support Enter to navigate and Tab/Right Arrow to continue exploring. The resolved
+support Enter to navigate and Right Arrow to continue exploring. The resolved
 ETH-address utility copies that record, independently of the connected account.
 An empty target picker offers recent entities and, for address targets, the
 connected wallet. Choosing one explicitly pins the target.

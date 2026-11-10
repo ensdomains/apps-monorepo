@@ -9,7 +9,6 @@ import {
   CirclePlus,
   Clock,
   Copy,
-  CornerDownLeft,
   Database,
   DatabaseZap,
   FilePen,
@@ -208,7 +207,6 @@ export const PaletteDialog = ({
     const action = getKeyboardAction({
       key: event.key,
       isComposing: event.nativeEvent.isComposing || event.keyCode === 229,
-      isShift: event.shiftKey,
       hasQuery: Boolean(frame?.query),
       canGoBack,
       hasSecondary: Boolean(secondaryRow),
@@ -267,8 +265,8 @@ export const PaletteDialog = ({
         <DialogTitle className="sr-only">Search and actions</DialogTitle>
         <DialogDescription className="sr-only">
           Find ENS names, addresses, and actions. Use arrow keys to choose a
-          result, Enter to open it, Tab or Right Arrow to show its actions, and
-          Escape to go back.
+          result, Enter to open it, Right Arrow at the end of the query to show
+          its actions, and Escape to go back.
         </DialogDescription>
         <div className="box-content flex h-14 shrink-0 items-center gap-2 border-b pl-3 pr-2 pt-[env(safe-area-inset-top)] sm:h-13 sm:pt-0">
           <HeaderLeading
@@ -372,6 +370,7 @@ export const PaletteDialog = ({
               <PaletteResultGroup
                 key={group}
                 group={group}
+                selectedId={selectedId}
                 rows={rows.filter((row) => row.group === group)}
                 query={query}
                 onActivate={activateAndFocus}
@@ -387,12 +386,6 @@ export const PaletteDialog = ({
             )}
           </CommandList>
         </Command>
-        <PaletteFooter
-          selectedRow={selectedRow}
-          secondaryRow={secondaryRow}
-          canGoBack={canGoBack}
-          onActivate={activateAndFocus}
-        />
       </DialogContent>
     </Dialog>
   )
@@ -432,12 +425,14 @@ const HeaderLeading = ({
 const PaletteResultGroup = ({
   group,
   rows,
+  selectedId,
   query,
   onActivate,
   onSelectionChange,
   onClear,
 }: {
   readonly group: string
+  readonly selectedId: string
   readonly rows: readonly PaletteRow[]
   readonly query: string
   readonly onActivate: (row: PaletteRow) => void
@@ -473,6 +468,7 @@ const PaletteResultGroup = ({
         <PaletteResultRow
           key={row.id}
           row={row}
+          isSelected={row.id === selectedId}
           query={query}
           onActivate={onActivate}
           onSelectionChange={onSelectionChange}
@@ -501,46 +497,6 @@ const PaletteEmptyState = ({
       </p>
     </div>
   )
-
-const PaletteFooter = ({
-  selectedRow,
-  secondaryRow,
-  canGoBack,
-  onActivate,
-}: {
-  readonly selectedRow?: PaletteRow
-  readonly secondaryRow?: PaletteRow
-  readonly canGoBack: boolean
-  readonly onActivate: (row: PaletteRow) => void
-}) => (
-  <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-t px-4 text-small text-muted-foreground max-sm:sr-only max-sm:focus-within:not-sr-only">
-    <div className="flex min-w-0 items-center gap-4">
-      {selectedRow && (
-        <span className="flex items-center gap-1.5">
-          <Kbd>
-            <CornerDownLeft className="size-3" aria-hidden="true" />
-          </Kbd>
-          {getRowEnterLabel(selectedRow)}
-        </span>
-      )}
-      {secondaryRow?.action.type === 'actions' && (
-        <button
-          type="button"
-          onClick={() => onActivate(secondaryRow)}
-          aria-label={`Actions for ${getEntityLabel(secondaryRow.action.entity)}`}
-          className="flex items-center gap-1.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Kbd>tab</Kbd>
-          Actions
-        </button>
-      )}
-    </div>
-    <span className="flex shrink-0 items-center gap-1.5">
-      <Kbd>{canGoBack ? '⌫' : '>'}</Kbd>
-      {canGoBack ? 'Back' : 'Actions only'}
-    </span>
-  </div>
-)
 
 const Kbd = ({
   children,
@@ -673,70 +629,77 @@ const RowTitle = ({
 
 const PaletteResultRow = ({
   row,
+  isSelected,
   query,
   onActivate,
   onSelectionChange,
 }: {
   readonly row: PaletteRow
+  readonly isSelected: boolean
   readonly query: string
   readonly onActivate: (row: PaletteRow) => void
   readonly onSelectionChange: (id: string) => void
 }) => {
   const secondary = getSecondaryRow(row)
   return (
-    <CommandItem
-      value={row.id}
-      onSelect={() => onActivate(row)}
+    <div
+      className="group/result relative"
+      data-selected={isSelected}
       onPointerMoveCapture={(event) => {
         if (event.pointerType !== 'touch') onSelectionChange(row.id)
       }}
       onPointerDown={() => onSelectionChange(row.id)}
-      onClickCapture={(event) => {
-        if (
-          !secondary ||
-          !(event.target instanceof Element) ||
-          !event.target.closest('[data-palette-secondary]')
-        )
-          return
-        event.stopPropagation()
-        onActivate(secondary)
-      }}
-      className="group/row h-12 cursor-pointer gap-3 rounded-md px-2 text-base data-[selected=true]:bg-accent sm:h-10 sm:gap-2.5"
     >
-      <RowLeading leading={row.leading} />
-      <RowTitle row={row} query={query} />
-      {row.meta && (
-        <span
-          className={cn(
-            'max-w-[45%] shrink truncate text-small',
-            META_TONES[row.meta.tone],
-          )}
-          title={row.meta.text}
-        >
-          {row.meta.text}
-        </span>
-      )}
-      {secondary && (
-        // Pointer shortcut only; keyboard and screen readers use Tab, → or the footer's Actions button.
+      <CommandItem
+        value={row.id}
+        onSelect={() => onActivate(row)}
+        className={cn(
+          'group/row h-12 cursor-pointer gap-3 rounded-md px-2 text-base data-[selected=true]:bg-accent sm:h-10 sm:gap-2.5',
+          secondary && 'pr-24',
+        )}
+      >
+        <RowLeading leading={row.leading} />
+        <RowTitle row={row} query={query} />
+        {row.meta && (
+          <span
+            className={cn(
+              'max-w-[45%] shrink truncate text-small',
+              META_TONES[row.meta.tone],
+            )}
+            title={row.meta.text}
+          >
+            {row.meta.text}
+          </span>
+        )}
+        {row.hasNextStep && (
+          <ChevronRight
+            aria-hidden="true"
+            className="size-4 text-muted-foreground/60"
+          />
+        )}
         <span
           aria-hidden="true"
+          className="hidden shrink-0 items-center gap-1 text-small text-muted-foreground sm:group-data-[selected=true]/row:inline-flex"
+        >
+          <kbd className="font-sans">↵</kbd>
+          {getRowEnterLabel(row)}
+        </span>
+      </CommandItem>
+      {secondary && secondary.action.type === 'actions' && (
+        <button
+          type="button"
           data-palette-secondary
-          className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-md border bg-background pl-2 pr-1 text-small text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground active:translate-y-px sm:hidden sm:h-6 sm:group-data-[selected=true]/row:inline-flex"
+          aria-label={`Actions for ${getEntityLabel(secondary.action.entity)}`}
+          aria-keyshortcuts="ArrowRight"
+          tabIndex={isSelected ? 0 : -1}
+          onClick={() => onActivate(secondary)}
+          className="absolute right-2 top-1/2 inline-flex h-8 -translate-y-1/2 items-center gap-1 rounded-md px-2 text-small text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:bg-foreground/10 focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:hidden sm:h-7 sm:group-data-[selected=true]/result:inline-flex sm:group-focus-within/result:inline-flex"
         >
+          <kbd className="font-sans">→</kbd>
           Actions
-          <ChevronRight className="size-3.5 text-current" />
-        </span>
+        </button>
       )}
-      {row.hasNextStep && (
-        <ChevronRight
-          aria-hidden="true"
-          className="size-4 text-muted-foreground/60"
-        />
-      )}
-      <Kbd className="hidden sm:group-data-[selected=true]/row:inline-flex">
-        <CornerDownLeft className="size-3" aria-hidden="true" />
-      </Kbd>
-    </CommandItem>
+    </div>
   )
 }
 
@@ -759,7 +722,6 @@ const SearchingRows = () => (
 const getKeyboardAction = ({
   key,
   isComposing,
-  isShift,
   hasQuery,
   canGoBack,
   hasSecondary,
@@ -767,7 +729,6 @@ const getKeyboardAction = ({
 }: {
   readonly key: string
   readonly isComposing: boolean
-  readonly isShift: boolean
   readonly hasQuery: boolean
   readonly canGoBack: boolean
   readonly hasSecondary: boolean
@@ -777,7 +738,6 @@ const getKeyboardAction = ({
   if (key === 'ArrowDown') return 'down'
   if (key === 'ArrowUp') return 'up'
   if (key === 'Enter') return 'activate'
-  if (key === 'Tab' && !isShift && hasSecondary) return 'secondary'
   if (key === 'ArrowRight' && hasSecondary && isCaretAtEnd) return 'secondary'
   if (key === 'Backspace' && !hasQuery && canGoBack) return 'back'
   return 'native'
