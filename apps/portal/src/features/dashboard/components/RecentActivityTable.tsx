@@ -4,6 +4,7 @@ import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { timelineBreakActionClassName } from '@/features/history/components/TimelineBreak'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -52,9 +53,11 @@ export const RecentActivityTable = () => {
         ))
         // A page can hold only rows the feed hides; older ones may still show.
         .with({ count: 0, hasNextPage: false }, () => (
-          <div className="flex items-center justify-center py-8 text-base text-muted-foreground">
-            No recent activity
-          </div>
+          <NoResultsMessage
+            compact
+            className="my-4"
+            description="No recent activity"
+          />
         ))
         .otherwise(() =>
           events.map((event, index) => {

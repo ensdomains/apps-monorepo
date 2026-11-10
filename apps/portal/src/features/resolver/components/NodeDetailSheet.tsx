@@ -6,6 +6,8 @@ import type { PropsWithChildren } from 'react'
 import { match, P } from 'ts-pattern'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -72,9 +74,7 @@ const NodeRolesSection = ({
     {match(rolesStatus)
       .with('loading', () => <Skeleton className="h-6 w-full" />)
       .with('error', () => (
-        <p className="text-p text-muted-foreground">
-          Couldn’t load this node’s roles.
-        </p>
+        <ErrorMessage compact description="Couldn’t load this node’s roles." />
       ))
       .otherwise((status) => (
         <ResolverCollectionNotice collection="roles" status={status} />
@@ -82,9 +82,10 @@ const NodeRolesSection = ({
     {match({ rolesStatus, hasRoles: roles.length > 0 })
       .with({ rolesStatus: P.union('loading', 'error') }, () => null)
       .with({ hasRoles: false, rolesStatus: 'full' }, () => (
-        <p className="text-p text-muted-foreground">
-          No roles assigned for this node.
-        </p>
+        <NoResultsMessage
+          compact
+          description="No roles assigned for this node."
+        />
       ))
       .with({ hasRoles: false }, () => null)
       .otherwise(() => (
@@ -193,14 +194,15 @@ export const NodeDetailSheet = ({
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : recordsError ? (
-                  <p className="text-p text-danger">
-                    Failed to load records:{' '}
-                    {extractErrorMessage(recordsError, 'Unknown error')}
-                  </p>
+                  <ErrorMessage
+                    compact
+                    description={`Failed to load records: ${extractErrorMessage(recordsError, 'Unknown error')}`}
+                  />
                 ) : records.length === 0 ? (
-                  <p className="text-p text-muted-foreground">
-                    No records set for this node.
-                  </p>
+                  <NoResultsMessage
+                    compact
+                    description="No records set for this node."
+                  />
                 ) : (
                   <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <DataTable columns={sidebarRecordColumns} data={records} />

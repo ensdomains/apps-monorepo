@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ChangeResolverForm } from '@/features/resolver/components/ChangeResolverForm'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 
 export const Route = createFileRoute('/$name/change-resolver')({
   component: RouteComponent,
@@ -77,10 +78,7 @@ function RouteComponent() {
   if (!connectedAddress) {
     return (
       <PageLayout name={name}>
-        <ErrorMessage
-          title="Wallet Not Connected"
-          description="Please connect your wallet to change the resolver."
-        />
+        <ConnectWalletAlert />
       </PageLayout>
     )
   }

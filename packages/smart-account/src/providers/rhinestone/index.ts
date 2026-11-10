@@ -54,6 +54,7 @@ export {
   type BuildHcaDeploymentCallParams,
   buildHcaDeploymentCall,
   buildStandaloneAccountConfig,
+  buildStandaloneHcaDeploymentCall,
   computeStandaloneHcaAddress,
   getHcaDirectExecutionReadiness,
   HcaDeploymentCallValidationError,

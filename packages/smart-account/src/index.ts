@@ -38,6 +38,7 @@ export {
   buildRevealBatch,
   buildRevokeSessionsCall,
   buildStandaloneAccountConfig,
+  buildStandaloneHcaDeploymentCall,
   buildUsdcApproveCall,
   type Call,
   type ChainDigest,
