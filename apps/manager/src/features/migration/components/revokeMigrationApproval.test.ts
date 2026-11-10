@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import {
   getConnection,
   getPublicClient,
@@ -121,7 +121,7 @@ describe('revokeMigrationApproval', () => {
     expect(queryClient.getQueryState(secondKey)?.isInvalidated).toBe(true)
   })
 
-  it('waits for success before refreshing both approval queries in the matching scope', async () => {
+  it('waits for success before refreshing the HCA approval query in the matching scope', async () => {
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
 
@@ -150,15 +150,40 @@ describe('revokeMigrationApproval', () => {
       chainId,
     })
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
-    })
-    expect(invalidate).toHaveBeenCalledWith({
       queryKey: migrationHcaApprovalQueryKey({
         owner: owner.toLowerCase() as Address,
         hca,
         chainId,
       }),
     })
+  })
+
+  it('keeps a confirmed revocation off the list while a lagging node still reports it', async () => {
+    const queryClient = new QueryClient()
+    const queryKey = migrationOperatorApprovalsQueryKey({ owner, hca, chainId })
+    queryClient.setQueryData(queryKey, [approval])
+    // A node behind the revocation's block, read both before and after it lands.
+    const laggingRead = new Promise<readonly MigrationOperatorApproval[]>(
+      (resolve) => setTimeout(() => resolve([approval]), 20),
+    )
+    const unsubscribe = new QueryObserver(queryClient, {
+      queryKey,
+      queryFn: () => laggingRead,
+    }).subscribe(() => {})
+
+    await revokeMigrationApproval({
+      approval,
+      owner,
+      hca,
+      walletAddress: owner,
+      chainId,
+      wagmiConfig,
+      queryClient,
+    })
+    await vi.waitFor(() => expect(queryClient.isFetching({ queryKey })).toBe(0))
+    unsubscribe()
+
+    expect(queryClient.getQueryData(queryKey)).toEqual([])
   })
 
   it('settles a Safe{Wallet} revocation from its execution', async () => {
@@ -177,7 +202,7 @@ describe('revokeMigrationApproval', () => {
     })
 
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
+      queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
     })
   })
 

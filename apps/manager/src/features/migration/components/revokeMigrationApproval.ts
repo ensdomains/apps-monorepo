@@ -88,12 +88,18 @@ export const revokeMigrationApproval = async (params: {
     throw new Error('The revocation failed. Please try again.')
   }
 
-  await Promise.all([
-    queryClient.invalidateQueries({
-      queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
-    }),
-  ])
+  // Trust the receipt: a latest-block read from a lagging node still lists the approval.
+  const approvalsKey = migrationOperatorApprovalsQueryKey({
+    owner,
+    hca,
+    chainId,
+  })
+  await queryClient.cancelQueries({ queryKey: approvalsKey, exact: true })
+  queryClient.setQueryData<readonly MigrationOperatorApproval[]>(
+    approvalsKey,
+    (approvals) => approvals?.filter(({ id }) => id !== approval.id),
+  )
+  await queryClient.invalidateQueries({
+    queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
+  })
 }
