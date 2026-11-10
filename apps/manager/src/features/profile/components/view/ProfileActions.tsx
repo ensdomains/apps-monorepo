@@ -90,7 +90,7 @@ export const ProfileActions = ({
     <>
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-      <ProfileExploreAction layout="ownerBar" target={{ kind: 'name', name }} />
+      <ProfileExploreAction target={{ kind: 'name', name }} />
       <ProfileRenewAction
         className={renewActionClassName}
         isOwner={isOwner}

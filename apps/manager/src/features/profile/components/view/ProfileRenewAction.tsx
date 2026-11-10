@@ -15,6 +15,7 @@ import {
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
+import { cn } from '@/lib/utils'
 import {
   actionLabelClassName,
   iconActionInnerClassName,
@@ -53,7 +54,11 @@ export const ProfileRenewAction = ({
 
   const buttonContent = (
     <span className={iconActionInnerClassName}>
-      <span className={actionLabelClassName}>
+      {/* Below xl the action bars are capped at 390px, so the label shortens */}
+      <span className={cn(actionLabelClassName, 'xl:hidden')}>
+        <Trans>Renew</Trans>
+      </span>
+      <span className={cn(actionLabelClassName, 'hidden xl:inline')}>
         <Trans>Renew Name</Trans>
       </span>
       <MSymbol

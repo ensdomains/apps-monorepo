@@ -83,7 +83,6 @@ export const MATERIAL_SYMBOLS = [
   'text_ad',
   'text_fields_alt',
   'translate',
-  'travel_explore',
   'undo',
   'upload',
   'wall_art',

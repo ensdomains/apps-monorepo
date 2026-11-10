@@ -73,7 +73,12 @@ export const InOwnerBar: Story = {
             <Story />
             <span className={renewActionClassName}>
               <span className={iconActionInnerClassName}>
-                <span className={actionLabelClassName}>Renew Name</span>
+                <span className={cn(actionLabelClassName, 'xl:hidden')}>
+                  Renew
+                </span>
+                <span className={cn(actionLabelClassName, 'hidden xl:inline')}>
+                  Renew Name
+                </span>
                 <MSymbol
                   className={renewActionSymbolClassName}
                   symbol="double_arrow"
@@ -96,7 +101,6 @@ export const InOwnerBar: Story = {
       </div>
     ),
   ],
-  args: { layout: 'ownerBar' },
   parameters: {
     layout: 'fullscreen',
     viewport: { defaultViewport: 'mobile1' },

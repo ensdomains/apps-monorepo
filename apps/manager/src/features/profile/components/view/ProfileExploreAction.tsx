@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
   TooltipContent,
@@ -10,53 +9,28 @@ import { type ExplorerTarget, getExplorerUrl } from '@/utils/explorerUrl'
 import {
   actionLabelClassName,
   iconActionInnerClassName,
-  ownerBarExploreActionClassName,
-  ownerBarExploreLabelClassName,
-  ownerBarExploreSymbolClassName,
   renewActionClassName,
 } from './ProfileAction.styles'
 
 type ProfileExploreActionProps = {
-  /** `ownerBar` is an icon below xl, for the width-capped action bars. */
-  readonly layout?: 'full' | 'ownerBar'
   readonly target: ExplorerTarget
 }
 
-export const ProfileExploreAction = ({
-  layout = 'full',
-  target,
-}: ProfileExploreActionProps) => {
+export const ProfileExploreAction = ({ target }: ProfileExploreActionProps) => {
   const href = getExplorerUrl(EXPLORER_URL, target)
   if (!href) return null
-
-  const isOwnerBar = layout === 'ownerBar'
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <a
-          className={
-            isOwnerBar ? ownerBarExploreActionClassName : renewActionClassName
-          }
+          className={renewActionClassName}
           href={href}
           rel="noopener noreferrer"
           target="_blank"
         >
           <span className={iconActionInnerClassName}>
-            {isOwnerBar ? (
-              <MSymbol
-                aria-hidden="true"
-                className={ownerBarExploreSymbolClassName}
-                symbol="travel_explore"
-              />
-            ) : null}
-            <span
-              className={
-                isOwnerBar
-                  ? ownerBarExploreLabelClassName
-                  : actionLabelClassName
-              }
-            >
+            <span className={actionLabelClassName}>
               <Trans>Explore</Trans>
             </span>
           </span>
