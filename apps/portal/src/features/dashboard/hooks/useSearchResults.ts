@@ -23,9 +23,10 @@ import {
   buildSearchResultItems,
   getSearchNameVerificationFromQueries,
   getSearchOwnerData,
-  isSubname,
+  getSearchVerificationPolicy,
   type SearchNameVerification,
   type SearchResultItem,
+  type SearchVerificationMode,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
 import { getAddressNamesQueryOptions } from './useAddressNames'
@@ -46,8 +47,9 @@ export type UseSearchResultsParams = {
   readonly enabled?: boolean
   readonly fetchOwnedNames?: boolean
   readonly suggestionTlds?: readonly string[]
+  readonly suggestionMode?: 'expanded' | 'focused'
   readonly verificationLimit?: number
-  readonly verificationMode?: 'full' | 'availability-only'
+  readonly verificationMode?: SearchVerificationMode
   readonly queryStaleTime?: number
 }
 
@@ -102,6 +104,7 @@ export const useSearchResults = ({
   enabled = true,
   fetchOwnedNames = true,
   suggestionTlds,
+  suggestionMode = 'expanded',
   verificationLimit = Number.POSITIVE_INFINITY,
   verificationMode = 'full',
   queryStaleTime,
@@ -112,7 +115,10 @@ export const useSearchResults = ({
   const { address: connectedAddress } = useConnection()
   const { validTlds: discoveredTlds, isLoading: isTldsLoading } =
     useSuggestionTlds(
-      enabled && Boolean(searchValue) && suggestionTlds === undefined,
+      enabled &&
+        Boolean(searchValue) &&
+        suggestionTlds === undefined &&
+        suggestionMode === 'expanded',
     )
   const validTlds = suggestionTlds ?? discoveredTlds
 
@@ -142,6 +148,7 @@ export const useSearchResults = ({
         navigateToResolver,
         isResolver,
         validTlds,
+        suggestionMode,
       }),
     [
       searchValue,
@@ -151,6 +158,7 @@ export const useSearchResults = ({
       navigateToResolver,
       isResolver,
       validTlds,
+      suggestionMode,
     ],
   )
 
@@ -215,9 +223,13 @@ export const useSearchResults = ({
 
   const ownerSuggestions = useMemo(
     () =>
-      verificationMode === 'full'
-        ? nameSuggestions.slice(0, verificationLimit)
-        : [],
+      nameSuggestions
+        .slice(0, verificationLimit)
+        .filter(
+          (suggestion) =>
+            getSearchVerificationPolicy(suggestion.inputValue, verificationMode)
+              .shouldReadOwner,
+        ),
     [nameSuggestions, verificationLimit, verificationMode],
   )
   const ownerQueries = useQueries({
@@ -228,30 +240,39 @@ export const useSearchResults = ({
     })),
   })
 
-  // An offchain (CCIP-Read) subname has no registry owner but still resolves.
-  const ownerlessSubnames = useMemo(
+  const recordSuggestions = useMemo(
     () =>
-      ownerSuggestions.filter(
-        (s, i) =>
-          ownerQueries[i]?.data === null &&
-          !ownerQueries[i]?.isError &&
-          isSubname(s.inputValue),
-      ),
-    [ownerSuggestions, ownerQueries],
+      nameSuggestions.slice(0, verificationLimit).filter((s, i) => {
+        const policy = getSearchVerificationPolicy(
+          s.inputValue,
+          verificationMode,
+        )
+        return (
+          policy.shouldReadRecords &&
+          (!policy.shouldReadOwner ||
+            (ownerQueries[i]?.data === null && !ownerQueries[i]?.isError))
+        )
+      }),
+    [nameSuggestions, ownerQueries, verificationLimit, verificationMode],
   )
 
   const recordsQueries = useQueries({
-    queries: ownerlessSubnames.map((s) => ({
-      ...getProfileQueryOptions({ name: s.inputValue }),
+    queries: recordSuggestions.map((s) => ({
+      ...getProfileQueryOptions({
+        name: s.inputValue,
+        ...(verificationMode === 'discovery'
+          ? { includeLegacyRecords: false }
+          : {}),
+      }),
       ...freshness,
       enabled,
     })),
   })
 
-  const offchainNameIds = useMemo(
+  const resolvedRecordIds = useMemo(
     () =>
       new Set(
-        ownerlessSubnames
+        recordSuggestions
           .filter(
             (_, i) =>
               !recordsQueries[i]?.isError &&
@@ -259,20 +280,28 @@ export const useSearchResults = ({
           )
           .map((s) => s.id),
       ),
-    [ownerlessSubnames, recordsQueries],
+    [recordSuggestions, recordsQueries],
+  )
+
+  const offchainNameIds = new Set(
+    ownerSuggestions
+      .filter(
+        (s, i) => ownerQueries[i]?.data === null && resolvedRecordIds.has(s.id),
+      )
+      .map(({ id }) => id),
   )
 
   const pendingRecordsIds = useMemo(
     () =>
       new Set(
-        ownerlessSubnames
+        recordSuggestions
           .filter(
             (_, i) =>
               recordsQueries[i]?.isPending || recordsQueries[i]?.isError,
           )
           .map((s) => s.id),
       ),
-    [ownerlessSubnames, recordsQueries],
+    [recordSuggestions, recordsQueries],
   )
 
   const ownerBySuggestionId = useMemo(() => {
@@ -332,14 +361,14 @@ export const useSearchResults = ({
       .map(({ id }) => id),
   )
   const failedRecordsIds = new Set(
-    ownerlessSubnames
+    recordSuggestions
       .filter((_, i) => recordsQueries[i]?.isError)
       .map(({ id }) => id),
   )
   const nameVerificationBySuggestionId = new Map(
     nameSuggestions.map((suggestion, index) => {
       const ownerQuery = ownerQueries[index]
-      const recordIndex = ownerlessSubnames.findIndex(
+      const recordIndex = recordSuggestions.findIndex(
         ({ id }) => id === suggestion.id,
       )
       const recordQuery = recordsQueries[recordIndex]
@@ -349,11 +378,14 @@ export const useSearchResults = ({
       const availabilityQuery = availabilityQueries[availabilityIndex]
       const verification = getSearchNameVerificationFromQueries({
         name: suggestion.inputValue,
-        isOwnerEnabled: verificationMode === 'full',
+        isOwnerEnabled: getSearchVerificationPolicy(
+          suggestion.inputValue,
+          verificationMode,
+        ).shouldReadOwner,
         isEnabled: enabled && index < verificationLimit,
         owner: ownerQuery,
         records: recordQuery,
-        hasResolution: offchainNameIds.has(suggestion.id),
+        hasResolution: resolvedRecordIds.has(suggestion.id),
         availability: availabilityQuery,
       })
       return [suggestion.id, verification] as const

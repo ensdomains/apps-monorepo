@@ -19,6 +19,25 @@ describe('buildSearchSuggestions', () => {
     mockNavigateToName.mockClear()
   })
 
+  it.each([
+    ['helgesson', ['helgesson.eth']],
+    ['helgesson.com', ['helgesson.com']],
+    ['a.com', ['a.com']],
+    ['sub.helgesson.xyz', ['sub.helgesson.xyz']],
+    ['sub.helgesson.e', ['sub.helgesson.eth']],
+    ['helgesson.', ['helgesson.eth']],
+    ['hello world', []],
+    ['he', []],
+  ] as const)('keeps focused suggestions specific to %s', (value, expected) => {
+    expect(
+      buildSearchSuggestions({
+        ...defaultOptions,
+        value,
+        suggestionMode: 'focused',
+      }).map(({ inputValue }) => inputValue),
+    ).toEqual(expected)
+  })
+
   it('keeps address navigation primary when resolver support is discovered', () => {
     const value = '0x205d2686da3bf33f64c17f21462c51b5ead462cf'
     const navigateToResolver = vi.fn()

@@ -40,9 +40,15 @@ vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
   }),
 }))
 vi.mock('@/features/profile/hooks/useProfile', () => ({
-  getProfileQueryOptions: ({ name }: { readonly name: string }) => ({
-    queryKey: ['search-profile', { name }],
-    queryFn: () => reads.profile(name),
+  getProfileQueryOptions: ({
+    name,
+    includeLegacyRecords,
+  }: {
+    readonly name: string
+    readonly includeLegacyRecords?: boolean
+  }) => ({
+    queryKey: ['search-profile', { name, includeLegacyRecords }],
+    queryFn: () => reads.profile(name, includeLegacyRecords),
   }),
 }))
 vi.mock('@/hooks/useSupportsInterfaces', () => ({
@@ -245,6 +251,49 @@ describe('useSearchResults', () => {
     rerender({ enabled: true })
     expect(reads.availability).toHaveBeenCalledExactlyOnceWith('helgesson.eth')
   })
+
+  it.each([
+    [
+      { texts: [{ key: 'url', value: 'https://example.com' }], coins: [] },
+      'resolved',
+    ],
+    [{ texts: [], coins: [] }, 'not-found'],
+  ] as const)(
+    'verifies explicit DNS usability without a registration or ownership check',
+    async (records, status) => {
+      reads.profile.mockResolvedValue({ records })
+      const { wrapper } = makeWrapper()
+      const { result } = renderHook(
+        () =>
+          useSearchResults({
+            ...navigation,
+            searchValue: 'helgesson.com',
+            fetchOwnedNames: false,
+            suggestionMode: 'focused',
+            verificationMode: 'discovery',
+            verificationLimit: 1,
+          }),
+        { wrapper },
+      )
+      await waitFor(() =>
+        expect(
+          result.current.nameVerificationBySuggestionId.get(
+            'name:helgesson.com',
+          ),
+        ).toEqual({ status }),
+      )
+      expect(
+        result.current.suggestions.map(({ inputValue }) => inputValue),
+      ).toEqual(['helgesson.com'])
+      expect(reads.profile).toHaveBeenCalledExactlyOnceWith(
+        'helgesson.com',
+        false,
+      )
+      expect(reads.owner).not.toHaveBeenCalled()
+      expect(reads.availability).not.toHaveBeenCalled()
+      expect(reads.tlds).toHaveBeenLastCalledWith(false)
+    },
+  )
 
   it('does not turn a failed owner lookup into an absent name', async () => {
     reads.owner.mockRejectedValue(new Error('RPC unavailable'))

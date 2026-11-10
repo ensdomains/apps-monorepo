@@ -156,18 +156,20 @@ levels.
 Candidates are built from the current input immediately; the 250 ms debounce
 controls verification, not rendering. Enter always acts on the current query's
 row. A complete name or address can be opened before metadata arrives. Bare
-labels have a bounded set of suffix suggestions; these are candidates, not
-claims that a DNS name supports ENS or is available to register.
+labels complete to `.eth`. Explicit names keep their suffix: `example.com`
+produces `example.com`, without `.eth` alternatives or speculative DNS suffixes.
+Partial `.eth` input still completes; short explicit DNS names remain searchable.
 
-The palette supplies explicit `suggestionTlds`, `verificationLimit: 1`, and
-`verificationMode: availability-only` to the shared search hook. Its existing
-callers retain DNSSEC discovery and full verification by default. Search helpers and TanStack Query factories remain
+The palette supplies `suggestionMode: focused`, `verificationLimit: 1`, and
+`verificationMode: discovery` to the shared search hook. Other callers retain
+their existing defaults. Search helpers and TanStack Query factories remain
 shared; there is no second cache or relationship registry.
 
 | Interaction | Palette-initiated reads |
 | --- | --- |
 | Closed, empty root, or `>` command search | None; cached facts and avatars can render |
-| Ambiguous input or complete name | After debounce: registrable availability for the leading candidate only; no owner or profile reads |
+| Bare label or explicit `.eth` name | After debounce: registrable availability for the leading candidate only; no owner or profile reads |
+| Explicit DNS name | After debounce: current ENS records for that exact candidate; no DNSSEC suffix discovery, ownership lookup, or DNS purchase-availability check |
 | Complete address | After debounce: resolver-interface detection |
 | Explicitly open an entity's actions | Check the governing `.eth` registration, then load owner, ETH address, and resolver; addresses load their primary name |
 | Name target picker | Existing portfolio query; recent targets are local shortcuts |
@@ -221,8 +223,11 @@ profile inventory, text records, other coin records, contenthash, or ABI just to
 find one ETH address. The ETH record uses coin 60 on the configured ENS network;
 the coin identifier does not select the mainnet RPC.
 
-Search checks availability only. Unchecked candidates stay navigable, rather
-than claiming registration, absence, or offchain resolution before exploration.
+Search checks registration availability for `.eth` candidates and current
+resolution for explicit DNS candidates. Unchecked candidates stay navigable.
+DNS results say **Found in ENS** when records resolve or **No ENS records found**
+when the checked records are empty; failed reads remain verification failures.
+These labels make no claim about DNS registration or purchase availability.
 Existing inline search retains its full verification behavior. Palette queries
 use explicit freshness: 30 seconds for search and registration checks, 60 seconds
 for relationships. Fresh results are reused on reopening; stale registration is
@@ -257,12 +262,42 @@ The name picker still uses the existing portfolio query when it needs uncached
 wallet names. That query can page through a large portfolio; a bounded name-search
 endpoint is a separate follow-up, with expired/former-owner name coverage retained.
 
+## Focused suggestions and DNS usability
+
+The palette no longer fabricates `.xyz`, `.box`, `.com`, or `.lol` alternatives
+for a bare label. Already known matching wallet names can still appear, and
+users can enter any complete DNS name or subname explicitly. There is no global
+DNS suffix probe or DNS-registrar integration.
+
+DNS verification reuses the profile query with `includeLegacyRecords: false`.
+That scope reads the current resolver, including indexed record keys and
+wildcard records, without falling back to historical resolver data. Its query
+key includes the scope so a previously cached historical profile cannot satisfy
+a current-usability check. Other profile callers keep their existing defaults;
+record-save invalidation uses the name-only prefix and covers both scopes.
+
+The record check is debounced and limited to one explicit DNS candidate. It can
+read multiple records for that candidate; it does not fan out across possible
+suffixes. An empty record result is an observation about the checked ENS records,
+not proof that the name is absent from DNS or available to buy. Enter continues
+to open the exact name, and DNS verification never creates an ENS Register row.
+
+Regression coverage preserves existing shared-search defaults and checks exact
+DNS navigation, focused completions, current-only resolution, cache isolation,
+and DNS labels. Browser checks at desktop/mobile widths showed one `.eth`
+completion for `helgesson` and one `example.com` row labeled **No ENS records
+found**, with no page errors. The existing expanded builder's complexity warning
+is unchanged at 58; the focused adapter does not add complexity to it. Final
+checks passed: 315 tests across 25 affected files, Portal typecheck, production
+build, and desktop/mobile browser checks. Deliberate breaks of DNS verification,
+current-profile cache isolation, and result labeling were confirmed to fail.
+
 ## Design review questions
 
 - Do View and the secondary Actions entry communicate navigation versus exploration?
 - Are the suggested actions useful without implying wallet authorization?
 - Should ambiguous prefixes favor actions more strongly than name candidates?
-- Is the short, fixed suffix list useful, or should alternative suffixes need an explicit expansion?
+- Do exact DNS usability labels and `.eth` completion make the distinction between name search and registration clear?
 - Should copying retain the entity view instead of closing the palette?
 
 The provider still coordinates several cancellation and handoff refs. A future

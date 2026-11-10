@@ -1,4 +1,5 @@
 import { match, P } from 'ts-pattern'
+import { isEthName } from '@/utils/ens/tldHelpers'
 import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from './buildSearchSuggestions'
 
@@ -65,6 +66,7 @@ export type SearchNameVerification =
         | 'offchain'
         | 'available'
         | 'not-found'
+        | 'resolved'
     }
   | {
       readonly status: 'failed'
@@ -136,6 +138,7 @@ export const getInlineSearchKeyAction = ({
 type SearchNameVerificationParams = {
   readonly isSubname: boolean
   readonly isEnabled: boolean
+  readonly hasResolutionCheck?: boolean
   readonly owner: 'unchecked' | 'pending' | 'failed' | 'absent' | 'present'
   readonly records: 'unchecked' | 'pending' | 'failed' | 'resolved' | 'empty'
   readonly availability:
@@ -167,8 +170,16 @@ export const getSearchNameVerification = (
       () => ({ status: 'failed', source: 'availability' }) as const,
     )
     .with({ owner: 'present' }, () => ({ status: 'registered' }) as const)
+    .with(
+      { owner: 'unchecked', records: 'resolved' },
+      () => ({ status: 'resolved' }) as const,
+    )
     .with({ records: 'resolved' }, () => ({ status: 'offchain' }) as const)
     .with({ isEnabled: false }, () => ({ status: 'unchecked' }) as const)
+    .with(
+      { hasResolutionCheck: true, owner: 'unchecked', records: 'empty' },
+      () => ({ status: 'not-found' }) as const,
+    )
     .with(
       P.union(
         { owner: 'pending' },
@@ -240,10 +251,32 @@ export const getSearchNameVerificationFromQueries = ({
   getSearchNameVerification({
     isSubname: isSubname(name),
     isEnabled,
+    hasResolutionCheck: records !== undefined,
     owner: isOwnerEnabled ? getOwnerReadState(owner) : 'unchecked',
     records: getRecordsReadState(records, hasResolution),
     availability: getAvailabilityReadState(availability),
   })
+
+export type SearchVerificationMode = 'full' | 'availability-only' | 'discovery'
+
+export const getSearchVerificationPolicy = (
+  name: string,
+  mode: SearchVerificationMode,
+) =>
+  match(mode)
+    .with('full', () => ({
+      shouldReadOwner: true,
+      shouldReadRecords: isSubname(name),
+    }))
+    .with('availability-only', () => ({
+      shouldReadOwner: false,
+      shouldReadRecords: false,
+    }))
+    .with('discovery', () => ({
+      shouldReadOwner: false,
+      shouldReadRecords: name.includes('.') && !isEthName(name),
+    }))
+    .exhaustive()
 
 export const getSearchOwnerData = <T>(
   query: SearchQuerySnapshot<T> | undefined,

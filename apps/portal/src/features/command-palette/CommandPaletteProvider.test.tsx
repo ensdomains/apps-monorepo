@@ -408,6 +408,29 @@ describe('CommandPaletteProvider integration', () => {
     expect(io.portfolio).not.toHaveBeenCalled()
   })
 
+  it('shows one ETH completion for a bare label without speculative DNS alternatives', async () => {
+    const { user } = await setup()
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.type(screen.getByRole('combobox'), 'helgesson')
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByRole('option')).toHaveTextContent('helgesson.eth')
+  })
+
+  it('opens an explicit DNS name without substituting an ETH completion or suggesting other suffixes', async () => {
+    const { user, router } = await setup()
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.type(screen.getByRole('combobox'), 'helgesson.com')
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(
+      screen.getByRole('option', { name: /^helgesson.com/ }),
+    ).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/helgesson.com'),
+    )
+    expect(io.availability).not.toHaveBeenCalled()
+  })
+
   it('does not fetch current-page relationships on empty opening or command search', async () => {
     const { user, router } = await setup()
     await act(async () =>

@@ -90,6 +90,27 @@ const commandIds = (rows: ReturnType<typeof run>) =>
   )
 
 describe('buildPaletteRows', () => {
+  it.each([
+    ['resolved', 'Found in ENS'],
+    ['not-found', 'No ENS records found'],
+  ] as const)(
+    'presents DNS usability without implying DNS registration availability: %s',
+    (status, text) => {
+      const suggestion = makeSuggestion('helgesson.com')
+      const rows = run({
+        frame: makeFrame({ query: 'helgesson.com' }),
+        data: makeData({
+          suggestions: [suggestion],
+          nameVerificationBySuggestionId: new Map([
+            [suggestion.id, { status }],
+          ]),
+        }),
+      })
+      expect(rows.at(0)?.meta?.text).toBe(text)
+      expect(commandIds(rows)).not.toContain('name.register')
+    },
+  )
+
   it('curates a confirmed available name to inspection, registration, and copy actions', () => {
     const rows = run({
       frame: makeFrame({ screen: { type: 'entity', entity: ALICE } }),

@@ -3,6 +3,7 @@ import { isAddress } from 'viem'
 import type { UseSearchResultsReturn } from '@/features/dashboard/hooks/useSearchResults'
 import type { Suggestion } from '@/features/dashboard/utils/buildSearchSuggestions'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
+import { isEthName } from '@/utils/ens/tldHelpers'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 import { PALETTE_COMMANDS } from './catalog'
 import type { PageCommand } from './context'
@@ -140,7 +141,13 @@ const getVerificationMeta = (
     .with('available', () => ({ text: 'Available', tone: 'positive' }))
     .with('checking', () => ({ text: 'Checking…', tone: 'pending' }))
     .with('failed', () => ({ text: 'Couldn’t verify', tone: 'warning' }))
-    .with('not-found', () => ({ text: 'Not found', tone: 'muted' }))
+    .with('not-found', () => ({
+      text: isEthName(suggestion.inputValue)
+        ? 'Not found'
+        : 'No ENS records found',
+      tone: 'muted',
+    }))
+    .with('resolved', () => ({ text: 'Found in ENS', tone: 'positive' }))
     .with('offchain', () => ({ text: 'Offchain', tone: 'muted' }))
     .otherwise(() => undefined)
 }

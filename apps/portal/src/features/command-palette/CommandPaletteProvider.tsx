@@ -80,7 +80,6 @@ const EMPTY_FRAME: OpenState['current'] = {
   scrollTop: 0,
 }
 const SEARCH_DEBOUNCE_MS = 250
-const SUGGESTION_TLDS = ['eth', 'xyz', 'box', 'com', 'lol'] as const
 const NO_NAVIGATION = () => {}
 const TOOL_CAPABILITIES = {
   timeTravel: isTimeTravelEnabled(),
@@ -366,9 +365,9 @@ export const CommandPaletteProvider = ({
       policy.isEnabled &&
       policy.query === debouncedQuery,
     fetchOwnedNames: state.status === 'open' && policy.shouldFetchOwnedNames,
-    suggestionTlds: SUGGESTION_TLDS,
+    suggestionMode: 'focused',
     verificationLimit: 1,
-    verificationMode: 'availability-only',
+    verificationMode: 'discovery',
     queryStaleTime: PALETTE_AVAILABILITY_STALE_TIME_MS,
     navigateToName: NO_NAVIGATION,
     navigateToAddress: NO_NAVIGATION,
@@ -513,7 +512,12 @@ export const CommandPaletteProvider = ({
             'availability',
             () => getNameAvailabilityQueryOptions({ name }).queryKey,
           )
-          .with('records', () => getProfileQueryOptions({ name }).queryKey)
+          .with(
+            'records',
+            () =>
+              getProfileQueryOptions({ name, includeLegacyRecords: false })
+                .queryKey,
+          )
           .exhaustive(),
     )
     void Promise.all([

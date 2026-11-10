@@ -5,6 +5,7 @@ import {
   getInlineSearchKeyAction,
   getSearchNameVerification,
   getSearchNameVerificationFromQueries,
+  getSearchVerificationPolicy,
   sortExactMatchFirst,
 } from './searchResultsUtils'
 
@@ -249,5 +250,21 @@ it.each([
         },
       }),
     ).toEqual({ status })
+  },
+)
+
+it.each([
+  ['helgesson.eth', 'full', true, false],
+  ['sub.helgesson.eth', 'full', true, true],
+  ['helgesson.com', 'availability-only', false, false],
+  ['helgesson.eth', 'discovery', false, false],
+  ['helgesson.com', 'discovery', false, true],
+] as const)(
+  'chooses bounded verification for %s in %s mode',
+  (name, mode, shouldReadOwner, shouldReadRecords) => {
+    expect(getSearchVerificationPolicy(name, mode)).toEqual({
+      shouldReadOwner,
+      shouldReadRecords,
+    })
   },
 )
