@@ -78,7 +78,7 @@ function RouteComponent() {
   if (!connectedAddress) {
     return (
       <PageLayout name={name}>
-        <ConnectWalletAlert className="mx-auto my-4 max-w-lg" />
+        <ConnectWalletAlert />
       </PageLayout>
     )
   }

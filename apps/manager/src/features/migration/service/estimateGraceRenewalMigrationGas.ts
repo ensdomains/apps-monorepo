@@ -179,7 +179,11 @@ const estimateProjectedMigration = async (
     )
   }
   await params.onProgress?.({ stage: 'checking-fee', names: [] })
-  const estimate = await estimateMigrationGasCost({ plan, publicClient })
+  const estimate = await estimateMigrationGasCost({
+    plan,
+    publicClient,
+    budgetUnmeasurableApprovals: true,
+  })
   if (estimate.status === 'error') throw estimate.error
   await params.onProgress?.({ stage: 'checking-fee', names: selectedNames })
   return {
