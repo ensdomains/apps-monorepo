@@ -234,7 +234,7 @@ async function quoteIntentSpendUsdc(
     targetChain: chain,
     calls: [...calls],
     sponsored: { gas: false, bridging: false, swaps: false },
-    feeAsset: paymentToken,
+    feeAsset: 'USDC',
     tokenRequests: [],
     gasLimit,
     ...(incomingUsdc !== undefined && incomingUsdc > 0n
@@ -661,7 +661,7 @@ function buildUserPaidRequest(params: {
     chainId: params.chainId,
     rhinestoneParams: {
       calls: params.calls,
-      feeAsset: paymentToken,
+      feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
         : {}),

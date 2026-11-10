@@ -346,7 +346,7 @@ async function quoteIntentUsdc(input: {
     targetChain: chain,
     calls: [...calls],
     sponsored: { gas: false, bridging: false, swaps: false },
-    feeAsset: usdc,
+    feeAsset: 'USDC',
     tokenRequests: [],
     gasLimit,
     ...(declaredInflow > 0n

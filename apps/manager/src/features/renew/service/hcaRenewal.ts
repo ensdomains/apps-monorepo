@@ -353,10 +353,6 @@ export async function quoteHcaRenewalFee(
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error))
 
-/** The USDC a renewal's fee is paid in: the one its funding was planned in, by address. */
-const renewalFeeAsset = (paymentToken: Address | undefined): Address =>
-  paymentToken ?? TOKENS.USDC.address
-
 /**
  * Wait for a read that shows the HCA holding `atLeast`. One still below it when
  * the wait runs out is an error: the caller keeps the bridge pending rather
@@ -843,7 +839,7 @@ export async function submitHcaRenewal(
     rhinestoneParams: {
       calls: funding.calls,
       // User-paid in USDC, like every intent on this route.
-      feeAsset: renewalFeeAsset(params.paymentToken),
+      feeAsset: 'USDC',
       ...(funding.auxiliaryFunds
         ? { auxiliaryFunds: funding.auxiliaryFunds }
         : {}),

@@ -165,7 +165,7 @@ describe('submitFundingAndCommitActor', () => {
     // Paid by the HCA in USDC. Sponsorship is not a request-level concern at
     // all any more — the transport always sends the user-paid shape.
     expect(request.from.toLowerCase()).toBe(HCA.toLowerCase())
-    expect(request.rhinestoneParams.feeAsset).toBe(C.usdc)
+    expect(request.rhinestoneParams.feeAsset).toBe('USDC')
     // The session authorization rides along with the intent.
     expect(request.rhinestoneParams.sessionEnableData).toBe(
       sessionEnable.enableData,
@@ -189,7 +189,7 @@ describe('submitFundingAndCommitActor', () => {
     })
   })
 
-  it('funds and pays in the run’s payment token', async () => {
+  it('funds in the run’s payment token', async () => {
     await submitFundingAndCommitActor({
       ...input,
       permit,
@@ -197,13 +197,11 @@ describe('submitFundingAndCommitActor', () => {
       paymentToken: CIRCLE_USDC,
     })
 
-    const { calls, feeAsset, auxiliaryFunds } =
-      submittedRequest().rhinestoneParams
+    const { calls, auxiliaryFunds } = submittedRequest().rhinestoneParams
     expect(calls.slice(0, 2).map((c) => c.to)).toEqual([
       CIRCLE_USDC,
       CIRCLE_USDC,
     ])
-    expect(feeAsset).toBe(CIRCLE_USDC)
     expect(auxiliaryFunds).toEqual({
       [sepolia.id]: { [CIRCLE_USDC]: permit.value },
     })
@@ -524,9 +522,8 @@ describe('submitRevealBatchActor', () => {
         args: ['myname', 31_536_000n, CIRCLE_USDC],
       }),
     )
-    const { calls, feeAsset } = submittedRequest().rhinestoneParams
+    const { calls } = submittedRequest().rhinestoneParams
     expect(calls.find((call) => call.to === CIRCLE_USDC)).toBeDefined()
-    expect(feeAsset).toBe(CIRCLE_USDC)
   })
 
   // `addr.reverse` outranks the `default.reverse` claim, so a leftover entry

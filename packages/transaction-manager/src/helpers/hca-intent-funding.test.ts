@@ -291,10 +291,10 @@ describe('planHcaIntentFunding', () => {
       bridging: false,
       swaps: false,
     })
-    expect(quoted.feeAsset).toBe(C.usdc)
+    expect(quoted.feeAsset).toBe('USDC')
   })
 
-  it('funds and pays in the payment token, ignoring the HCA’s other USDC', async () => {
+  it('funds in the payment token, ignoring the HCA’s other USDC', async () => {
     const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
     // Plenty of the deployment's USDC, none of the token this intent pays in.
     mockReads({ tokens: { [C.usdc]: { hcaBalance: 5_000_000n } } })
@@ -311,9 +311,6 @@ describe('planHcaIntentFunding', () => {
     ])
     expect(funding.auxiliaryFunds).toEqual({
       [sepolia.id]: { [circleUsdc]: 900_000n },
-    })
-    expect(prepareTransaction.mock.calls[0]?.[0]).toMatchObject({
-      feeAsset: circleUsdc,
     })
   })
 

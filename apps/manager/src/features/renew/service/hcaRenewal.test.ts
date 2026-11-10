@@ -304,7 +304,7 @@ describe('submitHcaRenewal', () => {
       gasLimit: SEPOLIA_GAS.base + SEPOLIA_GAS.tokenFunding,
     })
     expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
-      request: { rhinestoneParams: { feeAsset: USDC } },
+      request: { rhinestoneParams: { feeAsset: 'USDC' } },
     })
   })
 
@@ -341,7 +341,7 @@ describe('submitHcaRenewal', () => {
         from: HCA,
         chainId: params.chainId,
         rhinestoneParams: {
-          feeAsset: USDC,
+          feeAsset: 'USDC',
           calls: actionCalls(),
         },
       },
@@ -845,7 +845,7 @@ describe('submitHcaRenewal paid with ETH', () => {
     expect(readPendingEthSwap(params.chainId, OWNER)).toBeUndefined()
   })
 
-  it('pays the renewal and its fee in the USDC the swap buys', async () => {
+  it('pays the renewal in the USDC the swap buys', async () => {
     const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 
     await submitHcaRenewal({ ...params, ethFunding, paymentToken: circleUsdc })
@@ -858,9 +858,6 @@ describe('submitHcaRenewal paid with ETH', () => {
       tokenSpend: { token: circleUsdc },
     })
     expect(actionCalls()?.[0]?.to).toBe(circleUsdc)
-    expect(mocks.startTransaction.mock.calls[0]?.[0]).toMatchObject({
-      request: { rhinestoneParams: { feeAsset: circleUsdc } },
-    })
   })
 
   it('counts a swap an earlier attempt sent instead of buying again', async () => {
