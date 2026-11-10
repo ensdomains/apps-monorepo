@@ -24,6 +24,7 @@ export type BatchId =
   | 'B3b'
   | 'B4b'
   | 'B5b'
+  | 'B6b'
   | 'B4'
   | 'B5'
   | 'B6'
@@ -88,7 +89,12 @@ export const batches: Batch[] = [
   {
     id: 'B6',
     title:
-      'Metadata service project: needs a CI job that builds the private metadata-service-v2 image',
+      'Metadata service: nightly job + the tests that pass on the service today (B6a)',
+  },
+  {
+    id: 'B6b',
+    title:
+      'Metadata: tests whose avatar write reverts on the per-name resolver (MD5, E2E-006), MD1 owner 0x0, and the manual guide',
   },
   { id: 'B7', title: 'V1 shape matrix' },
   { id: 'B8', title: 'Unit tests in apps/ and packages/' },
@@ -476,7 +482,23 @@ export const rules: Rule[] = [
     ],
   },
 
-  // ── B6 display / history / metadata ──────────────────────────────────────
+  // ── B6 metadata service ──────────────────────────────────────────────────
+  {
+    // Held: both tests set an avatar with setRecords, which reverts on the
+    // per-name PermissionedResolver (no node-keyed setText).
+    target: 'B6b',
+    globs: [
+      'e2e/projects/metadata/tests/cache-invalidation.spec.ts',
+      // Cites branch-only docs and describes E2E-005 as still open.
+      'e2e/docs/manual-metadata-service-testing.md',
+    ],
+  },
+  {
+    // Landed without MD1 (the service reports owner 0x0 for a mainnet name).
+    target: 'B6',
+    incremental: true,
+    globs: ['e2e/projects/metadata/tests/v1-resolution.spec.ts'],
+  },
   {
     target: 'B6',
     globs: [
@@ -487,7 +509,6 @@ export const rules: Rule[] = [
       'e2e/infra/metadata-service/**',
       'e2e/helpers/metadataService.ts',
       'e2e/fixtures/metadataWebhook.ts',
-      'e2e/docs/manual-metadata-service-testing.md',
     ],
   },
 
