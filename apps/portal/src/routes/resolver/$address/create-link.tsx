@@ -40,6 +40,7 @@ import {
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
@@ -403,11 +404,7 @@ function RouteComponent() {
           )}
         </Field>
 
-        {!isConnected && (
-          <p className="text-p text-warning">
-            Please connect your wallet to link a name.
-          </p>
-        )}
+        {!isConnected && <ConnectWalletAlert />}
         {isConnected && canLink === false && (
           <p className="text-p text-danger">
             Your account does not have the ROLE_LINK permission on this

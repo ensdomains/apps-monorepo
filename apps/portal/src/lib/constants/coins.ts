@@ -120,6 +120,27 @@ const COINS_WITH_ICONS = [
   'zec',
   'zen',
   'zil',
+  'lisk',
+] as const
+
+/** EVM chains added in address-encoder 3.0.0 that have no artwork yet */
+const COINS_WITHOUT_ICONS = [
+  'unichain',
+  'monad',
+  'sonic',
+  'worldchain',
+  'hyperevm',
+  'soneium',
+  'ronin',
+  'abstract',
+  'tempo',
+  'robinhood',
+  'arc',
+  'plasma',
+  'arbnova',
+  'ink',
+  'berachain',
+  'taiko',
 ] as const
 
 /**
@@ -164,6 +185,8 @@ function getIconPath(coinName: string): string | null {
   const iconNameMap: Record<string, string> = {
     arb1: 'Arb',
     scr: 'Scroll',
+    // The Lisk mainnet moved to this L2, which keeps the Lisk brand.
+    lisk: 'Lsk',
   }
 
   const iconName =
@@ -223,9 +246,9 @@ export const SUPPORTED_COINS: CoinConfig[] = (() => {
     (c): c is CoinConfig => c !== null,
   )
 
-  const otherCoins = COINS_WITH_ICONS.filter(
-    (coin) => !PRIORITY_COINS.includes(coin),
-  ).sort()
+  const otherCoins = [...COINS_WITH_ICONS, ...COINS_WITHOUT_ICONS]
+    .filter((coin) => !PRIORITY_COINS.includes(coin))
+    .sort()
 
   const otherConfigs = otherCoins
     .map(buildCoinConfig)

@@ -32,7 +32,6 @@ type Params = {
   readonly managerRestorationNames?: readonly string[]
   /** The owner wallet bundles calls atomically (EIP-5792). */
   readonly canBatchAtomically?: boolean
-  readonly isSubnameRecreationEnabled?: boolean
   readonly signal?: AbortSignal
   readonly onProgress?: MigrationEstimateObserver
 }
@@ -113,19 +112,17 @@ const estimateProjectedMigration = async (
   const { quote, hcaAddress, publicClient, wagmiConfig, signal } = params
   const selectedNames = domains.map(({ name }) => name)
   const managerRestorationNames = params.managerRestorationNames ?? []
-  const discovery = params.isSubnameRecreationEnabled
-    ? await discoverSubnameRecreation({
-        onNamesChecked: params.onProgress
-          ? (names) => params.onProgress?.({ stage: 'checking-names', names })
-          : undefined,
-        domains,
-        owner: quote.ownerAddress,
-        publicClient,
-        verificationClient: params.verificationClient,
-        signal,
-      })
-    : undefined
-  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
+  const discovery = await discoverSubnameRecreation({
+    onNamesChecked: params.onProgress
+      ? (names) => params.onProgress?.({ stage: 'checking-names', names })
+      : undefined,
+    domains,
+    owner: quote.ownerAddress,
+    publicClient,
+    verificationClient: params.verificationClient,
+    signal,
+  })
+  const recreation = discovery.snapshot.roots.length ? discovery : undefined
   const migrationDomains = recreation?.domains ?? domains
   // Projected expiries must not share the executable preflight cache.
   await params.onProgress?.({ stage: 'checking-names', names: selectedNames })
@@ -182,7 +179,11 @@ const estimateProjectedMigration = async (
     )
   }
   await params.onProgress?.({ stage: 'checking-fee', names: [] })
-  const estimate = await estimateMigrationGasCost({ plan, publicClient })
+  const estimate = await estimateMigrationGasCost({
+    plan,
+    publicClient,
+    budgetUnmeasurableApprovals: true,
+  })
   if (estimate.status === 'error') throw estimate.error
   await params.onProgress?.({ stage: 'checking-fee', names: selectedNames })
   return {
