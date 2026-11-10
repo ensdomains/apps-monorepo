@@ -68,7 +68,7 @@ export const BackendAuthModal = () => {
   return (
     <AlertDialog.Root open={shouldShowModal}>
       <AlertDialog.Content
-        className="grid-cols-[minmax(0,1fr)] gap-6 border-ens-gray-two p-6 sm:max-w-sm sm:p-8"
+        className="grid-cols-1 gap-6 border-ens-gray-two p-6 sm:max-w-sm sm:p-8"
         onEscapeKeyDown={(event) => {
           event.preventDefault()
         }}

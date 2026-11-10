@@ -15,6 +15,7 @@ export const AnalyticsConsentBanner = () => {
   if (consent !== 'pending') return null
 
   return (
+    // Caps the panel at the viewport height less its 1rem top and bottom insets, so it scrolls at large text sizes.
     <section
       aria-label={t`Analytics consent`}
       className="fixed inset-x-4 xs:right-auto bottom-4 z-40 flex max-h-[calc(100dvh-2rem)] xs:w-88 flex-col gap-3 overflow-y-auto rounded-md border bg-popover p-4 text-popover-foreground text-sm shadow-md"

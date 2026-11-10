@@ -78,6 +78,7 @@ export const Route = createFileRoute('/$name/')({
 
 // Profile | metadata | counters. A multi-track template has no Tailwind token:
 // the profile card column is fixed at 240px and the counter column at 300px.
+// minmax(0,1fr) lets the metadata column shrink below its content width.
 const profileGridClassName =
   'grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px] gap-3'
 

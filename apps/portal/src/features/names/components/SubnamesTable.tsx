@@ -51,7 +51,7 @@ const SubnameBadge = ({
   format,
 }: {
   readonly name: string
-  readonly format?: 'inline' | 'truncate'
+  readonly format?: 'inline' | 'truncate' | 'wrap'
 }) => {
   const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
   return (
@@ -417,9 +417,10 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
+                    {/* Wraps rather than truncates: touch users can't reach the title or hover copy chip. */}
                     <SubnameBadge
                       name={row.getValue<string>('name')}
-                      format="truncate"
+                      format="wrap"
                     />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
