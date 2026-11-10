@@ -29,6 +29,14 @@ describe('resolveSelectedChip', () => {
   ] as const)('%s', (_, counts, value, expected) => {
     expect(resolveSelectedChip(chips(counts), value, null)).toBe(expected)
   })
+
+  it('falls back when the selected chip is not listed', () => {
+    const listed = chips({ owned: 2 }).filter(
+      (chip) => chip.value !== 'favorites',
+    )
+
+    expect(resolveSelectedChip(listed, 'favorites', 'owned')).toBe('owned')
+  })
 })
 
 describe('firstOpenChip', () => {

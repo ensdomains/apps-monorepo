@@ -5,6 +5,7 @@ import { NamesTable } from './NamesTable'
 
 const mocks = vi.hoisted(() => ({
   getFavorites: vi.fn(),
+  isAuthed: { current: true },
   subnamesTotal: { current: 2 },
 }))
 
@@ -12,7 +13,9 @@ vi.mock('@/utils/backend-client', async () => {
   const { createStore } = await import('@xstate/store-react')
   const authStore = createStore({ context: { isAuthed: true }, on: {} })
   return {
-    isBackendAuthed: authStore.select((context) => context.isAuthed),
+    isBackendAuthed: authStore.select(
+      (context) => context.isAuthed && mocks.isAuthed.current,
+    ),
     backendClient: { favorites: { $get: mocks.getFavorites } },
   }
 })
@@ -42,6 +45,7 @@ vi.mock('./FavoritesList', () => ({ FavoritesList: () => null }))
 describe('NamesTable', () => {
   beforeEach(() => {
     mocks.subnamesTotal.current = 2
+    mocks.isAuthed.current = true
     // The favorites read never answers: the chip stays loading.
     mocks.getFavorites.mockReturnValue(new Promise(() => undefined))
   })
@@ -50,6 +54,13 @@ describe('NamesTable', () => {
     render(<NamesTable />)
 
     expect(screen.getByRole('button', { name: /^Favorites/ })).toBeVisible()
+  })
+
+  it('hides Favorites while signed out, as it has nothing to show', () => {
+    mocks.isAuthed.current = false
+    render(<NamesTable />)
+
+    expect(screen.queryByRole('button', { name: /^Favorites/ })).toBeNull()
   })
 
   it('does not reopen a filter that emptied once it has names again', () => {

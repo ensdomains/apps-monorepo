@@ -77,7 +77,6 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     parseDirectionalSort<FavoritesSortField>(favoritesSort)
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const selectedFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
   // Searching reads bigname, so wait for typing to pause.
   const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
@@ -102,7 +101,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   })
 
   // Unknown until read: the placeholder list is not a count of zero.
-  const isFavoritesLoaded = isAuthed && isSuccess && !isPlaceholderData
+  const isFavoritesLoaded = isSuccess && !isPlaceholderData
   const favoritesCount = isFavoritesLoaded ? favorites.length : undefined
   // V1 does not filter registry-only names, so keep its bigname total while
   // paging. V2 and mixed totals require all permission checks to finish.
@@ -205,15 +204,19 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
     },
-    {
-      value: 'favorites',
-      label: t`Favorites`,
-      count: favoritesCount,
-      disabled: !isAuthed,
-      activeClassName:
-        'bg-ens-garnet-100 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
-      activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
-    },
+    // Favorites need a sign-in; signed out there are none to show.
+    ...(isAuthed
+      ? [
+          {
+            value: 'favorites' as const,
+            label: t`Favorites`,
+            count: favoritesCount,
+            activeClassName:
+              'bg-ens-garnet-100 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
+            activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
+          },
+        ]
+      : []),
   ]
 
   // Subnames, v1 and v2 are exclusive; clicking the active one shows all again.
@@ -238,12 +241,12 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   // A hidden chip can't be clicked, so an emptied selection falls back.
   const activeFilter = resolveSelectedChip(
     chips,
-    selectedFilter,
+    filter,
     firstOpenChip(chips, 'owned'),
   )
   const scope = resolveSelectedChip(scopeChips, selectedScope, null)
   // Keep the fallback, so the emptied filter doesn't reopen when names return.
-  if (activeFilter !== selectedFilter) setFilter(activeFilter)
+  if (activeFilter !== filter) setFilter(activeFilter)
   if (scope !== selectedScope) setScope(scope)
   const { version, isSubnamesOnly, canSelectAll } = toScopeFilter(scope)
   const changeScope = (next: NameScope | null) => {
