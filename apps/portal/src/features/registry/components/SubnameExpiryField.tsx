@@ -6,11 +6,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
 import { ExtensionDurationOrExpiryPicker } from '@/features/renew/components/ExtensionDurationOrExpiryPicker'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
+import { getNamesAbove } from '@/utils/names/addressNames'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import {
   DEFAULT_SUBNAME_EXPIRY,
   getFirstToExpire,
-  getNamesAbove,
   isPastParentExpiry,
   readSubnameExpiryClock,
   type SubnameExpiry,

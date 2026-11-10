@@ -3,9 +3,20 @@ import {
   byShownExpiry,
   getEarlierParentExpiry,
   getEarliestExpiry,
+  getNamesAbove,
   getResolvingExpiry,
   isShownExpiryInRange,
 } from './addressNames'
+
+describe('getNamesAbove', () => {
+  it('lists the parent and every name above it, nearest first', () => {
+    expect(getNamesAbove('x.admin.chakri.eth')).toEqual([
+      'x.admin.chakri.eth',
+      'admin.chakri.eth',
+      'chakri.eth',
+    ])
+  })
+})
 
 describe('getEarliestExpiry', () => {
   const at = (year: number) => new Date(Date.UTC(year, 0, 1))

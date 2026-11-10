@@ -16,6 +16,7 @@ import { useEarliestExpiry } from '@/features/profile/hooks/useEarliestExpiry'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import {
   type AddressNameItem,
+  getNamesAbove,
   getResolvingExpiry,
 } from '@/utils/names/addressNames'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
@@ -25,7 +26,6 @@ import {
   REGISTRY_LABELS_PAGE_SIZE,
   type RegistryLabelRow,
 } from '../../hooks/useRegistryLabels'
-import { getNamesAbove } from '../../utils/subnameExpiry'
 
 // Figma: three narrow columns, the labelhash takes the rest and wraps.
 const LABEL_COLUMN_WIDTH = 140
@@ -156,8 +156,9 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   const namesAbove = registry?.name.endsWith('.eth')
     ? getNamesAbove(registry.name)
     : []
-  const { earliestExpiry } = useEarliestExpiry(namesAbove)
-  const parentExpiryDate = namesAbove.length > 0 ? earliestExpiry : undefined
+  const ancestorExpiry = useEarliestExpiry(namesAbove)
+  const parentExpiryDate =
+    namesAbove.length > 0 ? ancestorExpiry.earliestExpiry : undefined
 
   const loader = useListLoader({
     initialCount: REGISTRY_LABELS_PAGE_SIZE,
@@ -168,7 +169,8 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
     resetKey: address,
   })
 
-  if (isLoading) return <LoadingSpinner title="Loading labels..." />
+  if (isLoading || ancestorExpiry.isLoading)
+    return <LoadingSpinner title="Loading labels..." />
 
   if (error && !isFetchNextPageError) {
     return (

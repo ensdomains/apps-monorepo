@@ -4,21 +4,10 @@ import { SECONDS_PER_DAY } from '@/lib/constants/duration'
 import {
   DEFAULT_SUBNAME_EXPIRY,
   getFirstToExpire,
-  getNamesAbove,
   getSubnameExpirySeconds,
   isPastParentExpiry,
   type SubnameExpiry,
 } from './subnameExpiry'
-
-describe('getNamesAbove', () => {
-  it('lists the parent and every name above it, nearest first', () => {
-    expect(getNamesAbove('x.admin.chakri.eth')).toEqual([
-      'x.admin.chakri.eth',
-      'admin.chakri.eth',
-      'chakri.eth',
-    ])
-  })
-})
 
 describe('getFirstToExpire', () => {
   it('gives the name above that expires first, passing names that never expire', () => {

@@ -41,14 +41,6 @@ export const getSubnameExpirySeconds = (
     })
     .exhaustive()
 
-/** A new subname's parent and every name above it, nearest first; any of them expiring stops it resolving. */
-export const getNamesAbove = (parentName: string): readonly string[] => {
-  const labels = parentName.split('.')
-  return Array.from({ length: labels.length - 1 }, (_, index) =>
-    labels.slice(index).join('.'),
-  )
-}
-
 type NameExpiry = { readonly name: string; readonly expirySeconds: bigint }
 
 /** The name above that expires first, or null when none of them expires. */
