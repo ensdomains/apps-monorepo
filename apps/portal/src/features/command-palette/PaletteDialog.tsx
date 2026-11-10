@@ -681,7 +681,7 @@ const PaletteResultRow = ({
           aria-hidden="true"
           className="hidden shrink-0 items-center gap-1 text-small text-muted-foreground sm:group-data-[selected=true]/row:inline-flex"
         >
-          <kbd className="font-sans">↵</kbd>
+          <Kbd>↵</Kbd>
           {getRowEnterLabel(row)}
         </span>
       </CommandItem>
@@ -695,7 +695,7 @@ const PaletteResultRow = ({
           onClick={() => onActivate(secondary)}
           className="absolute right-2 top-1/2 inline-flex h-8 -translate-y-1/2 items-center gap-1 rounded-md px-2 text-small text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:bg-foreground/10 focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:hidden sm:h-7 sm:group-data-[selected=true]/result:inline-flex sm:group-focus-within/result:inline-flex"
         >
-          <kbd className="font-sans">→</kbd>
+          <Kbd className="text-current">→</Kbd>
           Actions
         </button>
       )}

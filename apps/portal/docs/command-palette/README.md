@@ -117,6 +117,11 @@ caret movement, asynchronous selection, and navigation tests remain unchanged.
 This pass verifies 193 palette tests, Portal typecheck and production build,
 changed-file Biome checks, and desktop/mobile pointer and keyboard behavior.
 
+[The next visual refinement](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794344588542599)
+restores the raised keycap shapes around the inline Enter and Right Arrow
+symbols, reusing the existing keycap component. Right Arrow inherits the Actions
+button's hover and focus color.
+
 ### Regression check
 
 - Checked the provider, shortcut hook, both entity row builders, homepage search,
