@@ -1,3 +1,4 @@
+import { isReadOnlyWalletConnector } from '@ens-apps/read-only-wallet'
 import { Trans } from '@lingui/react/macro'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { useMutation } from '@tanstack/react-query'
@@ -11,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { useWalletDisconnect } from '@/lib/wallet'
-import { isReadOnlyWalletConnector } from '@/lib/wallet/readOnlyWallet'
 import { backendAuthStore } from '@/utils/backend-client'
 
 export const BackendAuthModal = () => {

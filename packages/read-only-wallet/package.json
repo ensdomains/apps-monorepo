@@ -1,0 +1,28 @@
+{
+  "name": "@ens-apps/read-only-wallet",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Hidden read-only wallet for testing ENS apps as any address.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check"
+  },
+  "dependencies": {
+    "viem": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

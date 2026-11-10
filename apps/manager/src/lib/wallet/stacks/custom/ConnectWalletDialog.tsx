@@ -1,13 +1,12 @@
+import { ReadOnlyWalletTrigger } from '@ens-apps/read-only-wallet'
 import { logger } from '@ens-apps/utils/logger'
-import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { Connector } from 'wagmi'
 import {
   useConnect,
-  useConnection,
   useConnectors,
-  useDisconnect,
+  usePublicClient,
   useSwitchChain,
 } from 'wagmi'
 import {
@@ -18,12 +17,6 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
-import {
-  isReadOnlyWalletConnector,
-  parseReadOnlyWalletAddress,
-  READ_ONLY_WALLET_CONNECTOR_ID,
-  setReadOnlyWalletAddress,
-} from '@/lib/wallet/readOnlyWallet'
 import {
   connectOnSupportedChain,
   isCoinbase,
@@ -123,8 +116,7 @@ export const ConnectWalletDialog = ({
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
-  const { disconnectAsync } = useDisconnect()
-  const { connector: connectedConnector } = useConnection()
+  const publicClient = usePublicClient({ chainId: wagmiConfig.chains[0].id })
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -230,44 +222,6 @@ export const ConnectWalletDialog = ({
     }
   }
 
-  // Hidden developer path. The connect list never mentions this wallet; typing
-  // C U S T O M while the dialog is open asks for an address to impersonate.
-  const connectCustomWallet = async () => {
-    const input = window.prompt('Read-only custom wallet address:')
-    if (input === null) return
-
-    const address = parseReadOnlyWalletAddress(input)
-    if (!address) {
-      setError('Enter a valid Ethereum address')
-      return
-    }
-
-    const connector = connectors.find(isReadOnlyWalletConnector)
-    if (!connector) {
-      setError('Custom wallet is unavailable')
-      return
-    }
-
-    setReadOnlyWalletAddress(address)
-    // Reconnecting the same connector is rejected by wagmi, so drop it first.
-    if (connectedConnector?.id === READ_ONLY_WALLET_CONNECTOR_ID) {
-      await disconnectAsync()
-    }
-    await connect(connector)
-  }
-
-  useHotkeySequence(
-    ['C', 'U', 'S', 'T', 'O', 'M'],
-    () => void connectCustomWallet(),
-    {
-      enabled: open && !isConnecting,
-      ignoreInputs: true,
-      preventDefault: false,
-      stopPropagation: false,
-      timeout: 1000,
-    },
-  )
-
   // Curated wallets first, in priority order; MetaMask falls back to an install
   // link when it isn't detected.
   const prioritizedWallets: WalletOption[] = [
@@ -349,6 +303,12 @@ export const ConnectWalletDialog = ({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="gap-5 p-8 sm:max-w-100">
+        <ReadOnlyWalletTrigger
+          chainId={wagmiConfig.chains[0].id}
+          client={publicClient}
+          enabled={open && !isConnecting}
+          onError={setError}
+        />
         <DialogHeader>
           <DialogTitle>Connect a wallet</DialogTitle>
         </DialogHeader>

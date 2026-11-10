@@ -3,7 +3,6 @@ import { match, P } from 'ts-pattern'
 import { createClient, fallback, http, webSocket } from 'viem'
 import { createConfig } from 'wagmi'
 import { envConfig } from '@/config'
-import { readOnlyWalletConnector } from '@/features/wallet/readOnlyWallet'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { getCustomRpcUrl, WEBSOCKET_URL } from '@/lib/customRpc'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
@@ -66,8 +65,6 @@ export const wagmiConfig = createConfig({
           }),
         ]
       : []),
-    // Hidden read-only wallet, unlocked with C U S T O M in the connect dialog.
-    readOnlyWalletConnector,
     // Test-only: auto-signing wallet for Playwright/agents. Off in production.
     ...(isMockWalletEnabled ? [mockConnector] : []),
   ],

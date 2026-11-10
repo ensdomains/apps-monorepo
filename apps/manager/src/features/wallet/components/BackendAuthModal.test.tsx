@@ -1,6 +1,6 @@
+import { READ_ONLY_WALLET_RDNS } from '@ens-apps/read-only-wallet'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { READ_ONLY_WALLET_CONNECTOR_ID } from '@/lib/wallet/readOnlyWallet'
 import { backendAuthStore } from '@/utils/backend-client'
 import { render } from '@/utils/test-utils'
 
@@ -116,7 +116,7 @@ describe('BackendAuthModal', () => {
   it('does not ask a read-only custom wallet to sign in', () => {
     wagmiMock.useConnection.mockReturnValue({
       isConnected: true,
-      connector: { id: READ_ONLY_WALLET_CONNECTOR_ID },
+      connector: { id: `${READ_ONLY_WALLET_RDNS}.0xdead` },
     })
 
     render(<BackendAuthModal />)
