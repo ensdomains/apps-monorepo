@@ -1109,6 +1109,15 @@ describe('direct subname source checks', () => {
     ).rejects.toThrow(/descendants changed after review/)
   })
 
+  it('leaves out a deleted child whose own subnames are deleted too', async () => {
+    const context = fixture()
+    context.state.owner = zeroAddress
+    context.state.resolver = zeroAddress
+    context.state.descendantEvents = [{ args: { label: labelhash('post') } }]
+    const found = await context.discover()
+    expect(found.domains.map(({ name }) => name)).not.toContain(CHILD)
+  })
+
   it('rejects descendants created below any child in the batched log check', async () => {
     const context = fixture()
     context.state.descendantEvents = [
