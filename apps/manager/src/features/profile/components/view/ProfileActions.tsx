@@ -33,6 +33,8 @@ type ProfileDesktopActionsProps = {
 
 type ProfileActionsProps = ProfileDesktopActionsProps & {
   readonly canEdit: boolean
+  /** Owners keep the actions in the bottom bar on desktop too, even when they can't edit. */
+  readonly hasDesktopBar: boolean
   /** Latched by the view, so it also decides where the desktop actions go. */
   readonly hasFloatingBar: boolean
   readonly isInGrace: boolean
@@ -66,6 +68,7 @@ export const ProfileDesktopActions = ({
 export const ProfileActions = ({
   avatarUrl,
   canEdit,
+  hasDesktopBar,
   hasFloatingBar,
   isInGrace,
   isOwner,
@@ -126,7 +129,13 @@ export const ProfileActions = ({
           ref={setBar}
         >
           <div className={editBottomNavContentClassName}>
-            <div className={cn(profileBarActionsClassName, 'w-full xl:hidden')}>
+            <div
+              className={cn(
+                profileBarActionsClassName,
+                'w-full',
+                hasDesktopBar ? 'xl:mr-auto xl:w-auto' : 'xl:hidden',
+              )}
+            >
               {renderBarActions()}
             </div>
             <ProfileEditAction
@@ -145,7 +154,7 @@ export const ProfileActions = ({
       ) : (
         <nav
           aria-label={t`Profile actions`}
-          className={profileStickyBarClassName}
+          className={cn(profileStickyBarClassName, hasDesktopBar && 'xl:block')}
           ref={setBar}
         >
           <div className={cn(editBottomBarContentClassName, 'justify-center')}>

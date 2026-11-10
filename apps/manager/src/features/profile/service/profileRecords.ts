@@ -28,7 +28,7 @@ import {
 import { bigname } from '@/lib/bigname'
 import { publicClient } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { getDebugProfileRecords } from '../MOCK'
+import { isMaybeDebugName, loadDebugProfiles } from '@/utils/debug-features'
 import {
   hasV2NameEntry,
   NameRegistryNotFoundError,
@@ -83,7 +83,10 @@ const getRecordKeys = (name: string) =>
     .orElse(() => okAsync(selectProfileRecordKeys(undefined)))
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
-  const debugProfile = getDebugProfileRecords(name)
+  const debugProfiles = isMaybeDebugName(name)
+    ? await loadDebugProfiles?.()
+    : undefined
+  const debugProfile = debugProfiles?.getDebugProfileRecords(name)
   if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()

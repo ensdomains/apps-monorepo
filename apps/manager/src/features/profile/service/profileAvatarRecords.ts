@@ -3,8 +3,8 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getRecords } from '@ensdomains/ensjs/public'
 import { fromPromise, ok } from 'neverthrow'
-import { getDebugProfileRecords } from '@/features/profile/MOCK'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { isMaybeDebugName, loadDebugProfiles } from '@/utils/debug-features'
 
 const AVATAR_TEXT_KEYS = ['avatar', 'theme'] as const
 
@@ -15,7 +15,10 @@ class GetProfileAvatarRecordsError extends TaggedError(
 }> {}
 
 export const getProfileAvatarRecords = ResultFn(async function* (name: string) {
-  const debugProfile = getDebugProfileRecords(name)
+  const debugProfiles = isMaybeDebugName(name)
+    ? await loadDebugProfiles?.()
+    : undefined
+  const debugProfile = debugProfiles?.getDebugProfileRecords(name)
   if (debugProfile) {
     return ok({
       texts: debugProfile.texts.filter(({ key }) =>
