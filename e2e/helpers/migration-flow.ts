@@ -247,7 +247,27 @@ export async function confirmAndAuthorize(
     const successIndicator = page.getByRole('heading', {
       name: /your names? (has|have) been upgraded/i,
     })
-    await successIndicator.waitFor({ state: 'visible', timeout: 120_000 })
+    // A name with subnames opens the subname review first (#1660). Continue
+    // only where the app says the subnames are carried or unaffected; a
+    // review that leaves subnames behind or cannot check them is never
+    // accepted, so the wait below fails on it.
+    const continueMigration = page
+      .getByRole('dialog')
+      .filter({
+        hasText: /What happens to your subnames|Your subnames are unaffected/,
+      })
+      .getByRole('button', { name: 'Continue migration', exact: true })
+    const deadline = Date.now() + 120_000
+    while (!(await successIndicator.isVisible())) {
+      if (Date.now() > deadline)
+        await successIndicator.waitFor({ state: 'visible', timeout: 1 })
+      if (
+        (await continueMigration.isVisible().catch(() => false)) &&
+        (await continueMigration.isEnabled().catch(() => false))
+      )
+        await continueMigration.click()
+      await page.waitForTimeout(500)
+    }
   } finally {
     // Stop the wallet loop before a failed flow is recovered or the next case starts.
     migrationComplete = true

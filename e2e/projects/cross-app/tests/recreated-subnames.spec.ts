@@ -59,6 +59,10 @@ import {
 } from '../../../helpers/v2-reads.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+
+// Lives in cross-app (it drives the manager's upgrade to set up), but uses the
+// portal fixture, whose consent cookie is set on the portal's base URL.
+test.use({ baseURL: PORTAL_APP_URL })
 const SAVE_RECORDS_TX = 'tx-save-resolver-records'
 
 const V1_RESOLVER_ABI = parseAbi([

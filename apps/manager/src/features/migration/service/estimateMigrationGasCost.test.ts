@@ -1,13 +1,18 @@
-import type { Address, PublicClient } from 'viem'
+import { buildStandaloneHcaDeploymentCall } from '@ens-apps/smart-account'
+import { type Address, type Hex, isAddressEqual, type PublicClient } from 'viem'
+import { sepolia } from 'viem/chains'
+import { labelhash } from 'viem/ens'
 import { describe, expect, it, vi } from 'vitest'
 import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import type { MigrationPlan } from './buildMigrationPlan'
+import type { ClassifiedName } from './classifyNames'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type {
   MigrationApproval,
   MigrationOperatorApprovalId,
 } from './migrationApprovals'
 import {
+  buildMigrationApprovalCall,
   planMigrationApprovals,
   prepareMigrationApprovals,
   temporaryMigrationHcaApproval,
@@ -15,6 +20,13 @@ import {
 
 const account = '0x0000000000000000000000000000000000000001' as Address
 const contract = '0x0000000000000000000000000000000000000002' as Address
+const deploymentCall = buildStandaloneHcaDeploymentCall({
+  chainId: sepolia.id,
+  owner: account,
+})
+const DEPLOYMENT_ESTIMATE = 578_000n
+const APPROVAL_ESTIMATE = 130_000n
+const FALLBACK_APPROVAL_GAS = 55_000n
 
 const makeOperatorApproval = (
   id: MigrationOperatorApprovalId,
@@ -46,6 +58,15 @@ const makeAtomicBatch = (
         : { to: contract, data: '0x', value: 0n },
   }) as AtomicMigrationBatch
 
+const tokenIdOf = (label: string): bigint => BigInt(labelhash(label))
+
+const unwrappedGroups = (...labels: string[]): MigrationPlan['groups'] => ({
+  unwrapped: labels.map((label) => ({ label }) as ClassifiedName),
+  unlocked: [],
+  locked2ld: [],
+  childNames: new Map(),
+})
+
 const makePlan = (overrides: Partial<MigrationPlan> = {}): MigrationPlan =>
   ({
     hcaAddress: contract,
@@ -70,12 +91,25 @@ const makePlan = (overrides: Partial<MigrationPlan> = {}): MigrationPlan =>
     ...overrides,
   }) as MigrationPlan
 
-const makePublicClient = (fee: {
-  readonly maxFeePerGas?: bigint
-  readonly gasPrice?: bigint
-}): PublicClient =>
+const makePublicClient = (
+  fee: {
+    readonly maxFeePerGas?: bigint
+    readonly gasPrice?: bigint
+  },
+  revertingData?: Hex,
+): PublicClient =>
   ({
-    estimateGas: vi.fn(),
+    chain: sepolia,
+    estimateGas: vi.fn(
+      ({ to, data }: { readonly to: Address; readonly data: Hex }) =>
+        data === revertingData
+          ? Promise.reject(new Error('execution reverted'))
+          : Promise.resolve(
+              isAddressEqual(to, deploymentCall.to)
+                ? DEPLOYMENT_ESTIMATE
+                : APPROVAL_ESTIMATE,
+            ),
+    ),
     estimateFeesPerGas: vi.fn().mockResolvedValue(fee),
     getGasPrice: vi.fn().mockResolvedValue(9n),
   }) as unknown as PublicClient
@@ -120,19 +154,21 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate).toEqual({
       status: 'ready',
       transactionCount: 6,
-      gasUnits: 615_200n,
-      feeWei: 615_200n,
+      gasUnits: DEPLOYMENT_ESTIMATE + 3n * APPROVAL_ESTIMATE + 200n,
+      feeWei: DEPLOYMENT_ESTIMATE + 3n * APPROVAL_ESTIMATE + 200n,
       feePerGasWei: 1n,
     })
   })
 
   it('counts three confirmations for a fresh HCA and one unwrapped name', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 3n })
+    const approval = makeTokenApproval(tokenIdOf('alice'))
     const plan = makePlan({
       hcaDeploymentRequired: true,
+      groups: unwrappedGroups('alice'),
       preflight: {
         skipFetchProfilesPhase: true,
-        migrationApprovals: [makeTokenApproval()],
+        migrationApprovals: [approval],
       },
       atomicBatches: [makeAtomicBatch(100n)],
     })
@@ -141,12 +177,94 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    // 450k deployment + 55k token approval + 100 batch gas. The ERC-721
-    // approval clears automatically when the registration transfers.
-    expect(estimate.gasUnits).toBe(505_100n)
-    expect(estimate.feeWei).toBe(1_515_300n)
+    // The ERC-721 approval clears automatically when the registration transfers.
+    const gasUnits = DEPLOYMENT_ESTIMATE + APPROVAL_ESTIMATE + 100n
+    expect(estimate.gasUnits).toBe(gasUnits)
+    expect(estimate.feeWei).toBe(gasUnits * 3n)
     expect(estimate.transactionCount).toBe(3)
-    expect(publicClient.estimateGas).not.toHaveBeenCalled()
+    // The owner's estimates of the exact calls the setup sends.
+    expect(publicClient.estimateGas).toHaveBeenCalledTimes(2)
+    expect(publicClient.estimateGas).toHaveBeenCalledWith({
+      account,
+      ...deploymentCall,
+    })
+    expect(publicClient.estimateGas).toHaveBeenCalledWith({
+      account,
+      ...buildMigrationApprovalCall(approval),
+    })
+  })
+
+  it('skips the token approvals of names a partial recovery already migrated', async () => {
+    const migrated = makeTokenApproval(tokenIdOf('migrated'))
+    // The owner no longer holds the migrated token, so its approve reverts.
+    const publicClient = makePublicClient(
+      { maxFeePerGas: 1n },
+      buildMigrationApprovalCall(migrated).data,
+    )
+    const plan = makePlan({
+      groups: unwrappedGroups('remaining'),
+      preflight: {
+        skipFetchProfilesPhase: true,
+        migrationApprovals: [
+          migrated,
+          makeTokenApproval(tokenIdOf('remaining')),
+        ],
+      },
+      atomicBatches: [makeAtomicBatch(100n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+
+    expect(estimate.status).toBe('ready')
+    if (estimate.status !== 'ready') throw new Error('expected ready estimate')
+    expect(estimate.gasUnits).toBe(APPROVAL_ESTIMATE + 100n)
+  })
+
+  it('budgets a token approval it cannot measure for a projected renewal', async () => {
+    const approval = makeTokenApproval(tokenIdOf('grace'))
+    // BaseRegistrar.ownerOf reverts during grace, so approve cannot be measured.
+    const publicClient = makePublicClient(
+      { maxFeePerGas: 1n },
+      buildMigrationApprovalCall(approval).data,
+    )
+    const plan = makePlan({
+      groups: unwrappedGroups('grace'),
+      preflight: {
+        skipFetchProfilesPhase: true,
+        migrationApprovals: [approval],
+      },
+      atomicBatches: [makeAtomicBatch(100n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({
+      plan,
+      publicClient,
+      budgetUnmeasurableApprovals: true,
+    })
+
+    expect(estimate.status).toBe('ready')
+    if (estimate.status !== 'ready') throw new Error('expected ready estimate')
+    expect(estimate.gasUnits).toBe(FALLBACK_APPROVAL_GAS + 100n)
+  })
+
+  it('still fails when a token approval cannot be measured for a real upgrade', async () => {
+    const approval = makeTokenApproval(tokenIdOf('alice'))
+    const publicClient = makePublicClient(
+      { maxFeePerGas: 1n },
+      buildMigrationApprovalCall(approval).data,
+    )
+    const plan = makePlan({
+      groups: unwrappedGroups('alice'),
+      preflight: {
+        skipFetchProfilesPhase: true,
+        migrationApprovals: [approval],
+      },
+      atomicBatches: [makeAtomicBatch(100n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+
+    expect(estimate.status).toBe('error')
   })
 
   it('counts one confirmation for an existing HCA with permissions', async () => {
@@ -178,7 +296,7 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    expect(estimate.gasUnits).toBe(55_100n)
+    expect(estimate.gasUnits).toBe(APPROVAL_ESTIMATE + 100n)
     expect(estimate.transactionCount).toBe(2)
   })
 

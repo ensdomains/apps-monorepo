@@ -77,18 +77,18 @@ const clientFor = (account: PrivateKeyAccount) =>
   })
 
 type Shape = {
-  what: string
+  readonly what: string
   /** What the tester should see, and which automated scenario mirrors it. */
-  expect: string[]
-  scenario: string
-  ownResolver?: boolean
+  readonly expect: readonly string[]
+  readonly scenario: string
+  readonly hasOwnResolver?: boolean
   /** Write addr(60) on the subname, so the ETH-address option is offered. */
-  ethAddress?: boolean
+  readonly hasEthAddress?: boolean
   /** Extra manual steps this shape needs beyond opening the URL. */
-  steps?: string[]
+  readonly steps?: readonly string[]
   /** Give the subname to somebody other than the parent owner. */
-  subnameOwner?: 'user2' | 'user3'
-  roleBitmap?: bigint
+  readonly subnameOwner?: 'user2' | 'user3'
+  readonly roleBitmap?: bigint
 }
 
 const SHAPES: Record<string, Shape> = {
@@ -113,17 +113,17 @@ const SHAPES: Record<string, Shape> = {
   },
   'own-resolver': {
     scenario: 'F19 (mirror)',
-    ownResolver: true,
+    hasOwnResolver: true,
     what: 'subname with a resolver of its OWN rather than an inherited one',
     expect: [
-      'BOTH the resolver-detach and set-eth-address options appear',
+      'the resolver-detach option appears; set-eth-address does not, as the subname has no ETH address',
       'after transferring with defaults, the subname resolver is cleared and the PARENT resolver is unchanged',
     ],
   },
   'stale-resolver': {
     scenario: 'F20 / E2E-010',
-    ownResolver: true,
-    ethAddress: true,
+    hasOwnResolver: true,
+    hasEthAddress: true,
     what: 'own resolver AND an addr(60) — the setup for reproducing E2E-010 by hand',
     expect: [
       'the form offers three switches: detach resolver, detach registry (maybe), and Set the ETH address',
@@ -185,7 +185,7 @@ async function seed(key: string, shape: Shape) {
     signer,
   )
 
-  if (shape.ownResolver) {
+  if (shape.hasOwnResolver) {
     const parentResolver = await publicClient.readContract({
       address: ETH_REGISTRY,
       abi: REGISTRY_ABI,
@@ -203,7 +203,7 @@ async function seed(key: string, shape: Shape) {
     await publicClient.waitForTransactionReceipt({ hash })
   }
 
-  if (shape.ethAddress) {
+  if (shape.hasEthAddress) {
     const resolver = await publicClient.readContract({
       address: subregistry,
       abi: REGISTRY_ABI,
@@ -214,12 +214,19 @@ async function seed(key: string, shape: Shape) {
       name: `sub.${parent}`,
       resolverAddress: resolver as Address,
       coins: [{ coin: 60, value: accounts.getAddress('user2') }],
+    }).catch((error: unknown) => {
+      // The per-name PermissionedResolver deployed today has no node-keyed
+      // setAddr, so this write reverts until the fixtures learn its setter.
+      throw new Error(
+        `could not write addr(60) on ${resolver}: this resolver rejects setAddr(bytes32,uint256,bytes)`,
+        { cause: error },
+      )
     })
     await publicClient.waitForTransactionReceipt({ hash })
   }
 
   const name = `sub.${parent}`
-  const ownResolver = await publicClient.readContract({
+  const subnameResolver = await publicClient.readContract({
     address: subregistry,
     abi: REGISTRY_ABI,
     functionName: 'getResolver',
@@ -234,7 +241,7 @@ async function seed(key: string, shape: Shape) {
   console.log(`   parent registry  ${ETH_REGISTRY}`)
   console.log(`   subname registry ${subregistry}`)
   console.log(
-    `   own resolver     ${ownResolver === zeroAddress ? '0x0 — INHERITED from the parent' : ownResolver}`,
+    `   own resolver     ${subnameResolver === zeroAddress ? '0x0 — INHERITED from the parent' : subnameResolver}`,
   )
   console.log('\n   expect:')
   for (const line of shape.expect) console.log(`     · ${line}`)
@@ -273,7 +280,7 @@ function warnIfFeatureMissing() {
   )
   if (existsSync(marker)) return
   console.warn(
-    '\n  ⚠  This checkout does not contain PR #1120, so the portal will answer\n' +
+    '\n  Warning: this checkout does not contain PR #1120, so the portal will answer\n' +
       '     "Transferring subnames isn\'t supported yet" for every name below.\n' +
       '     Seeding anyway — the chain data is fine — but switch branches before\n' +
       '     opening the URLs:\n\n' +

@@ -73,13 +73,13 @@ export const batches: Batch[] = [
     title:
       'Migration: stale guards to rewrite, record-preservation audit, and tests of open bugs',
   },
-  { id: 'B4', title: 'Transfer, fuses, 4LD: the tests that pass on main (B4a)', pr: 1767 },
+  { id: 'B4', title: 'Transfer, fuses, 4LD: the tests that pass on main (B4a)', pr: 1767, merged: true },
   {
     id: 'B4b',
     title:
       'Fuse tests that need subname creation back (paused by WEB-2097, #1654)',
   },
-  { id: 'B5', title: 'Roles and recreated subnames: the tests that pass on main (B5a)', pr: 1767 },
+  { id: 'B5', title: 'Roles and recreated subnames: the tests that pass on main (B5a)', pr: 1767, merged: true },
   {
     id: 'B5b',
     title:

@@ -16,7 +16,6 @@ import type { Config as WagmiConfig } from 'wagmi'
 import { TOKENS } from '@/lib/tokens'
 import {
   LeftoverFundsWithdrawalError,
-  WITHDRAW_LEFTOVER_FUNDS_GAS_LIMIT,
   withdrawLeftoverFunds,
 } from './leftoverFunds'
 
@@ -128,8 +127,9 @@ describe('withdrawLeftoverFunds', () => {
       account: owner,
       to: hca,
       value: 0n,
-      gas: WITHDRAW_LEFTOVER_FUNDS_GAS_LIMIT,
     })
+    // The wallet estimates; MetaMask overwrites any limit when it wraps the call.
+    expect(sendMock.mock.calls[0]?.[1]).not.toHaveProperty('gas')
     expect(sentTransfers()).toEqual([
       {
         target: TOKENS.USDC.address,
