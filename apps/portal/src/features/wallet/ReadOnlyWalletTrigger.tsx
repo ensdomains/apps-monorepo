@@ -4,6 +4,7 @@ import {
 } from '@ens-apps/utils/readOnlyWallet'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import type { Address } from 'viem'
+import { normalize } from 'viem/ens'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { wagmiConfig } from '@/lib/wagmi'
 
@@ -20,10 +21,14 @@ const resolveInput = async (input: string): Promise<Address | null> => {
   const value = input.trim()
   if (!value) return null
 
-  return await resolveAddressOrName({
-    client: wagmiConfig.getClient(),
-    nameOrAddress: value,
-  })
+  try {
+    return await resolveAddressOrName({
+      client: wagmiConfig.getClient(),
+      nameOrAddress: normalize(value),
+    })
+  } catch {
+    return null
+  }
 }
 
 /**
