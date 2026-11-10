@@ -75,7 +75,7 @@ export const Counting: Story = {
 export const Mobile: Story = {
   decorators: [
     (Story) => (
-      <div className="w-[240px]">
+      <div className="w-60">
         <Story />
       </div>
     ),
