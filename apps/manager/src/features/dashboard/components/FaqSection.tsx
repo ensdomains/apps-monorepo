@@ -129,6 +129,9 @@ export const FaqSection = ({
         <Trans>Frequently Asked Questions</Trans>
       </h2>
       <div className="flex flex-col">
+        {/* A linked question scrolls in below the sticky notice banner
+          (--notice-bar-h) and header. 6rem is the tallest header (md:h-20 in
+          Desktop.tsx) plus 1rem of space; no token covers this offset. */}
         {faqItems.map(({ id, question, answer }) => (
           <Collapsible
             className="scroll-mt-[calc(var(--notice-bar-h,0px)+6rem)]"
