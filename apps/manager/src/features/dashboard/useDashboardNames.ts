@@ -12,6 +12,7 @@ import {
   type AddressNamesChunk,
   type DashboardName,
   isAwaitingMigratedNames,
+  isSubname,
   mergeDashboardChunks,
   type NameVersion,
   type SortDir,
@@ -66,6 +67,7 @@ type Options = {
   readonly sortDir?: SortDir
   readonly search?: string
   readonly version?: NameVersion | null
+  readonly isSubnamesOnly?: boolean
   /** One-based. */
   readonly page?: number
 }
@@ -76,6 +78,7 @@ export const useDashboardNames = ({
   sortDir = 'asc',
   search = '',
   version = null,
+  isSubnamesOnly = false,
   page = 1,
 }: Options = {}) => {
   const addresses = useDashboardAddresses()
@@ -92,6 +95,7 @@ export const useDashboardNames = ({
         sortDir,
         search: search.trim(),
         version,
+        isSubnamesOnly,
         recordEditorAddress,
       },
       queryClient,
@@ -99,8 +103,10 @@ export const useDashboardNames = ({
     refetchInterval: ({ state }) =>
       isAwaitingMigratedNames(
         state.data?.pages.flat() ?? [],
-        getRecentlyMigratedNames().filter((name) =>
-          name.toLowerCase().includes(search.trim().toLowerCase()),
+        getRecentlyMigratedNames().filter(
+          (name) =>
+            name.toLowerCase().includes(search.trim().toLowerCase()) &&
+            (!isSubnamesOnly || isSubname(name)),
         ),
         version,
       )
@@ -110,15 +116,15 @@ export const useDashboardNames = ({
   const grace = useQuery(getDashboardGraceNamesQueryOptions(addresses))
 
   const searchLower = search.trim().toLowerCase()
-  // Names in grace are ENSv2 only.
+  // Names in grace are ENSv2 second-level names only.
   const graceNames = useMemo(
     () =>
-      version === 'v1'
+      version === 'v1' || isSubnamesOnly
         ? NO_NAMES
         : (grace.data ?? NO_NAMES).filter((name) =>
             name.name.includes(searchLower),
           ),
-    [grace.data, searchLower, version],
+    [grace.data, searchLower, version, isSubnamesOnly],
   )
   const merged = useMemo(
     () => mergePages(query.data?.pages, graceNames, sortField, sortDir),

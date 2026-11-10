@@ -289,6 +289,48 @@ describe('readDashboardChunks', () => {
     expect(readNames.mock.calls[1]?.[0]).not.toHaveProperty('protocol')
   })
 
+  it('lists only subnames, reading every name for an exact count', async () => {
+    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) =>
+      okAsync(
+        cursor === undefined
+          ? page(
+              [
+                summary('alice.eth', '0x01'),
+                ...Array.from({ length: 25 }, (_, index) =>
+                  summary(`sub${index}.alice.eth`, `0x1${index}`),
+                ),
+              ],
+              'next',
+              28,
+            )
+          : page([
+              summary('ens.domains', '0x02'),
+              summary('pay.ens.domains', '0x03'),
+            ]),
+      ),
+    )
+
+    const chunks = (
+      await readDashboardChunks(
+        readNames,
+        { ...QUERY, addresses: [EOA], isSubnamesOnly: true },
+        {},
+      )
+    )._unsafeUnwrap()
+    const merged = mergeDashboardChunks({
+      chunks,
+      graceNames: [],
+      field: 'name',
+      dir: 'asc',
+    })
+
+    expect(readNames).toHaveBeenCalledTimes(2)
+    expect(readNames.mock.calls[0]?.[0]).toMatchObject({ pageSize: 200 })
+    expect(merged.names.map(({ name }) => name)).not.toContain('alice.eth')
+    expect(merged.names.map(({ name }) => name)).not.toContain('ens.domains')
+    expect(merged).toMatchObject({ isComplete: true, total: 26 })
+  })
+
   it('fails when a read fails', async () => {
     const result = await readDashboardChunks(
       () =>

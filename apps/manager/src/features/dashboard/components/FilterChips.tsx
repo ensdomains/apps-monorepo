@@ -43,14 +43,21 @@ const chipCountVariants = cva(
   },
 )
 
+// An empty filter is hidden unless it is the one selected, so it can be cleared.
+const isChipShown = <T extends string>(
+  chip: FilterChipDef<T>,
+  value: T | null,
+): boolean => chip.count !== 0 || chip.value === value
+
 export const FilterChips = <T extends string>({
   value,
   chips,
   onChange,
   onClear,
 }: FilterChipsProps<T>) => (
-  <div className="flex flex-wrap items-center gap-3">
+  <div className="flex flex-wrap items-center gap-3 empty:hidden">
     {chips.map((chip) => {
+      if (!isChipShown(chip, value)) return null
       const isActive = chip.value === value
 
       return (

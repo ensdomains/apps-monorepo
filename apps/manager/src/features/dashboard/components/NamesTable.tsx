@@ -34,6 +34,7 @@ import { SelectionCheckbox } from './SelectionCheckbox'
 import { SortMenu, type SortOption } from './SortMenu'
 
 type FilterKey = 'owned' | 'favorites'
+type NameScope = NameVersion | 'subnames'
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
@@ -56,10 +57,18 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
+const toScopeFilter = (scope: NameScope | null) => ({
+  version: scope === 'subnames' ? null : scope,
+  isSubnamesOnly: scope === 'subnames',
+  // Only ENSv2 second-level names are renewed in bulk.
+  canSelectAll: scope === null || scope === 'v2',
+})
+
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
   const [filter, setFilter] = useState<FilterKey>('owned')
-  const [version, setVersion] = useState<NameVersion | null>(null)
+  const [scope, setScope] = useState<NameScope | null>(null)
+  const { version, isSubnamesOnly, canSelectAll } = toScopeFilter(scope)
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
@@ -82,12 +91,15 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   // The chip counts do not depend on the sort, so they keep one read each.
   const v1Names = useDashboardNames({ version: 'v1' })
   const v2Names = useDashboardNames({ version: 'v2' })
-  const { data: favorites = [] } = useQuery({
+  const subnames = useDashboardNames({ isSubnamesOnly: true })
+  const { data: favorites = [], isSuccess: isFavoritesLoaded } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
   })
 
-  const favoritesCount = favorites.length
+  // Unknown until read, so a signed-out Favorites chip is not hidden as empty.
+  const favoritesCount =
+    isAuthed && isFavoritesLoaded ? favorites.length : undefined
   // V1 does not filter registry-only names, so keep its bigname total while
   // paging. V2 and mixed totals require all permission checks to finish.
   const countOf = (
@@ -184,7 +196,8 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     {
       value: 'owned',
       label: t`Owned`,
-      count: ownedCount,
+      // The base list stays reachable when empty; a zero count is never shown.
+      count: ownedCount || undefined,
       activeClassName:
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
@@ -200,9 +213,15 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     },
   ]
 
-  // v1 / v2 are mutually exclusive; clicking the active one shows all again.
-  // Switching drops the selection so Renew can't include a name that's hidden.
-  const versionChips: FilterChipDef<NameVersion>[] = [
+  // Subnames, v1 and v2 are mutually exclusive; clicking the active one shows
+  // all again. Switching drops the selection so Renew can't include a name
+  // that's hidden.
+  const scopeChips: FilterChipDef<NameScope>[] = [
+    {
+      value: 'subnames',
+      label: t`Subnames`,
+      count: countOf(subnames),
+    },
     {
       value: 'v1',
       label: t`V1`,
@@ -214,8 +233,8 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
       count: countOf(v2Names),
     },
   ]
-  const changeVersion = (next: NameVersion | null) => {
-    setVersion(next)
+  const changeScope = (next: NameScope | null) => {
+    setScope(next)
     clearSelection()
   }
 
@@ -285,15 +304,15 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
           />
           {activeFilter === 'owned' && (
             <FilterChips
-              chips={versionChips}
-              onChange={changeVersion}
-              onClear={() => changeVersion(null)}
-              value={version}
+              chips={scopeChips}
+              onChange={changeScope}
+              onClear={() => changeScope(null)}
+              value={scope}
             />
           )}
         </div>
 
-        {activeFilter === 'owned' && ownedTotal > 0 && version !== 'v1' && (
+        {activeFilter === 'owned' && ownedTotal > 0 && canSelectAll && (
           <div className="flex w-full items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <SelectionCheckbox
@@ -355,6 +374,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
               <MyNamesList
                 favoriteLabels={favoriteLabels}
                 isAuthenticated={isAuthed}
+                isSubnamesOnly={isSubnamesOnly}
                 onToggleFavorite={onToggleFavorite}
                 onToggleSelect={onToggleSelect}
                 primaryLabel={primaryLabel}
