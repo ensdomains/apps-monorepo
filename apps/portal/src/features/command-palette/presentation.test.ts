@@ -5,6 +5,8 @@ import type { PaletteFrame, PaletteScreen } from './core/state'
 import {
   getEnabledCommands,
   getEntityQueryPolicy,
+  getFailedSearchReads,
+  getSearchFeedback,
   getTitleParts,
   visibleSearchResults,
 } from './presentation'
@@ -83,7 +85,7 @@ describe('getEnabledCommands', () => {
 })
 
 describe('visibleSearchResults', () => {
-  it('withholds prior-query targets and registration choices during debounce', () => {
+  it('preserves current-query candidates and verification while presenting search results', () => {
     const suggestion = {
       id: 'name:alice.eth',
       inputValue: 'alice.eth',
@@ -110,13 +112,30 @@ describe('visibleSearchResults', () => {
       hasAnySection: true,
       searchNotice: 'Old query warning',
     }
-    const visible = visibleSearchResults(data, 'bob.eth', 'alice.eth', false)
-    expect(visible.suggestions).toEqual([])
-    expect(visible.availableNames).toEqual([])
-    expect(visible.ownedNamesFiltered).toEqual([])
-    expect(visible.allItems).toEqual([])
-    expect(visible.hasAnySection).toBe(false)
-    expect(visible.searchNotice).toBeNull()
+    expect(visibleSearchResults(data, 'alice.eth', false)).toBe(data)
+    const failed = { ...data, failedAvailabilityIds: new Set([suggestion.id]) }
+    expect(getFailedSearchReads(failed)).toEqual([
+      { name: 'alice.eth', source: 'availability' },
+    ])
+    expect(getSearchFeedback(failed, false, true)).toEqual({
+      hasReadFailure: false,
+      isSearching: false,
+    })
+    expect(getSearchFeedback(failed, true, false)).toEqual({
+      hasReadFailure: true,
+      isSearching: false,
+    })
+    expect(
+      getSearchFeedback(
+        { ...data, pendingAvailabilityIds: new Set([suggestion.id]) },
+        true,
+        false,
+      ),
+    ).toEqual({ hasReadFailure: false, isSearching: true })
+    expect(getSearchFeedback(data, true, true)).toEqual({
+      hasReadFailure: false,
+      isSearching: true,
+    })
   })
 })
 

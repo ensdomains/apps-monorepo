@@ -165,6 +165,38 @@ describe('useSearchResults', () => {
     expect(reads.availability).not.toHaveBeenCalled()
   })
 
+  it('bounds verification without blocking current candidates or marking unchecked alternatives as pending', async () => {
+    const { wrapper } = makeWrapper()
+    const { result, rerender } = renderHook(
+      ({ enabled }) =>
+        useSearchResults({
+          ...navigation,
+          searchValue: 'fox',
+          enabled,
+          fetchOwnedNames: false,
+          suggestionTlds: ['eth', 'xyz'],
+          verificationLimit: 1,
+        }),
+      { wrapper, initialProps: { enabled: false } },
+    )
+    expect(
+      result.current.suggestions.map(({ inputValue }) => inputValue),
+    ).toEqual(['fox.eth', 'fox.xyz'])
+    expect(reads.owner).not.toHaveBeenCalled()
+    rerender({ enabled: true })
+    await waitFor(() =>
+      expect(
+        result.current.nameVerificationBySuggestionId.get('name:fox.eth'),
+      ).toEqual({ status: 'unchecked' }),
+    )
+    expect(reads.owner.mock.calls).toEqual([['fox.eth']])
+    expect(reads.availability.mock.calls).toEqual([['fox.eth']])
+    expect(
+      result.current.nameVerificationBySuggestionId.get('name:fox.xyz'),
+    ).toEqual({ status: 'unchecked' })
+    expect(reads.tlds).toHaveBeenLastCalledWith(false)
+  })
+
   it('does not turn a failed owner lookup into an absent name', async () => {
     reads.owner.mockRejectedValue(new Error('RPC unavailable'))
     const { wrapper } = makeWrapper()

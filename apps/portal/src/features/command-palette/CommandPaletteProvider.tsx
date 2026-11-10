@@ -10,7 +10,6 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from 'react'
@@ -18,6 +17,7 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import { useConnection, useDisconnect } from 'wagmi'
 import { RpcSettingsDialog } from '@/components/RpcSettingsDialog'
+import { getAddressNamesQueryOptions } from '@/features/dashboard/hooks/useAddressNames'
 import { useSearchResults } from '@/features/dashboard/hooks/useSearchResults'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -32,11 +32,7 @@ import {
   type PaletteOpenOptions,
 } from './context'
 import { resolveCommandTarget } from './core/search'
-import {
-  INITIAL_PALETTE_STATE,
-  type PaletteState,
-  paletteReducer,
-} from './core/state'
+import type { PaletteState } from './core/state'
 import type {
   PaletteCommand,
   PaletteContext,
@@ -59,12 +55,15 @@ import { PaletteDialog } from './PaletteDialog'
 import {
   getEnabledCommands,
   getEntityQueryPolicy,
+  getFailedSearchReads,
   getPalettePresentation,
+  getSearchFeedback,
   visibleSearchResults,
 } from './presentation'
 import { buildPaletteRows, type PaletteRow } from './resultModel'
 import { getRouteEntity } from './routeContext'
 import { useCachedPaletteTarget } from './useCachedPaletteTarget'
+import { usePaletteNavigation } from './usePaletteNavigation'
 import { usePaletteRecents } from './usePaletteRecents'
 import { usePaletteRelatedEntities } from './usePaletteRelatedEntities'
 import { usePaletteRouteLifecycle } from './usePaletteRouteLifecycle'
@@ -79,6 +78,7 @@ const EMPTY_FRAME: OpenState['current'] = {
   scrollTop: 0,
 }
 const SEARCH_DEBOUNCE_MS = 250
+const SUGGESTION_TLDS = ['eth', 'xyz', 'box', 'com', 'lol'] as const
 const NO_NAVIGATION = () => {}
 const TOOL_CAPABILITIES = {
   timeTravel: isTimeTravelEnabled(),
@@ -92,7 +92,7 @@ export const CommandPaletteProvider = ({
 }: {
   readonly children: ReactNode
 }) => {
-  const [state, dispatch] = useReducer(paletteReducer, INITIAL_PALETTE_STATE)
+  const { state, dispatch, recordScroll, capture } = usePaletteNavigation()
   const [registrations, setRegistrations] = useState<
     Readonly<Record<string, readonly PageCommand[]>>
   >({})
@@ -164,7 +164,7 @@ export const CommandPaletteProvider = ({
           screen: { type: 'entity', entity: options.entity },
         })
     },
-    [cancelConnectContinuation, isConnectFlowActive, session],
+    [cancelConnectContinuation, isConnectFlowActive, session, dispatch],
   )
   const closePalette = useCallback(() => {
     session.invalidate()
@@ -174,7 +174,7 @@ export const CommandPaletteProvider = ({
     expectedNavigation.current = null
     cancelConnectContinuation()
     dispatch({ type: 'close' })
-  }, [cancelConnectContinuation, session])
+  }, [cancelConnectContinuation, session, dispatch])
   usePaletteShortcut({
     isOpen: state.status === 'open',
     isBlocked: isConnectFlowActive,
@@ -196,7 +196,7 @@ export const CommandPaletteProvider = ({
     }
     cancelConnectContinuation()
     pendingClose.current = null
-  }, [cancelConnectContinuation, router, session])
+  }, [cancelConnectContinuation, router, session, dispatch])
   usePaletteRouteLifecycle(onRouteDeparture)
   const registerPageCommands = useCallback(
     (owner: string, commands: readonly PageCommand[]) => {
@@ -231,13 +231,13 @@ export const CommandPaletteProvider = ({
       if (snapshot) dispatch({ type: 'restore', state: snapshot })
       setError(message)
     },
-    [session],
+    [session, dispatch],
   )
   useHandoffFeedback(activeSnapshot, restoreFailure, session)
 
   const queueAfterClose = (operation: () => void) => {
     if (pendingClose.current) return
-    activeSnapshot.current = state.status === 'open' ? state : lastOpen.current
+    activeSnapshot.current = capture() ?? lastOpen.current
     if (state.status === 'closed') {
       operation()
       return
@@ -283,7 +283,7 @@ export const CommandPaletteProvider = ({
   ) => {
     const location = router.state.location.href
     const generation = session.capture()
-    const snapshot = state.status === 'open' ? state : lastOpen.current
+    const snapshot = capture() ?? lastOpen.current
     queueAfterClose(() =>
       openConnectModal({
         onResult: (result) => {
@@ -353,14 +353,19 @@ export const CommandPaletteProvider = ({
 
   const frame =
     state.status === 'open'
-      ? state.current
+      ? (capture()?.current ?? state.current)
       : (lastOpen.current?.current ?? EMPTY_FRAME)
   const policy = getEntityQueryPolicy(frame, context, ENABLED_COMMANDS)
   const debouncedQuery = useDebouncedValue(policy.query, SEARCH_DEBOUNCE_MS)
   const data = useSearchResults({
-    searchValue: debouncedQuery,
-    enabled: state.status === 'open' && policy.isEnabled,
+    searchValue: policy.query,
+    enabled:
+      state.status === 'open' &&
+      policy.isEnabled &&
+      policy.query === debouncedQuery,
     fetchOwnedNames: state.status === 'open' && policy.shouldFetchOwnedNames,
+    suggestionTlds: SUGGESTION_TLDS,
+    verificationLimit: 1,
     navigateToName: NO_NAVIGATION,
     navigateToAddress: NO_NAVIGATION,
     navigateToResolver: NO_NAVIGATION,
@@ -368,7 +373,6 @@ export const CommandPaletteProvider = ({
   const visibleData = visibleSearchResults(
     data,
     policy.query,
-    debouncedQuery,
     frame.screen.type === 'target',
   )
   const { recentEntities, clearRecents } = usePaletteRecents({
@@ -379,7 +383,10 @@ export const CommandPaletteProvider = ({
   const subject =
     frame.screen.type === 'entity' ? frame.screen.entity : context.entity
   const targetMetadata = useCachedPaletteTarget(subject)
-  const related = usePaletteRelatedEntities(subject, state.status === 'open')
+  const related = usePaletteRelatedEntities(
+    subject,
+    state.status === 'open' && frame.screen.type === 'entity',
+  )
   const rows = buildPaletteRows({
     frame,
     context,
@@ -462,7 +469,7 @@ export const CommandPaletteProvider = ({
         }
         retryCommand.current = () => activate(row)
         const generation = session.capture()
-        const snapshot = state.status === 'open' ? state : lastOpen.current
+        const snapshot = capture() ?? lastOpen.current
         queueAfterClose(() => {
           void ResultAsync.fromPromise(
             Promise.resolve().then(command.onSelect),
@@ -477,6 +484,12 @@ export const CommandPaletteProvider = ({
         })
       })
       .with({ type: 'clear-recents' }, clearRecents)
+      .with({ type: 'copy' }, ({ value, label }) => {
+        retryCommand.current = () => activate(row)
+        queueAfterClose(() => {
+          void runPlan({ type: 'copy', value, label })
+        })
+      })
       .exhaustive()
   }
   const retrySearch = () => {
@@ -484,26 +497,37 @@ export const CommandPaletteProvider = ({
       retryCommand.current()
       return
     }
-    const names = visibleData.suggestions
-      .filter((item) => item.id.startsWith('name:'))
-      .map((item) => item.inputValue)
-    void Promise.all(
-      names.flatMap((name) =>
-        [
-          getEnsOwnerQueryOptions({ name }),
-          getNameAvailabilityQueryOptions({ name }),
-          getProfileQueryOptions({ name }),
-        ].map((options) =>
-          queryClient.invalidateQueries({ queryKey: options.queryKey }),
-        ),
+    const failedQueries = getFailedSearchReads(visibleData).map(
+      ({ name, source }) =>
+        match(source)
+          .with('owner', () => getEnsOwnerQueryOptions({ name }).queryKey)
+          .with(
+            'availability',
+            () => getNameAvailabilityQueryOptions({ name }).queryKey,
+          )
+          .with('records', () => getProfileQueryOptions({ name }).queryKey)
+          .exhaustive(),
+    )
+    void Promise.all([
+      ...failedQueries.map((queryKey) =>
+        queryClient.invalidateQueries({ queryKey }),
       ),
-    ).catch(() => setError('Could not retry the lookup. Try again.'))
+      ...(data.hasOwnedNamesError && address
+        ? [
+            queryClient.invalidateQueries({
+              queryKey: getAddressNamesQueryOptions({ address }).queryKey,
+            }),
+          ]
+        : []),
+    ]).catch(() => setError('Could not retry the lookup. Try again.'))
   }
-  const hasReadFailure =
-    visibleData.failedOwnerIds.size +
-      visibleData.failedAvailabilityIds.size +
-      visibleData.failedRecordsIds.size >
-    0
+
+  const { hasReadFailure, isSearching } = getSearchFeedback(
+    visibleData,
+    policy.isEnabled,
+    policy.query !== debouncedQuery,
+  )
+
   return (
     <PaletteActionsContext.Provider value={actions}>
       {children}
@@ -528,7 +552,7 @@ export const CommandPaletteProvider = ({
             ? 'Could not load your names. You can still search any name.'
             : undefined)
         }
-        isSearching={policy.query !== debouncedQuery || data.isTldsLoading}
+        isSearching={isSearching}
         onClose={closePalette}
         onBack={() => {
           session.invalidate()
@@ -548,7 +572,7 @@ export const CommandPaletteProvider = ({
         onSelectionChange={(selectedId) =>
           dispatch({ type: 'select', selectedId })
         }
-        onScroll={(scrollTop) => dispatch({ type: 'scroll', scrollTop })}
+        onScroll={recordScroll}
         onActivate={activate}
         onRetry={retrySearch}
         onClearHistory={() => {

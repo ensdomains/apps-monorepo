@@ -58,19 +58,8 @@ export const getEntityQueryPolicy = (
 export const visibleSearchResults = (
   data: UseSearchResultsReturn,
   query: string,
-  debouncedQuery: string,
   isPicker: boolean,
 ): UseSearchResultsReturn => {
-  if (query !== debouncedQuery)
-    return {
-      ...data,
-      suggestions: [],
-      availableNames: [],
-      ownedNamesFiltered: [],
-      allItems: [],
-      hasAnySection: false,
-      searchNotice: null,
-    }
   if (!isPicker || query) return data
   const ownedNamesFiltered = [...data.ownedNameSuggestions]
   return {
@@ -84,6 +73,39 @@ export const visibleSearchResults = (
     hasAnySection: data.suggestions.length > 0 || ownedNamesFiltered.length > 0,
   }
 }
+
+export const getSearchFeedback = (
+  data: UseSearchResultsReturn,
+  isEnabled: boolean,
+  isDebouncing: boolean,
+) => ({
+  hasReadFailure:
+    isEnabled &&
+    data.failedOwnerIds.size +
+      data.failedAvailabilityIds.size +
+      data.failedRecordsIds.size >
+      0,
+  isSearching:
+    isEnabled &&
+    (isDebouncing ||
+      data.pendingAvailabilityIds.size > 0 ||
+      [...data.nameVerificationBySuggestionId.values()].some(
+        ({ status }) => status === 'checking',
+      )),
+})
+
+export const getFailedSearchReads = (data: UseSearchResultsReturn) =>
+  data.suggestions.flatMap(({ id, inputValue: name }) => [
+    ...(data.failedOwnerIds.has(id)
+      ? [{ name, source: 'owner' as const }]
+      : []),
+    ...(data.failedAvailabilityIds.has(id)
+      ? [{ name, source: 'availability' as const }]
+      : []),
+    ...(data.failedRecordsIds.has(id)
+      ? [{ name, source: 'records' as const }]
+      : []),
+  ])
 
 export const getEnabledCommands = (
   commands: readonly PaletteCommand[],

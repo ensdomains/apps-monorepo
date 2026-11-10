@@ -44,6 +44,7 @@ export type PaletteRowAction =
   | { readonly type: 'developer' }
   | { readonly type: 'page'; readonly command: PageCommand }
   | { readonly type: 'clear-recents' }
+  | { readonly type: 'copy'; readonly value: string; readonly label: string }
 
 export type PaletteRowLeading =
   | { readonly type: 'entity'; readonly entity: PaletteEntity }
@@ -101,6 +102,15 @@ const DEFAULT_VISITOR_NAVIGATION = [
   'wallet.connect',
   'name.register',
   'navigation.dashboard',
+]
+const SUGGESTED_ENTITY_COMMANDS = [
+  'name.register',
+  'name.renew',
+  'name.edit-records',
+  'name.create-subname',
+  'name.transfer',
+  'address.names',
+  'address.reverse-resolution',
 ]
 
 export const getEntityLabel = (entity: PaletteEntity): string =>
@@ -225,6 +235,61 @@ const getEntityRows = ({
       commands,
     }),
   )
+}
+
+const getPickerShortcuts = ({
+  frame,
+  context,
+  recents,
+}: BuildPaletteRowsParams): readonly PaletteRow[] => {
+  if (frame.screen.type !== 'target' || frame.query.trim()) return []
+  const target = frame.screen.target
+  const wallet: readonly PaletteEntity[] =
+    context.walletAddress && target === 'address'
+      ? [{ type: 'address', address: context.walletAddress }]
+      : []
+  return [...wallet, ...recents.map(({ entity }) => entity)]
+    .filter((entity) => entity.type === target)
+    .map((entity) => ({
+      id: `pick:${context.chainId}:${getEntityId(entity)}`,
+      title: getEntityLabel(entity),
+      meta:
+        entity.type === 'address' &&
+        entity.address.toLowerCase() === context.walletAddress?.toLowerCase()
+          ? { text: 'Connected wallet', tone: 'muted' as const }
+          : { text: 'Recently viewed', tone: 'muted' as const },
+      group: 'Choose a target',
+      leading: { type: 'entity' as const, entity },
+      action: { type: 'pick' as const, entity },
+    }))
+}
+
+const getScopedRows = (
+  commands: readonly PaletteRow[],
+  related: readonly PaletteRow[],
+  query: string,
+): readonly PaletteRow[] => {
+  const isView = (row: PaletteRow) =>
+    row.action.type === 'command' &&
+    (row.action.command.id === 'name.view' ||
+      row.action.command.id === 'address.view')
+  const suggested = query.trim()
+    ? []
+    : SUGGESTED_ENTITY_COMMANDS.flatMap((id) =>
+        commands
+          .filter(
+            (row) =>
+              row.action.type === 'command' && row.action.command.id === id,
+          )
+          .map((row) => ({ ...row, group: 'Suggested' })),
+      )
+  const suggestedIds = new Set(suggested.map(({ id }) => id))
+  return [
+    ...commands.filter(isView).map((row) => ({ ...row, group: 'Open' })),
+    ...suggested,
+    ...related,
+    ...commands.filter((row) => !isView(row) && !suggestedIds.has(row.id)),
+  ]
 }
 
 const getDefaultCommandIds = (context: PaletteContext): readonly string[] => {
@@ -442,6 +507,40 @@ const getRelatedRows = (
     })
 }
 
+const getRelatedCopyRows = (
+  frame: PaletteFrame,
+  related: readonly PaletteRelatedEntity[],
+): readonly PaletteRow[] => {
+  if (frame.screen.type !== 'entity' || frame.screen.entity.type !== 'name')
+    return []
+  const title = 'Copy ETH address'
+  if (
+    !getCommandSearchScore(
+      { title, keywords: ['copy payment address', 'copy resolved address'] },
+      frame.query,
+    )
+  )
+    return []
+  return related
+    .filter(
+      ({ entity, relations }) =>
+        entity.type === 'address' && relations.includes('eth-address'),
+    )
+    .map(
+      ({ entity }): PaletteRow => ({
+        id: `copy-eth:${getEntityId(entity)}`,
+        title,
+        group: 'Actions',
+        leading: { type: 'icon', icon: 'copy' },
+        action: {
+          type: 'copy',
+          value: getEntityLabel(entity),
+          label: 'ETH address',
+        },
+      }),
+    )
+}
+
 const getNameEscapeHatch = (
   frame: PaletteFrame,
   hasCommandMatches: boolean,
@@ -580,12 +679,14 @@ export const buildPaletteRows = (
   const explicitEntity =
     query.includes('.') || isAddress(query, { strict: false })
   const relatedRows = getRelatedRows(frame, context, related)
-  // A scoped entity's relations lead; on a page they follow the matching commands.
+  // Scoped entities keep View first; page relations follow matching commands.
   const leadingRows = match({
     isScoped: frame.screen.type === 'entity',
     explicitEntity,
   })
-    .with({ isScoped: true }, () => [...relatedRows, ...commandRows])
+    .with({ isScoped: true }, () =>
+      getScopedRows(commandRows, relatedRows, frame.query),
+    )
     .with({ explicitEntity: true }, () => [
       ...entities,
       ...commandRows,
@@ -595,6 +696,8 @@ export const buildPaletteRows = (
   return getDisplayedRows(
     uniqueRows([
       ...leadingRows,
+      ...getPickerShortcuts(params),
+      ...getRelatedCopyRows(frame, related),
       ...another,
       ...pages,
       ...nameSearch,
@@ -654,4 +757,5 @@ export const getRowEnterLabel = (row: PaletteRow): string =>
     .with({ type: 'developer' }, () => 'Show tools')
     .with({ type: 'page' }, () => 'Run')
     .with({ type: 'clear-recents' }, () => 'Clear')
+    .with({ type: 'copy' }, () => 'Copy')
     .exhaustive()

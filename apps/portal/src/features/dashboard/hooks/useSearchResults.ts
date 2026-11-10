@@ -45,6 +45,8 @@ export type UseSearchResultsParams = {
   navigateToResolver: (address: string) => void
   readonly enabled?: boolean
   readonly fetchOwnedNames?: boolean
+  readonly suggestionTlds?: readonly string[]
+  readonly verificationLimit?: number
 }
 
 export type { SearchResultItem } from '../utils/searchResultsUtils'
@@ -97,12 +99,16 @@ export const useSearchResults = ({
   navigateToResolver,
   enabled = true,
   fetchOwnedNames = true,
+  suggestionTlds,
+  verificationLimit = Number.POSITIVE_INFINITY,
 }: UseSearchResultsParams): UseSearchResultsReturn => {
   const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
-  const { validTlds, isLoading: isTldsLoading } = useSuggestionTlds(
-    enabled && Boolean(searchValue),
-  )
+  const { validTlds: discoveredTlds, isLoading: isTldsLoading } =
+    useSuggestionTlds(
+      enabled && Boolean(searchValue) && suggestionTlds === undefined,
+    )
+  const validTlds = suggestionTlds ?? discoveredTlds
 
   const searchedAddress = isAddress(searchValue, { strict: false })
     ? searchValue
@@ -200,7 +206,7 @@ export const useSearchResults = ({
   )
 
   const ownerQueries = useQueries({
-    queries: nameSuggestions.map((s) => ({
+    queries: nameSuggestions.slice(0, verificationLimit).map((s) => ({
       ...getEnsOwnerQueryOptions({ name: s.inputValue }),
       enabled,
     })),
@@ -209,13 +215,15 @@ export const useSearchResults = ({
   // An offchain (CCIP-Read) subname has no registry owner but still resolves.
   const ownerlessSubnames = useMemo(
     () =>
-      nameSuggestions.filter(
-        (s, i) =>
-          ownerQueries[i]?.data === null &&
-          !ownerQueries[i]?.isError &&
-          isSubname(s.inputValue),
-      ),
-    [nameSuggestions, ownerQueries],
+      nameSuggestions
+        .slice(0, verificationLimit)
+        .filter(
+          (s, i) =>
+            ownerQueries[i]?.data === null &&
+            !ownerQueries[i]?.isError &&
+            isSubname(s.inputValue),
+        ),
+    [nameSuggestions, ownerQueries, verificationLimit],
   )
 
   const recordsQueries = useQueries({
@@ -265,8 +273,11 @@ export const useSearchResults = ({
   // Owner isn't a proxy for registered: an expired name keeps a registry entry
   // pointing at the NameWrapper, so it has an owner and is still available.
   const namesToCheckAvailability = useMemo(
-    () => nameSuggestions.filter((s) => isRegistrable(s.inputValue)),
-    [nameSuggestions],
+    () =>
+      nameSuggestions
+        .slice(0, verificationLimit)
+        .filter((s) => isRegistrable(s.inputValue)),
+    [nameSuggestions, verificationLimit],
   )
 
   const availabilityQueries = useQueries({
@@ -322,7 +333,7 @@ export const useSearchResults = ({
       const availabilityQuery = availabilityQueries[availabilityIndex]
       const verification = getSearchNameVerificationFromQueries({
         name: suggestion.inputValue,
-        isEnabled: enabled,
+        isEnabled: enabled && index < verificationLimit,
         owner: ownerQuery,
         records: recordQuery,
         hasResolution: offchainNameIds.has(suggestion.id),

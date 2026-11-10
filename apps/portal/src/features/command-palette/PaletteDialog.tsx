@@ -569,6 +569,7 @@ const EntityMark = ({ entity }: { readonly entity: PaletteEntity }) =>
         width="20px"
         height="20px"
         rounded="rounded-full"
+        isEnabled={false}
       />
     </span>
   ) : (

@@ -50,12 +50,16 @@ const io = vi.hoisted(() => {
     portfolio: vi.fn(),
     interfaces: vi.fn(),
     dns: vi.fn(),
+    avatar: vi.fn(),
+    resolver: vi.fn(),
+    primaryName: vi.fn(),
   }
 })
 
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   const { useSyncExternalStore } = await import('react')
+  const { useQuery } = await import('@tanstack/react-query')
   return {
     ...actual,
     useConnection: () =>
@@ -67,7 +71,18 @@ vi.mock('wagmi', async (importOriginal) => {
         () => io.wallet,
       ),
     useDisconnect: () => ({ disconnectAsync: io.disconnect }),
-    useEnsAvatar: () => ({ data: undefined, error: null, isLoading: false }),
+    useEnsAvatar: ({
+      name,
+      query,
+    }: {
+      readonly name: string
+      readonly query: { readonly enabled?: boolean }
+    }) =>
+      useQuery({
+        queryKey: ['test-avatar', { name }],
+        queryFn: () => io.avatar(name),
+        ...query,
+      }),
     useConnect: () => ({ mutateAsync: io.connect }),
     useSwitchChain: () => ({ switchChainAsync: io.switchChain }),
     useConnectors: () => [
@@ -102,6 +117,22 @@ vi.mock('@/features/profile/hooks/useProfile', () => ({
   getProfileQueryOptions: ({ name }: { readonly name: string }) => ({
     queryKey: ['test-profile', { name }],
     queryFn: () => io.profile(name),
+  }),
+}))
+vi.mock('@/features/records/hooks/useNameResolverAddress', () => ({
+  getNameResolverAddressQueryOptions: ({
+    name,
+  }: {
+    readonly name: string
+  }) => ({
+    queryKey: ['test-resolver', { name }],
+    queryFn: () => io.resolver(name),
+  }),
+}))
+vi.mock('@/features/profile/hooks/usePrimaryName', () => ({
+  getPrimaryNameQueryOptions: (address: string | undefined) => ({
+    queryKey: ['test-primary-name', { address }],
+    queryFn: () => io.primaryName(address),
   }),
 }))
 vi.mock('@/features/dashboard/hooks/useAddressNames', () => ({
@@ -246,6 +277,9 @@ beforeEach(() => {
   io.portfolio.mockResolvedValue([])
   io.interfaces.mockResolvedValue([])
   io.dns.mockResolvedValue(false)
+  io.avatar.mockResolvedValue(null)
+  io.resolver.mockResolvedValue(null)
+  io.primaryName.mockResolvedValue(null)
   localStorage.clear()
   cancelPaletteHandoff()
 })
@@ -339,6 +373,84 @@ describe('CommandPaletteProvider integration', () => {
     expect(io.availability).not.toHaveBeenCalled()
     expect(io.dns).not.toHaveBeenCalled()
     expect(io.portfolio).not.toHaveBeenCalled()
+  })
+
+  it('shows the current candidate before debounce without making the previous query actionable', async () => {
+    const { user } = await setup()
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.type(screen.getByRole('combobox'), 'alice.eth')
+    expect(
+      screen.getByRole('option', { name: /^alice.eth/ }),
+    ).toBeInTheDocument()
+    await user.clear(screen.getByRole('combobox'))
+    await user.type(screen.getByRole('combobox'), 'bob.eth')
+    expect(screen.getByRole('option', { name: /^bob.eth/ })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('option', { name: /^alice.eth/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('bounds verification to the leading candidate without DNS discovery', async () => {
+    io.dns.mockResolvedValue(true)
+    const { user } = await setup()
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.type(screen.getByRole('combobox'), 'fox')
+    await waitFor(() => expect(io.availability).toHaveBeenCalledWith('fox.eth'))
+    expect(io.owner.mock.calls).toEqual([['fox.eth']])
+    expect(io.availability.mock.calls).toEqual([['fox.eth']])
+    expect(io.dns).not.toHaveBeenCalled()
+    expect(io.avatar).not.toHaveBeenCalled()
+    expect(io.profile).not.toHaveBeenCalled()
+    expect(io.portfolio).not.toHaveBeenCalled()
+  })
+
+  it('does not fetch current-page relationships on empty opening or command search', async () => {
+    const { user, router } = await setup()
+    await act(async () =>
+      router.navigate({ to: '/$name', params: { name: 'alice.eth' } }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.type(screen.getByRole('combobox'), '>renew')
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)))
+    expect(io.owner).not.toHaveBeenCalled()
+    expect(io.profile).not.toHaveBeenCalled()
+    expect(io.availability).not.toHaveBeenCalled()
+  })
+
+  it('copies a name’s resolved ETH address without substituting the connected wallet', async () => {
+    const resolvedAddress = '0x2222222222222222222222222222222222222222'
+    io.profile.mockResolvedValue({
+      records: { coins: [{ coinType: 60, value: resolvedAddress }], texts: [] },
+    })
+    const { user } = await setup()
+    const writeClipboard = vi
+      .spyOn(navigator.clipboard, 'writeText')
+      .mockResolvedValue()
+    await user.click(screen.getByRole('button', { name: 'Open alice actions' }))
+    await user.click(
+      await screen.findByRole('option', { name: /^Copy ETH address$/ }),
+    )
+    await waitFor(() =>
+      expect(writeClipboard).toHaveBeenCalledExactlyOnceWith(resolvedAddress),
+    )
+    expect(
+      screen.queryByRole('dialog', { name: 'Connect a wallet' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('retries a failed availability read without refetching successful ownership or other candidates', async () => {
+    io.availability.mockRejectedValueOnce(new Error('RPC unavailable'))
+    const { user } = await setup()
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.type(screen.getByRole('combobox'), 'fox')
+    await screen.findByRole('alert')
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+    )
+    expect(io.availability.mock.calls).toEqual([['fox.eth'], ['fox.eth']])
+    expect(io.owner.mock.calls).toEqual([['fox.eth']])
+    expect(io.profile).not.toHaveBeenCalled()
   })
 
   it('restores an explicit target after wallet cancellation and never replays it on a later connection', async () => {

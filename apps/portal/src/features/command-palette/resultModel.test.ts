@@ -348,7 +348,7 @@ describe('buildPaletteRows', () => {
     const cached = makeData({ ownedNameSuggestions: [{ name: ALICE.name }] })
     const emptyRows = run({
       frame: picker,
-      data: visibleSearchResults(cached, '', '', true),
+      data: visibleSearchResults(cached, '', true),
     })
     expect(emptyRows.map(({ action }) => action)).toEqual([
       { type: 'pick', entity: ALICE },
@@ -365,6 +365,69 @@ describe('buildPaletteRows', () => {
     expect(rows.map(({ action }) => action)).toEqual([
       { type: 'pick', entity: BOB },
     ])
+  })
+
+  it('offers recent names in an empty action-first picker without binding the current page', () => {
+    const rows = run({
+      frame: makeFrame({
+        screen: { type: 'target', commandId: 'name.renew', target: 'name' },
+      }),
+      recents: [{ entity: BOB, chainId: 1, visitedAt: 100 }],
+      context: { entity: ALICE, chainId: 1, developerEnabled: false },
+    })
+    expect(rows.map(({ title, action }) => ({ title, action }))).toEqual([
+      { title: 'bob.eth', action: { type: 'pick', entity: BOB } },
+    ])
+  })
+
+  it('offers the connected wallet as an explicit address-picker target', () => {
+    const rows = run({
+      frame: makeFrame({
+        screen: {
+          type: 'target',
+          commandId: 'address.names',
+          target: 'address',
+        },
+      }),
+      context: { walletAddress: ADDRESS, chainId: 1, developerEnabled: false },
+    })
+    expect(rows.map(({ action }) => action)).toEqual([
+      { type: 'pick', entity: { type: 'address', address: ADDRESS } },
+    ])
+  })
+
+  it('prioritizes common entity actions over technical destinations without changing explicit searches', () => {
+    const screen = { type: 'entity', entity: ALICE } as const
+    expect(
+      run({ frame: makeFrame({ screen }) })
+        .filter(({ group }) => group === 'Suggested')
+        .map(({ action }) =>
+          action.type === 'command' ? action.command.id : action.type,
+        ),
+    ).toEqual([
+      'name.renew',
+      'name.edit-records',
+      'name.create-subname',
+      'name.transfer',
+    ])
+    expect(
+      commandIds(run({ frame: makeFrame({ screen, query: 'burn fuses' }) })),
+    ).toEqual(['name.burn-fuses'])
+  })
+
+  it('keeps the entity view destination first when relationships arrive', () => {
+    const frame = makeFrame({ screen: { type: 'entity', entity: ALICE } })
+    const initial = run({ frame }).at(0)
+    const enriched = run({
+      frame,
+      related: [{ entity: BOB, relations: ['parent'] }],
+    }).at(0)
+    expect(initial?.action).toMatchObject({
+      type: 'command',
+      command: { id: 'name.view' },
+      entity: ALICE,
+    })
+    expect(enriched?.id).toBe(initial?.id)
   })
 
   it('deduplicates a target address that is also recognized as a resolver', () => {
@@ -505,15 +568,17 @@ describe('buildPaletteRows', () => {
     const relatedRows = (rows: ReturnType<typeof run>) =>
       rows.filter(({ group }) => group === 'Related')
 
-    it('leads a name’s actions, opening each relation with its own actions', () => {
+    it('keeps View and suggestions ahead of related destinations with their own actions', () => {
       const rows = run({
         frame: makeFrame({ screen: { type: 'entity', entity: ALICE } }),
         related,
       })
-      expect(rows.map(({ group }) => group).slice(0, 3)).toEqual([
-        'Related',
+      expect([...new Set(rows.map(({ group }) => group))]).toEqual([
+        'Open',
+        'Suggested',
         'Related',
         'Go to',
+        'Actions',
       ])
       expect(
         relatedRows(rows).map(({ meta, action, actionsFor }) => [
