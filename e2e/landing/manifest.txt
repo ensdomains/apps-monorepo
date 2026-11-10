@@ -172,6 +172,7 @@ e2e/package.json
 e2e/projects/cross-app/playwright.config.ts
 e2e/projects/cross-app/tests/migration-resolver.spec.ts
 e2e/projects/cross-app/tests/records-and-primary.spec.ts
+e2e/projects/cross-app/tests/recreated-subnames.spec.ts
 e2e/projects/cross-app/tests/transfer-in-explorer.spec.ts
 e2e/projects/cross-app/tests/v1-4ld-observers.spec.ts
 e2e/projects/cross-app/tests/v1-4ld-time.spec.ts

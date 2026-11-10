@@ -85,7 +85,11 @@ export const batches: Batch[] = [
     title:
       'Role tests that read indexed role history (WEB-1469/1484/1487, C11, E2E-009): need the real indexer or a rewrite; a recreated child showing stale V1 records',
   },
-  { id: 'B6', title: 'Display, history, metadata service' },
+  {
+    id: 'B6',
+    title:
+      'Metadata service project: needs a CI job that builds the private metadata-service-v2 image',
+  },
   { id: 'B7', title: 'V1 shape matrix' },
   { id: 'B8', title: 'Unit tests in apps/ and packages/' },
   {
@@ -463,18 +467,26 @@ export const rules: Rule[] = [
     ],
   },
 
+  {
+    // Every test skips under the route mock (it serves no history).
+    target: 'B11',
+    globs: [
+      'e2e/projects/portal/tests/history.spec.ts',
+      'e2e/docs/v1-history-assigned-resolver-web1445-test-plan.md',
+    ],
+  },
+
   // ── B6 display / history / metadata ──────────────────────────────────────
   {
     target: 'B6',
     globs: [
-      'e2e/projects/portal/tests/{history,dnsImport,dnsSyncBanners}.spec.ts',
+      'e2e/projects/portal/tests/{dnsImport,dnsSyncBanners}.spec.ts',
       'e2e/projects/manager/tests/notification.spec.ts',
       'e2e/projects/metadata/**',
       'e2e/infra/Dockerfile.metadata-service',
       'e2e/infra/metadata-service/**',
       'e2e/helpers/metadataService.ts',
       'e2e/fixtures/metadataWebhook.ts',
-      'e2e/docs/v1-history-assigned-resolver-web1445-test-plan.md',
       'e2e/docs/manual-metadata-service-testing.md',
     ],
   },
