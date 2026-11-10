@@ -92,14 +92,18 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const v1Names = useDashboardNames({ version: 'v1' })
   const v2Names = useDashboardNames({ version: 'v2' })
   const subnames = useDashboardNames({ isSubnamesOnly: true })
-  const { data: favorites = [], isSuccess: isFavoritesLoaded } = useQuery({
+  const {
+    data: favorites = [],
+    isSuccess,
+    isPlaceholderData,
+  } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
   })
 
-  // Unknown until read, so a signed-out Favorites chip is not hidden as empty.
-  const favoritesCount =
-    isAuthed && isFavoritesLoaded ? favorites.length : undefined
+  // Unknown until read: the placeholder list is not a count of zero.
+  const isFavoritesLoaded = isAuthed && isSuccess && !isPlaceholderData
+  const favoritesCount = isFavoritesLoaded ? favorites.length : undefined
   // V1 does not filter registry-only names, so keep its bigname total while
   // paging. V2 and mixed totals require all permission checks to finish.
   const countOf = (
@@ -238,6 +242,9 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     firstOpenChip(chips, 'owned'),
   )
   const scope = resolveSelectedChip(scopeChips, selectedScope, null)
+  // Keep the fallback, so the emptied filter doesn't reopen when names return.
+  if (activeFilter !== selectedFilter) setFilter(activeFilter)
+  if (scope !== selectedScope) setScope(scope)
   const { version, isSubnamesOnly, canSelectAll } = toScopeFilter(scope)
   const changeScope = (next: NameScope | null) => {
     setScope(next)
