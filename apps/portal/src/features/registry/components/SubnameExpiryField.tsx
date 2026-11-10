@@ -90,7 +90,7 @@ export const SubnameExpiryField = ({
 
   return (
     <FieldSet disabled={disabled}>
-      <FieldLegend variant="label">Expiry</FieldLegend>
+      <FieldLegend variant="label">Expiration</FieldLegend>
       <RadioGroup
         value={expiry.type}
         onValueChange={(value) =>
@@ -105,13 +105,13 @@ export const SubnameExpiryField = ({
         <ExpiryOption
           value="none"
           title={`Expires with ${parentName}`}
-          description={`Lasts as long as ${parentName} stays registered.`}
+          description={`Lasts as long as ${parentName} stays registered`}
           isRecommended
         />
         <ExpiryOption
           value="span"
-          title="Set an expiry"
-          description="The new owner loses it on the date you pick, unless it’s extended. It can then be created again."
+          title="Set an expiration date"
+          description="Unless it is extended, the subname will stop resolving on the date you pick. After that it can be created again."
         />
       </RadioGroup>
       {expiry.type === 'span' && (
