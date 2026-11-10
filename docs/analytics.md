@@ -83,12 +83,12 @@ Synchronous capture exceptions and rejected capture promises are contained. A pe
 | --- | --- |
 | Production, both apps | Mainnet build; production `VITE_PUBLIC_POSTHOG_KEY` explicitly set in `.env.mainnet` |
 | Staging, both apps | Sepolia build; separate staging `VITE_PUBLIC_POSTHOG_KEY` in `.env` |
-| Normal local/CI | Local capture disabled; CI project keys empty |
+| Normal local/CI | Local capture disabled; Manager CI uses a fake token and intercepted `.invalid` host, Explorer CI key empty |
 | Deliberate local staging QA | Sepolia with staging key plus `VITE_PUBLIC_POSTHOG_DEBUG=true` |
 
 Use the appropriate `VITE_PUBLIC_POSTHOG_HOST` proxy/host. Mainnet currently maps to production and Sepolia to staging; no separate analytics environment selector or staging-key variable is needed. Do not expose personal API keys in Vite variables. See `.env.example` and [configuration details](analytics-configuration.md).
 
-On 2026-11-10, project 109100 was renamed [ENS Apps — Production](https://eu.posthog.com/project/109100) and [ENS Apps — Staging](https://eu.posthog.com/project/343384) was created as project 343384, within the organization's six-project entitlement. Both `.env.mainnet` files contain the production public token and both base `.env` files contain the separate staging public token. CI keys remain empty. No billing or production capture settings were changed. Staging feature flags, surveys and dashboards have not been copied; verify proxy/CSP connectivity and real staging ingestion before release. Landing still uses Plausible; its handoff is shared opt-in/project policy after a separate measurement-purpose decision, without wallet/name attribution URLs.
+On 2026-11-10, project 109100 was renamed [ENS Apps — Production](https://eu.posthog.com/project/109100) and [ENS Apps — Staging](https://eu.posthog.com/project/343384) was created as project 343384, within the organization's six-project entitlement. Both `.env.mainnet` files contain the production public token and both base `.env` files contain the separate staging public token. Manager CI uses a fake token and intercepted `.invalid` host for local feature-flag overrides; Explorer CI keeps an empty key. No billing or production capture settings were changed. Staging feature flags, surveys and dashboards have not been copied; verify proxy/CSP connectivity and real staging ingestion before release. Landing still uses Plausible; its handoff is shared opt-in/project policy after a separate measurement-purpose decision, without wallet/name attribution URLs.
 
 No active source-map upload setup was found in the earlier inspection. Raw exception capture remains off; source-map upload and sanitized exception tracking remain separate follow-ups.
 

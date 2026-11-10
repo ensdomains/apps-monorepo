@@ -10,11 +10,11 @@ The bundled `posthog-js/dist/module.full.no-external` import remains mandatory f
 | Staging Manager and Explorer (Sepolia) | `.env` | Same separate staging project token | unset |
 | Normal local development | Either | Flags may initialize with the configured token; capture disabled | unset |
 | Deliberate local staging QA | `.env.local` with Sepolia | Staging token | true |
-| CI / E2E | `.env.ci` | Empty; tests use fake clients/tokens | unset |
+| CI / E2E | `.env.ci` | Manager uses a fake token and intercepted `.invalid` host for local flag overrides; Explorer key is empty | unset |
 
 There is one project key per deployment. `VITE_ENS_NETWORK=mainnet` currently means production; `sepolia` means staging. The same distinction supplies event `environment` metadata. Local mainnet capture remains disabled even with the debug override. Unknown networks and empty keys cannot capture. Do not run synthetic QA against a production build/key.
 
-Vite merges `.env` into `.env.mainnet`, so mainnet must explicitly override the project token. Both mainnet files now contain the verified production project token. Both base `.env` files contain the separate staging project token. CI keys are empty. Tokens are public browser configuration, not personal API keys.
+Vite merges `.env` into `.env.mainnet`, so mainnet must explicitly override the project token. Both mainnet files now contain the verified production project token. Both base `.env` files contain the separate staging project token. Manager CI initializes the SDK with a fake token so the existing Playwright flag overrides can run; its `.invalid` host is intercepted in Manager and cross-app fixtures. Explorer CI keeps its key empty. Tokens are public browser configuration, not personal API keys.
 
 Keep `VITE_PUBLIC_POSTHOG_HOST` pointed at the appropriate ingestion proxy/host and verify its routing and CSP. Feature flags initialize independently of consent/capture when a key is configured. Essential flag definitions and notice payloads must be mirrored into the staging project deliberately; no production flags or behavioral capture settings were changed.
 
