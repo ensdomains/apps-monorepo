@@ -12,7 +12,7 @@ import {
   type AddressNamesChunk,
   type DashboardName,
   isAwaitingMigratedNames,
-  isSubname,
+  isInSubnamesScope,
   mergeDashboardChunks,
   type NameVersion,
   type SortDir,
@@ -106,7 +106,7 @@ export const useDashboardNames = ({
         getRecentlyMigratedNames().filter(
           (name) =>
             name.toLowerCase().includes(search.trim().toLowerCase()) &&
-            (!isSubnamesOnly || isSubname(name)),
+            isInSubnamesScope(name, isSubnamesOnly),
         ),
         version,
       )
@@ -116,13 +116,15 @@ export const useDashboardNames = ({
   const grace = useQuery(getDashboardGraceNamesQueryOptions(addresses))
 
   const searchLower = search.trim().toLowerCase()
-  // Names in grace are ENSv2 second-level names only.
+  // Names in grace are ENSv2 only.
   const graceNames = useMemo(
     () =>
-      version === 'v1' || isSubnamesOnly
+      version === 'v1'
         ? NO_NAMES
-        : (grace.data ?? NO_NAMES).filter((name) =>
-            name.name.includes(searchLower),
+        : (grace.data ?? NO_NAMES).filter(
+            (name) =>
+              name.name.includes(searchLower) &&
+              isInSubnamesScope(name.name, isSubnamesOnly),
           ),
     [grace.data, searchLower, version, isSubnamesOnly],
   )

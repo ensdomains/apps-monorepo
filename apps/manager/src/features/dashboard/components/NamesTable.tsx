@@ -213,9 +213,8 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     },
   ]
 
-  // Subnames, v1 and v2 are mutually exclusive; clicking the active one shows
-  // all again. Switching drops the selection so Renew can't include a name
-  // that's hidden.
+  // Subnames, v1 and v2 are exclusive; clicking the active one shows all again.
+  // Switching drops the selection so Renew can't include a name that's hidden.
   const scopeChips: FilterChipDef<NameScope>[] = [
     {
       value: 'subnames',

@@ -25,8 +25,8 @@ import { toBulkRenewName, toSelectableDomain } from '../../bulkRenewSelection'
 import {
   type AddressNamesChunk,
   type DashboardName,
+  isInSubnamesScope,
   isListedName,
-  isSubname,
   mergeDashboardNames,
   type NameVersion,
   type SortDir,
@@ -136,7 +136,8 @@ const readChunk = (
     .andThen((page) => {
       const listed = page.items.filter(
         (name) =>
-          isListedName(name) && (!query.isSubnamesOnly || isSubname(name.name)),
+          isListedName(name) &&
+          isInSubnamesScope(name.name, query.isSubnamesOnly ?? false),
       )
       const last = page.items.at(-1)
       return ResultAsync.combine(listed.map(isVisible)).map((visibility) => {
@@ -167,8 +168,7 @@ const readChunk = (
 
 // Reads on while a chunk lists less than a page, so every read releases at
 // least a page of names and a page is short only once the names run out.
-// Subnames are filtered here, not by bigname, so their read goes to the end
-// for an exact count.
+// bigname cannot filter subnames, so their read goes to the end for a count.
 const readListedChunk = ResultFn(async function* (
   readNames: ReadNamesForAddress,
   query: DashboardNamesQuery,
