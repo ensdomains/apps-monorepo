@@ -73,34 +73,17 @@ export const applyAnalyticsConsent = (client: ConsentTarget): void => {
 }
 
 type CaptureEnvironment = {
-  readonly environment?: string
+  readonly network?: string
   readonly isDevelopment: boolean
   readonly isDebugEnabled: boolean
-  readonly stagingKey?: string
-  readonly productionKey?: string
+  readonly projectKey?: string
 }
 
-export const canCaptureAnalytics = (config: CaptureEnvironment): boolean => {
-  if (config.environment === 'staging')
-    return (
-      Boolean(
-        config.stagingKey && config.stagingKey !== config.productionKey,
-      ) &&
-      (!config.isDevelopment || config.isDebugEnabled)
-    )
-  return config.environment === 'production' && !config.isDevelopment
-}
-
-export const getAnalyticsProjectKey = (config: {
-  readonly environment?: string
-  readonly productionKey?: string
-  readonly stagingKey?: string
-}): string | undefined =>
-  config.environment === 'staging'
-    ? config.stagingKey && config.stagingKey !== config.productionKey
-      ? config.stagingKey
-      : undefined
-    : config.productionKey
+export const canCaptureAnalytics = (config: CaptureEnvironment): boolean =>
+  Boolean(config.projectKey?.trim()) &&
+  (config.network === 'mainnet' || config.network === 'sepolia') &&
+  (!config.isDevelopment ||
+    (config.network === 'sepolia' && config.isDebugEnabled))
 
 const STATIC_ROUTE_SEGMENTS = new Set([
   '',
@@ -325,7 +308,8 @@ export const prepareAnalyticsEvent = <
     properties: {
       ...sanitizeAutomaticProperties(event.properties),
       source_app: context.sourceApp,
-      environment: context.environment.environment,
+      environment:
+        context.environment.network === 'mainnet' ? 'production' : 'staging',
       analytics_version: 1,
     },
   }

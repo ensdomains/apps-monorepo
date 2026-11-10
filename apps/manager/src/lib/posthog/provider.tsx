@@ -20,9 +20,9 @@ import { type RefObject, useEffect, useRef } from 'react'
 import { useConnection, useConnectionEffect } from 'wagmi'
 import {
   applyAnalyticsConsent,
-  getPostHogKey,
-  isAnalyticsEnabled,
+  IS_ANALYTICS_ENABLED,
   POSTHOG_CONFIG,
+  POSTHOG_KEY,
   resetKeepingConsent,
 } from './config'
 import { startAnalyticsOperation, track } from './events'
@@ -38,7 +38,7 @@ type ConnectedWallet = {
 const identifyWallet = (wallet: ConnectedWallet | null) => {
   if (!posthog.__loaded) return
   const action = getWalletIdentityAction({
-    isGranted: hasAnalyticsConsent(posthog) && isAnalyticsEnabled(),
+    isGranted: hasAnalyticsConsent(posthog) && IS_ANALYTICS_ENABLED,
     isIdentified: posthog.get_property('$user_state') === 'identified',
     distinctId: posthog.get_distinct_id(),
     address: wallet?.address,
@@ -56,7 +56,7 @@ const identifyWallet = (wallet: ConnectedWallet | null) => {
 
 // Links support chats to analytics, only for visitors who accepted.
 const linkIntercomToAnalytics = () => {
-  if (!hasAnalyticsConsent(posthog) || !isAnalyticsEnabled()) return
+  if (!hasAnalyticsConsent(posthog) || !IS_ANALYTICS_ENABLED) return
   updateIntercom({
     posthog_distinct_id: posthog.get_distinct_id(),
   })
@@ -125,9 +125,8 @@ export const PHProvider = ({
 
     // Flag evaluation and support must not crash the app if either SDK fails.
     try {
-      const posthogKey = getPostHogKey()
-      if (posthogKey)
-        posthog.init(posthogKey, {
+      if (POSTHOG_KEY)
+        posthog.init(POSTHOG_KEY, {
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
           ...POSTHOG_CONFIG,
         })

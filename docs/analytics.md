@@ -81,14 +81,14 @@ Synchronous capture exceptions and rejected capture promises are contained. A pe
 
 | Deployment | Settings |
 | --- | --- |
-| Production, both apps | `VITE_PUBLIC_ANALYTICS_ENV=production`; same `VITE_PUBLIC_POSTHOG_KEY` |
-| Staging, both apps | `VITE_PUBLIC_ANALYTICS_ENV=staging`; explicit `VITE_PUBLIC_POSTHOG_STAGING_KEY`, distinct from production |
-| Normal local/CI | Analytics environment unset; remote capture disabled, flags may initialize |
-| Deliberate local staging QA | Staging settings plus `VITE_PUBLIC_ANALYTICS_DEBUG=true` |
+| Production, both apps | Mainnet build; production `VITE_PUBLIC_POSTHOG_KEY` explicitly set in `.env.mainnet` |
+| Staging, both apps | Sepolia build; separate staging `VITE_PUBLIC_POSTHOG_KEY` in `.env` |
+| Normal local/CI | Local capture disabled; CI project keys empty |
+| Deliberate local staging QA | Sepolia with staging key plus `VITE_PUBLIC_POSTHOG_DEBUG=true` |
 
-Use the appropriate `VITE_PUBLIC_POSTHOG_HOST` proxy/host. Staging never falls back to production. Do not expose personal API keys in Vite variables. See `.env.example` and [configuration details](analytics-configuration.md).
+Use the appropriate `VITE_PUBLIC_POSTHOG_HOST` proxy/host. Mainnet currently maps to production and Sepolia to staging; no separate analytics environment selector or staging-key variable is needed. Do not expose personal API keys in Vite variables. See `.env.example` and [configuration details](analytics-configuration.md).
 
-Read-only inspection on 2026-11-06 found ENS App combined production project 109100 and an organization project limit of one. An owner must resolve entitlement and create/configure staging; no project, billing, production setting or dashboard was changed. Mirror essential flags deliberately and verify CSP connectivity before enabling staging. Landing still uses Plausible; no forced integration was added. Its handoff is shared opt-in/project policy after a separate measurement-purpose decision, without wallet/name attribution URLs.
+On 2026-11-10, project 109100 was renamed [ENS Apps — Production](https://eu.posthog.com/project/109100) and [ENS Apps — Staging](https://eu.posthog.com/project/343384) was created as project 343384, within the organization's six-project entitlement. Both `.env.mainnet` files contain the production public token and both base `.env` files contain the separate staging public token. CI keys remain empty. No billing or production capture settings were changed. Staging feature flags, surveys and dashboards have not been copied; verify proxy/CSP connectivity and real staging ingestion before release. Landing still uses Plausible; its handoff is shared opt-in/project policy after a separate measurement-purpose decision, without wallet/name attribution URLs.
 
 No active source-map upload setup was found in the earlier inspection. Raw exception capture remains off; source-map upload and sanitized exception tracking remain separate follow-ups.
 

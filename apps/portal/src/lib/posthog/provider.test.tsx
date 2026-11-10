@@ -3,8 +3,16 @@ import { act, render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection, useConnectionEffect } from 'wagmi'
-import { POSTHOG_CONFIG, setAnalyticsConsent } from './config'
-import { PHProvider } from './provider'
+
+let POSTHOG_CONFIG: typeof import('./config').POSTHOG_CONFIG
+let setAnalyticsConsent: typeof import('./config').setAnalyticsConsent
+let PHProvider: typeof import('./provider').PHProvider
+
+const loadProvider = async () => {
+  vi.resetModules()
+  ;({ POSTHOG_CONFIG, setAnalyticsConsent } = await import('./config'))
+  ;({ PHProvider } = await import('./provider'))
+}
 
 vi.mock('@intercom/messenger-js-sdk', () => ({
   boot: vi.fn(),
@@ -87,7 +95,7 @@ const connectWallet = () => {
 }
 
 describe('PostHog provider', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     consent.stored = 'pending'
     walletState.identity = 'distinct-id'
@@ -100,11 +108,11 @@ describe('PostHog provider', () => {
     vi.mocked(posthog.get_distinct_id).mockImplementation(
       () => walletState.identity,
     )
-    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
-    vi.stubEnv('VITE_PUBLIC_ANALYTICS_ENV', 'staging')
-    vi.stubEnv('VITE_PUBLIC_POSTHOG_STAGING_KEY', 'staging-test-key')
-    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', 'true')
+    vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'staging-test-key')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', 'true')
     vi.stubEnv('VITE_INTERCOM_APP_ID', 'test-app')
+    await loadProvider()
   })
   afterEach(() => {
     vi.unstubAllEnvs()
@@ -256,10 +264,10 @@ describe('PostHog provider', () => {
   })
 
   // The .eth mirror builds with neither.
-  it('starts neither SDK without their keys', () => {
+  it('starts neither SDK without their keys', async () => {
     vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', '')
-    vi.stubEnv('VITE_PUBLIC_POSTHOG_STAGING_KEY', '')
     vi.stubEnv('VITE_INTERCOM_APP_ID', '')
+    await loadProvider()
     renderProvider()
     expect(posthog.init).not.toHaveBeenCalled()
     expect(boot).not.toHaveBeenCalled()

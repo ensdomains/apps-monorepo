@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   canCaptureAnalytics,
-  getAnalyticsProjectKey,
   sanitizeAnalyticsUrl,
   sanitizeAutomaticProperties,
 } from './analyticsConfiguration'
@@ -20,45 +19,31 @@ describe('analytics environment and URL policy', () => {
 
   it.each([
     [undefined, false, false, false],
-    ['production', true, true, false],
-    ['staging', true, false, false],
-    ['staging', true, true, true],
-    ['production', false, false, true],
+    ['mainnet', true, true, false],
+    ['sepolia', true, false, false],
+    ['sepolia', true, true, true],
+    ['mainnet', false, false, true],
+    ['sepolia', false, false, true],
+    ['unknown', false, true, false],
   ] as const)(
-    'gates environment %s development %s debug %s',
-    (environment, isDevelopment, isDebugEnabled, expected) => {
+    'gates network %s development %s debug %s',
+    (network, isDevelopment, isDebugEnabled, expected) => {
       expect(
         canCaptureAnalytics({
-          environment,
+          network,
           isDevelopment,
           isDebugEnabled,
-          stagingKey: 'staging',
-          productionKey: 'production',
+          projectKey: 'configured-project',
         }),
       ).toBe(expected)
     },
   )
-  it('never falls back to production for staging or accepts a reused project key', () => {
-    expect(
-      getAnalyticsProjectKey({
-        environment: 'staging',
-        productionKey: 'production',
-      }),
-    ).toBeUndefined()
-    expect(
-      getAnalyticsProjectKey({
-        environment: 'staging',
-        productionKey: 'production',
-        stagingKey: 'production',
-      }),
-    ).toBeUndefined()
+  it('disables capture without a configured project key', () => {
     expect(
       canCaptureAnalytics({
-        environment: 'staging',
-        isDevelopment: true,
+        network: 'sepolia',
+        isDevelopment: false,
         isDebugEnabled: true,
-        productionKey: 'production',
-        stagingKey: 'production',
       }),
     ).toBe(false)
   })

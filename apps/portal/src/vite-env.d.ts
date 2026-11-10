@@ -8,6 +8,7 @@
  * app concerns (analytics, dev tooling, test wallets).
  */
 interface ImportMetaEnv {
+  readonly VITE_PUBLIC_POSTHOG_DEBUG?: string
   /** Target network. Required: the build fails if it is unset or unknown. */
   readonly VITE_ENS_NETWORK?: string
   readonly VITE_RPC_URL?: string

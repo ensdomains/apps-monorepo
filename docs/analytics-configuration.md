@@ -4,16 +4,21 @@ The bundled `posthog-js/dist/module.full.no-external` import remains mandatory f
 
 ## Deployment setup
 
-| Deployment | VITE_PUBLIC_ANALYTICS_ENV | VITE_PUBLIC_POSTHOG_KEY / VITE_PUBLIC_POSTHOG_STAGING_KEY | VITE_PUBLIC_ANALYTICS_DEBUG |
+| Deployment | Environment file | `VITE_PUBLIC_POSTHOG_KEY` | `VITE_PUBLIC_POSTHOG_DEBUG` |
 | --- | --- | --- | --- |
-| Production Manager and Explorer | production | Same production project token | unset |
-| Staging Manager and Explorer | staging | Production key unchanged; set STAGING_KEY to the separate staging project token | unset |
-| Normal local development / CI | unset | flags-only key if needed | unset |
-| Deliberate local staging QA | staging | Set STAGING_KEY to staging token | true |
+| Production Manager and Explorer (mainnet) | `.env.mainnet` | Same production project token | unset |
+| Staging Manager and Explorer (Sepolia) | `.env` | Same separate staging project token | unset |
+| Normal local development | Either | Flags may initialize with the configured token; capture disabled | unset |
+| Deliberate local staging QA | `.env.local` with Sepolia | Staging token | true |
+| CI / E2E | `.env.ci` | Empty; tests use fake clients/tokens | unset |
 
-Staging capture additionally requires `VITE_PUBLIC_POSTHOG_STAGING_KEY`, distinct from `VITE_PUBLIC_POSTHOG_KEY`; there is no fallback to the production token. Use the existing `VITE_PUBLIC_POSTHOG_HOST` ingestion proxy/host for the corresponding project. The public token is not a personal API key. Never put personal API keys into Vite variables. Existing checked-in `.env`/`.env.ci` tokens are not relabelled as staging; without the new environment variable they cannot capture events. Do not set the production environment in CI or local development. The gate rejects production capture under Vite DEV even with debug enabled.
+There is one project key per deployment. `VITE_ENS_NETWORK=mainnet` currently means production; `sepolia` means staging. The same distinction supplies event `environment` metadata. Local mainnet capture remains disabled even with the debug override. Unknown networks and empty keys cannot capture. Do not run synthetic QA against a production build/key.
 
-Feature flag initialization continues regardless of capture gating. With an unset analytics environment, the existing production key can still initialize essential flags locally; event capture remains disabled. No production settings, subscriptions, or tokens were changed. Staging project entitlement and proxy routing must be confirmed before enabling staging capture. Mirror essential flags/notice payloads into staging deliberately.
+Vite merges `.env` into `.env.mainnet`, so mainnet must explicitly override the project token. Both mainnet files now contain the verified production project token. Both base `.env` files contain the separate staging project token. CI keys are empty. Tokens are public browser configuration, not personal API keys.
+
+Keep `VITE_PUBLIC_POSTHOG_HOST` pointed at the appropriate ingestion proxy/host and verify its routing and CSP. Feature flags initialize independently of consent/capture when a key is configured. Essential flag definitions and notice payloads must be mirrored into the staging project deliberately; no production flags or behavioral capture settings were changed.
+
+On 2026-11-10, the existing project 109100 was renamed [ENS Apps — Production](https://eu.posthog.com/project/109100) and [ENS Apps — Staging](https://eu.posthog.com/project/343384) was created as project 343384. Both apps use their respective public tokens through the existing `edge.ens.domains` proxy; the staging ingestion region is EU. No billing changes were made. Staging feature flags, surveys and dashboards have not been copied; proxy connectivity and actual staging ingestion still require verification.
 
 ## SDK behavior and privacy
 

@@ -2,7 +2,6 @@ import {
   applyAnalyticsConsent,
   canCaptureAnalytics,
   clearAnalyticsAttribution,
-  getAnalyticsProjectKey,
   prepareAnalyticsEvent,
   SHARED_POSTHOG_CONFIG,
   writeAnalyticsConsent,
@@ -20,18 +19,16 @@ export {
   setAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConfiguration'
 
-const getAnalyticsEnvironment = () => ({
-  environment: import.meta.env.VITE_PUBLIC_ANALYTICS_ENV,
+const ANALYTICS_ENVIRONMENT = {
+  network: import.meta.env.VITE_ENS_NETWORK,
   isDevelopment: import.meta.env.DEV,
-  isDebugEnabled: import.meta.env.VITE_PUBLIC_ANALYTICS_DEBUG === 'true',
-  stagingKey: import.meta.env.VITE_PUBLIC_POSTHOG_STAGING_KEY,
-  productionKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
-})
+  isDebugEnabled: import.meta.env.VITE_PUBLIC_POSTHOG_DEBUG === 'true',
+  projectKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
+}
 
-export const isAnalyticsEnabled = () =>
-  canCaptureAnalytics(getAnalyticsEnvironment())
-export const getPostHogKey = () =>
-  getAnalyticsProjectKey(getAnalyticsEnvironment())
+export const IS_ANALYTICS_ENABLED = canCaptureAnalytics(ANALYTICS_ENVIRONMENT)
+export const POSTHOG_KEY =
+  import.meta.env.VITE_PUBLIC_POSTHOG_KEY?.trim() || undefined
 
 export const POSTHOG_CONFIG = {
   ...SHARED_POSTHOG_CONFIG,
@@ -43,7 +40,7 @@ export const POSTHOG_CONFIG = {
   before_send: (event) =>
     prepareAnalyticsEvent(event, {
       sourceApp: 'manager',
-      environment: getAnalyticsEnvironment(),
+      environment: ANALYTICS_ENVIRONMENT,
       walletAddress: getConnectedWalletAddress(),
     }),
   loaded: (

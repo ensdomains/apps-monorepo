@@ -1,17 +1,24 @@
 // @vitest-environment happy-dom
+
+import {
+  applyAnalyticsConsent,
+  resetKeepingConsent,
+  setAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConfiguration'
 import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConsent'
 import { createAnalyticsTracker } from '@ens-apps/utils/posthog/createAnalyticsTracker'
 import { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  applyAnalyticsConsent,
-  POSTHOG_CONFIG,
-  resetKeepingConsent,
-  setAnalyticsConsent,
-} from './config'
 import { getConnectedWalletAddress } from './events'
 
 vi.mock('./events', () => ({ getConnectedWalletAddress: vi.fn(() => null) }))
+
+let POSTHOG_CONFIG: typeof import('./config').POSTHOG_CONFIG
+
+const loadConfig = async () => {
+  vi.resetModules()
+  ;({ POSTHOG_CONFIG } = await import('./config'))
+}
 
 const WALLET = '0x1111111111111111111111111111111111111111'
 
@@ -58,9 +65,10 @@ const flagBodies = (requests: Requests) =>
 describe('PostHog consent', () => {
   beforeEach(async () => {
     vi.mocked(getConnectedWalletAddress).mockReturnValue(null)
-    vi.stubEnv('VITE_PUBLIC_ANALYTICS_ENV', 'staging')
-    vi.stubEnv('VITE_PUBLIC_POSTHOG_STAGING_KEY', 'staging-test-key')
-    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', 'true')
+    vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'staging-test-key')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', 'true')
+    await loadConfig()
     await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
     await cookieStore.delete({
       name: `${ANALYTICS_CONSENT_COOKIE}_generation`,
@@ -191,7 +199,8 @@ describe('PostHog consent', () => {
         gclid: 'stored-ad',
       },
     })
-    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', '')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', '')
+    await loadConfig()
     const { client, requests } = initClient()
     expect(client.capture('$pageview')).toBeUndefined()
     await vi.advanceTimersByTimeAsync(3000)
@@ -248,7 +257,8 @@ describe('PostHog consent', () => {
   )
 
   it('keeps feature flags working while local analytics is disabled despite consent', async () => {
-    vi.stubEnv('VITE_PUBLIC_ANALYTICS_DEBUG', '')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', '')
+    await loadConfig()
     const { client, requests } = initClient()
     setAnalyticsConsent(client, true)
     client.capture('wallet:connect')
