@@ -237,10 +237,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     : themeVars['--theme-color']
 
   // Figma page background and bottom padding (sticky bar height plus safe area)
-  // have no matching tokens; below xl the owner's bar can wrap to two rows
+  // have no matching tokens; below xl the floating edit bar can wrap to two rows
   return (
     <div
-      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] max-xl:data-[owner=true]:pb-[calc(173px+env(safe-area-inset-bottom,0))] xl:-mt-20 xl:pb-28.5 xl:data-[owner=true]:pb-44"
+      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] max-xl:data-[floating-bar=true]:pb-[calc(173px+env(safe-area-inset-bottom,0))] xl:-mt-20 xl:pb-28.5 xl:data-[owner=true]:pb-44"
+      data-floating-bar={hasFloatingBar}
       data-owner={resolvedIsOwner === true}
       style={expiry.isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
