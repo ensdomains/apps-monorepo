@@ -11,8 +11,15 @@ const CHIPS: readonly FilterChipDef<Scope>[] = [
   { value: 'v2', label: 'V2' },
 ]
 
-const renderChips = (value: Scope | null) =>
-  render(<FilterChips chips={CHIPS} onChange={() => undefined} value={value} />)
+const renderChips = (value: Scope | null, shouldHideEmpty = true) =>
+  render(
+    <FilterChips
+      chips={CHIPS}
+      onChange={() => undefined}
+      shouldHideEmpty={shouldHideEmpty}
+      value={value}
+    />,
+  )
 
 describe('FilterChips', () => {
   it('hides a filter with nothing in it, but not one still counting', () => {
@@ -30,5 +37,11 @@ describe('FilterChips', () => {
       'aria-pressed',
       'true',
     )
+  })
+
+  it('shows empty filters unless asked to hide them', () => {
+    renderChips(null, false)
+
+    expect(screen.getByRole('button', { name: 'V1' })).toBeVisible()
   })
 })

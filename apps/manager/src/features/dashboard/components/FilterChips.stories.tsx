@@ -23,6 +23,7 @@ const ScopeChips = ({
       chips={chips}
       onChange={setValue}
       onClear={() => setValue(null)}
+      shouldHideEmpty
       value={value}
     />
   )

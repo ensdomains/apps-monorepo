@@ -300,6 +300,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
               setFilter(next)
               setSearchQuery('')
             }}
+            shouldHideEmpty
             value={activeFilter}
           />
           {activeFilter === 'owned' && (
@@ -307,6 +308,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
               chips={scopeChips}
               onChange={changeScope}
               onClear={() => changeScope(null)}
+              shouldHideEmpty
               value={scope}
             />
           )}
