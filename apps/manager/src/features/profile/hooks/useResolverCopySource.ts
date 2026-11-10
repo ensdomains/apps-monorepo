@@ -26,7 +26,11 @@ export const useResolverCopySource = ({
     ...resolverCopySourceQuery(name, ownerAddress ?? undefined),
     enabled,
   })
-  return enabled && !query.isError && query.data?.chainId === chainId
-    ? query.data
-    : undefined
+  return {
+    resolverCopySource:
+      enabled && !query.isError && query.data?.chainId === chainId
+        ? query.data
+        : undefined,
+    isPending: enabled && query.isPending,
+  }
 }
