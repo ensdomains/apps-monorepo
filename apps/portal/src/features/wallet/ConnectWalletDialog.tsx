@@ -2,12 +2,7 @@ import { logger } from '@ens-apps/utils/logger'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { Connector } from 'wagmi'
-import {
-  useConnect,
-  useConnectors,
-  usePublicClient,
-  useSwitchChain,
-} from 'wagmi'
+import { useConnect, useConnectors, useSwitchChain } from 'wagmi'
 import {
   Dialog,
   DialogContent,
@@ -128,7 +123,6 @@ export const ConnectWalletDialog = ({
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
-  const publicClient = usePublicClient({ chainId: wagmiConfig.chains[0].id })
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -295,8 +289,6 @@ export const ConnectWalletDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-5 p-8 sm:max-w-100">
         <ReadOnlyWalletTrigger
-          chainId={wagmiConfig.chains[0].id}
-          client={publicClient}
           enabled={open && !isConnecting}
           onError={setError}
         />

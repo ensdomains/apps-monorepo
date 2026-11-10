@@ -2,41 +2,22 @@ import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   createReadOnlyProvider,
-  resolveReadOnlyAddress,
+  toReadOnlyWalletAddress,
 } from './readOnlyWallet'
 
 const ADDRESS: Address = '0x000000000000000000000000000000000000dEaD'
 const CHAIN_ID = 11155111
 
-describe('resolveReadOnlyAddress', () => {
-  it('trims and checksums an address', async () => {
-    await expect(
-      resolveReadOnlyAddress(
-        '  0x000000000000000000000000000000000000dead  ',
-        undefined,
-      ),
-    ).resolves.toBe(ADDRESS)
+describe('toReadOnlyWalletAddress', () => {
+  it('trims and checksums a valid address', () => {
+    expect(
+      toReadOnlyWalletAddress('  0x000000000000000000000000000000000000dead  '),
+    ).toBe(ADDRESS)
   })
 
-  it('resolves an ENS name with the supplied client', async () => {
-    await expect(
-      resolveReadOnlyAddress('test.eth', {
-        getEnsAddress: async () => ADDRESS,
-      }),
-    ).resolves.toBe(ADDRESS)
-  })
-
-  it('returns null when the name does not resolve', async () => {
-    await expect(
-      resolveReadOnlyAddress('not-an-address', undefined),
-    ).resolves.toBeNull()
-    await expect(
-      resolveReadOnlyAddress('unknown.eth', {
-        getEnsAddress: async () => {
-          throw new Error('not found')
-        },
-      }),
-    ).resolves.toBeNull()
+  it('rejects a non-address', () => {
+    expect(toReadOnlyWalletAddress('test.eth')).toBeNull()
+    expect(toReadOnlyWalletAddress('')).toBeNull()
   })
 })
 

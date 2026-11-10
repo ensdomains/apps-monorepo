@@ -4,9 +4,7 @@ import {
   isAddress,
   numberToHex,
   ProviderRpcError,
-  type PublicClient,
 } from 'viem'
-import { normalize } from 'viem/ens'
 
 /**
  * Hands a fake, read-only EIP-6963 wallet to wagmi's normal injected-wallet
@@ -101,17 +99,7 @@ export const isReadOnlyWalletConnector = (
   connector: { readonly id: string } | null | undefined,
 ): boolean => connector?.id.startsWith(READ_ONLY_WALLET_RDNS) ?? false
 
-export const resolveReadOnlyAddress = async (
-  input: string,
-  client: Pick<PublicClient, 'getEnsAddress'> | undefined,
-): Promise<Address | null> => {
+export const toReadOnlyWalletAddress = (input: string): Address | null => {
   const value = input.trim()
-  if (isAddress(value)) return getAddress(value)
-  if (!value || !client) return null
-
-  try {
-    return await client.getEnsAddress({ name: normalize(value) })
-  } catch {
-    return null
-  }
+  return isAddress(value, { strict: false }) ? getAddress(value) : null
 }
