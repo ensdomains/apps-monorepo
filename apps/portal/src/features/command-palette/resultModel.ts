@@ -1,5 +1,5 @@
 import { match } from 'ts-pattern'
-import { isAddress } from 'viem'
+import { type Address, isAddress } from 'viem'
 import type { UseSearchResultsReturn } from '@/features/dashboard/hooks/useSearchResults'
 import type { Suggestion } from '@/features/dashboard/utils/buildSearchSuggestions'
 import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
@@ -66,6 +66,7 @@ export type PaletteRow = {
   readonly meta?: PaletteRowMeta
   readonly group: string
   readonly groupDetail?: string
+  readonly inlineAddress?: Address
   readonly isGroupClearable?: boolean
   readonly leading: PaletteRowLeading
   readonly action: PaletteRowAction
@@ -332,6 +333,23 @@ const canShowCommand = (
   !command.isApplicable ||
   command.isApplicable(getBoundTargetMetadata(entity, metadata))
 
+const getCommandPresentation = ({
+  command,
+  title,
+  entity,
+  showsTarget,
+}: Pick<PaletteCommandMatch, 'command' | 'title' | 'entity'> & {
+  readonly showsTarget: boolean
+}) => {
+  if (
+    showsTarget &&
+    command.id === 'address.copy' &&
+    entity?.type === 'address'
+  )
+    return { title: 'Copy', inlineAddress: entity.address }
+  return { title: showsTarget ? command.title : title }
+}
+
 const getCommandRows = ({
   matches,
   frame,
@@ -376,15 +394,15 @@ const getCommandRows = ({
       const showsTarget = Boolean(scopedEntity) || isCurrent
       return {
         id: getCommandResultId(command, entity, context.chainId),
-        title: showsTarget ? command.title : title,
+        ...getCommandPresentation({ command, title, entity, showsTarget }),
         group: isEmptyRoot
           ? isCurrent
             ? `Current ${context.entity?.type ?? 'name'}`
             : 'Go to'
           : getCommandGroupLabel(command),
         groupDetail:
-          isCurrent && context.entity
-            ? getEntityLabel(context.entity)
+          isCurrent && context.entity?.type === 'name'
+            ? context.entity.name
             : undefined,
         leading: { type: 'icon', icon: command.icon },
         action: { type: 'command', command, entity },

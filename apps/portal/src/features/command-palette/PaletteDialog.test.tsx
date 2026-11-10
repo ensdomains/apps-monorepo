@@ -139,6 +139,57 @@ const Harness = ({
 }
 
 describe('PaletteDialog', () => {
+  it('shows a full address inline with Copy and keeps activation on the row', async () => {
+    const address = '0x1111111111111111111111111111111111111111'
+    const copy = makeRow({
+      title: 'Copy',
+      inlineAddress: address,
+      leading: { type: 'icon', icon: 'copy' },
+      action: { type: 'copy', value: address, label: 'Address' },
+    })
+    const onActivate = vi.fn()
+    const user = userEvent.setup()
+    render(<Harness rows={[copy]} onActivate={onActivate} />)
+    const option = screen.getByRole('option')
+    expect(within(option).getByText(address)).toBeVisible()
+    expect(within(option).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(option).queryByRole('link')).not.toBeInTheDocument()
+    await user.click(option)
+    expect(onActivate).toHaveBeenCalledExactlyOnceWith(copy)
+  })
+
+  it('uses Left Arrow to go back only at the start of an unmodified caret', async () => {
+    const onBack = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <Harness
+        rows={[REGISTER]}
+        initialState={makeOpenState(
+          makeFrame({
+            query: 'copy',
+            screen: { type: 'entity', entity: ENTITY },
+          }),
+          [makeFrame({ query: 'helgesson.eth' })],
+        )}
+        onBack={onBack}
+      />,
+    )
+    const input = screen.getByRole('combobox')
+    await user.click(input)
+    await user.keyboard('{End}{ArrowLeft}')
+    expect(input).toHaveValue('copy')
+    expect(onBack).not.toHaveBeenCalled()
+    await user.keyboard('{Home}{Shift>}{ArrowLeft}{/Shift}')
+    expect(onBack).not.toHaveBeenCalled()
+    screen.getByRole<HTMLInputElement>('combobox').setSelectionRange(0, 2)
+    await user.keyboard('{ArrowLeft}')
+    expect(onBack).not.toHaveBeenCalled()
+    await user.keyboard('{Home}{ArrowLeft}')
+    expect(onBack).toHaveBeenCalledOnce()
+    expect(input).toHaveValue('helgesson.eth')
+    expect(input).toHaveFocus()
+  })
+
   it('keeps address badges inert inside options, with palette activation owning navigation', async () => {
     const entity = {
       type: 'address',
@@ -252,7 +303,7 @@ describe('PaletteDialog', () => {
     expect(onActivate).toHaveBeenCalledWith(otherName)
   })
 
-  it.each(['Enter', 'Escape', 'Backspace'])(
+  it.each(['Enter', 'Escape', 'Backspace', 'ArrowLeft'])(
     'preserves the active step when %s belongs to text composition',
     async (key) => {
       const onActivate = vi.fn<(row: PaletteRow) => void>()

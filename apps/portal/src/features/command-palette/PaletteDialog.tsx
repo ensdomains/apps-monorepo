@@ -210,6 +210,9 @@ export const PaletteDialog = ({
       hasQuery: Boolean(frame?.query),
       canGoBack,
       hasSecondary: Boolean(secondaryRow),
+      isModified:
+        event.altKey || event.ctrlKey || event.metaKey || event.shiftKey,
+      isCaretAtStart: input.selectionStart === 0 && input.selectionEnd === 0,
       isCaretAtEnd:
         input.selectionStart === input.value.length &&
         input.selectionEnd === input.value.length,
@@ -266,7 +269,7 @@ export const PaletteDialog = ({
         <DialogDescription className="sr-only">
           Find ENS names, addresses, and actions. Use arrow keys to choose a
           result, Enter to open it, Right Arrow at the end of the query to show
-          its actions, and Escape to go back.
+          its actions, and Left Arrow at the start or Escape to go back.
         </DialogDescription>
         <div className="box-content flex h-14 shrink-0 items-center gap-2 border-b pl-3 pr-2 pt-[env(safe-area-inset-top)] sm:h-13 sm:pt-0">
           <HeaderLeading
@@ -410,6 +413,7 @@ const HeaderLeading = ({
         className="size-8 shrink-0 text-muted-foreground"
         onClick={onBack}
         aria-label="Back"
+        aria-keyshortcuts="ArrowLeft"
       >
         <ArrowLeft className="size-4" />
       </Button>
@@ -598,6 +602,15 @@ const RowTitle = ({
   readonly row: PaletteRow
   readonly query: string
 }) => {
+  if (row.inlineAddress)
+    return (
+      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 py-1">
+        <span>{row.title}</span>
+        <EntityBadge variant="address" format="wrap">
+          <span className="break-all">{row.inlineAddress}</span>
+        </EntityBadge>
+      </span>
+    )
   if (row.leading.type === 'entity' && row.leading.entity.type === 'address')
     return (
       <span
@@ -656,6 +669,7 @@ const PaletteResultRow = ({
         className={cn(
           'group/row h-12 cursor-pointer gap-3 rounded-md px-2 text-base data-[selected=true]:bg-accent sm:h-10 sm:gap-2.5',
           secondary && 'pr-24',
+          row.inlineAddress && 'h-auto min-h-12 sm:h-auto sm:min-h-10',
         )}
       >
         <RowLeading leading={row.leading} />
@@ -726,6 +740,8 @@ const getKeyboardAction = ({
   canGoBack,
   hasSecondary,
   isCaretAtEnd,
+  isCaretAtStart,
+  isModified,
 }: {
   readonly key: string
   readonly isComposing: boolean
@@ -733,12 +749,16 @@ const getKeyboardAction = ({
   readonly canGoBack: boolean
   readonly hasSecondary: boolean
   readonly isCaretAtEnd: boolean
+  readonly isCaretAtStart: boolean
+  readonly isModified: boolean
 }) => {
   if (isComposing) return 'composition'
   if (key === 'ArrowDown') return 'down'
   if (key === 'ArrowUp') return 'up'
   if (key === 'Enter') return 'activate'
   if (key === 'ArrowRight' && hasSecondary && isCaretAtEnd) return 'secondary'
+  if (key === 'ArrowLeft' && canGoBack && isCaretAtStart && !isModified)
+    return 'back'
   if (key === 'Backspace' && !hasQuery && canGoBack) return 'back'
   return 'native'
 }

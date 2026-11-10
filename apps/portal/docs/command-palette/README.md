@@ -50,8 +50,9 @@ validation still determine whether a particular action can continue.
   inline on desktop and a separate **→ Actions** button. Actions stays visible
   on touch. Hover or focus darkens that button; clicking the row still opens
   the entity. The button is a sibling of the option, avoiding nested controls.
-  Right Arrow at the end of the query opens Actions. Tab and Shift+Tab move
-  focus normally. The modal has no footer.
+  Right Arrow at the end of the query opens Actions. Left Arrow at the start
+  returns to the previous view; selection and modified arrows stay native. Tab
+  and Shift+Tab move focus normally. The modal has no footer.
 - **View stays first inside an entity.** Its action view starts with View, then
   suggested actions, then relationships. Async facts never insert a new
   destination ahead of View. Relationships use the same queries as the pages;
@@ -121,6 +122,19 @@ changed-file Biome checks, and desktop/mobile pointer and keyboard behavior.
 restores the raised keycap shapes around the inline Enter and Right Arrow
 symbols, reusing the existing keycap component. Right Arrow inherits the Actions
 button's hover and focus color.
+
+[Address and Back feedback](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794345991580709):
+Left Arrow goes back when the caret is collapsed at the start and no modifier
+is held. It preserves the previous query and selection through the existing
+navigation reducer. Composition, selected text, and cursor movement keep their
+normal behavior.
+
+Current-address suggestions leave the address out of the section heading and
+show it next to Copy as a full green entity badge. The same presentation works
+in the address's action view. Long addresses wrap on narrow screens instead of
+truncating. Copy retains its explicit target, and the badge adds no links,
+buttons, or network lookups. This pass covers 197 palette tests, Portal typecheck,
+changed-file Biome checks, and desktop/mobile interaction and clipboard checks.
 
 ### Regression check
 

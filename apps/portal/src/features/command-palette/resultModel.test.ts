@@ -563,6 +563,28 @@ describe('buildPaletteRows', () => {
     expect(rows[1] && getSecondaryRow(rows[1])).toBeUndefined()
   })
 
+  it('puts the current address beside Copy instead of in its section heading', () => {
+    const entity = { type: 'address', address: ADDRESS } as const
+    const rows = run({
+      context: { chainId: 1, developerEnabled: false, entity },
+    })
+    const current = rows.filter(({ group }) => group === 'Current address')
+    expect(
+      current.filter(({ groupDetail }) => groupDetail !== undefined),
+    ).toEqual([])
+    const copy = current.find(
+      ({ action }) =>
+        action.type === 'command' && action.command.id === 'address.copy',
+    )
+    expect(copy?.title).toBe('Copy')
+    expect(copy?.inlineAddress).toBe(ADDRESS)
+    expect(copy?.action).toEqual({
+      type: 'command',
+      command: PALETTE_COMMANDS.find(({ id }) => id === 'address.copy'),
+      entity,
+    })
+  })
+
   it('names the target in titles only where the chip or group heading does not', () => {
     const titleOf = (rows: ReturnType<typeof run>, id: string) =>
       rows.find(
