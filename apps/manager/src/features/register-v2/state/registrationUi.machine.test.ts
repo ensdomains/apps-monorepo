@@ -1755,6 +1755,11 @@ describe('paying with ETH', () => {
       { l2FundingChainId: baseSepolia.id },
       CIRCLE_USDC,
     ],
+    [
+      'a chosen L2 with nothing to bridge in the USDC the account holds from it',
+      { isCirclePayment: true },
+      CIRCLE_USDC,
+    ],
     ['any other payment in the deployment’s USDC', {}, undefined],
   ])('has %s', (_case, funding, paymentTokenAddress) => {
     const actor = startActorInTokens()
@@ -1763,6 +1768,22 @@ describe('paying with ETH', () => {
     expect(getChild(actor).getSnapshot().context.paymentTokenAddress).toBe(
       paymentTokenAddress,
     )
+    actor.stop()
+  })
+
+  it('keeps an EOA run in its own token whatever the screen says', () => {
+    const eoaAccount = {
+      signer: { type: 'eoa', walletClient: {} as never },
+      accountAddress: EOA_ADDRESS,
+      ownerAddress: EOA_ADDRESS,
+      walletClient: { account: { address: EOA_ADDRESS } },
+    } as unknown as SmartAccountContextValue
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(eoaAccount), isCirclePayment: true })
+
+    expect(
+      getChild(actor).getSnapshot().context.paymentTokenAddress,
+    ).toBeUndefined()
     actor.stop()
   })
 

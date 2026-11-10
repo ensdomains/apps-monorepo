@@ -83,6 +83,8 @@ type SubmissionData = {
   l2Funding?: HcaRenewalL2Funding
   /** HCA route: swap the wallet's ETH for the USDC its permit moves. */
   readonly ethFunding?: HcaRenewalEthFunding
+  /** HCA route: ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+  readonly isCirclePayment?: boolean
 }
 
 const requireSubmissionData = (
@@ -92,12 +94,17 @@ const requireSubmissionData = (
   return submissionData
 }
 
-/** A renewal paid with ETH or from an L2 pays in the Circle USDC it brings in. */
+/** A renewal paid with ETH or from an L2 pays in Circle's USDC, bridged or not. */
 const paymentTokenOf = (
-  submission: Pick<SubmissionData, 'ethFunding' | 'l2Funding'>,
+  submission: Pick<
+    SubmissionData,
+    'ethFunding' | 'l2Funding' | 'isCirclePayment'
+  >,
 ): { readonly paymentToken?: Address } => {
   const paymentToken = getRunPaymentToken(
-    !!submission.ethFunding || !!submission.l2Funding,
+    !!submission.ethFunding ||
+      !!submission.l2Funding ||
+      !!submission.isCirclePayment,
   )
   return paymentToken ? { paymentToken } : {}
 }
@@ -205,6 +212,8 @@ export const renewalUiMachine = setup({
           l2Funding?: HcaRenewalL2Funding
           /** HCA route: pay with the wallet's ETH, swapped into USDC. */
           readonly ethFunding?: HcaRenewalEthFunding
+          /** HCA route: ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+          readonly isCirclePayment?: boolean
         }
       | { type: 'renewal.submitted'; txId: string }
       | {
@@ -393,6 +402,7 @@ export const renewalUiMachine = setup({
               walletClient: event.walletClient,
               l2Funding: event.l2Funding,
               ethFunding: event.ethFunding,
+              isCirclePayment: event.isCirclePayment,
             }
           : undefined,
     }),

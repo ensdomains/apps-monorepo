@@ -328,6 +328,24 @@ describe('useBulkRenewSubmit (smart account)', () => {
     }
   })
 
+  // Say a retry once the bridge landed: the chosen L2 has nothing left to send.
+  it('renews a chosen L2 with nothing to bridge in the Circle USDC the account holds', async () => {
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({ ...args, isCirclePayment: true })
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(mocks.fundHcaRenewalsFromL2).not.toHaveBeenCalled()
+    expect(mocks.submitHcaRenewal).toHaveBeenCalled()
+    for (const [input] of mocks.submitHcaRenewal.mock.calls) {
+      expect(input.paymentToken).toBe(
+        '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+      )
+    }
+  })
+
   it('pays a whole selection with ETH through one swap, then renews each chunk with the usual permit', async () => {
     mocks.fundHcaRenewalsWithEth.mockImplementation(async () => {
       expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()

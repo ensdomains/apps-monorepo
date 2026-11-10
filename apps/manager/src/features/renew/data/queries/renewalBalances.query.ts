@@ -50,14 +50,12 @@ const getCirclePaymentBalances = (
       }
 }
 
-/** The balances a renewal counts: paid with ETH or from an L2, the account's USDC is its Circle USDC. */
+/** The balances a renewal counts: paid in Circle's USDC (ETH or a chosen L2), the account's USDC is what it holds of it. */
 export const getPaymentBalances = (
   balances: RenewalBalances,
-  method: { readonly isPaidWithEth: boolean; readonly l2ChainId?: number },
+  isCirclePayment: boolean,
 ): RenewalBalances =>
-  method.isPaidWithEth || method.l2ChainId !== undefined
-    ? getCirclePaymentBalances(balances)
-    : balances
+  isCirclePayment ? getCirclePaymentBalances(balances) : balances
 
 const readBalances = (holder: Address) =>
   Promise.allSettled(

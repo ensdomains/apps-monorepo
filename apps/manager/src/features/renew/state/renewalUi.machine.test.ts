@@ -54,6 +54,7 @@ type Shown = {
   readonly displayedDebit?: HcaDisplayedDebit
   readonly l2Funding?: HcaRenewalL2Funding
   readonly ethFunding?: HcaRenewalEthFunding
+  readonly isCirclePayment?: boolean
 }
 
 const startRenewal = (
@@ -572,6 +573,22 @@ describe('renewal paid from an L2', () => {
     expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].l2Funding).toBe(l2Funding)
     // The USDC the bridge delivers: Circle's, on Sepolia.
     expect(mocks.submitHcaRenewal.mock.calls[0]?.[0].paymentToken).toBe(
+      '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    )
+    actor.stop()
+  })
+
+  // Say a retry once the bridge landed: the chosen L2 has nothing left to send.
+  it('pays a chosen L2 with nothing to bridge in the Circle USDC the account holds', async () => {
+    const actor = startRenewal('v2', 'smart-account', {
+      displayedDebit: { usdc: 0n, token: 0n },
+      isCirclePayment: true,
+    })
+    await waitForState(actor, 'success')
+
+    const [input] = mocks.submitHcaRenewal.mock.calls[0] ?? []
+    expect(input).not.toHaveProperty('l2Funding')
+    expect(input.paymentToken).toBe(
       '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
     )
     actor.stop()

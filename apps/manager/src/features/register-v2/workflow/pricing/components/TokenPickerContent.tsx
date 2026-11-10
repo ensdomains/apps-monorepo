@@ -40,6 +40,7 @@ import { useRegistrationLockHeartbeat } from '../../registering/hooks/useRegistr
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { useFallbackPaymentChoice } from '../hooks/useFallbackPaymentChoice'
 import { useHeldWhile } from '../hooks/useHeldWhile'
+import { useIsCirclePayment } from '../hooks/useIsCirclePayment'
 import {
   canPayFromL2,
   isL2Empty,
@@ -125,9 +126,9 @@ class PaymentSessionError extends TaggedError('PaymentSessionError')<{
 /** The session an ETH or L2 payment in Circle's USDC signs with, reused or signed; none for any other payment. */
 const enableCirclePaymentSession = async (
   account: Pick<SmartAccountContextValue, 'enableSession'>,
-  paysInCircleUsdc: boolean,
+  isCirclePayment: boolean,
 ): Promise<EnabledSession | undefined> => {
-  const refundToken = getRunPaymentToken(paysInCircleUsdc)
+  const refundToken = getRunPaymentToken(isCirclePayment)
   if (!refundToken) return undefined
   const outcome = await account.enableSession({ refundToken })
   if (outcome.status === 'enabled') return outcome.session
@@ -418,13 +419,18 @@ export const TokenPickerContent = () => {
       }
     : undefined
   const isPaidWithEth = ethPayment?.isSelected === true
-  // Something other than the wallet's USDC pays, so that balance is no gate.
+  // A bridge or a swap pays, whose failures are worth reading as they are.
   const isPaidFromElsewhere = isPaidFromL2 || isPaidWithEth
+  // ETH or the chosen L2 pays in Circle's USDC, even with nothing left to bridge.
+  const isCirclePayment = useIsCirclePayment({
+    owner: account.ownerAddress,
+    isPaidWithEth,
+    l2ChainId: fundingSourceChainId,
+  })
   // The budget the selected method pays: Circle's USDC for ETH or an L2.
-  const { query: paymentBudgetQuery, funding: paymentFunding } =
-    isPaidFromElsewhere
-      ? { query: circleBudgetQuery, funding: circleFunding }
-      : { query: budgetQuery, funding }
+  const { query: paymentBudgetQuery, funding: paymentFunding } = isCirclePayment
+    ? { query: circleBudgetQuery, funding: circleFunding }
+    : { query: budgetQuery, funding }
   // The page's figure, from the budget's own balance read, so the receipt's lines share one snapshot.
   const registrationTotalRaw = getCheckoutTotalRaw(
     pricingQuery.data?.totalPriceRaw,
@@ -506,6 +512,8 @@ export const TokenPickerContent = () => {
       // And that L2's charge, fee included, bounds the bridge the same way.
       ...(displayedL2Charge === undefined ? {} : { displayedL2Charge }),
       ethFunding,
+      // The token follows the method, even with nothing left to bridge.
+      isCirclePayment,
     })
   }
 
@@ -536,7 +544,7 @@ export const TokenPickerContent = () => {
 
       // A chosen L2 or ETH pays instead, so the wallet's USDC is no gate.
       if (
-        !isPaidFromElsewhere &&
+        !isCirclePayment &&
         walletDebitRaw !== null &&
         usdcBalanceRaw !== null &&
         usdcBalanceRaw < walletDebitRaw
@@ -550,7 +558,7 @@ export const TokenPickerContent = () => {
       // ETH or an L2 pays in Circle's USDC, so the run signs with that USDC's session.
       const circleSession = await enableCirclePaymentSession(
         account,
-        isPaidFromElsewhere,
+        isCirclePayment,
       )
 
       const [availability, resolvedSetAsPrimary] = await Promise.all([

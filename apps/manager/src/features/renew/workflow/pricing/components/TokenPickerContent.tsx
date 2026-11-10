@@ -9,6 +9,7 @@ import { useConnection } from 'wagmi'
 import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
 import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
+import { useIsCirclePayment } from '@/features/register-v2/workflow/pricing/hooks/useIsCirclePayment'
 import {
   getPaymentBalances,
   useRenewalBalances,
@@ -66,10 +67,13 @@ export const TokenPickerContent = () => {
       ] as const,
   )
   const token = selectedToken ?? TOKENS.USDC.symbol
-  const credit = getPaymentBalances(balances, {
+  // ETH or the chosen L2 pays in Circle's USDC, even with nothing left to bridge.
+  const isCirclePayment = useIsCirclePayment({
+    owner: account.ownerAddress,
     isPaidWithEth: paymentAsset === 'eth',
     l2ChainId: fundingSourceChainId,
   })
+  const credit = getPaymentBalances(balances, isCirclePayment)
   const isAwaitingApproval = useIsAwaitingRenewalApproval(uiActor)
   const paymentUpdate = useRenewalPaymentUpdate(uiActor)
   const isReviewingPayment = paymentUpdate?.status === 'reviewing'
@@ -242,6 +246,8 @@ export const TokenPickerContent = () => {
       // Checked against the intent's own quote, so the wallet opens on the
       // amount shown here without a second confirmation.
       ...funding.fields,
+      // The token follows the method, even with nothing left to bridge.
+      isCirclePayment,
     })
   }
 

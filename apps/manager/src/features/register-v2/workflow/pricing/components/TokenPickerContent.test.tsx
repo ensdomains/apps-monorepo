@@ -671,6 +671,16 @@ describe('TokenPickerContent', () => {
     expect(containerMocks.send).not.toHaveBeenCalledWith(
       expect.objectContaining({ l2FundingChainId: baseSepolia.id }),
     )
+    // Still the L2's method, so it pays in the Circle USDC the account holds from it.
+    expect(containerMocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isCirclePayment: true,
+        account: expect.objectContaining({ signer: CIRCLE_SESSION.signer }),
+      }),
+    )
+    expect(containerMocks.enableSession).toHaveBeenCalledWith({
+      refundToken: CIRCLE_USDC,
+    })
   })
 
   // An L2 payment can fail for a reason the user acts on, like one still settling.

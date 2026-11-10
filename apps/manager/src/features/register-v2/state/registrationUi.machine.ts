@@ -225,6 +225,8 @@ type Events =
       displayedL2Charge?: bigint
       /** Standalone-HCA: the wallet's ETH pays, swapped into USDC first. */
       ethFunding?: EthFunding
+      /** Standalone-HCA: ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+      isCirclePayment?: boolean
     }
   | {
       /**
@@ -780,7 +782,7 @@ const getStartL2Funding = (
 const getStartFunding = (
   event: Pick<
     Extract<Events, { type: 'registration.start' }>,
-    'l2FundingChainId' | 'ethFunding'
+    'l2FundingChainId' | 'ethFunding' | 'isCirclePayment'
   >,
   owner: Address,
   isHcaRegistration: boolean,
@@ -801,8 +803,11 @@ const getStartFunding = (
   if (event.ethFunding && !isHcaRegistration) {
     return new Error('Cannot register: paying with ETH needs an ENS account.')
   }
+  // ETH and a bridge bring in Circle's USDC; a chosen L2 with nothing to bridge pays in what the account holds of it.
   const paymentTokenAddress = getRunPaymentToken(
-    !!event.ethFunding || l2Funding !== undefined,
+    !!event.ethFunding ||
+      l2Funding !== undefined ||
+      (isHcaRegistration && !!event.isCirclePayment),
   )
   return {
     l2Funding,

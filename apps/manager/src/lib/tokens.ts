@@ -44,8 +44,8 @@ export const CIRCLE_PAYMENT_TOKEN: Address | undefined = (() => {
 
 /** The USDC a run pays in when not `TOKENS.USDC`: one paid with ETH or from an L2 pays in Circle's. */
 export const getRunPaymentToken = (
-  paysInCircleUsdc: boolean,
-): Address | undefined => (paysInCircleUsdc ? CIRCLE_PAYMENT_TOKEN : undefined)
+  isCirclePayment: boolean,
+): Address | undefined => (isCirclePayment ? CIRCLE_PAYMENT_TOKEN : undefined)
 
 /** Any stable the app can price in or show a balance for. */
 export type TOKEN_SYMBOL = keyof typeof TOKENS

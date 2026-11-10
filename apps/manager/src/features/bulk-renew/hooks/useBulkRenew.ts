@@ -9,6 +9,7 @@ import type { FundingSourceOrigin } from '@/features/register-v2/state/registrat
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import { useIsCirclePayment } from '@/features/register-v2/workflow/pricing/hooks/useIsCirclePayment'
 import type {
   L2PaymentProps,
   L2PaymentRow,
@@ -87,6 +88,8 @@ type BulkRenewPayment = {
   readonly selectedL2: L2PaymentRow | undefined
   /** The row that swaps the wallet's ETH into USDC; intent route only. */
   readonly ethPayment: RenewalEthPayment | undefined
+  /** ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+  readonly isCirclePayment: boolean
 }
 
 export type UseBulkRenewResult = {
@@ -140,10 +143,16 @@ export const useBulkRenew = ({
   const route = getRenewalPaymentRoute(signer)
   const balances = useRenewalBalances({ enabled: open })
   const { wallet: stablecoinBalances, isLoading: isLoadingBalances } = balances
-  const { accountCredit, accountCreditRaw } = getPaymentBalances(balances, {
+  // ETH or the chosen L2 pays in Circle's USDC, even with nothing left to bridge.
+  const isCirclePayment = useIsCirclePayment({
+    owner: ownerAddress,
     isPaidWithEth: isEthSelected,
     l2ChainId: fundingSourceChainId,
   })
+  const { accountCredit, accountCreditRaw } = getPaymentBalances(
+    balances,
+    isCirclePayment,
+  )
 
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(
@@ -374,6 +383,7 @@ export const useBulkRenew = ({
       l2Payment,
       selectedL2,
       ethPayment,
+      isCirclePayment,
     },
   }
 }
