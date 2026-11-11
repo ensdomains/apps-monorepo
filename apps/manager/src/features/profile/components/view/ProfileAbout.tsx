@@ -170,7 +170,8 @@ export const ProfileAbout = ({
             'grid w-full min-w-0',
             primaryName
               ? 'gap-3'
-              : 'gap-8 xl:grid-cols-[minmax(0,1fr)_fit-content(40%)] xl:items-start xl:justify-between xl:gap-8',
+              : // fit-content(40%) sizes the meta column to its content but caps it, so a long location wraps instead of squeezing the text column.
+                'gap-8 xl:grid-cols-[minmax(0,1fr)_fit-content(40%)] xl:items-start xl:justify-between xl:gap-8',
           )}
         >
           <div className="min-w-0">
