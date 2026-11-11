@@ -103,7 +103,12 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
 
   if (isLoading) return <LoadingSpinner title="Loading interfaces..." />
   if (error)
-    return <div className="text-p text-destructive">{error.cause?.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching interfaces. Please refresh the page."
+      />
+    )
   if (!data)
     return <div className="text-base text-muted-foreground">No data</div>
 

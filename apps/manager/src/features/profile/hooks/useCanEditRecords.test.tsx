@@ -42,7 +42,7 @@ describe('useCanEditRecords', () => {
     mocks.canWrite.mockResolvedValue(true)
     const { result } = renderCanEdit(true)
 
-    await waitFor(() => expect(result.current).toBe(true))
+    await waitFor(() => expect(result.current.canEditRecords).toBe(true))
     expect(mocks.canWrite).toHaveBeenCalled()
   })
 
@@ -50,7 +50,7 @@ describe('useCanEditRecords', () => {
     mocks.canWrite.mockResolvedValue(true)
     const { result } = renderCanEdit(false)
 
-    await waitFor(() => expect(result.current).toBe(true))
+    await waitFor(() => expect(result.current.canEditRecords).toBe(true))
   })
 
   it('hides editing once the resolver rejects the wallet', async () => {
@@ -58,7 +58,7 @@ describe('useCanEditRecords', () => {
     const { result } = renderCanEdit(false)
 
     await waitFor(() => expect(mocks.canWrite).toHaveBeenCalled())
-    expect(result.current).toBe(false)
+    expect(result.current.canEditRecords).toBe(false)
   })
 
   it('hides editing when the probe fails', async () => {
@@ -66,7 +66,15 @@ describe('useCanEditRecords', () => {
     const { result } = renderCanEdit(false)
 
     await waitFor(() => expect(mocks.canWrite).toHaveBeenCalled())
-    expect(result.current).toBe(false)
+    expect(result.current.canEditRecords).toBe(false)
+  })
+
+  it('reports the probe as pending until the resolver answers', async () => {
+    mocks.canWrite.mockResolvedValue(false)
+    const { result } = renderCanEdit(true)
+
+    expect(result.current.isPending).toBe(true)
+    await waitFor(() => expect(result.current.isPending).toBe(false))
   })
 
   it.each([
@@ -75,7 +83,8 @@ describe('useCanEditRecords', () => {
   ])('does not probe while %s', (_, isOwner, enabled) => {
     const { result } = renderCanEdit(isOwner, enabled)
 
-    expect(result.current).toBeFalsy()
+    expect(result.current.canEditRecords).toBe(false)
+    expect(result.current.isPending).toBe(false)
     expect(mocks.canWrite).not.toHaveBeenCalled()
   })
 })

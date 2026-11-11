@@ -1,7 +1,7 @@
 import { useIsFetching, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { match } from 'ts-pattern'
+import { match, P } from 'ts-pattern'
 import { zeroAddress } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -11,6 +11,7 @@ import { useHasSetSubregistryRole } from '@/features/registry/hooks/useHasSetSub
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useNameResourceId'
 import { useSubregistryWriteGuard } from '@/features/registry/hooks/useSubregistryWriteGuard'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { resourceIdForName } from '@/lib/resource/resourceId'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { RegistryPanel } from './RegistryPanel'
@@ -61,15 +62,6 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
 
   if (!parentRegistry || parentRegistry === zeroAddress) return null
 
-  if (!connectedAddress) {
-    return (
-      <ErrorMessage
-        title="Wallet Not Connected"
-        description="Please connect your wallet to deploy or change a registry."
-      />
-    )
-  }
-
   // The name gained a registry while this form was open, so there is nothing
   // left to configure — only something to destroy. The guard's toast carries
   // the explanation; while the refreshed discovery query is on its way to swap
@@ -115,7 +107,8 @@ export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
           </p>
         </AlertDescription>
       </Alert>
-      {match({ hasRole, showForm })
+      {match({ connectedAddress, hasRole, showForm })
+        .with({ connectedAddress: P.nullish }, () => <ConnectWalletAlert />)
         .with({ hasRole: false }, () => (
           <div className="flex flex-col gap-2">
             <Button className="w-full" variant="default" disabled>

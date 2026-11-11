@@ -42,6 +42,7 @@ import type {
   SessionEnableData,
   TransactionRequest,
 } from '../types/transaction.types'
+import { checkPreparedOwnerIntentRoute } from './warp-owner-quote'
 
 /**
  * The ONLY sponsorship value this codebase ever sends.
@@ -474,6 +475,12 @@ export function submitWarpTransaction(
       // Not `sendTransaction`: the SDK's one-shot helper drops `auxiliaryFunds`
       // from the route request, so a fresh HCA funded inside this intent is refused.
       const prepared = await account.prepareTransaction(sdkParams)
+      const ownerRouteError = checkPreparedOwnerIntentRoute({
+        request,
+        account,
+        prepared,
+      })
+      if (ownerRouteError) throw ownerRouteError
       assertWithinSessionRefundCaps(
         request,
         prepared.intentRoute,

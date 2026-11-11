@@ -504,6 +504,10 @@ msgid "Approve USDC"
 msgstr "Approve USDC"
 
 #: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approve USDC for your registration?"
+msgstr "Approve USDC for your registration?"
+
+#: src/components/HcaFundingApprovalDialog.tsx
 msgid "Approve USDC for your renewal?"
 msgstr "Approve USDC for your renewal?"
 
@@ -874,6 +878,10 @@ msgid "Confirm the swap in your wallet, then wait for it to complete"
 msgstr "Confirm the swap in your wallet, then wait for it to complete"
 
 #: src/components/HcaFundingApprovalDialog.tsx
+msgid "Confirm the USDC approval transaction in your wallet. Registration will continue after it confirms."
+msgstr "Confirm the USDC approval transaction in your wallet. Registration will continue after it confirms."
+
+#: src/components/HcaFundingApprovalDialog.tsx
 msgid "Confirm the USDC approval transaction in your wallet. The renewal will continue after it confirms."
 msgstr "Confirm the USDC approval transaction in your wallet. The renewal will continue after it confirms."
 
@@ -1061,6 +1069,11 @@ msgstr "Copy to clipboard"
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Copy wallet address"
 msgstr "Copy wallet address"
+
+#. placeholder {0}: error.message
+#: src/features/migration/pages/MigrationPage.tsx
+msgid "Could not check copy readiness: {0}. Try again."
+msgstr "Could not check copy readiness: {0}. Try again."
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Could not connect Telegram. Please try again and allow the bot to send messages."
@@ -1850,6 +1863,7 @@ msgstr "Loading NFT artwork…"
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
@@ -2801,6 +2815,10 @@ msgstr "Replace & Save"
 msgid "Replace resolver"
 msgstr "Replace resolver"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Replace this name’s resolver?"
+msgstr "Replace this name’s resolver?"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend in {resendWait}s"
 msgstr "Resend in {resendWait}s"
@@ -3238,6 +3256,7 @@ msgstr "Some names are more in-demand than others — the stats below can help y
 msgid "Some names are more in-demand than others."
 msgstr "Some names are more in-demand than others."
 
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/MyNamesList.tsx
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
@@ -3673,6 +3692,10 @@ msgstr "This name is in price cooldown"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To use it as your primary name, we’ll replace it with a resolver your wallet controls."
+msgstr "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To use it as your primary name, we’ll replace it with a resolver your wallet controls."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."
@@ -4113,6 +4136,10 @@ msgstr "Waiting for the registration transaction"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the resolver deployment"
 msgstr "Waiting for the resolver deployment"
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for the USDC approval to confirm. Your registration has not been submitted yet."
+msgstr "Waiting for the USDC approval to confirm. Your registration has not been submitted yet."
 
 #: src/components/HcaFundingApprovalDialog.tsx
 msgid "Waiting for the USDC approval to confirm. Your renewal has not been submitted yet."
@@ -4669,6 +4696,10 @@ msgstr "Your wallet first asks you to sign a payment of the amount shown on {l2C
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
 msgstr "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, sign the registration setup in your wallet. The registration will then continue."
+msgstr "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, sign the registration setup in your wallet. The registration will then continue."
 
 #: src/components/HcaFundingApprovalDialog.tsx
 msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, you can sign the renewal."
