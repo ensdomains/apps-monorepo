@@ -4,6 +4,7 @@ import type { PropsWithChildren } from 'react'
 import type { Address, Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import {
@@ -89,9 +90,10 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
   if (error) {
     return (
       <div className="p-6 flex flex-col gap-4">
-        <div className="text-danger">
-          Error loading transaction: {error.message}
-        </div>
+        <ErrorMessage
+          compact
+          description={`Error loading transaction: ${error.message}`}
+        />
       </div>
     )
   }

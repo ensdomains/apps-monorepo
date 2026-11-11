@@ -90,18 +90,10 @@ export const readLeftoverFunds = async (
   }
 }
 
-/**
- * Gas for the `executeByOwner` withdrawal. Fixed for the same reason as
- * `REVOKE_SESSIONS_GAS_LIMIT`: a wallet in EIP-7702 mode forwards the estimate
- * to the inner call, which then runs out two delegatecalls deep.
- */
-export const WITHDRAW_LEFTOVER_FUNDS_GAS_LIMIT = 250_000n
-
 const send = async (
   wagmiConfig: WagmiConfig,
   owner: Address,
   call: Call,
-  gas?: bigint,
 ): Promise<void> => {
   const hash = await sendTransaction(wagmiConfig, {
     account: owner,
@@ -109,7 +101,6 @@ const send = async (
     to: call.to,
     data: call.data,
     value: call.value,
-    ...(gas === undefined ? {} : { gas }),
   })
   const receipt = await waitForTransactionReceipt(wagmiConfig, {
     hash,
@@ -206,7 +197,6 @@ export const withdrawLeftoverFunds = async (params: {
         }),
       })),
     }),
-    WITHDRAW_LEFTOVER_FUNDS_GAS_LIMIT,
   )
   return { withdrawn: funds }
 }

@@ -96,9 +96,7 @@ function RouteComponent() {
               }
             />
           ))
-          .with({ address: P.nullish }, () => (
-            <ConnectWalletAlert className="mx-auto my-4 max-w-lg" />
-          ))
+          .with({ address: P.nullish }, () => <ConnectWalletAlert />)
           // V1 ownership isn't one address: an unwrapped 2LD splits it between
           // registrant and controller, and `getEnsOwner` reports the latter. The
           // V1 gate re-reads the full shape and decides who may transfer.
