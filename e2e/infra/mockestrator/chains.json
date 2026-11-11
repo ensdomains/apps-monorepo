@@ -12,5 +12,47 @@
         "approvalSlot": 10
       }
     }
+  },
+  "84532": {
+    "tokens": {
+      "ETH": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "decimals": 18
+      },
+      "USDC": {
+        "address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        "decimals": 6,
+        "balanceSlot": 9,
+        "approvalSlot": 10
+      }
+    }
+  },
+  "421614": {
+    "tokens": {
+      "ETH": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "decimals": 18
+      },
+      "USDC": {
+        "address": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+        "decimals": 6,
+        "balanceSlot": 9,
+        "approvalSlot": 10
+      }
+    }
+  },
+  "11155420": {
+    "tokens": {
+      "ETH": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "decimals": 18
+      },
+      "USDC": {
+        "address": "0x5fd84259d66Cd46123540766Be93DFE6D43130D7",
+        "decimals": 6,
+        "balanceSlot": 9,
+        "approvalSlot": 10
+      }
+    }
   }
 }

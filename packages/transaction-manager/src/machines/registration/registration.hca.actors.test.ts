@@ -1,23 +1,35 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: decoded ABI args need flexible typing in tests
 
 import {
+  buildHcaSessionConfig,
+  buildStandaloneAccountConfig,
   computeResolverAddress,
   getDestinationContracts,
   HCA_ADDR_REVERSE_CLEAR_GAS,
   primaryNameGas,
 } from '@ens-apps/smart-account'
+import { RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
+  ContractFunctionRevertedError,
+  createPublicClient,
+  createWalletClient,
+  custom,
   decodeFunctionData,
   encodeAbiParameters,
+  encodeErrorResult,
   encodePacked,
+  hashDomain,
   hashTypedData,
   isAddressEqual,
   keccak256,
   parseAbi,
   parseAbiParameters,
+  parseSignature,
   zeroAddress,
+  zeroHash,
 } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -114,6 +126,209 @@ beforeEach(() => {
   getEip712Domain.mockReset()
 })
 
+const makeRegistrationFundingRun = async () => {
+  const account = privateKeyToAccount(
+    '0x0000000000000000000000000000000000000000000000000000000000000001',
+  )
+  const contracts = getDestinationContracts(mainnet.id)
+  const sdkAccount = await new RhinestoneSDK({
+    auth: { mode: 'apiKey', apiKey: 'test-key' },
+    provider: { type: 'custom', urls: { 1: 'https://rpc.invalid' } },
+  }).createAccount({
+    account: buildStandaloneAccountConfig(1),
+    owners: {
+      type: 'ecdsa',
+      accounts: [account],
+      module: contracts.hcaOwnerAndSessionValidator,
+    },
+  })
+  const prepareOwnerSetup = vi
+    .spyOn(sdkAccount, 'prepareTransaction')
+    .mockImplementation(async (transaction) => ({
+      transaction,
+      intentInput: {},
+      // SDK tuples incorrectly require token claims on a no-funding route.
+      intentRoute: {
+        intentOp: {
+          sponsor: HCA,
+          elements: [
+            {
+              chainId: '1',
+              idsAndAmounts: [],
+              spendTokens: [],
+              mandate: {
+                recipient: HCA,
+                destinationChainId: '1',
+                tokenOut: [],
+                preClaimOps: { vt: zeroHash, ops: [] },
+                destinationOps: {
+                  vt: `0x0201${'00'.repeat(30)}`,
+                  ops: transaction.calls,
+                },
+                qualifier: {
+                  settlementContext: {
+                    settlementLayer: 'INTENT_EXECUTOR',
+                    fundingMethod: 'NO_FUNDING',
+                    using7579: true,
+                    gasRefund: {
+                      token: contracts.usdc,
+                      exchangeRate: 1n,
+                      overhead: (1n << 128n) | 1n,
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      } as never,
+    }))
+  const domain = {
+    name: 'USD Coin',
+    version: '2',
+    chainId: 1,
+    verifyingContract: contracts.usdc,
+  }
+  const message = {
+    owner: account.address,
+    spender: HCA,
+    value: 15_000_000n,
+    nonce: 0n,
+    deadline: 1_900_000_000n,
+  }
+  const types = {
+    Permit: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+      { name: 'value', type: 'uint256' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'deadline', type: 'uint256' },
+    ],
+  } as const
+  const signature = parseSignature(
+    await account.signTypedData({
+      domain,
+      types,
+      primaryType: 'Permit',
+      message,
+    }),
+  )
+  const signedPermit = { ...message, ...signature, v: Number(signature.v) }
+  const balances = new Map([
+    ['allowance', 0n],
+    ['hca', 0n],
+  ])
+  const records = new Map<string, string>()
+  const invalidSignature = new ContractFunctionRevertedError({
+    abi: parseAbi(['error Error(string message)']),
+    data: encodeErrorResult({
+      abi: parseAbi(['error Error(string message)']),
+      errorName: 'Error',
+      args: ['EIP2612: invalid signature'],
+    }),
+    functionName: 'permit',
+  })
+  const transport = custom({ request: async () => undefined })
+  const publicClient = {
+    ...createPublicClient({ chain: mainnet, transport }),
+    getBlockNumber: vi.fn().mockResolvedValue(26_304_672n),
+    getCode: vi
+      .fn()
+      .mockResolvedValue('0xef010069007702764179f14f51cdce752f4f775d74e139'),
+    getBlock: vi.fn().mockResolvedValue({ timestamp: 1_800_000_000n }),
+    simulateContract: vi.fn().mockImplementation(async ({ functionName }) => {
+      if (functionName === 'permit') throw invalidSignature
+      return {}
+    }),
+    estimateContractGas: vi.fn().mockResolvedValue(120_000n),
+    estimateFeesPerGas: vi
+      .fn()
+      .mockResolvedValue({ maxFeePerGas: 3n, maxPriorityFeePerGas: 1n }),
+    waitForTransactionReceipt: vi.fn().mockResolvedValue({ status: 'success' }),
+    readContract: vi.fn().mockImplementation(async ({ functionName, args }) => {
+      if (functionName === 'makeCommitment') return COMMITMENT
+      if (functionName === 'DOMAIN_SEPARATOR')
+        return hashDomain({
+          domain,
+          types: {
+            EIP712Domain: [
+              { name: 'name', type: 'string' },
+              { name: 'version', type: 'string' },
+              { name: 'chainId', type: 'uint256' },
+              { name: 'verifyingContract', type: 'address' },
+            ],
+          },
+        })
+      if (functionName === 'allowance') return balances.get('allowance') ?? 0n
+      if (functionName === 'balanceOf')
+        return isAddressEqual(args[0], HCA)
+          ? (balances.get('hca') ?? 0n)
+          : 50_000_000n
+      return 0n
+    }),
+  }
+  const walletClient = {
+    ...createWalletClient({ account, chain: mainnet, transport }),
+    getAddresses: vi.fn().mockResolvedValue([account.address]),
+    getChainId: vi.fn().mockResolvedValue(1),
+    request: vi.fn().mockImplementation(async ({ params }) => {
+      const call = decodeFunctionData({
+        abi: parseAbi(['function approve(address spender,uint256 amount)']),
+        data: params[0].data,
+      })
+      balances.set('allowance', call.args[1])
+      return `0x${'44'.repeat(32)}`
+    }),
+  }
+  const approvalFallback = {
+    walletClient,
+    targetBalance: 15_000_000n,
+    confirmApproval: vi.fn(() => Promise.resolve(true)),
+    environment: {
+      storage: {
+        getItem: (key: string) => records.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          records.set(key, value)
+        },
+        removeItem: (key: string) => {
+          records.delete(key)
+        },
+      },
+      locks: {
+        request: vi.fn(async (_name, _options, run) =>
+          run({ name: 'test', mode: 'exclusive' }),
+        ),
+      },
+    },
+  }
+  const input = {
+    name: 'myname.eth',
+    wallet: account.address,
+    hca: HCA,
+    duration: 31_536_000n,
+    signer: {
+      type: 'rhinestone',
+      account: sdkAccount,
+      config: { chain: mainnet },
+    } satisfies RhinestoneSigner,
+    publicClient,
+    permit: signedPermit,
+    approvalFallback,
+  }
+  const key = `ens-hca-funding-approval:1:${account.address.toLowerCase()}:${contracts.usdc.toLowerCase()}:${HCA.toLowerCase()}`
+  return {
+    input,
+    balances,
+    records,
+    key,
+    publicClient,
+    walletClient,
+    contracts,
+    approvalFallback,
+    prepareOwnerSetup,
+  }
+}
+
 describe('submitFundingAndCommitActor', () => {
   const input = {
     name: 'myname.eth',
@@ -123,6 +338,266 @@ describe('submitFundingAndCommitActor', () => {
     signer: rhinestoneSigner,
     publicClient: commitClient,
   }
+
+  it.each(['unsupported route', 'RPC failure'])(
+    'refuses %s before requesting a paid approval',
+    async (failure) => {
+      const {
+        input,
+        prepareOwnerSetup,
+        approvalFallback,
+        walletClient,
+        records,
+      } = await makeRegistrationFundingRun()
+      if (failure === 'RPC failure')
+        prepareOwnerSetup.mockRejectedValueOnce(new Error('Quote unavailable'))
+      else prepareOwnerSetup.mockResolvedValueOnce({ intentRoute: {} } as never)
+
+      const result = await submitFundingAndCommitActor(input)
+
+      expect(result.isErr()).toBe(true)
+      expect(approvalFallback.confirmApproval).not.toHaveBeenCalled()
+      expect(walletClient.request).not.toHaveBeenCalled()
+      expect(startTransaction).not.toHaveBeenCalled()
+      expect(records.size).toBe(0)
+    },
+  )
+
+  it.each([0n, 30_000_000n])(
+    'replaces an incompatible permit and allowance %s with an exact grant and owner-signed pull',
+    async (allowance) => {
+      const {
+        input,
+        contracts,
+        walletClient,
+        approvalFallback,
+        records,
+        balances,
+      } = await makeRegistrationFundingRun()
+      balances.set('allowance', allowance)
+      const signer = {
+        ...input.signer,
+        type: 'rhinestone',
+        session: { session: {} },
+      } as RhinestoneSigner
+      const result = await submitFundingAndCommitActor({
+        ...input,
+        signer,
+        sessionEnable,
+      })
+      expect(result._unsafeUnwrap().txId).toBe('tx-1')
+      const calls = submittedRequest().rhinestoneParams.calls
+      expect(calls).toHaveLength(2)
+      expect(
+        decodeFunctionData({ abi: erc20Abi, data: calls[0].data }),
+      ).toEqual({
+        functionName: 'transferFrom',
+        args: [
+          input.wallet,
+          '0xAAaA000000000000000000000000000000000001',
+          15_000_000n,
+        ],
+      })
+      expect(calls[1].to.toLowerCase()).toBe(
+        contracts.ethRegistrar.toLowerCase(),
+      )
+      expect(submittedRequest().rhinestoneParams.auxiliaryFunds).toEqual({
+        1: { [contracts.usdc]: 15_000_000n },
+      })
+      expect(approvalFallback.confirmApproval).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 15_000_000n,
+          spender: HCA,
+          maxGasCost: 360_000n,
+        }),
+      )
+      expect(walletClient.request).toHaveBeenCalledTimes(1)
+      expect(records.size).toBe(0)
+      expect(startTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        { ...signer, session: undefined },
+        expect.objectContaining({ retryCount: 0 }),
+      )
+      expect(
+        submittedRequest().rhinestoneParams.sessionEnableData,
+      ).toBeUndefined()
+      expect(signer.session).toEqual({ session: {} })
+    },
+  )
+
+  it('keeps an already-funded commit on its session without switching an L2 wallet to mainnet', async () => {
+    const { input, walletClient } = await makeRegistrationFundingRun()
+    walletClient.getChainId.mockResolvedValue(8453)
+    expect(
+      (
+        await submitFundingAndCommitActor({
+          ...input,
+          permit: undefined,
+          sessionEnable,
+        })
+      ).isOk(),
+    ).toBe(true)
+    expect(submittedRequest().rhinestoneParams.calls).toHaveLength(1)
+    expect(submittedRequest().rhinestoneParams.sessionEnableData).toBe(
+      sessionEnable.enableData,
+    )
+    expect(walletClient.getChainId).not.toHaveBeenCalled()
+    expect(walletClient.request).not.toHaveBeenCalled()
+  })
+
+  it('retains the original session fee caps independently of the owner setup signer', async () => {
+    const { input, contracts } = await makeRegistrationFundingRun()
+    const config = buildHcaSessionConfig({
+      chainId: 1,
+      sessionKey: SESSION_KEY,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER_WITH_RECORD,
+      refundCaps: {
+        maxRefundExchangeRate: 3_000_000_000n,
+        maxRefundGasOverhead: 2_000_000n,
+        maxRefundAmount: 1_000_000n,
+      },
+    })
+    await submitFundingAndCommitActor({
+      ...input,
+      sessionEnable: {
+        ...sessionEnable,
+        enableData: { ...sessionEnable.enableData, hcaSessionConfig: config },
+      },
+    })
+    expect(submittedRequest().rhinestoneParams.ownerIntentLimits).toEqual({
+      refundToken: contracts.usdc,
+      refundCaps: {
+        maxRefundExchangeRate: 3_000_000_000n,
+        maxRefundGasOverhead: 2_000_000n,
+        maxRefundAmount: 1_000_000n,
+      },
+    })
+  })
+
+  it('keeps a compatible permit in the atomic batch without an approval prompt', async () => {
+    const { input, publicClient, approvalFallback, walletClient } =
+      await makeRegistrationFundingRun()
+    publicClient.simulateContract.mockResolvedValue({})
+    expect((await submitFundingAndCommitActor(input)).isOk()).toBe(true)
+    expect(submittedRequest().rhinestoneParams.calls).toHaveLength(3)
+    expect(approvalFallback.confirmApproval).not.toHaveBeenCalled()
+    expect(walletClient.request).not.toHaveBeenCalled()
+    expect(approvalFallback.environment.locks.request).not.toHaveBeenCalled()
+  })
+
+  it('does not submit registration when the extra approval is declined', async () => {
+    const { input, approvalFallback, walletClient, records } =
+      await makeRegistrationFundingRun()
+    approvalFallback.confirmApproval.mockResolvedValue(false)
+    const result = await submitFundingAndCommitActor(input)
+    expect(result._unsafeUnwrapErr().message).toContain(
+      'registration was not submitted',
+    )
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(walletClient.request).not.toHaveBeenCalled()
+    expect(records.size).toBe(0)
+  })
+
+  it.each(['getBlockNumber', 'simulateContract', 'getCode'] as const)(
+    'keeps the permit path without offering approval when preflight %s fails',
+    async (operation) => {
+      const { input, publicClient, approvalFallback, walletClient } =
+        await makeRegistrationFundingRun()
+      publicClient[operation].mockRejectedValue(new Error('RPC unavailable'))
+      expect(
+        (await submitFundingAndCommitActor(input))._unsafeUnwrap().txId,
+      ).toBe('tx-1')
+      expect(submittedRequest().rhinestoneParams.calls).toHaveLength(3)
+      expect(
+        decodeFunctionData({
+          abi: erc20Abi,
+          data: submittedRequest().rhinestoneParams.calls[0].data,
+        }).functionName,
+      ).toBe('permit')
+      expect(approvalFallback.confirmApproval).not.toHaveBeenCalled()
+      expect(walletClient.request).not.toHaveBeenCalled()
+      expect(approvalFallback.environment.locks.request).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rechecks the connected account after approval consent', async () => {
+    const { input, approvalFallback, walletClient } =
+      await makeRegistrationFundingRun()
+    approvalFallback.confirmApproval.mockImplementation(async () => {
+      walletClient.getAddresses.mockResolvedValue([WALLET])
+      return true
+    })
+    expect((await submitFundingAndCommitActor(input)).isErr()).toBe(true)
+    expect(walletClient.request).not.toHaveBeenCalled()
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('releases an abandoned consent wait without submitting anything', async () => {
+    const { input, approvalFallback, walletClient, records } =
+      await makeRegistrationFundingRun()
+    const controller = new AbortController()
+    approvalFallback.confirmApproval.mockImplementation(
+      () => new Promise(() => {}),
+    )
+    const result = submitFundingAndCommitActor({
+      ...input,
+      signal: controller.signal,
+    })
+    await vi.waitFor(() =>
+      expect(approvalFallback.confirmApproval).toHaveBeenCalledOnce(),
+    )
+    controller.abort()
+    expect((await result).isErr()).toBe(true)
+    expect(walletClient.request).not.toHaveBeenCalled()
+    expect(startTransaction).not.toHaveBeenCalled()
+    expect(records.size).toBe(0)
+  })
+
+  it('keeps a hashless uncertain approval blocked across a fresh registration attempt', async () => {
+    const { input, records, key, walletClient } =
+      await makeRegistrationFundingRun()
+    const reserved = JSON.stringify({ kind: 'reserved', amount: '15000000' })
+    records.set(key, reserved)
+    expect((await submitFundingAndCommitActor(input)).isErr()).toBe(true)
+    expect(records.get(key)).toBe(reserved)
+    expect(walletClient.request).not.toHaveBeenCalled()
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('waits for an earlier submitted approval instead of opening the wallet again', async () => {
+    const { input, balances, records, key, walletClient, publicClient } =
+      await makeRegistrationFundingRun()
+    records.set(
+      key,
+      JSON.stringify({
+        kind: 'submitted',
+        amount: '15000000',
+        hash: `0x${'55'.repeat(32)}`,
+      }),
+    )
+    publicClient.waitForTransactionReceipt.mockImplementation(async () => {
+      balances.set('allowance', 15_000_000n)
+      return { status: 'success' }
+    })
+    expect((await submitFundingAndCommitActor(input)).isOk()).toBe(true)
+    expect(walletClient.request).not.toHaveBeenCalled()
+    expect(submittedRequest().rhinestoneParams.calls).toHaveLength(2)
+    expect(records.size).toBe(0)
+  })
+
+  it('requires a fresh quote when a changed HCA balance would leave part of the grant reusable', async () => {
+    const { input, balances, publicClient } = await makeRegistrationFundingRun()
+    publicClient.waitForTransactionReceipt.mockImplementation(async () => {
+      balances.set('hca', 5_000_000n)
+      return { status: 'success' }
+    })
+    const result = await submitFundingAndCommitActor(input)
+    expect(result._unsafeUnwrapErr().message).toContain(
+      'Review a fresh registration quote',
+    )
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
 
   it('bundles funding and the commit into one user-paid request', async () => {
     const result = await submitFundingAndCommitActor({

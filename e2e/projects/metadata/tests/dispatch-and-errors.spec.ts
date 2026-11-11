@@ -11,10 +11,8 @@
  * production-faithful behavior is a clean 503/404, never a 500 — that is
  * what this sweep actually verifies, not a successful resolve.
  *
- * Also includes one known, filed defect (E2E-005, `test.fail()` — the
- * assertion is correct and currently fails, deliberately; the test still
- * *runs*, so a real fix flips it green instead of the regression rotting
- * unnoticed): `/registry-hierarchy/:name` 500s for every input.
+ * Also guards E2E-005, fixed in the service: `/registry-hierarchy/:name` used
+ * to 500 for every input.
  */
 
 import { expect, test } from '@playwright/test'
@@ -83,8 +81,8 @@ test.describe('MD6 — dispatch, graceful degradation, and webhook auth', () => 
     //     existence check — "unmigrated" + zero owner is exactly what "no v2
     //     record" should say regardless of whether a v1 record exists.
     //
-    // registry-hierarchy excluded entirely — see the dedicated, known-failing
-    // regression test below (E2E-005).
+    // registry-hierarchy excluded entirely — see its dedicated regression
+    // test below (E2E-005).
     const bogus = `md6-never-registered-${Date.now()}.eth`
 
     const avatarRes = await request.get(routes.avatar('sepolia', bogus))
@@ -113,7 +111,6 @@ test.describe('MD6 — dispatch, graceful degradation, and webhook auth', () => 
   test('registry-hierarchy resolves for a registered name instead of 500ing (E2E-005)', {
     tag: ['@scenario:MD6'],
   }, async ({ request }) => {
-    test.fail()
     const before = await takeSnapshot()
     try {
       const accounts = createAccounts()

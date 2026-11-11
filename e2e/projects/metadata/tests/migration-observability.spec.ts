@@ -15,10 +15,8 @@
  * source for `@scenario:` tags and titles, and cannot correlate a templated
  * title against Playwright's own resolved `--list` output.
  *
- * Does NOT check `/registry-hierarchy` — that route 500s unconditionally for
- * every name on every network (a KV TTL-below-minimum bug, unrelated to
- * migration status; see defect E2E-005 and `dispatch-and-errors.spec.ts`,
- * which owns that regression test with `test.fail()`).
+ * Does NOT check `/registry-hierarchy`: it is unrelated to migration status,
+ * and `dispatch-and-errors.spec.ts` owns its regression test (E2E-005).
  */
 
 import type { APIRequestContext } from '@playwright/test'

@@ -30,6 +30,6 @@ EOF
 node scripts/setup-local-r2.mjs || echo "[metadata-service] font seeding incomplete — /rasterize may 500, all other routes unaffected"
 
 # D1 schema — local Miniflare SQLite, wiped fresh on every container start.
-yarn db:migrate:local
+pnpm db:migrate:local
 
-exec yarn wrangler dev --ip 0.0.0.0 --port 8787
+exec pnpm exec wrangler dev --ip 0.0.0.0 --port 8787
