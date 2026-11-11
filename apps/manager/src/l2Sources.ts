@@ -15,6 +15,7 @@ import {
 } from 'viem/chains'
 import { failover } from '@/lib/rpc'
 import { drpcRpcUrl } from './drpc'
+import { L2_USDC } from './l2Usdc'
 
 /** An L2 the user can bridge USDC from to pay on the app chain. */
 export type L2Source = Readonly<{
@@ -41,7 +42,7 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
   sepolia: [
     {
       chain: baseSepolia,
-      usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+      usdc: L2_USDC[baseSepolia.id],
       rpcUrls: [
         drpcRpcUrl('base-sepolia'),
         'https://base-sepolia-rpc.publicnode.com',
@@ -50,7 +51,7 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
     },
     {
       chain: arbitrumSepolia,
-      usdc: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+      usdc: L2_USDC[arbitrumSepolia.id],
       rpcUrls: [
         drpcRpcUrl('arbitrum-sepolia'),
         'https://arbitrum-sepolia-rpc.publicnode.com',
@@ -59,7 +60,7 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
     },
     {
       chain: optimismSepolia,
-      usdc: '0x5fd84259d66Cd46123540766Be93DFE6D43130D7',
+      usdc: L2_USDC[optimismSepolia.id],
       rpcUrls: [
         drpcRpcUrl('optimism-sepolia'),
         'https://optimism-sepolia-rpc.publicnode.com',
@@ -70,7 +71,7 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
   mainnet: [
     {
       chain: base,
-      usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      usdc: L2_USDC[base.id],
       rpcUrls: [
         drpcRpcUrl('base'),
         'https://base-rpc.publicnode.com',
@@ -79,7 +80,7 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
     },
     {
       chain: arbitrum,
-      usdc: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      usdc: L2_USDC[arbitrum.id],
       rpcUrls: [
         drpcRpcUrl('arbitrum'),
         'https://arbitrum-one-rpc.publicnode.com',
@@ -88,7 +89,7 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
     },
     {
       chain: optimism,
-      usdc: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+      usdc: L2_USDC[optimism.id],
       rpcUrls: [
         drpcRpcUrl('optimism'),
         'https://optimism-rpc.publicnode.com',

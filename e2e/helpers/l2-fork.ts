@@ -18,6 +18,7 @@ import {
   pad,
 } from 'viem'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
+import { L2_USDC } from '../../apps/manager/src/l2Usdc.ts'
 
 // FiatToken's `balances` mapping, as on every Circle USDC (checked on each fork).
 const USDC_BALANCE_SLOT = 9n
@@ -25,7 +26,7 @@ const USDC_BALANCE_SLOT = 9n
 const defineL2Fork = <const Key extends string>(
   key: Key,
   chain: Chain,
-  /** Circle's USDC on this L2, as in apps/manager/src/l2Sources.ts. */
+  /** Circle's USDC on this L2: the manager's own table. */
   usdc: Address,
   rpcEnvVar: string,
   defaultRpcUrl: string,
@@ -56,21 +57,21 @@ export const L2_FORKS = [
   defineL2Fork(
     'base',
     baseSepolia,
-    '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    L2_USDC[baseSepolia.id],
     'ANVIL_BASE_RPC_URL',
     'http://127.0.0.1:8547',
   ),
   defineL2Fork(
     'arbitrum',
     arbitrumSepolia,
-    '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d',
+    L2_USDC[arbitrumSepolia.id],
     'ANVIL_ARB_RPC_URL',
     'http://127.0.0.1:8549',
   ),
   defineL2Fork(
     'optimism',
     optimismSepolia,
-    '0x5fd84259d66Cd46123540766Be93DFE6D43130D7',
+    L2_USDC[optimismSepolia.id],
     'ANVIL_OP_RPC_URL',
     'http://127.0.0.1:8550',
   ),
