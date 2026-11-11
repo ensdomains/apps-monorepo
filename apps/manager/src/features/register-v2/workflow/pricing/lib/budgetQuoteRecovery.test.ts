@@ -54,7 +54,13 @@ describe('getBudgetQuoteRecovery', () => {
 
 describe('getCheckoutReceiptTotalRaw', () => {
   it.each([
-    ['a refusal uses the name price', true, 1_400_000n, 900_000n, 1_400_000n],
+    [
+      'a refusal keeps the page total, credit applied',
+      true,
+      1_400_000n,
+      900_000n,
+      900_000n,
+    ],
     [
       'a refused first quote fills the missing total',
       true,
