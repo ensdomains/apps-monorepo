@@ -1458,7 +1458,7 @@ msgstr ""
 msgid "Expires"
 msgstr "Går ut"
 
-#: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NameRow.tsx
 msgid "Expires in {days} days"
 msgstr ""
 

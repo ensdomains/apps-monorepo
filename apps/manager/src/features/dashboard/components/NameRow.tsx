@@ -4,10 +4,11 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
-import { Check, Heart, History } from 'lucide-react'
+import { Check, CircleAlert, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import {
@@ -40,7 +41,6 @@ import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
   Ensv1Pill,
-  ExpiringPill,
   type NameRole,
   RolePill,
 } from './DashboardPills'
@@ -75,12 +75,6 @@ interface NameRowProps {
   readonly onToggleSelect?: () => void
   readonly renewalProtocol?: RenewalProtocol
 }
-
-const SelectedCheck = () => (
-  <span className="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-ens-lapis-core">
-    <Check className="size-3.5 text-ens-quartz-0" strokeWidth={3} />
-  </span>
-)
 
 const ctaVariants = cva(
   'flex items-center gap-1.5 font-normal font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
@@ -255,17 +249,16 @@ const NameRowTop = ({
   status,
   nameRoles,
   isInGrace,
-  expiringInDays,
   verified,
   primaryNameAction,
 }: Pick<
   NameRowProps,
-  'status' | 'isInGrace' | 'expiringInDays' | 'verified' | 'primaryNameAction'
+  'status' | 'isInGrace' | 'verified' | 'primaryNameAction'
 > & {
   readonly nameRoles: readonly NameRole[]
 }) => {
   const hasTopRow = Boolean(
-    isInGrace || status || nameRoles.length > 0 || expiringInDays || verified,
+    isInGrace || status || nameRoles.length > 0 || verified,
   )
   if (!hasTopRow) return null
 
@@ -285,15 +278,7 @@ const NameRowTop = ({
           <RolePill key={role} role={role} />
         ))}
       </div>
-      {isInGrace ? (
-        <GracePeriodBadge />
-      ) : expiringInDays !== null &&
-        expiringInDays !== undefined &&
-        expiringInDays > 0 ? (
-        <ExpiringPill days={expiringInDays} />
-      ) : (
-        <span />
-      )}
+      {isInGrace ? <GracePeriodBadge /> : <span />}
     </div>
   )
 }
@@ -447,37 +432,89 @@ const NameOptionsMenu = ({
   )
 }
 
-const ExpiryDetails = ({
+type ExpiryDisplay =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'nonExpiring' }
+  | { readonly kind: 'date'; readonly date: string }
+  | {
+      readonly kind: 'expiringSoon'
+      readonly days: number
+      readonly date: string | null
+    }
+
+const getExpiryDisplay = ({
   expiryLabel,
+  expiringInDays,
+  isInGrace,
+}: {
+  readonly expiryLabel: string | null
+  readonly expiringInDays: number | null
+  readonly isInGrace: boolean
+}): ExpiryDisplay => {
+  if (expiryLabel === NON_EXPIRING_DATE_LABEL) return { kind: 'nonExpiring' }
+  if (!isInGrace && expiringInDays !== null && expiringInDays > 0) {
+    return { kind: 'expiringSoon', days: expiringInDays, date: expiryLabel }
+  }
+  if (expiryLabel) return { kind: 'date', date: expiryLabel }
+  return { kind: 'none' }
+}
+
+const ExpiryText = ({ display }: { readonly display: ExpiryDisplay }) =>
+  match(display)
+    .with({ kind: 'none' }, () => <span />)
+    .with({ kind: 'nonExpiring' }, () => (
+      <div className="flex items-center gap-2">
+        <History className="size-4 shrink-0 text-ens-quartz-360" />
+        <span className="font-sans text-ens-quartz-380 text-sm">
+          <Trans>Does not expire</Trans>
+        </span>
+      </div>
+    ))
+    .with({ kind: 'date' }, ({ date }) => (
+      <div className="flex items-center gap-2">
+        <History className="size-4 shrink-0 text-ens-quartz-360" />
+        <span className="font-sans text-ens-quartz-380 text-sm">
+          <Trans>Expires on</Trans>
+        </span>
+        <span className="font-sans text-ens-quartz-550 text-sm">{date}</span>
+      </div>
+    ))
+    .with({ kind: 'expiringSoon' }, ({ days, date }) => (
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-sans text-ens-citrine-450 text-sm">
+        <CircleAlert
+          className="size-4 shrink-0 text-ens-citrine-500"
+          strokeWidth={2}
+        />
+        <span>
+          <Trans>Expires in {days} days</Trans>
+        </span>
+        {date ? (
+          <>
+            <span aria-hidden="true" className="hidden md:inline">
+              ·
+            </span>
+            <span className="basis-full ps-6 md:basis-auto md:ps-0">
+              {date}
+            </span>
+          </>
+        ) : null}
+      </div>
+    ))
+    .exhaustive()
+
+const ExpiryDetails = ({
+  display,
   cta,
   label,
   renewalProtocol,
-}: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label' | 'renewalProtocol'>) => {
-  if (!expiryLabel && !cta) return null
-
-  const isNonExpiring = expiryLabel === NON_EXPIRING_DATE_LABEL
+}: Pick<NameRowProps, 'cta' | 'label' | 'renewalProtocol'> & {
+  readonly display: ExpiryDisplay
+}) => {
+  if (display.kind === 'none' && !cta) return null
 
   return (
     <div className="flex items-center justify-between gap-3">
-      {expiryLabel ? (
-        <div className="flex items-center gap-2">
-          <History className="size-4 shrink-0 text-ens-quartz-360" />
-          <span className="font-sans text-ens-quartz-380 text-sm">
-            {isNonExpiring ? (
-              <Trans>Does not expire</Trans>
-            ) : (
-              <Trans>Expires on</Trans>
-            )}
-          </span>
-          {!isNonExpiring && (
-            <span className="font-sans text-ens-quartz-550 text-sm">
-              {expiryLabel}
-            </span>
-          )}
-        </div>
-      ) : (
-        <span />
-      )}
+      <ExpiryText display={display} />
       {cta && (
         <RowCta
           cta={cta}
@@ -522,7 +559,6 @@ export const NameRow = ({
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
       <NameRowTop
-        expiringInDays={expiringInDays}
         isInGrace={isInGrace}
         nameRoles={resolvedNameRoles}
         primaryNameAction={primaryNameAction}
@@ -549,7 +585,6 @@ export const NameRow = ({
             themeColor={resolvedThemeColor}
           />
           <NamePill isSelected={isSelected} label={label} />
-          {isSelected ? <SelectedCheck /> : null}
         </div>
 
         <NameOptionsMenu
@@ -562,7 +597,7 @@ export const NameRow = ({
 
       <ExpiryDetails
         cta={cta}
-        expiryLabel={expiryLabel}
+        display={getExpiryDisplay({ expiryLabel, expiringInDays, isInGrace })}
         label={label}
         renewalProtocol={renewalProtocol}
       />

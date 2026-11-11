@@ -1453,7 +1453,7 @@ msgstr "Existing balance"
 msgid "Expires"
 msgstr "Expires"
 
-#: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NameRow.tsx
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 

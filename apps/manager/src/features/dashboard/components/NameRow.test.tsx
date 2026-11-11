@@ -88,6 +88,48 @@ describe('NameRow', () => {
     expect(queryByText('Expires on')).not.toBeInTheDocument()
   })
 
+  it('marks a selected name with a single check', () => {
+    const { container, getByRole } = render(
+      <NameRow isSelected label="thanksv1rtl.eth" selectable />,
+    )
+
+    expect(
+      getByRole('button', { name: 'Deselect thanksv1rtl.eth' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelectorAll('.lucide-check')).toHaveLength(1)
+  })
+
+  it('states the expiry once, with the warning and the date, when the name expires soon', () => {
+    const { container, getAllByText, getByText, queryByText } = render(
+      <NameRow
+        expiringInDays={18}
+        expiryLabel="November 24, 2026"
+        label="thanksv1rtl.eth"
+      />,
+    )
+
+    expect(getAllByText(/Expires/)).toHaveLength(1)
+    expect(getByText('Expires in 18 days')).toBeInTheDocument()
+    expect(getByText('November 24, 2026')).toBeInTheDocument()
+    expect(queryByText('Expires on')).not.toBeInTheDocument()
+    expect(container.firstElementChild?.childElementCount).toBe(2)
+  })
+
+  it('keeps the grace period badge instead of the expiry warning for a name in grace', () => {
+    const { getByText, queryByText } = render(
+      <NameRow
+        expiringInDays={18}
+        expiryLabel="November 24, 2026"
+        isInGrace
+        label="thanksv1rtl.eth"
+      />,
+    )
+
+    expect(getByText('Grace period')).toBeInTheDocument()
+    expect(getByText('Expires on')).toBeInTheDocument()
+    expect(queryByText('Expires in 18 days')).not.toBeInTheDocument()
+  })
+
   it('does not render the renew menu item when the name cannot be renewed', () => {
     const { queryByText } = render(
       <NameRow canRenew={false} label="pokemon.fgeorgescu.eth" />,
