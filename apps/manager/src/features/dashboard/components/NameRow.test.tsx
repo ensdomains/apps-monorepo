@@ -88,16 +88,27 @@ describe('NameRow', () => {
     expect(queryByText('Expires on')).not.toBeInTheDocument()
   })
 
-  it('marks a selected name with a single check', () => {
-    const { container, getByRole } = render(
-      <NameRow isSelected label="thanksv1rtl.eth" selectable />,
-    )
+  it.each([
+    ['loaded', false],
+    ['loading', true],
+  ])(
+    'marks a selected name with a single check while its avatar is %s',
+    (_, avatarPending) => {
+      const { container, getByRole } = render(
+        <NameRow
+          avatarPending={avatarPending}
+          isSelected
+          label="thanksv1rtl.eth"
+          selectable
+        />,
+      )
 
-    expect(
-      getByRole('button', { name: 'Deselect thanksv1rtl.eth' }),
-    ).toHaveAttribute('aria-pressed', 'true')
-    expect(container.querySelectorAll('.lucide-check')).toHaveLength(1)
-  })
+      expect(
+        getByRole('button', { name: 'Deselect thanksv1rtl.eth' }),
+      ).toHaveAttribute('aria-pressed', 'true')
+      expect(container.querySelectorAll('.lucide-check')).toHaveLength(1)
+    },
+  )
 
   it('states the expiry once, with the warning and the date, when the name expires soon', () => {
     const { container, getAllByText, getByText, queryByText } = render(

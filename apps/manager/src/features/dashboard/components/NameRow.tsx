@@ -311,7 +311,7 @@ const NameAvatar = ({
   const { t } = useLingui()
   const avatar = useQuery(imageRecordQuery(avatarRecord))
 
-  if (isPending) {
+  if (isPending && !selectable) {
     return (
       <div
         aria-hidden="true"
@@ -322,20 +322,27 @@ const NameAvatar = ({
 
   const inner = (
     <>
-      <ImageFallback.Root className="contents">
-        <ImageFallback.Image
-          alt={t`${label} avatar`}
-          className="size-full object-cover"
-          src={avatar.data ?? undefined}
+      {isPending ? (
+        <div
+          aria-hidden="true"
+          className="size-full animate-pulse rounded-sm bg-gray-200"
         />
-        <ImageFallback.Fallback>
-          <PatternAvatar
-            className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
-            color={themeColor}
-            name={label}
+      ) : (
+        <ImageFallback.Root className="contents">
+          <ImageFallback.Image
+            alt={t`${label} avatar`}
+            className="size-full object-cover"
+            src={avatar.data ?? undefined}
           />
-        </ImageFallback.Fallback>
-      </ImageFallback.Root>
+          <ImageFallback.Fallback>
+            <PatternAvatar
+              className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+              color={themeColor}
+              name={label}
+            />
+          </ImageFallback.Fallback>
+        </ImageFallback.Root>
+      )}
       {selected && (
         <div className="absolute inset-0 flex items-center justify-center rounded-sm bg-ens-lapis-500/60">
           <Check className="size-5 text-ens-quartz-0" strokeWidth={3} />
