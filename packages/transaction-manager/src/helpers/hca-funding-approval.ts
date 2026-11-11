@@ -31,9 +31,9 @@ export class HcaFundingApprovalError extends TaggedError(
 }
 
 export class HcaFundingApprovalDeclinedError extends Error {
-  constructor() {
+  constructor(operation: 'renewal' | 'registration' = 'renewal') {
     super(
-      'The USDC approval transaction was cancelled. The renewal was not submitted.',
+      `The USDC approval transaction was cancelled. The ${operation} was not submitted.`,
     )
     this.name = 'HcaFundingApprovalDeclinedError'
   }
@@ -116,21 +116,34 @@ type ApprovalRecovery =
   | { readonly kind: 'blocked'; readonly reservedAmount: bigint }
   | { readonly kind: 'wait'; readonly hash: Hash; readonly amount: bigint }
 
+type AllowanceMode = 'at-least' | 'exact'
+
+const hasFundingAllowance = (
+  allowance: bigint,
+  amount: bigint,
+  mode: AllowanceMode = 'at-least',
+) => (mode === 'exact' ? allowance === amount : allowance >= amount)
+
 /** Both possible allowance values must cover the pull; keep uncertain reservations durable. */
 export const getHcaApprovalRecovery = (
   pending: PendingApproval | null,
   allowance: bigint,
   required: bigint,
+  mode: AllowanceMode = 'at-least',
 ): ApprovalRecovery => {
   if (pending?.kind === 'reserved') {
     const reservedAmount = BigInt(pending.amount)
-    return allowance >= required && reservedAmount >= required
+    return mode !== 'exact' &&
+      allowance >= required &&
+      reservedAmount >= required
       ? { kind: 'ready' }
       : { kind: 'blocked', reservedAmount }
   }
   if (pending?.kind === 'submitted')
     return { kind: 'wait', hash: pending.hash, amount: BigInt(pending.amount) }
-  return { kind: allowance >= required ? 'ready' : 'approve' }
+  return {
+    kind: hasFundingAllowance(allowance, required, mode) ? 'ready' : 'approve',
+  }
 }
 
 export const validateHcaFundingBounds = (
@@ -169,11 +182,12 @@ export const assertHcaFundingWallet = ResultFn(async function* (input: {
   readonly owner: Address
   readonly chainId: number
   readonly signal?: AbortSignal
+  readonly operation?: 'renewal' | 'registration'
 }) {
   if (input.signal?.aborted)
     return err(
       approvalError(
-        'The renewal screen was closed. Start a new attempt to continue.',
+        `The ${input.operation ?? 'renewal'} screen was closed. Start a new attempt to continue.`,
       ),
     )
   const [addresses, chainId] = yield* boundary(
@@ -189,6 +203,7 @@ export const assertHcaFundingWallet = ResultFn(async function* (input: {
     chainId: input.chainId,
     walletChainId: chainId,
     publicChainId: input.publicClient.chain?.id,
+    operation: input.operation,
   })
 })
 
@@ -266,6 +281,9 @@ export const isDefiniteHcaApprovalRefusal = (error: unknown): boolean => {
 }
 
 export interface ApproveHcaFundingParams extends HcaFundingApprovalCapability {
+  /** An owner-funded registration consumes its whole grant once; renewals retain their default. */
+  readonly allowanceMode?: AllowanceMode
+  readonly operation?: 'renewal' | 'registration'
   readonly publicClient: PublicClient
   readonly walletClient: WalletClient
   readonly chainId: number
@@ -309,7 +327,12 @@ const runApproval = ResultFn(async function* (
       args: [owner, spender],
     }),
   )
-  const recovery = getHcaApprovalRecovery(pending, allowance, amount)
+  const recovery = getHcaApprovalRecovery(
+    pending,
+    allowance,
+    amount,
+    input.allowanceMode,
+  )
   if (recovery.kind === 'blocked') {
     const restored = yield* requestApprovalRecovery(
       input,
@@ -356,7 +379,7 @@ const runApproval = ResultFn(async function* (
   if (receipt.status !== 'success')
     return err(
       approvalError(
-        'The USDC approval reverted. The renewal was not submitted.',
+        `The USDC approval reverted. The ${input.operation ?? 'renewal'} was not submitted.`,
       ),
     )
   yield* assertHcaFundingWallet({
@@ -365,6 +388,7 @@ const runApproval = ResultFn(async function* (
     owner,
     chainId,
     ...(signal ? { signal } : {}),
+    operation: input.operation,
   })
   if (input.existingOnly) return ok({ kind: 'settled' as const })
   const settledAllowance = yield* boundary(
@@ -375,11 +399,11 @@ const runApproval = ResultFn(async function* (
       args: [owner, spender],
     }),
   )
-  return settledAllowance >= amount
+  return hasFundingAllowance(settledAllowance, amount, input.allowanceMode)
     ? ok({ kind: 'settled' as const })
     : err(
         approvalError(
-          'The settled USDC allowance does not cover this renewal. Review a fresh attempt.',
+          `The settled USDC allowance does not cover this ${input.operation ?? 'renewal'}. Review a fresh attempt.`,
         ),
       )
 })
@@ -427,7 +451,7 @@ const requestApprovalRecovery = ResultFn(async function* (
   if (!confirmed)
     return err(
       approvalError(
-        'The earlier approval was not cleared. Your renewal was not submitted.',
+        `The earlier approval was not cleared. Your ${input.operation ?? 'renewal'} was not submitted.`,
       ),
     )
   const allowance = yield* boundary(
@@ -453,7 +477,12 @@ const requestApprovalRecovery = ResultFn(async function* (
         ),
       )
     if (
-      getHcaApprovalRecovery(pending, allowance, input.amount).kind === 'ready'
+      getHcaApprovalRecovery(
+        pending,
+        allowance,
+        input.amount,
+        input.allowanceMode,
+      ).kind === 'ready'
     )
       return ok({ kind: 'covered' as const, maxAmount: reservedAmount })
     return clearPending(environment.storage, key)
@@ -462,7 +491,7 @@ const requestApprovalRecovery = ResultFn(async function* (
         if (remaining)
           return err(
             approvalError(
-              'Could not clear the earlier approval. Your renewal was not submitted.',
+              `Could not clear the earlier approval. Your ${input.operation ?? 'renewal'} was not submitted.`,
             ),
           )
         // A cleared preflight returns for a fresh quote; it never silently opens the wallet.
@@ -520,7 +549,7 @@ const requestApproval = ResultFn(async function* (
     Promise.resolve(input.confirmApproval(prompt)),
   )
   if (input.signal?.aborted) return err(approvalError(input.signal.reason))
-  if (!consent) return err(new HcaFundingApprovalDeclinedError())
+  if (!consent) return err(new HcaFundingApprovalDeclinedError(input.operation))
   yield* assertHcaFundingWallet(input)
   // An approval from another operation may have landed during the consent prompt.
   const allowance = yield* boundary(
@@ -531,7 +560,7 @@ const requestApproval = ResultFn(async function* (
       args: [input.owner, input.spender],
     }),
   )
-  if (allowance >= input.amount)
+  if (hasFundingAllowance(allowance, input.amount, input.allowanceMode))
     return err(
       approvalError(
         'The allowance changed during approval. Start a new attempt to use it.',
@@ -782,6 +811,7 @@ export const validateHcaFundingWallet = (input: {
   readonly chainId: number
   readonly walletChainId: number
   readonly publicChainId: number | undefined
+  readonly operation?: 'renewal' | 'registration'
 }): Result<void, HcaFundingApprovalError> =>
   input.connectedAddress &&
   isAddressEqual(input.connectedAddress, input.owner) &&
@@ -790,6 +820,6 @@ export const validateHcaFundingWallet = (input: {
     ? ok(undefined)
     : err(
         approvalError(
-          'The connected wallet or network changed. Start a new renewal attempt.',
+          `The connected wallet or network changed. Start a new ${input.operation ?? 'renewal'} attempt.`,
         ),
       )

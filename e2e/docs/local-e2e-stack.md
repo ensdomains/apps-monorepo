@@ -56,6 +56,7 @@ online pass of the same suites (results below)._
 | `bigname-rpc` | (internal 8547) | routes the runner's reads: pre-fork blocks to the public RPC (cached), the rest to Anvil |
 | `bigname-postgres` | 5661 | bigname's database |
 | `mockestrator` | 3007 | stands in for Rhinestone's orchestrator (smart-account intents) |
+| `anvil-base`, `anvil-arb`, `anvil-op` | 8547, 8549, 8550 | opt-in (`--profile l2`) Base, Arbitrum and OP Sepolia forks, the L2s a registration can be paid from |
 | `alto`, `paymaster` | 4337, 3002 | bundler and paymaster for the HCA path |
 | `panoptes-*`, `v1-subgraph` | 5655, 5656 | the portal's indexers |
 | `anvil-mainnet` | 8546 | mainnet fork, used only by the metadata service |
@@ -63,6 +64,35 @@ online pass of the same suites (results below)._
 
 Start everything with `bash e2e/infra/scripts/start-local-env.sh`; stop with
 `--down`.
+
+### The mockestrator follows the app's SDK
+
+The mockestrator image is the ENS fork (`ensdomains/mockestrator`). It serves
+the orchestrator API version that the app's `@rhinestone/sdk` speaks: `2026-01.alps`
+for SDK 1.x. A client on any other version gets a 400 that names the version
+it expected. Upstream `rhinestonewtf/mockestrator` moved to `2026-04.blanc`
+(SDK 2.x), so bumping the SDK means moving the fork in the same change. The
+fork's README lists the ENS patches to carry over. To try a mockestrator change
+before it is published, set `MOCKESTRATOR_IMAGE=<local tag>`.
+
+### Paying from an L2
+
+The L2 forks are opt-in, so an outage of a public L2 RPC never fails the suite:
+
+```bash
+docker compose -f e2e/infra/docker-compose.yml --profile l2 up -d anvil-base anvil-arb anvil-op mockestrator
+# manager, reading the L2s from the forks
+VITE_L2_RPC_URLS=84532=http://127.0.0.1:8547,421614=http://127.0.0.1:8549,11155420=http://127.0.0.1:8550 pnpm --filter manager dev
+# specs: all L2s, or a subset by key (base, arbitrum, optimism)
+E2E_L2=true pnpm --filter @ens-apps/e2e exec playwright test -c projects/manager/playwright.config.ts registration-l2
+```
+
+Upstreams can be overridden with `BASE_SEPOLIA_FORK_URL`, `ARBITRUM_SEPOLIA_FORK_URL`
+and `OPTIMISM_SEPOLIA_FORK_URL`. The public defaults prune old state. With Arbitrum's
+sub-second blocks, the fork block falls out of publicnode's window within minutes,
+and `anvil-arb` then exits 133 ("historical state … is not available"). Give
+Arbitrum an archive upstream such as drpc. The specs' RPCs can be overridden with `ANVIL_BASE_RPC_URL`,
+`ANVIL_ARB_RPC_URL` and `ANVIL_OP_RPC_URL`.
 
 ## How it was built (what is non-standard)
 
