@@ -90,6 +90,7 @@ export const batches: Batch[] = [
     id: 'B6',
     title:
       'Metadata service: nightly job + the tests that pass on the service today (B6a)',
+    pr: 1779,
   },
   {
     id: 'B6b',
