@@ -18,6 +18,7 @@ import { sepolia } from 'viem/chains'
 import { testClient } from '../helpers/anvil-client.js'
 import { waitForBignameName } from '../helpers/bigname-sync.js'
 import { type CcipGateway, startCcipGateway } from '../helpers/ccip-gateway.js'
+import { L2_FORKS } from '../helpers/l2-fork.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
@@ -285,7 +286,9 @@ export const test = base.extend<ManagerFixtures>({
     const wallet = await injectHeadlessWeb3Provider({
       page,
       privateKeys: accounts.getAllPrivateKeys(),
-      chains: [localSepolia],
+      // The opt-in L2 forks a registration can be paid from (`--profile l2`);
+      // the wallet only touches one when a spec pays from it.
+      chains: [localSepolia, ...L2_FORKS.map((fork) => fork.chain)],
       permitted: [...PERMITTED_SIGN_KINDS],
     })
     await use(wallet)

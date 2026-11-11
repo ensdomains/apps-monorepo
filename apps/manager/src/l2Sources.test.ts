@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { type DrpcNetwork, drpcRpcUrl } from './drpc'
-import { getL2Sources } from './l2Sources'
+import { getL2Sources, parseL2RpcOverrides } from './l2Sources'
 
 /**
  * The L2s a build reads balances on, by network.
@@ -78,6 +78,27 @@ describe('getL2Sources', () => {
       }
     })
   }
+
+  it('reads an overridden L2 only from its override, leaving the others alone', () => {
+    const sources = getL2Sources(
+      'sepolia',
+      parseL2RpcOverrides('84532=http://127.0.0.1:8547'),
+    )
+    const rpcUrlsById = Object.fromEntries(
+      sources.map((source) => [source.chain.id, source.rpcUrls]),
+    )
+    expect(rpcUrlsById[84532]).toEqual(['http://127.0.0.1:8547'])
+    expect(rpcUrlsById[421614]?.[0]).toBe(drpcRpcUrl('arbitrum-sepolia'))
+  })
+
+  it.each([
+    '84532',
+    '=http://127.0.0.1:8547',
+    'base=http://127.0.0.1:8547',
+    '84532=',
+  ])('refuses the malformed override %j', (value) => {
+    expect(() => parseL2RpcOverrides(value)).toThrow('VITE_L2_RPC_URLS')
+  })
 
   it('gives every source a public fallback when drpc refuses the chain', () => {
     for (const network of ['mainnet', 'sepolia'] as const) {

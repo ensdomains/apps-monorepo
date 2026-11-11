@@ -98,11 +98,48 @@ const L2_SOURCES: Readonly<Record<EnsNetwork, readonly L2SourceRpcs[]>> = {
   ],
 }
 
-export const getL2Sources = (network: EnsNetwork): readonly L2Source[] =>
-  L2_SOURCES[network].map((source) => ({
-    ...source,
-    client: createPublicClient({
-      chain: source.chain,
-      transport: failover(source.rpcUrls),
-    }),
-  }))
+/**
+ * `rpcOverrides` replaces a source's whole RPC list by chain id, so a build can
+ * read an L2 from a local fork (the e2e stack) without touching the defaults.
+ */
+export const getL2Sources = (
+  network: EnsNetwork,
+  rpcOverrides: Readonly<Record<number, string>> = {},
+): readonly L2Source[] =>
+  L2_SOURCES[network].map((source) => {
+    const override = rpcOverrides[source.chain.id]
+    const rpcUrls = override ? [override] : source.rpcUrls
+    return {
+      ...source,
+      rpcUrls,
+      client: createPublicClient({
+        chain: source.chain,
+        transport: failover(rpcUrls),
+      }),
+    }
+  })
+
+/**
+ * Per-L2 RPC overrides, as comma-separated `chainId=url` pairs (e2e points
+ * Base Sepolia at a local fork with `84532=http://127.0.0.1:8547`).
+ */
+export const parseL2RpcOverrides = (
+  value: string | undefined,
+): Record<number, string> =>
+  Object.fromEntries(
+    (value ?? '')
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+      .map((pair) => {
+        const separator = pair.indexOf('=')
+        const chainId = Number(pair.slice(0, separator))
+        const url = pair.slice(separator + 1).trim()
+        if (separator < 1 || !Number.isInteger(chainId) || !url) {
+          throw new Error(
+            `VITE_L2_RPC_URLS: expected chainId=url, got "${pair}"`,
+          )
+        }
+        return [chainId, url]
+      }),
+  )
