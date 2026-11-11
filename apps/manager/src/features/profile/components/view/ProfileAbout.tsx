@@ -97,19 +97,31 @@ const ProfileDescription = ({
 
 const AboutMetaItem = ({
   icon,
+  shouldWrap = false,
   value,
 }: {
   readonly icon: React.ReactNode
+  readonly shouldWrap?: boolean
   readonly value: string | undefined
 }) => {
   if (!value) return null
 
   return (
-    <div className="flex min-w-0 items-center gap-1 text-ens-quartz-700">
+    <div
+      className={cn(
+        'flex min-w-0 gap-1 text-ens-quartz-700',
+        shouldWrap ? 'items-start' : 'items-center',
+      )}
+    >
       <span className="flex size-5 shrink-0 items-center justify-center text-ens-quartz-500 leading-none">
         {icon}
       </span>
-      <span className="min-w-0 truncate font-sans text-[13px] leading-none tracking-[0.2px]">
+      <span
+        className={cn(
+          'min-w-0 font-sans text-[13px] tracking-[0.2px]',
+          shouldWrap ? 'leading-5' : 'truncate leading-none',
+        )}
+      >
         {value}
       </span>
     </div>
@@ -158,7 +170,7 @@ export const ProfileAbout = ({
             'grid w-full min-w-0',
             primaryName
               ? 'gap-3'
-              : 'gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:justify-between xl:gap-8',
+              : 'gap-8 xl:grid-cols-[minmax(0,1fr)_fit-content(40%)] xl:items-start xl:justify-between xl:gap-8',
           )}
         >
           <div className="min-w-0">
@@ -253,6 +265,7 @@ export const ProfileAbout = ({
                     symbol="distance"
                   />
                 }
+                shouldWrap
                 value={location}
               />
             </div>
