@@ -1,7 +1,6 @@
 import { HcaBudgetUnquotedError } from '@ens-apps/smart-account'
 import { describe, expect, it } from 'vitest'
 import {
-  getBudgetQuoteFailureCopy,
   getBudgetQuoteRecovery,
   getCheckoutReceiptTotalRaw,
 } from './budgetQuoteRecovery'
@@ -19,120 +18,51 @@ const breakdown = {
   ],
 }
 
-describe('getBudgetQuoteRecovery', () => {
-  it('returns a gas-coverage recovery with the fallback estimate', () => {
-    const recovery = getBudgetQuoteRecovery(
-      new HcaBudgetUnquotedError(breakdown),
-    )
+const GENERIC = { kind: 'generic', registrationPriceRaw: null }
 
-    expect(recovery.kind).toBe('gas-coverage')
-    expect(recovery.estimatedFunding).toEqual({
-      registration: 1.4,
-      networkFee: 10,
-      total: 11.4,
-      walletDebit: 11.4,
-      walletDebitRaw: 11_400_000n,
-      hcaCredit: 0,
-    })
-    expect(recovery.estimatedRegistrationRaw).toBe(1_400_000n)
+describe('getBudgetQuoteRecovery', () => {
+  it('keeps only the name price from a gas-coverage refusal, never its fallback fees', () => {
+    expect(
+      getBudgetQuoteRecovery(new HcaBudgetUnquotedError(breakdown)),
+    ).toEqual({ kind: 'gas-coverage', registrationPriceRaw: 1_400_000n })
   })
 
-  it('walks a wrapping cause chain for the unquoted breakdown', () => {
+  it('walks a wrapping cause chain for the refusal', () => {
     const wrapped = new Error('EstimateHcaBudgetError', {
       cause: new HcaBudgetUnquotedError(breakdown),
     })
-    wrapped.name = 'EstimateHcaBudgetError'
 
-    expect(getBudgetQuoteRecovery(wrapped).kind).toBe('gas-coverage')
-    expect(getBudgetQuoteRecovery(wrapped).estimatedFunding?.total).toBe(11.4)
-  })
-
-  it('stays generic when the failure carries no unquoted breakdown', () => {
-    expect(
-      getBudgetQuoteRecovery(new Error('orchestrator unavailable')),
-    ).toEqual({
-      kind: 'generic',
-      estimatedFunding: null,
-      estimatedRegistrationRaw: null,
+    expect(getBudgetQuoteRecovery(wrapped)).toEqual({
+      kind: 'gas-coverage',
+      registrationPriceRaw: 1_400_000n,
     })
   })
 
-  it('classifies a non-gas fallback as generic while still exposing the estimate', () => {
-    const recovery = getBudgetQuoteRecovery(
+  it.each([
+    ['a failure with no unquoted breakdown', new Error('orchestrator down')],
+    [
+      'a non-gas fallback',
       new HcaBudgetUnquotedError({
         ...breakdown,
-        fallbackReasons: [
-          'commit: quote threw — timeout',
-          'register: no quote',
-        ],
+        fallbackReasons: ['commit: quote threw — timeout'],
       }),
-    )
-
-    expect(recovery.kind).toBe('generic')
-    expect(recovery.estimatedFunding?.total).toBe(11.4)
-  })
-})
-
-describe('getBudgetQuoteFailureCopy', () => {
-  it.each([
-    [
-      'gas coverage with an estimate',
-      {
-        recovery: {
-          kind: 'gas-coverage' as const,
-          estimatedFunding: null,
-        },
-        estimatedTotalLabel: '$11.40',
-      },
-      {
-        variant: 'gas-coverage-with-estimate',
-        estimatedTotalLabel: '$11.40',
-      },
     ],
-    [
-      'gas coverage without an estimate',
-      {
-        recovery: { kind: 'gas-coverage' as const, estimatedFunding: null },
-        estimatedTotalLabel: null,
-      },
-      { variant: 'gas-coverage' },
-    ],
-    [
-      'a generic failure',
-      {
-        recovery: { kind: 'generic' as const, estimatedFunding: null },
-        estimatedTotalLabel: '$11.40',
-      },
-      { variant: 'generic' },
-    ],
-  ] as const)('picks %s', (_name, input, expected) => {
-    expect(getBudgetQuoteFailureCopy(input)).toEqual(expected)
+  ])('stays generic for %s', (_name, error) => {
+    expect(getBudgetQuoteRecovery(error)).toEqual(GENERIC)
   })
 })
 
 describe('getCheckoutReceiptTotalRaw', () => {
   it.each([
+    ['a refusal uses the name price', true, 1_400_000n, 900_000n, 1_400_000n],
     [
-      'a failed quote with an estimate uses the estimate',
-      true,
-      1_400_000n,
-      900_000n,
-      1_400_000n,
-    ],
-    [
-      'a failed first quote with an estimate fills the missing total',
+      'a refused first quote fills the missing total',
       true,
       1_400_000n,
       undefined,
       1_400_000n,
     ],
-    [
-      'a failed quote without an estimate keeps the page total',
-      true,
-      null,
-      900_000n,
-      900_000n,
-    ],
+    ['any other failure keeps the page total', true, null, 900_000n, 900_000n],
     [
       'a successful quote keeps the page total',
       false,
@@ -142,11 +72,11 @@ describe('getCheckoutReceiptTotalRaw', () => {
     ],
   ] as const)(
     '%s',
-    (_name, hasBudgetQuoteFailed, estimatedRegistrationRaw, totalRaw, expected) => {
+    (_name, hasBudgetQuoteFailed, registrationPriceRaw, totalRaw, expected) => {
       expect(
         getCheckoutReceiptTotalRaw({
           hasBudgetQuoteFailed,
-          estimatedRegistrationRaw,
+          registrationPriceRaw,
           totalRaw,
         }),
       ).toBe(expected)

@@ -1,3 +1,4 @@
+import type { HcaBudgetFailureKind } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
@@ -54,7 +55,7 @@ import {
 } from '../lib/fallbackPaymentChoice'
 import { getPaymentBreakdownFigures } from '../lib/paymentBreakdownFigures'
 import {
-  getCheckoutReceiptFigures,
+  getPaymentReceiptFigures,
   getPaymentReceiptState,
   getWalletShortfall,
 } from '../lib/paymentReceiptFigures'
@@ -158,7 +159,7 @@ const getDomainSizeClasses = (domainName: string): string => {
 const getPricingGlobalErrorMessage = ({
   approvalState,
   isPaidFromElsewhere,
-  budgetFailureCopy,
+  budgetFailureKind,
   mutationError,
   isAvailabilityError,
   domainName,
@@ -168,26 +169,20 @@ const getPricingGlobalErrorMessage = ({
     readonly errorMessage?: string
   }
   readonly isPaidFromElsewhere: boolean
-  readonly budgetFailureCopy: ReturnType<
-    typeof getBudgetQuoteFailureUi
-  >['failureCopy']
+  readonly budgetFailureKind: HcaBudgetFailureKind | null
   readonly mutationError: unknown
   readonly isAvailabilityError: boolean
   readonly domainName: string
 }): MessageDescriptor | string | null => {
-  const budgetFailureMessage = match(budgetFailureCopy)
+  // No amount on a refusal: the fallback fees are a placeholder, not a gas estimate.
+  const budgetFailureMessage = match(budgetFailureKind)
     .with(
-      { variant: 'gas-coverage-with-estimate' },
-      ({ estimatedTotalLabel }) =>
-        msg`Network fees are elevated right now, so the total above is an estimate (about ${estimatedTotalLabel}). Try again shortly for a confirmed quote before paying.`,
-    )
-    .with(
-      { variant: 'gas-coverage' },
+      'gas-coverage',
       () =>
         msg`Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower.`,
     )
     .with(
-      { variant: 'generic' },
+      'generic',
       () => msg`We couldn't calculate the total. Please try again.`,
     )
     .with(null, () => null)
@@ -652,14 +647,12 @@ export const TokenPickerContent = () => {
       )
       .otherwise(() => false),
     error: budgetQuery.error ?? availabilityMutation.error,
-    formatTotal: formatUsd,
   })
-  const { estimatedFunding } = budgetFailureUi
   const globalErrorMessage = resolvePricingErrorMessage(
     getPricingGlobalErrorMessage({
       approvalState,
       isPaidFromElsewhere,
-      budgetFailureCopy: budgetFailureUi.failureCopy,
+      budgetFailureKind: budgetFailureUi.failureKind,
       mutationError: availabilityMutation.error,
       isAvailabilityError: availabilityMutation.isError,
       domainName,
@@ -733,14 +726,12 @@ export const TokenPickerContent = () => {
           ? {
               totalRaw: getCheckoutReceiptTotalRaw({
                 hasBudgetQuoteFailed,
-                estimatedRegistrationRaw:
-                  budgetFailureUi.estimatedRegistrationRaw,
+                registrationPriceRaw: budgetFailureUi.registrationPriceRaw,
                 totalRaw: registrationTotalRaw,
               }),
             }
           : undefined
       }
-      estimatedFunding={getFundingSummary(estimatedFunding, false)}
       ethPayment={ethPayment}
       funding={getFundingSummary(funding, budgetQuery.isFetching)}
       globalErrorMessage={globalErrorMessage}
@@ -843,14 +834,6 @@ const getShownFunding = (
   funding && selectedL2?.amountInRaw !== undefined
     ? getL2FundingSummary(funding, selectedL2.amountInRaw)
     : funding
-
-/** A failed quote's estimate stands alone: the L2 and ETH quotes were sized for the previous budget. */
-const getReceiptQuotes = (
-  hasBudgetQuoteFailed: boolean,
-  selectedL2: L2PaymentRow | undefined,
-  selectedEth: EthPaymentRow | undefined,
-): { readonly l2?: L2PaymentRow; readonly eth?: EthPaymentRow } =>
-  hasBudgetQuoteFailed ? {} : { l2: selectedL2, eth: selectedEth }
 
 /** Highest L2 balance first; an unread balance goes last. */
 const byBalanceDescending = (a: L2PaymentRow, b: L2PaymentRow) => {
@@ -1117,7 +1100,6 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   showNetworkFeeDetails = false,
   isQuoteStale = false,
   hasBudgetQuoteFailed = false,
-  estimatedFunding,
   isBusy = false,
   canProceed = true,
   totalLabel = <Trans>Registration total</Trans>,
@@ -1170,8 +1152,6 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
    * must cover.
    */
   readonly funding?: RegistrationFundingSummary
-  /** Display-only fallback estimate; never enables payment. */
-  readonly estimatedFunding?: RegistrationFundingSummary
   /** The method-level fee quote is still in flight. */
   readonly isQuotingFunding?: boolean
   /** Registration-only disclosure; renewals keep their existing token row. */
@@ -1199,7 +1179,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly checkoutReceipt?: CheckoutReceipt
   /** The caller hides the methods, such as while a re-quoted amount is reviewed. */
   readonly isMethodListHidden?: boolean
-  /** Shown below the receipt — renewal review copy, or a failed-quote estimate notice. */
+  /** Renewal only: a message about the receipt's figures, shown directly below it. */
   readonly receiptNotice?: ReactNode
   /** Renewal only: offers Cancel below the CTA. */
   readonly onCancel?: () => void
@@ -1233,18 +1213,9 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
 
   const selectedL2 = getSelectedL2(l2Payment)
   const selectedEth = ethPayment?.isSelected ? ethPayment.row : undefined
-  // Failed quotes show a full estimate, never the registration price alone.
-  const receiptFunding = match(hasBudgetQuoteFailed)
-    .with(true, () => estimatedFunding)
-    .otherwise(() => funding)
-  const receiptQuotes = getReceiptQuotes(
-    hasBudgetQuoteFailed,
-    selectedL2,
-    selectedEth,
-  )
-  const shownFunding = getShownFunding(receiptFunding, receiptQuotes.l2)
-  const displayedNetworkFee = receiptFunding
-    ? getPaymentBreakdownFigures(receiptFunding).networkFee
+  const shownFunding = getShownFunding(funding, selectedL2)
+  const displayedNetworkFee = funding
+    ? getPaymentBreakdownFigures(funding).networkFee
     : undefined
 
   const selectedCoinBalance = stablecoinBalances?.find(
@@ -1285,8 +1256,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   const isRequoting = isRequotingFunding(isQuotingFunding, isQuoteStale)
   const isSettling = isCheckoutSettling(isBusy, isRequoting)
 
-  const receiptFigures = getCheckoutReceiptFigures({
-    hasBudgetQuoteFailed,
+  const receiptFigures = getPaymentReceiptFigures({
     funding: shownFunding,
     price: fundedAmount ?? pricingData,
     accountCredit: selectedToken ? (accountCredit?.[selectedToken] ?? 0) : 0,
@@ -1296,17 +1266,12 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     hasQuoteFailed: hasBudgetQuoteFailed,
     // A background refetch keeps the last figures on screen.
     isLoading:
-      isQuoteStale ||
-      pricingLoading ||
-      (isQuotingFunding && !shownFunding && !hasBudgetQuoteFailed),
+      isQuoteStale || pricingLoading || (isQuotingFunding && !shownFunding),
     figures: receiptFigures,
   })
-  // Unrounded, so a sub-cent debit keeps the methods. A failed quote's estimate is never covered.
+  // Unrounded, so a sub-cent debit keeps the methods.
   const isFullyCovered =
-    receiptState.status === 'ready' &&
-    !hasBudgetQuoteFailed &&
-    selectedShare === 0 &&
-    !!walletSelection
+    receiptState.status === 'ready' && selectedShare === 0 && !!walletSelection
 
   const walletMethodItems: PaymentMethodListItem[] = stablecoinBalances
     .filter(hasBalance)
@@ -1508,10 +1473,8 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
           />
         ) : (
           <NetworkFeeReceipt
-            ethDebit={
-              receiptQuotes.eth && getEthPaymentDebit(receiptQuotes.eth)
-            }
-            extraFeeRaw={getEthSwapGasUsdcRaw(receiptQuotes.eth)}
+            ethDebit={selectedEth && getEthPaymentDebit(selectedEth)}
+            extraFeeRaw={getEthSwapGasUsdcRaw(selectedEth)}
             networkFee={shownFunding?.networkFee}
             state={receiptState}
             totalLabel={checkoutReceipt.totalLabel}

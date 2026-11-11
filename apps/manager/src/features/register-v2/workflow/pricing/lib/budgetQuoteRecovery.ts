@@ -2,111 +2,54 @@ import {
   findHcaBudgetUnquotedError,
   type HcaBudgetFailureKind,
 } from '@ens-apps/smart-account'
-import {
-  computeRegistrationFunding,
-  type RegistrationFunding,
-} from './registrationFunding'
-
-const USDC_DECIMALS = 6
 
 /** Display-only recovery; payment stays blocked until a real quote succeeds. */
 export type BudgetQuoteRecovery = {
   readonly kind: HcaBudgetFailureKind
-  readonly estimatedFunding: RegistrationFunding | null
-  /** The estimate's registration price in raw USDC, so the receipt total matches its fee and debit. */
-  readonly estimatedRegistrationRaw: bigint | null
+  /** On a gas-coverage refusal, the name price we read on-chain; the fallback fees are never shown. */
+  readonly registrationPriceRaw: bigint | null
 }
 
-/** Failure-copy variants mapped to Lingui messages by the component. */
-export type BudgetQuoteFailureCopy =
-  | {
-      readonly variant: 'gas-coverage-with-estimate'
-      readonly estimatedTotalLabel: string
-    }
-  | { readonly variant: 'gas-coverage' }
-  | { readonly variant: 'generic' }
-
-/** Recover the failure kind and display estimate from a wrapped budget error. */
+/** Recover the failure kind, and the name price on a gas-coverage refusal, from a wrapped budget error. */
 export function getBudgetQuoteRecovery(error: unknown): BudgetQuoteRecovery {
   const unquoted = findHcaBudgetUnquotedError(error)
-  if (!unquoted) {
-    return {
-      kind: 'generic',
-      estimatedFunding: null,
-      estimatedRegistrationRaw: null,
-    }
+  if (unquoted?.kind !== 'gas-coverage') {
+    return { kind: 'generic', registrationPriceRaw: null }
   }
-
   return {
-    kind: unquoted.kind,
-    estimatedFunding: computeRegistrationFunding({
-      budget: unquoted.breakdown,
-      decimals: USDC_DECIMALS,
-    }),
-    estimatedRegistrationRaw: unquoted.breakdown.registrationPrice,
+    kind: 'gas-coverage',
+    registrationPriceRaw: unquoted.breakdown.registrationPrice,
   }
-}
-
-/** Pick the failure-copy variant from the recovery and a formatted total. */
-export function getBudgetQuoteFailureCopy(params: {
-  readonly recovery: Pick<BudgetQuoteRecovery, 'kind'> | null
-  readonly estimatedTotalLabel: string | null
-}): BudgetQuoteFailureCopy {
-  if (
-    params.recovery?.kind === 'gas-coverage' &&
-    params.estimatedTotalLabel !== null
-  ) {
-    return {
-      variant: 'gas-coverage-with-estimate',
-      estimatedTotalLabel: params.estimatedTotalLabel,
-    }
-  }
-  if (params.recovery?.kind === 'gas-coverage') {
-    return { variant: 'gas-coverage' }
-  }
-  return { variant: 'generic' }
 }
 
 /** Derive failed-quote display state without relaxing the payment guard. */
 export function getBudgetQuoteFailureUi(params: {
   readonly hasFailed: boolean
   readonly error: unknown
-  readonly formatTotal: (total: number) => string
 }): {
-  readonly estimatedFunding: RegistrationFunding | null
-  readonly estimatedRegistrationRaw: bigint | null
-  readonly failureCopy: BudgetQuoteFailureCopy | null
+  readonly failureKind: HcaBudgetFailureKind | null
+  readonly registrationPriceRaw: bigint | null
 } {
   if (!params.hasFailed) {
-    return {
-      estimatedFunding: null,
-      estimatedRegistrationRaw: null,
-      failureCopy: null,
-    }
+    return { failureKind: null, registrationPriceRaw: null }
   }
   const recovery = getBudgetQuoteRecovery(params.error)
   return {
-    estimatedFunding: recovery.estimatedFunding,
-    estimatedRegistrationRaw: recovery.estimatedRegistrationRaw,
-    failureCopy: getBudgetQuoteFailureCopy({
-      recovery,
-      estimatedTotalLabel: recovery.estimatedFunding
-        ? params.formatTotal(recovery.estimatedFunding.total)
-        : null,
-    }),
+    failureKind: recovery.kind,
+    registrationPriceRaw: recovery.registrationPriceRaw,
   }
 }
 
-/** The receipt total: on a failed quote, the estimate's price when there is one, never a mix with the last quote. */
+/** The receipt total: on a gas-coverage refusal, the name price, never a mix with the last quote. */
 export const getCheckoutReceiptTotalRaw = ({
   hasBudgetQuoteFailed,
-  estimatedRegistrationRaw,
+  registrationPriceRaw,
   totalRaw,
 }: {
   readonly hasBudgetQuoteFailed: boolean
-  readonly estimatedRegistrationRaw: bigint | null
+  readonly registrationPriceRaw: bigint | null
   readonly totalRaw: bigint | undefined
 }): bigint | undefined =>
-  hasBudgetQuoteFailed && estimatedRegistrationRaw !== null
-    ? estimatedRegistrationRaw
+  hasBudgetQuoteFailed && registrationPriceRaw !== null
+    ? registrationPriceRaw
     : totalRaw

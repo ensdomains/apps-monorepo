@@ -83,7 +83,8 @@ interface TokenPickerDialogShellProps {
   readonly footer?: ReactNode
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
-  readonly estimatedFunding?: RegistrationFundingSummary
+  /** Rhinestone refused for destination gas: the receipt shows the name price and no fee. */
+  readonly isGasCoverageRefusal?: boolean
   readonly hasBudgetQuoteFailed?: boolean
   readonly isQuotingFunding?: boolean
   readonly accountCredit?: Partial<Record<SUPPORTED_TOKEN, number>>
@@ -107,7 +108,7 @@ export const TokenPickerDialogShell = ({
   footer,
   initialSelectedToken,
   funding,
-  estimatedFunding,
+  isGasCoverageRefusal = false,
   hasBudgetQuoteFailed = false,
   isQuotingFunding = false,
   accountCredit,
@@ -134,8 +135,8 @@ export const TokenPickerDialogShell = ({
             ? {
                 totalRaw: getCheckoutReceiptTotalRaw({
                   hasBudgetQuoteFailed,
-                  estimatedRegistrationRaw: estimatedFunding
-                    ? parseUnits(String(estimatedFunding.registration), 6)
+                  registrationPriceRaw: isGasCoverageRefusal
+                    ? parseUnits(String(pricingData ?? 0), 6)
                     : null,
                   totalRaw: isFirstQuote
                     ? undefined
@@ -144,7 +145,6 @@ export const TokenPickerDialogShell = ({
               }
             : undefined
         }
-        estimatedFunding={estimatedFunding}
         footer={footer}
         funding={funding}
         globalErrorMessage={globalErrorMessage}
@@ -519,16 +519,7 @@ export const LongNameWithApprovalDetails: Story = {
   ),
 }
 
-const ELEVATED_FEE_ESTIMATE: RegistrationFundingSummary = {
-  registration: 1.4,
-  networkFee: 10,
-  total: 11.4,
-  walletDebit: 11.4,
-  hcaCredit: 0,
-  isLoading: false,
-}
-
-/** WEB-2061: Rhinestone refused a quote during a gas spike; show the fallback estimate. */
+/** WEB-2061: Rhinestone refused a quote during a gas spike; name price, no fee figure, Try again. */
 export const BudgetQuoteGasCoverageFailed: Story = {
   args: {
     label: 'freedz',
@@ -538,13 +529,13 @@ export const BudgetQuoteGasCoverageFailed: Story = {
       { ...FUNDED_USDC, balance: '9000000', formattedBalance: '9.00' },
     ],
     hasBudgetQuoteFailed: true,
-    estimatedFunding: ELEVATED_FEE_ESTIMATE,
+    isGasCoverageRefusal: true,
     globalErrorMessage:
-      'Network fees are elevated right now, so the total above is an estimate (about $11.40). Try again shortly for a confirmed quote before paying.',
+      "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower.",
   },
 }
 
-/** WEB-2061: an L2 still holds a quote for the previous budget; picking it must not replace the estimate. */
+/** WEB-2061: an L2 still holds a quote for the previous budget; picking it must not fill the receipt. */
 export const BudgetQuoteGasCoverageFailedWithL2: Story = {
   args: {
     ...BudgetQuoteGasCoverageFailed.args,
@@ -552,7 +543,7 @@ export const BudgetQuoteGasCoverageFailedWithL2: Story = {
   },
 }
 
-/** WEB-2061: credit covers the price but not the estimate, so the methods stay listed. */
+/** WEB-2061: credit covers the name price, but a refused quote is never fully covered, so the methods stay listed. */
 export const BudgetQuoteGasCoverageFailedWithAccountCredit: Story = {
   args: {
     ...BudgetQuoteGasCoverageFailed.args,
@@ -560,7 +551,7 @@ export const BudgetQuoteGasCoverageFailedWithAccountCredit: Story = {
   },
 }
 
-/** WEB-2061: the very first quote failed, so only the estimate can fill the receipt. */
+/** WEB-2061: the very first quote was refused, so only the name price can fill the total. */
 export const BudgetQuoteGasCoverageFailedFirstQuote: Story = {
   args: {
     ...BudgetQuoteGasCoverageFailed.args,

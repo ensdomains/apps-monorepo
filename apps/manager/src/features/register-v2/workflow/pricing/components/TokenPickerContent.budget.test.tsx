@@ -140,7 +140,7 @@ describe('TokenPickerContent budget quote', () => {
     expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
   })
 
-  it('shows the fallback estimate on a gas-coverage refusal and still blocks checkout', async () => {
+  it('on a gas-coverage refusal shows the name price, no fee figure, and still blocks checkout', async () => {
     mockAccount({
       // Any failure in the quote pipeline reaches the sheet through the same cause chain.
       getSessionEnablePayload: vi.fn().mockRejectedValue(
@@ -161,15 +161,14 @@ describe('TokenPickerContent budget quote', () => {
 
     expect(
       await screen.findByText(
-        /Network fees are elevated right now, so the total above is an estimate \(about \$340\.00\)\. Try again shortly for a confirmed quote before paying\./,
+        "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower.",
       ),
     ).toBeInTheDocument()
-    // The warning carries the explanation; nothing is added under the receipt.
-    expect(screen.queryByText(/^This total is an estimate/)).toBeNull()
-    // No quote ever succeeded, so the whole receipt comes from the estimate.
+    // No quote ever succeeded: the name price fills the total, and the fallback's flat fees never show.
     expect(receiptRow('Registration total')).toHaveTextContent('$330.00')
-    expect(receiptRow('Estimated network fee')).toHaveTextContent('$10.00')
-    expect(receiptRow('You pay')).toHaveTextContent('$340.00')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('—')
+    expect(receiptRow('You pay')).toHaveTextContent('—')
+    expect(screen.queryByText(/\$340\.00|\$10\.00/)).toBeNull()
     expect(screen.queryByText(QUOTE_FAILED_MESSAGE)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
     expect(

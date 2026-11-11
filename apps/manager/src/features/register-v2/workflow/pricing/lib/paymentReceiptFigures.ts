@@ -47,7 +47,7 @@ export type PaymentReceiptState =
   | { readonly status: 'unavailable' }
   | { readonly status: 'ready'; readonly figures: PaymentReceiptFigures }
 
-/** Failed quotes show a full estimate or dashes, never the registration price alone. */
+/** A failed quote shows dashes, never a stale or partial figure. */
 export const getPaymentReceiptState = ({
   hasQuoteFailed,
   isLoading,
@@ -57,49 +57,9 @@ export const getPaymentReceiptState = ({
   readonly isLoading: boolean
   readonly figures: PaymentReceiptFigures | undefined
 }): PaymentReceiptState => {
-  if (hasQuoteFailed) {
-    return figures ? { status: 'ready', figures } : { status: 'unavailable' }
-  }
+  if (hasQuoteFailed) return { status: 'unavailable' }
   if (isLoading) return { status: 'loading' }
   return figures ? { status: 'ready', figures } : { status: 'unavailable' }
-}
-
-/** On quote failure, only a full fee estimate may appear on the receipt. */
-export const getCheckoutReceiptFigures = ({
-  hasBudgetQuoteFailed,
-  funding,
-  price,
-  accountCredit,
-  isUpTo = false,
-}: {
-  readonly hasBudgetQuoteFailed: boolean
-  readonly funding:
-    | {
-        readonly registration: number
-        readonly networkFee: number
-        readonly walletDebit: number
-        readonly hcaCredit: number
-      }
-    | undefined
-  readonly price: number | undefined
-  readonly accountCredit: number
-  readonly isUpTo?: boolean
-}): PaymentReceiptFigures | undefined => {
-  if (hasBudgetQuoteFailed) {
-    return funding
-      ? getPaymentReceiptFigures({
-          funding,
-          price: undefined,
-          accountCredit: 0,
-        })
-      : undefined
-  }
-  return getPaymentReceiptFigures({
-    funding,
-    price,
-    accountCredit,
-    isUpTo,
-  })
 }
 
 const MICROS_PER_CENT = 10_000
