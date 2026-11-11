@@ -1,6 +1,7 @@
 import {
   type BignameClient,
   type BignameError,
+  MAX_PAGE_SIZE,
   readGraceNames,
   readNamesForAddress,
 } from '@ens-apps/indexer/bigname'
@@ -91,8 +92,6 @@ const getGraceNames = (
 export const DASHBOARD_PAGE_SIZE = 25
 // Rows per read: a page of the dashboard is 25, so this covers two pages.
 export const DASHBOARD_CHUNK_SIZE = 50
-// bigname's largest page: a subnames read scans every name the address has.
-const SUBNAMES_CHUNK_SIZE = 200
 
 const SORTS: Readonly<Record<SortField, NamesForAddressQuery['sort']>> = {
   name: 'name',
@@ -128,7 +127,8 @@ const readChunk = (
     address,
     sort: SORTS[query.sortField],
     order: query.sortDir,
-    pageSize: query.isSubnamesOnly ? SUBNAMES_CHUNK_SIZE : DASHBOARD_CHUNK_SIZE,
+    // A subnames read scans every name the address has, so it reads the most.
+    pageSize: query.isSubnamesOnly ? MAX_PAGE_SIZE : DASHBOARD_CHUNK_SIZE,
     ...(query.search && { contains: query.search }),
     ...(query.version && { protocol: query.version }),
     ...(cursor === undefined ? { includeTotal: true } : { cursor }),
