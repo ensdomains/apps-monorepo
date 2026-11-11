@@ -1,8 +1,8 @@
 import {
   applyAnalyticsConsent,
   canCaptureAnalytics,
-  clearAnalyticsAttribution,
   prepareAnalyticsEvent,
+  protectStoredAnalyticsCredentials,
   SHARED_POSTHOG_CONFIG,
   writeAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConfiguration'
@@ -45,10 +45,10 @@ export const POSTHOG_CONFIG = {
     }),
   loaded: (
     client: Parameters<typeof applyAnalyticsConsent>[0] &
-      Parameters<typeof clearAnalyticsAttribution>[0],
+      Parameters<typeof protectStoredAnalyticsCredentials>[0],
   ) => {
     try {
-      clearAnalyticsAttribution(client)
+      protectStoredAnalyticsCredentials(client)
       applyAnalyticsConsent(client)
       writeAnalyticsConsent(client, client.get_explicit_consent_status())
     } catch (error) {

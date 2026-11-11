@@ -121,7 +121,7 @@ describe('PostHog consent', () => {
     ).toBe(true)
   })
 
-  it('filters native page payloads and drops ordinary autocapture before transport', () => {
+  it('preserves native page context and drops ordinary autocapture before transport', () => {
     const { client } = initClient()
     setAnalyticsConsent(client, true)
     history.pushState({}, '', '/alice.eth/records?signature=private#secret')
@@ -131,12 +131,12 @@ describe('PostHog consent', () => {
       analytics_version: 9,
     })
     expect(pageview?.properties.$current_url).toBe(
-      'http://localhost:3000/:value/records',
+      'http://localhost:3000/alice.eth/records?signature=%5Bredacted%5D#secret',
     )
     expect(pageview?.properties.source_app).toBe('manager')
     expect(pageview?.properties.analytics_version).toBe(1)
     expect(pageview?.properties.$title).toBeUndefined()
-    expect(pageview?.properties.title).toBeUndefined()
+    expect(pageview?.properties.title).toBe('alice.eth | ENS App')
     expect(
       client.capture('$autocapture', { $el_text: 'private' }),
     ).toBeUndefined()
@@ -166,16 +166,16 @@ describe('PostHog consent', () => {
     )
     const identify = envelopes.find((event) => event?.event === '$identify')
     expect(identify?.properties.distinct_id).toBe(WALLET)
-    expect(JSON.stringify(identify)).not.toMatch(
-      /alice\.eth|signature=private|secret-campaign|secret-ad|secret-fragment/,
-    )
+    expect(JSON.stringify(identify)).not.toMatch(/signature=private/)
     expect(
-      envelopes.find((event) => event?.event === '$pageview')?.properties
-        .$current_url,
-    ).toBe('http://localhost:3000/:value/records')
+      identify?.$set_once?.$initial_utm_campaign ??
+        identify?.properties?.$set_once?.$initial_utm_campaign,
+    ).toBe('secret-campaign')
+    expect(JSON.stringify(identify)).toContain('alice.eth')
+    expect(JSON.stringify(identify)).toContain('secret-ad')
   })
 
-  it('removes legacy attribution before initial flags and does not recreate it when events are disabled', async () => {
+  it('preserves persisted attribution and flag targeting while analytics capture is disabled', async () => {
     history.replaceState(
       {},
       '',
@@ -197,6 +197,7 @@ describe('PostHog consent', () => {
         $current_url: location.href,
         $session_entry_utm_campaign: 'stored-private',
         gclid: 'stored-ad',
+        api_key: 'private-flag-credential',
       },
     })
     vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', '')
@@ -211,9 +212,14 @@ describe('PostHog consent', () => {
     expect(bodies.length).toBeGreaterThanOrEqual(2)
     expect(client.isFeatureEnabled('test-flag')).toBe(true)
     expect(bodies[0]?.person_properties?.feature_tier).toBe('preview')
-    expect(JSON.stringify(bodies)).not.toMatch(
-      /bob\.eth|secret=raw|flag-private|flag-fragment|legacy-private|private-referrer|stored-private|stored-ad/,
+    expect(bodies[0]?.person_properties?.gclid).toBe('stored-ad')
+    expect(JSON.stringify(bodies)).not.toContain('private-flag-credential')
+    expect(bodies[0]?.person_properties?.$current_url).toContain(
+      '/bob.eth/records',
     )
+    expect(client.get_property('$initial_campaign_params')).toEqual({
+      utm_campaign: 'legacy-private',
+    })
   })
 
   it.each([false, true])(

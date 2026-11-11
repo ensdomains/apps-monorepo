@@ -24,7 +24,7 @@ analytics.capture('profile:primary_name_update', { chain_id: chainId })
 
 The guard suppresses old outcomes after wallet/consent changes, including A→B→A and withdrawal/regrant. Never wait for capture or make product success depend on it. A capture attempt is not an ingestion acknowledgement. Correlation IDs are optional infrastructure: unavailable crypto suppresses telemetry while product work continues.
 
-`createAnalyticsTracker` binds the existing SDK and wallet reader. SDK configuration alone owns environment policy, metadata and automatic-data scrubbing, including top-level person properties and flag-request attribution. There is no PostHog React provider/type-cast bridge; guarded SDK flag subscriptions keep optional SDK failures out of React rendering.
+`createAnalyticsTracker` binds the existing SDK and wallet reader. SDK configuration alone owns environment policy, metadata and narrow credential filtering, including top-level person properties and saved flag-request properties. There is no PostHog React provider/type-cast bridge; guarded SDK flag subscriptions keep optional SDK failures out of React rendering.
 
 ## Lifecycle and outcome ownership
 
@@ -65,11 +65,11 @@ All outgoing events receive `source_app: manager | explorer`, `environment: prod
 | `subname:name_create`, `resolver:configuration_update`, `roles:permissions_update`, `dns:manager_sync` | Receipt-backed operation; chain and bounded action where applicable | Explorer |
 | `notifications:preferences_update` | Successful preferences response; no destinations/preferences payload | Manager |
 | `transaction:execution_end` | Selected failed TM run metadata: opaque operation ID, failure/cancel outcome, stage, known method/chain, attempt count | Manager |
-| `$pageview`, `$pageleave`, `$rageclick` | Native SDK events; sanitized URLs and automatic properties | Both |
+| `$pageview`, `$pageleave`, `$rageclick` | Native SDK events; normal URL/title/attribution metadata retained | Both |
 
 Retained legacy events: `name:search_selected` carries normalized name solely for existing search-popularity statistics. Do not rename/drop its field until the saved endpoint is migrated. Existing NFT/Intercom/DNSSEC categories remain. DNSSEC includes controlled source/verdict, no raw names or name-bearing failed-step strings. Never sum canonical search selection and its legacy counterpart as two searches.
 
-Custom contracts are the privacy boundary for deliberate properties: never pass raw errors, signatures, calldata, arbitrary URLs or state/request objects. Automatic URL/DOM/campaign data is minimized in configuration. The installed bundled SDK import remains unchanged for CSP. Ordinary autocapture is discarded while masked native rageclick detection retains its click listener. Replay, raw exception and dead-click capture remain disabled.
+Custom contracts are the privacy boundary for deliberate properties: never pass raw errors, signatures, calldata or state/request objects. Native URLs, titles and marketing attribution remain available; named credentials are filtered without stripping normal SDK metadata. The installed bundled SDK import remains unchanged for CSP. Ordinary autocapture is discarded while masked native rageclick detection retains its click listener. Replay, raw exception and dead-click capture remain disabled.
 
 ## SDK failure isolation
 
@@ -111,11 +111,11 @@ Representative mutation checks still fail for false failed-receipt completion, l
 
 Real-SDK regressions cover complete identify/pageview envelopes, native `title`, initial/refreshed flag bodies with old stored attribution, and legacy/current consent invalidation across independent module instances. Outcome regressions cover bulk unmount, early registration stop followed by failed receipt/verified recovery, migration renewal/preparation retries, hard-cleanup success/revert, EIP-5792 bundle success/failure, and replacement actors sharing an ID while prior recovery is pending. New bug cases were observed failing before fixes or against deliberately broken code.
 
-Browser SDK fixture QA used a fake key and localhost collector: accepted the actual banner, identified a synthetic wallet in an isolated SDK instance, seeded legacy attribution, reloaded flags and captured a sensitive-title pageview. The checked identify envelope, latest pageview and three flag requests contained no test ENS name, query secret, fragment, campaign or ad identifier; URL was `/register/:value`, title absent, metadata `manager/staging`. This is browser/outgoing-payload evidence, not a real wallet workflow or staging ingestion. Initial pre-fix title evidence was excluded from the final payload check.
+Earlier browser SDK fixture QA used a fake key and localhost collector. Its URL/title/attribution redaction observations describe the previous policy and are superseded. Current real-SDK integration regressions preserve native titles, ENS paths, marketing attribution, Intercom person properties and flag targeting while filtering explicitly named credentials. Actual browser/staging-ingestion QA of this updated policy remains outstanding.
 
 | Scenario | Evidence in this pass | Still required |
 | --- | --- | --- |
-| Manager duration flow, native pageview/pageleave, redacted dynamic route, common metadata | Browser interaction; outgoing events received by a local fake-key collector | Real staging ingestion; no production QA traffic was sent |
+| Manager duration flow, native pageview/pageleave and common metadata (earlier URL policy) | Browser interaction; outgoing events received by a local fake-key collector | Real staging ingestion; no production QA traffic was sent |
 | Held analytics requests | Collector deliberately never answered ingestion; navigation, duration change and consent withdrawal/regrant remained responsive | Real transaction under blocked analytics |
 | Local environment isolation | Explorer rendered at desktop/mobile widths; configuration disabled capture and discarded a candidate native event | Deployment keys, CSP and staging ingestion |
 | Unmount during registration/renewal, no Done, retries and resumed verification | Real actor/hook lifecycle regression tests with controlled transaction/verification results | Disposable-wallet testnet execution and reload recovery |
@@ -129,7 +129,7 @@ Manual acceptance, on staging/testnet with disposable wallets A/B:
 2. Submit a registration reveal, leave the screen, and inspect confirmed/read-only verified completion. Unsubmitted prompts and unverified reads must not complete. Optional setup failure must not reverse required registration success. Check actual paused/resumed registration paths separately.
 3. Switch A→B and A→B→A while pending, withdraw/regrant consent, and reload a restored connection. Old contexts must never attach to another wallet or replay pre-consent activity. Suppressed old-identity completions intentionally undercount rather than misattribute.
 4. Block analytics, and exercise navigation, backend requests and supported transactions. Product work continues. Inspect app and environment metadata on outgoing requests and actual staging ingestion independently.
-5. Verify native pageview/pageleave and URL redaction with test names/addresses/query strings; ordinary clicks/forms emit no `$autocapture`, no raw exceptions/replay/payload objects. Confirm default local/CI capture remains disabled.
+5. Verify native pageview/pageleave preserve ENS routes, titles, UTMs and click IDs while named credential parameters are redacted; ordinary clicks/forms emit no `$autocapture`, no raw exceptions/replay/payload objects. Confirm default local/CI capture remains disabled.
 6. Save profile records and perform a reviewed resolver setup, then navigate away while the final transaction is pending. Expect one `profile:records_update(chain_id=...)` after the actual write completes, independent of the dialog. Rejected/failed writes emit no success. Repeat a primary-name update; verify the reverse record and its dedicated event.
 7. While Explorer renewal is pending, start another flow that clears the manager. A known submitted transaction must still confirm/complete; cleanup alone must not emit failure. Repeat with EIP-5792 and Safe. For registration, leave a known reveal pending for over 30 seconds after cleanup; its receipt must remain observable within the normal receipt timeout. Hard cleanup before any hash/bundle ID is an unobserved outcome, not proof of failure.
 8. On Manager, navigate off the dashboard during the last bulk-renewal receipt or progress animation: full confirmed selection completes once, partial selection does not. Fail grace renewal during migration and retry; expect `migration:stage_fail(stage=renewal)`, `flow_retry`, and another renewal stage. Retry a preparation error too; do not mislabel it as failed grace renewal.
@@ -180,10 +180,16 @@ Intended analytics contract changes: dedicated duration/payment views; execution
 
 ## Review follow-up
 
-Renewal failure stages are explicit on their owning error transitions; registration failures use the already observed child stage. This avoids a second stage status in renewal context. Known Sepolia and ens.dev origins remain visible while dynamic paths and external origins remain redacted.
+Renewal failure stages are explicit on their owning error transitions; registration failures use the already observed child stage. This avoids a second stage status in renewal context. Native URLs retain their hosts and dynamic paths; only named credentials are redacted.
 
 The name-demand endpoint logs failed PostHog queries and bounds them to five seconds. It deliberately returns 503 rather than reporting unknown searches as zero. Favorites and searches share this response, so the registration pricing demand section is unavailable during that outage; dashboard favorites use their separate endpoint. Independent nullable demand fields would be a separate API/UI contract change.
 
 Transaction diagnostics select internal TM state/request labels, numeric context and an opaque operation ID. These labels currently have string types; they are not a closed enum. No raw error, request or transaction payload is forwarded.
 
 Follow-up validation: Manager 146 tests in four files, Explorer 23 in three, shared analytics 27 in five, Worker eight in two, and transaction-manager registration 257 in thirteen passed. Typechecks passed in Manager, Explorer, utils and API Worker; changed-file Biome and whitespace checks passed. New renewal/registration stage and Sepolia URL regressions were observed failing on the old behavior. Intercom integration assertions now omit `recent_replay` because replay is disabled. No additional browser or real-wallet verification was performed in this pass.
+
+## Consent audit and attribution correction
+
+Native PostHog opt-in/opt-out state remains authoritative. The local operation revision and shared generation cookie are invalidation markers, not additional consent answers or user identities. Current consent and distinct ID can both return to their earlier values after withdrawal/regrant or A→B→A; comparing only their final values would allow a stale pending outcome. A same-origin storage event or BroadcastChannel does not cover sibling app origins, and periodic polling alone can miss a complete withdrawal/regrant cycle. The installed SDK exposes capture/flag/session hooks but no shared monotonic consent/account revision that replaces these guards. No consent bookkeeping was removed in this pass. A shared reference-counted polling subscription could reduce timers later without changing this safety model; removing the generation requires another way to preserve cross-tab/app invalidation.
+
+Consent-gated reciprocal Intercom linkage is restored, and replay remains disabled. Custom flag hooks remain because they provide guarded SDK reads/subscriptions with no automatic exposure events; this pass does not add a React SDK dependency.

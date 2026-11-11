@@ -1,5 +1,10 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
+import {
+  boot,
+  getVisitorId,
+  trackEvent,
+  update,
+} from '@intercom/messenger-js-sdk'
 import { act, render } from '@testing-library/react'
 import posthog from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -44,6 +49,7 @@ vi.mock('posthog-js/dist/module.full.no-external', () => ({
       walletState.identity = address
     }),
     register: vi.fn(),
+    setPersonProperties: vi.fn(),
     capture: vi.fn(),
     reset: vi.fn(() => {
       consent.stored = 'pending'
@@ -139,7 +145,9 @@ describe('PostHog provider', () => {
   })
 
   it('links Intercom to analytics only with consent, including after Accept', () => {
+    vi.mocked(getVisitorId).mockReturnValue('intercom-visitor')
     renderProvider()
+    expect(posthog.setPersonProperties).not.toHaveBeenCalled()
     expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
     expect(update).not.toHaveBeenCalled()
 
@@ -147,13 +155,17 @@ describe('PostHog provider', () => {
     expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
     })
+    expect(posthog.setPersonProperties).toHaveBeenCalledWith({
+      intercom_visitor_id: 'intercom-visitor',
+    })
   })
 
   it('resets the previous wallet before identifying a direct account switch', () => {
+    vi.mocked(getVisitorId).mockReturnValue('intercom-visitor')
     setAnalyticsConsent(posthog, true)
     const view = renderProvider()
     vi.mocked(posthog.get_property).mockReturnValue('identified')
-    vi.mocked(posthog.get_distinct_id).mockReturnValue(WALLET.address)
+    walletState.identity = WALLET.address
     const nextAddress = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
     vi.mocked(useConnection, { partial: true }).mockReturnValue({
       chainId: WALLET.chainId,
@@ -163,6 +175,8 @@ describe('PostHog provider', () => {
       address: nextAddress,
       status: 'connected',
     })
+    vi.mocked(update).mockClear()
+    vi.mocked(posthog.setPersonProperties).mockClear()
     vi.mocked(posthog.reset).mockClear()
     vi.mocked(posthog.identify).mockClear()
     view.rerender(
@@ -172,6 +186,12 @@ describe('PostHog provider', () => {
     )
     expect(posthog.reset).toHaveBeenCalledOnce()
     expect(posthog.identify).toHaveBeenCalledWith(nextAddress.toLowerCase())
+    expect(update).toHaveBeenLastCalledWith({
+      posthog_distinct_id: nextAddress.toLowerCase(),
+    })
+    expect(posthog.setPersonProperties).toHaveBeenCalledWith({
+      intercom_visitor_id: 'intercom-visitor',
+    })
     expect(vi.mocked(posthog.reset).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(posthog.identify).mock.invocationCallOrder[0] ?? 0,
     )

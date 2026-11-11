@@ -85,145 +85,91 @@ export const canCaptureAnalytics = (config: CaptureEnvironment): boolean =>
   (!config.isDevelopment ||
     (config.network === 'sepolia' && config.isDebugEnabled))
 
-const STATIC_ROUTE_SEGMENTS = new Set([
-  '',
-  'dashboard',
-  'settings',
-  'register',
-  'renew',
-  'names',
-  'name',
-  'profile',
-  'details',
-  'records',
-  'subnames',
-  'permissions',
-  'more',
-  'search',
-  'favorites',
-  'upgrade',
-  'upgrade-permissions',
-  'notifications',
-  'migration',
-  'migrate',
-  'dnssec-debug',
-  'import',
-  'sync',
-  'resolver',
-  'ownership',
-  'primary-name',
-  'deploy-registry',
-  'wrap',
-  'unwrap',
-  'send',
-  'transfer',
-  'manage',
-  'advanced',
+const SENSITIVE_FIELDS = new Set([
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'password',
+  'access_token',
+  'refresh_token',
+  'id_token',
+  'api_key',
+  'apikey',
+  'private_key',
+  'secret_key',
+  'signature',
+  'signatures',
+  'calldata',
+  'raw_error',
+  'error',
+  'error_message',
+  'error_stack',
+  'stack',
 ])
 
-export const sanitizeAnalyticsUrl = (value: string): string => {
+const hasCredentialParameter = (params: URLSearchParams): boolean =>
+  [...params.keys()].some((key) => SENSITIVE_FIELDS.has(key.toLowerCase()))
+
+const redactCredentialParameters = (params: URLSearchParams): string =>
+  new URLSearchParams(
+    [...params].map(([key, value]) => [
+      key,
+      SENSITIVE_FIELDS.has(key.toLowerCase()) ? '[redacted]' : value,
+    ]),
+  ).toString()
+
+const redactUrlCredentials = (value: string): string => {
+  if (!/^https?:\/\//i.test(value)) return value
   try {
     const url = new URL(value)
-    const origin = [
-      'app.ens.domains',
-      'explorer.ens.domains',
-      'sepolia.app.ens.domains',
-      'legacy.sepolia.app.ens.domains',
-      'app.ens.dev',
-      'localhost',
-      '127.0.0.1',
-    ].includes(url.hostname)
-      ? url.origin
-      : '[external]'
-    return `${origin}${url.pathname
-      .split('/')
-      .map((segment) =>
-        STATIC_ROUTE_SEGMENTS.has(segment) ? segment : ':value',
-      )
-      .join('/')}`
+    const fragment = new URLSearchParams(url.hash.slice(1))
+    const hasFragmentCredentials = hasCredentialParameter(fragment)
+    if (
+      !url.username &&
+      !url.password &&
+      !hasCredentialParameter(url.searchParams) &&
+      !hasFragmentCredentials
+    )
+      return value
+    const query = url.search
+      ? `?${redactCredentialParameters(url.searchParams)}`
+      : ''
+    const hash = hasFragmentCredentials
+      ? `#${redactCredentialParameters(fragment)}`
+      : url.hash
+    return `${url.origin}${url.pathname}${query}${hash}`
   } catch {
-    return '[redacted]'
+    return value
   }
 }
 
-const sanitizeUrlProperty = (value: unknown): string =>
-  typeof value === 'string' ? sanitizeAnalyticsUrl(value) : '[redacted]'
+const protectAnalyticsValue = (value: unknown): unknown => {
+  if (typeof value === 'string') return redactUrlCredentials(value)
+  if (Array.isArray(value)) return value.map(protectAnalyticsValue)
+  if (
+    value &&
+    typeof value === 'object' &&
+    (Object.getPrototypeOf(value) === Object.prototype ||
+      Object.getPrototypeOf(value) === null)
+  )
+    return protectAnalyticsProperties(
+      value as Readonly<Record<string, unknown>>,
+    )
+  return value
+}
 
-const CAMPAIGN_IDENTIFIERS = new Set([
-  'gad_source',
-  'mc_cid',
-  'gclid',
-  'gclsrc',
-  'dclid',
-  'gbraid',
-  'wbraid',
-  'fbclid',
-  'msclkid',
-  'twclid',
-  'li_fat_id',
-  'igshid',
-  'ttclid',
-  'rdt_cid',
-  'epik',
-  'qclid',
-  'sccid',
-  'irclid',
-  '_kx',
-])
-
-export const sanitizeAutomaticProperties = (
+const protectAnalyticsProperties = (
   properties: Readonly<Record<string, unknown>>,
 ): Record<string, unknown> =>
   Object.fromEntries(
-    Object.entries(properties).flatMap(([key, value]) => {
-      const attributionKey = key.replace(/^\$(?:session_entry_)?/, '')
-      if (
-        [
-          '$title',
-          'title',
-          '$elements',
-          '$elements_chain',
-          '$event_properties',
-          '$element_selectors',
-          '$el_text',
-          'wallet_address',
-          'address',
-          'initial_address',
-          '$set',
-          '$set_once',
-        ].includes(key)
-      )
-        return []
-      if (key.includes('url') || key.includes('referrer'))
-        return [[key, sanitizeUrlProperty(value)]]
-      if (key.includes('pathname'))
-        return [
-          [
-            key,
-            typeof value === 'string'
-              ? sanitizeAnalyticsUrl(`http://localhost${value}`).replace(
-                  'http://localhost',
-                  '',
-                )
-              : '[redacted]',
-          ],
-        ]
-      if (
-        key.includes('utm_') ||
-        CAMPAIGN_IDENTIFIERS.has(attributionKey) ||
-        key.startsWith('$initial_') ||
-        attributionKey === 'ph_keyword' ||
-        attributionKey === 'search_engine' ||
-        key.includes('referring_domain')
-      )
-        return []
-      return [[key, value]]
-    }),
+    Object.entries(properties)
+      .filter(([key]) => !SENSITIVE_FIELDS.has(key.toLowerCase()))
+      .map(([key, value]) => [key, protectAnalyticsValue(value)]),
   )
 
 export const SHARED_POSTHOG_CONFIG = {
-  save_campaign_params: false,
-  save_referrer: false,
+  save_campaign_params: true,
+  save_referrer: true,
   capture_pageview: 'history_change',
   capture_pageleave: true,
   autocapture: { dom_event_allowlist: ['click'], capture_copied_text: false },
@@ -243,9 +189,8 @@ export const SHARED_POSTHOG_CONFIG = {
   opt_out_capturing_persistence_type: 'cookie',
 } as const
 
-/** Flags read these persisted SDK properties before before_send can filter them. */
-export const clearAnalyticsAttribution = (client: {
-  readonly unregister: (key: string) => void
+/** Preserve saved attribution/flag targeting while removing explicitly named credentials. */
+export const protectStoredAnalyticsCredentials = (client: {
   readonly get_property: (key: string) => unknown
   readonly register: (properties: Readonly<Record<string, unknown>>) => void
 }): void => {
@@ -253,19 +198,12 @@ export const clearAnalyticsAttribution = (client: {
     '$initial_person_info',
     '$initial_campaign_params',
     '$initial_referrer_info',
-  ])
-    client.unregister(key)
-  const properties = client.get_property('$stored_person_properties')
-  if (
-    properties &&
-    typeof properties === 'object' &&
-    !Array.isArray(properties)
-  )
-    client.register({
-      $stored_person_properties: sanitizeAutomaticProperties(
-        properties as Readonly<Record<string, unknown>>,
-      ),
-    })
+    '$stored_person_properties',
+  ]) {
+    const value = client.get_property(key)
+    if (value && typeof value === 'object')
+      client.register({ [key]: protectAnalyticsValue(value) })
+  }
 }
 
 /** Applies one capture policy to custom and native SDK events. */
@@ -301,12 +239,12 @@ export const prepareAnalyticsEvent = <
     return null
   return {
     ...event,
-    ...(event.$set ? { $set: sanitizeAutomaticProperties(event.$set) } : {}),
+    ...(event.$set ? { $set: protectAnalyticsProperties(event.$set) } : {}),
     ...(event.$set_once
-      ? { $set_once: sanitizeAutomaticProperties(event.$set_once) }
+      ? { $set_once: protectAnalyticsProperties(event.$set_once) }
       : {}),
     properties: {
-      ...sanitizeAutomaticProperties(event.properties),
+      ...protectAnalyticsProperties(event.properties),
       source_app: context.sourceApp,
       environment:
         context.environment.network === 'mainnet' ? 'production' : 'staging',

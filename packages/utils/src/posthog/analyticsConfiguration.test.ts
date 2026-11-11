@@ -1,22 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   canCaptureAnalytics,
-  sanitizeAnalyticsUrl,
-  sanitizeAutomaticProperties,
+  prepareAnalyticsEvent,
 } from './analyticsConfiguration'
 
 describe('analytics environment and URL policy', () => {
-  it('retains known staging origins while redacting names and external hosts', () => {
-    expect(
-      sanitizeAnalyticsUrl(
-        'https://sepolia.app.ens.domains/alice.eth?secret=1',
-      ),
-    ).toBe('https://sepolia.app.ens.domains/:value')
-    expect(
-      sanitizeAnalyticsUrl('https://alice.example/alice.eth?secret=1'),
-    ).toBe('[external]/:value')
-  })
-
   it.each([
     [undefined, false, false, false],
     ['mainnet', true, true, false],
@@ -48,31 +36,60 @@ describe('analytics environment and URL policy', () => {
     ).toBe(false)
   })
 
-  it('removes names, addresses, queries, fragments and DOM text from automatic capture', () => {
-    expect(
-      sanitizeAutomaticProperties({
-        $current_url:
-          'https://app.ens.domains/alice.eth/records?signature=secret#token',
-        $pathname: '/0x12345/profile',
-        $prev_pageview_current_url:
-          'https://app.ens.domains/bob.eth?secret=private',
-        $prev_pageview_pathname: '/bob.eth/profile',
-        wallet_address: '0x12345',
-        address: '0x12345',
-        initial_address: '0x12345',
-        $referrer: 'https://explorer.ens.domains/bob.eth?utm_campaign=private',
-        $title: 'alice.eth',
-        $elements_chain: 'private text',
-        $utm_campaign: 'private campaign',
-        flow_id: 'flow-1',
-      }),
-    ).toEqual({
-      $current_url: 'https://app.ens.domains/:value/records',
-      $pathname: '/:value/profile',
-      $prev_pageview_current_url: 'https://app.ens.domains/:value',
-      $prev_pageview_pathname: '/:value/profile',
-      $referrer: 'https://explorer.ens.domains/:value',
-      flow_id: 'flow-1',
+  it('preserves native metadata and attribution while removing named secrets from the entire event', () => {
+    const url =
+      'https://preview.example/alice.eth/records?utm_campaign=launch&gclid=click&signature=private#access_token=credential'
+    const event = prepareAnalyticsEvent(
+      {
+        event: '$identify',
+        properties: {
+          distinct_id: 'anonymous',
+          $current_url: url,
+          $pathname: '/alice.eth/records',
+          title: 'alice.eth',
+          $referrer: 'https://search.example/?utm_source=partner',
+          $utm_campaign: 'launch',
+          gclid: 'click',
+          $initial_referring_domain: 'search.example',
+          record_type: 'text',
+          calldata: 'private',
+          authorization: 'Bearer credential',
+          diagnostics: {
+            error_code: 'user_rejected',
+            raw_error: { message: 'private' },
+          },
+        },
+        $set: { intercom_visitor_id: 'visitor', api_key: 'private' },
+        $set_once: { $initial_utm_campaign: 'launch', signature: 'private' },
+      },
+      {
+        sourceApp: 'manager',
+        environment: {
+          network: 'sepolia',
+          projectKey: 'staging',
+          isDevelopment: false,
+          isDebugEnabled: false,
+        },
+        walletAddress: null,
+      },
+    )
+    expect(event?.properties).toEqual({
+      distinct_id: 'anonymous',
+      $current_url:
+        'https://preview.example/alice.eth/records?utm_campaign=launch&gclid=click&signature=%5Bredacted%5D#access_token=%5Bredacted%5D',
+      $pathname: '/alice.eth/records',
+      title: 'alice.eth',
+      $referrer: 'https://search.example/?utm_source=partner',
+      $utm_campaign: 'launch',
+      gclid: 'click',
+      $initial_referring_domain: 'search.example',
+      record_type: 'text',
+      diagnostics: { error_code: 'user_rejected' },
+      source_app: 'manager',
+      environment: 'staging',
+      analytics_version: 1,
     })
+    expect(event?.$set).toEqual({ intercom_visitor_id: 'visitor' })
+    expect(event?.$set_once).toEqual({ $initial_utm_campaign: 'launch' })
   })
 })

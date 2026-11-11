@@ -127,7 +127,7 @@ describe('PostHog consent', () => {
     expect(event?.properties.analytics_version).toBe(1)
   })
 
-  it('clears persisted attribution before Explorer flags load while analytics is disabled', async () => {
+  it('preserves persisted attribution before Explorer flags load while analytics is disabled', async () => {
     const earlier = initClient().client
     setAnalyticsConsent(earlier, true)
     earlier.register({
@@ -142,7 +142,9 @@ describe('PostHog consent', () => {
     await vi.advanceTimersByTimeAsync(3000)
 
     const bodies = flagBodies(requests)
-    expect(bodies[0]?.person_properties).toEqual({})
+    expect(bodies[0]?.person_properties?.$initial_current_url).toBe(
+      'https://explorer.ens.domains/alice.eth?secret=private',
+    )
     expect(client.isFeatureEnabled('test-flag')).toBe(true)
   })
 

@@ -52,6 +52,7 @@ const identifyWallet = (wallet: ConnectedWallet | null) => {
       chain_id: wallet.chainId,
       wallet_connector: wallet.connector.name,
     })
+  linkIntercomToAnalytics()
 }
 
 // Links support chats to analytics, only for visitors who accepted.
@@ -62,6 +63,7 @@ const linkIntercomToAnalytics = () => {
   })
   const intercomVisitorId = getVisitorId()
   if (intercomVisitorId) {
+    posthog.setPersonProperties({ intercom_visitor_id: intercomVisitorId })
     track('intercom:booted')
   }
 }
@@ -77,7 +79,6 @@ const useApplyAnalyticsConsent = (
     try {
       applyAnalyticsConsent(posthog)
       identifyWallet(wallet.current)
-      linkIntercomToAnalytics()
     } catch (error) {
       console.warn('[posthog] consent synchronization failed', error)
     }
