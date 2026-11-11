@@ -599,8 +599,10 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
             throw new Error('Unexpected read')
           },
         })
-        vi.mocked(client.readContract).mockImplementation(async (request) =>
-          request.functionName === 'nameExpires'
+        vi.mocked(client.readContract).mockImplementation(async (request) => {
+          if (request.functionName === 'owner') return WALLET
+          if (request.functionName === 'resolver') return zeroAddress
+          return request.functionName === 'nameExpires'
             ? WRAPPED_EXPIRY - 7776000n
             : {
                 status: 1,
@@ -608,8 +610,8 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
                 latestOwner: zeroAddress,
                 tokenId: 0n,
                 resource: 2n,
-              },
-        )
+              }
+        })
         const expiries = await assertCopyMigrationReadiness({
           publicClient: client,
           hca: HCA,
@@ -894,4 +896,87 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
       'v2-name-history',
     )
   })
+})
+
+describe('assertCopyMigrationReadiness — direct name V1 source', () => {
+  const planned = (
+    overrides: Partial<
+      Pick<
+        DirectClassifiedName,
+        'registryController' | 'managerAddress' | 'v1ResolverAddress'
+      >
+    > = {},
+  ): DirectClassifiedName => {
+    const root = migratingRoot('unwrapped')
+    return {
+      ...root,
+      domain: { ...root.domain, registrant: { id: WALLET } },
+      ...overrides,
+    }
+  }
+
+  const liveClient = (live: {
+    readonly owner: Address
+    readonly resolver: Address
+  }): PublicClient =>
+    makeClient({
+      read: ({ functionName }) => {
+        if (functionName === 'owner') return live.owner
+        if (functionName === 'resolver') return live.resolver
+        throw new Error(`Unexpected read: ${functionName}`)
+      },
+    })
+
+  const run = (name: DirectClassifiedName, client: PublicClient) =>
+    assertCopyMigrationReadiness({
+      publicClient: client,
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [name],
+      registryContext: [name],
+    })
+
+  it('accepts a direct name whose live controller and resolver match the plan', async () => {
+    const name = planned({
+      registryController: OTHER,
+      managerAddress: OTHER,
+      v1ResolverAddress: KNOWN_RESOLVER,
+    })
+
+    await expect(
+      run(name, liveClient({ owner: OTHER, resolver: KNOWN_RESOLVER })),
+    ).resolves.toBeInstanceOf(Map)
+  })
+
+  it.each([
+    {
+      case: 'the opted-in controller was revoked before submit',
+      name: { registryController: OTHER, managerAddress: OTHER },
+      live: { owner: WALLET, resolver: zeroAddress },
+      reason: 'source-manager-changed',
+    },
+    {
+      case: 'the opted-in controller was replaced before submit',
+      name: { registryController: OTHER, managerAddress: OTHER },
+      live: { owner: CONFLICT, resolver: zeroAddress },
+      reason: 'source-manager-changed',
+    },
+    {
+      case: 'a controller appeared after the plan was built',
+      name: {},
+      live: { owner: CONFLICT, resolver: zeroAddress },
+      reason: 'source-manager-changed',
+    },
+    {
+      case: 'the V1 resolver was swapped after the plan was built',
+      name: { v1ResolverAddress: KNOWN_RESOLVER },
+      live: { owner: WALLET, resolver: CUSTOM_RESOLVER },
+      reason: 'source-resolver-changed',
+    },
+  ] as const)(
+    'rejects the batch when $case',
+    async ({ name, live, reason }) => {
+      await expectReason(run(planned(name), liveClient(live)), reason)
+    },
+  )
 })

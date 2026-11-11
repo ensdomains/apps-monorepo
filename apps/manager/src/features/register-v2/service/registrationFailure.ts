@@ -57,6 +57,38 @@ const isNameNotAvailableRevert = (error: Error): boolean => {
 export const isNameNotAvailableError = (error: unknown): boolean =>
   causeChain(error).some(isNameNotAvailableRevert)
 
+// The emissary wraps every validator rejection this way, not only a revoked session.
+const INVALID_SIGNATURE_SELECTOR = toFunctionSelector('InvalidSignature()')
+const INVALID_SIGNATURE_IN_TEXT = new RegExp(
+  `(?<!\\w)InvalidSignature\\(\\)|(?<![0-9a-f])${INVALID_SIGNATURE_SELECTOR}(?![0-9a-f])`,
+  'i',
+)
+
+const asRecord = (value: unknown): Readonly<Record<string, unknown>> =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {}
+
+// Reads the SDK error's `context`, which the cause chain reaches through a `TransactionSubmissionError`.
+const isInvalidSignatureRejection = (error: Error): boolean => {
+  const context = asRecord(asRecord(error).context)
+  return (
+    context.category === 'INVALID_SIGNATURE' ||
+    context.errorSelector === INVALID_SIGNATURE_SELECTOR ||
+    INVALID_SIGNATURE_IN_TEXT.test(error.message)
+  )
+}
+
+/** The orchestrator refused an intent's signature (`InvalidSignature()`). */
+export const isInvalidSignatureError = (error: unknown): boolean =>
+  causeChain(error).some(isInvalidSignatureRejection)
+
+/** A refused signature means a revoked session only when the screen opened after a reset. */
+export const isSessionRevokedFailure = (params: {
+  readonly wasSessionAccessReset: boolean
+  readonly isSignatureRejected: boolean
+}): boolean => params.wasSessionAccessReset && params.isSignatureRejected
+
 const INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE'
 
 // A refused route lists one code per strategy; a refused simulation has one category.

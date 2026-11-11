@@ -25,9 +25,10 @@ vi.mock('@/features/registry/hooks/usePastedRegistryCheck', () => ({
   usePastedRegistryCheck: pastedRegistryCheck,
 }))
 
+let connectedAddress: Address | undefined = CONNECTED
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
-  return { ...actual, useConnection: () => ({ address: CONNECTED }) }
+  return { ...actual, useConnection: () => ({ address: connectedAddress }) }
 })
 
 // The name renders as an unconfigured 3LD: its own registry slot is empty and
@@ -158,6 +159,7 @@ const submitForm = async (user: ReturnType<typeof userEvent.setup>) => {
 }
 
 beforeEach(() => {
+  connectedAddress = CONNECTED
   discoverRegistries.mockReset().mockResolvedValue(UNCONFIGURED)
   toastWarning.mockReset()
   readSubregistry.mockReset()
@@ -179,6 +181,20 @@ describe('ConfigureRegistryForm', () => {
       registryAddress: PARENT_REGISTRY,
       label: '1',
     })
+  })
+
+  it('keeps the empty-registry notice and asks a disconnected visitor to connect', async () => {
+    connectedAddress = undefined
+    renderForm()
+
+    expect(
+      await screen.findByText('No registry configured'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Wallet not connected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /configure registry/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('refuses to submit once the name has a registry of its own', async () => {

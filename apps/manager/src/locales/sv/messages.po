@@ -3207,6 +3207,14 @@ msgstr ""
 msgid "Smart session access reset"
 msgstr ""
 
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Smart Session Access Reset"
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Smart session access was reset while {label}.eth was registering, so this registration can't continue with the old session."
+msgstr ""
+
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Smart session access was reset, but your leftover funds are still in your smart account. Use \"Withdraw leftover funds\" to get them back."
 msgstr ""
@@ -3337,10 +3345,6 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Submitting token approval"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx
-msgid "Subname copying is not available in this session. Keep this parent on ENSv1 so its subnames keep working."
 msgstr ""
 
 #: src/features/migration/components/SubnameUpgradeExplanation.tsx
@@ -3785,6 +3789,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
+msgstr ""
+
+#: src/features/register-v2/workflow/result/FailureStep.tsx
+msgid "Trying again would use the old session and fail the same way. Go back to the quote to start the registration again with a new smart session."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx

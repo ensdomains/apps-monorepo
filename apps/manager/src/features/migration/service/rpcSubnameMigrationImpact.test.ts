@@ -199,6 +199,17 @@ describe('RPC subname migration impact', () => {
     ).toMatchObject({ status: 'incomplete' })
   })
 
+  it('skips a deleted subname once everything below it is deleted too', () => {
+    const deleted = { registryOwner: zeroAddress, resolver: zeroAddress }
+    expect(
+      run([
+        child(`design.${root}`, deleted),
+        child(`shop.design.${root}`, deleted),
+        child(`leaf.shop.design.${root}`, deleted),
+      ]),
+    ).toMatchObject({ status: 'complete', impact: { affectedCount: 0 } })
+  })
+
   it('permits an expired .eth root only when the plan renews it', () => {
     const expiredRootNodes = new Set([namehash(root)])
     expect(run([], { expiredRootNodes })).toMatchObject({

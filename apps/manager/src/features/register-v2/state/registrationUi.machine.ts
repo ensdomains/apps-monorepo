@@ -49,6 +49,7 @@ import { readPendingL2Bridge } from '../service/pendingL2Bridge'
 import {
   getRegistrationFailureMessage,
   getRegistrationFailureReason,
+  isInvalidSignatureError,
   isNameNotAvailableError,
   isNameTakenByOther,
   type RegistrationFailureReason,
@@ -134,6 +135,8 @@ type Context = {
    * Nothing to retry — the failure screen offers only a way back.
    */
   nameUnavailable: boolean
+  /** The orchestrator refused the intent's signature (`InvalidSignature()`). */
+  isSignatureRejected: boolean
   /**
    * A start or resume was refused because the wallet is registering elsewhere.
    * Nothing ran and nothing failed, so the screen says so instead of offering
@@ -270,6 +273,7 @@ type Events =
       type: 'transaction.failed'
       message?: string
       nameUnavailable?: boolean
+      isSignatureRejected?: boolean
       failureReason?: RegistrationFailureReason
       approvalOutcome?: ApprovalOutcome
       hasCommitment?: boolean
@@ -501,6 +505,7 @@ const machineSetup = setup({
       lastErrorMessage: () => undefined,
       approvalOutcome: () => 'none' as const,
       nameUnavailable: () => false,
+      isSignatureRejected: () => false,
       isWalletBusy: () => false,
       failureReason: () => undefined,
     }),
@@ -524,6 +529,13 @@ const machineSetup = setup({
           .with(
             { type: 'transaction.failed' },
             ({ nameUnavailable }) => nameUnavailable === true,
+          )
+          .otherwise(() => false),
+      isSignatureRejected: ({ event }) =>
+        match(event)
+          .with(
+            { type: 'transaction.failed' },
+            ({ isSignatureRejected }) => isSignatureRejected === true,
           )
           .otherwise(() => false),
       failureReason: ({ event }) =>
@@ -554,6 +566,7 @@ const machineSetup = setup({
           .otherwise(() => undefined),
       isWalletBusy: () => true,
       nameUnavailable: () => false,
+      isSignatureRejected: () => false,
       failureReason: () => undefined,
     }),
     setRegistrationLockError: assign({
@@ -1115,6 +1128,9 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             nameUnavailable:
               snapshot.context.nameUnavailable === true ||
               isNameNotAvailableError(snapshot.context.error),
+            isSignatureRejected: isInvalidSignatureError(
+              snapshot.context.error,
+            ),
             failureReason: getRegistrationFailureReason(snapshot.context.error),
           })),
         ],
@@ -1156,6 +1172,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     lastErrorMessage: undefined,
     approvalOutcome: 'none',
     nameUnavailable: false,
+    isSignatureRejected: false,
     isWalletBusy: false,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
