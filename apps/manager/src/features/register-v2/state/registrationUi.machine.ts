@@ -1,6 +1,7 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
   type EthFunding,
+  type HcaFundingApprovalCapability,
   type L2FundingSource,
   type PersistedRegistrationRecord,
   type RegistrationEvent,
@@ -118,6 +119,7 @@ export type FundingSourceOrigin = 'user' | 'fallback'
 export type PaymentAsset = 'stablecoin' | 'eth'
 
 type Context = {
+  readonly approvalFallback?: HcaFundingApprovalCapability
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
@@ -283,6 +285,7 @@ type Events =
   | { type: '$walletBusy'; blockingName: string | null }
 
 type Input = {
+  readonly approvalFallback?: HcaFundingApprovalCapability
   chainId: number
 }
 
@@ -927,6 +930,7 @@ const startRegistrationAction = machineSetup.createAction(
         signer: event.account.signer,
         // Funding permit signer (wallet → HCA budget) on the HCA path.
         approvalSigner,
+        approvalFallback: context.approvalFallback,
         accountAddress: event.account.accountAddress,
         ownerAddress,
         resolverOwnerAddress,
@@ -968,7 +972,7 @@ const startRegistrationAction = machineSetup.createAction(
  * run has to behave like the run it is continuing.
  */
 const resumeRegistrationAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, event }) => {
+  enqueueActions(({ enqueue, event, context }) => {
     if (event.type !== 'registration.resume') {
       return enqueue.raise({
         type: '$error',
@@ -1064,6 +1068,7 @@ const resumeRegistrationAction = machineSetup.createAction(
           signer: event.account.signer,
           approveBeforeCommit: true,
           approvalSigner,
+          approvalFallback: context.approvalFallback,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
           // A run paid from an L2 keeps paying from it; one the app no longer
@@ -1160,6 +1165,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   initial: 'pricing',
   context: ({ input }) => ({
     chainId: input.chainId,
+    approvalFallback: input.approvalFallback,
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     paymentAsset: 'stablecoin',
