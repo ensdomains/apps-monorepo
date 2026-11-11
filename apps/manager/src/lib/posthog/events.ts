@@ -16,7 +16,8 @@ export const getConnectedWalletAddress = (): string | null | undefined => {
   }
 }
 
-export const { track, startAnalyticsOperation } = createAnalyticsTracker({
-  client: posthog,
-  getConnectedWalletAddress,
-})
+export const { track, captureException, startAnalyticsOperation } =
+  createAnalyticsTracker({
+    client: posthog,
+    getConnectedWalletAddress,
+  })

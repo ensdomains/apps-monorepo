@@ -92,4 +92,63 @@ describe('analytics environment and URL policy', () => {
     expect(event?.$set).toEqual({ intercom_visitor_id: 'visitor' })
     expect(event?.$set_once).toEqual({ $initial_utm_campaign: 'launch' })
   })
+  it('keeps exception frames and debug IDs while removing RPC call bodies and named credentials', () => {
+    const captured = prepareAnalyticsEvent(
+      {
+        event: '$exception',
+        properties: {
+          distinct_id: 'anonymous',
+          $exception_list: [
+            {
+              type: 'ContractFunctionExecutionError',
+              value: 'Registration failed\nContract Call:\n calldata=private',
+              stacktrace: {
+                frames: [
+                  {
+                    filename: 'https://app.ens.domains/assets/app.js',
+                    function: 'submit',
+                    lineno: 10,
+                    colno: 4,
+                    chunk_id: 'debug-id',
+                  },
+                ],
+              },
+            },
+          ],
+          $exception_message:
+            'Request failed: https://rpc.example/?access_token=credential Authorization: Bearer private',
+        },
+      },
+      {
+        sourceApp: 'manager',
+        environment: {
+          network: 'sepolia',
+          projectKey: 'staging',
+          isDevelopment: false,
+          isDebugEnabled: false,
+        },
+        walletAddress: null,
+      },
+    )
+    expect(captured?.properties.$exception_list).toEqual([
+      {
+        type: 'ContractFunctionExecutionError',
+        value: 'Registration failed',
+        stacktrace: {
+          frames: [
+            {
+              filename: 'https://app.ens.domains/assets/app.js',
+              function: 'submit',
+              lineno: 10,
+              colno: 4,
+              chunk_id: 'debug-id',
+            },
+          ],
+        },
+      },
+    ])
+    expect(JSON.stringify(captured)).not.toMatch(
+      /credential|Bearer private|calldata=private/,
+    )
+  })
 })

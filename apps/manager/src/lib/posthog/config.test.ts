@@ -121,6 +121,46 @@ describe('PostHog consent', () => {
     ).toBe(true)
   })
 
+  it('captures manual and unhandled exceptions after consent with their message and stack', async () => {
+    const { client, requests } = initClient()
+    expect(client.captureException(new Error('before consent'))).toBeUndefined()
+    setAnalyticsConsent(client, true)
+    const captured = client.captureException(new Error('render failure'))
+    expect(captured?.event).toBe('$exception')
+    expect(captured?.properties.$exception_list[0].value).toBe('render failure')
+    expect(
+      captured?.properties.$exception_list[0].stacktrace.frames.some(
+        (frame: { readonly filename?: string }) =>
+          frame.filename?.includes('config.test.ts'),
+      ),
+    ).toBe(true)
+    // HappyDOM dispatches ErrorEvent differently from the browser's five-argument handler.
+    window.onerror?.(
+      'unhandled failure',
+      location.href,
+      1,
+      1,
+      new Error('unhandled failure'),
+    )
+    await vi.advanceTimersByTimeAsync(3000)
+    const exceptions = requests.mock.calls
+      .flatMap(([request]) =>
+        Array.isArray(request.data) ? request.data : [request.data],
+      )
+      .filter((event) => event?.event === '$exception')
+    expect(
+      exceptions.some(
+        (event) =>
+          event?.properties.$exception_list[0].value === 'unhandled failure',
+      ),
+    ).toBe(true)
+    expect(JSON.stringify(exceptions)).not.toContain('before consent')
+    setAnalyticsConsent(client, false)
+    expect(
+      client.captureException(new Error('after withdrawal')),
+    ).toBeUndefined()
+  })
+
   it('preserves native page context and drops ordinary autocapture before transport', () => {
     const { client } = initClient()
     setAnalyticsConsent(client, true)

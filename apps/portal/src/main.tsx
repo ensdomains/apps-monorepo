@@ -8,6 +8,7 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { initializeIntercom } from '@/lib/intercom'
+import { captureException } from '@/lib/posthog/events'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
@@ -34,6 +35,7 @@ const router = createRouter({
   routeTree,
   context: {},
   defaultPreload: 'intent',
+  defaultOnCatch: captureException,
   scrollRestoration: true,
   defaultStructuralSharing: true,
   defaultPreloadStaleTime: 0,
@@ -56,7 +58,9 @@ initializeIntercom()
 // Render the app
 const rootElement = document.getElementById('app')
 if (rootElement && !rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement)
+  const root = ReactDOM.createRoot(rootElement, {
+    onCaughtError: captureException,
+  })
   root.render(
     <StrictMode>
       <RouterProvider router={router} />

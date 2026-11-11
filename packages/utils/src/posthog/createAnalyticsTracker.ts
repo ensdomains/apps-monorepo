@@ -16,6 +16,7 @@ type TrackerOptions = {
   readonly getConnectedWalletAddress: () => string | null | undefined
   readonly client: Parameters<typeof hasAnalyticsConsent>[0] & {
     get_distinct_id: () => string
+    captureException?: (error: unknown) => unknown
     capture: (
       name: string,
       properties?: Readonly<Record<string, unknown>>,
@@ -50,6 +51,27 @@ export const createAnalyticsTracker = ({
   }
   const track: Track = (name, ...args) => send(name, args[0])
 
+  const capturedExceptions = new WeakSet<object>()
+  const captureException = (error: unknown): void => {
+    try {
+      if (error && typeof error === 'object' && capturedExceptions.has(error))
+        return
+      if (
+        hasAnalyticsConsent(client) &&
+        hasMatchingWalletIdentity(
+          getConnectedWalletAddress(),
+          client.get_distinct_id(),
+        )
+      ) {
+        const result = client.captureException?.(error)
+        if (error && typeof error === 'object') capturedExceptions.add(error)
+        void Promise.resolve(result).catch(() => {})
+      }
+    } catch {
+      // Optional error reporting cannot replace the application's error handling.
+    }
+  }
+
   /** Use before an await to suppress outcomes after a wallet or consent change. */
   const startAnalyticsOperation = (): { readonly capture: Track } => {
     try {
@@ -79,5 +101,5 @@ export const createAnalyticsTracker = ({
       return { capture: () => {} }
     }
   }
-  return { track, startAnalyticsOperation }
+  return { track, captureException, startAnalyticsOperation }
 }

@@ -7,6 +7,7 @@ const setup = (captureOverride?: () => unknown) => {
   let identity = 'anonymous'
   let walletAddress: string | null | undefined = null
   const capture = vi.fn()
+  const exceptionCapture = vi.fn()
   const tracker = createAnalyticsTracker({
     getConnectedWalletAddress: () => walletAddress,
     client: {
@@ -14,11 +15,13 @@ const setup = (captureOverride?: () => unknown) => {
       get_explicit_consent_status: () => consent,
       get_distinct_id: () => identity,
       capture: captureOverride ?? capture,
+      captureException: exceptionCapture,
     },
   })
   return {
     ...tracker,
     capture,
+    exceptionCapture,
     setWallet: (address: string | null | undefined) => {
       walletAddress = address
     },
@@ -164,4 +167,23 @@ it('attributes explicit disconnect to the departing wallet while suppressing oth
     'wallet:disconnect',
     undefined,
   )
+})
+
+it('captures caught exceptions once across React/router callbacks, only with matching consent and identity', () => {
+  const state = setup()
+  const error = new Error('render failed')
+  state.captureException(error)
+  expect(state.exceptionCapture).not.toHaveBeenCalled()
+  state.grant()
+  state.setWallet('0x1111111111111111111111111111111111111111')
+  state.captureException(error)
+  expect(state.exceptionCapture).not.toHaveBeenCalled()
+  state.identify('0x1111111111111111111111111111111111111111')
+  state.captureException(error)
+  state.captureException(error)
+  expect(state.exceptionCapture).toHaveBeenCalledExactlyOnceWith(error)
+  state.exceptionCapture.mockImplementation(() => {
+    throw new Error('SDK unavailable')
+  })
+  expect(() => state.captureException(new Error('another crash'))).not.toThrow()
 })

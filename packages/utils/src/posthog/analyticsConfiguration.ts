@@ -102,9 +102,6 @@ const SENSITIVE_FIELDS = new Set([
   'calldata',
   'raw_error',
   'error',
-  'error_message',
-  'error_stack',
-  'stack',
 ])
 
 const hasCredentialParameter = (params: URLSearchParams): boolean =>
@@ -143,9 +140,31 @@ const redactUrlCredentials = (value: string): string => {
   }
 }
 
-const protectAnalyticsValue = (value: unknown): unknown => {
-  if (typeof value === 'string') return redactUrlCredentials(value)
-  if (Array.isArray(value)) return value.map(protectAnalyticsValue)
+const redactExceptionText = (value: string): string => {
+  const message =
+    value.split(
+      /\b(?:Request body|Raw Call Arguments|Contract Call|Transaction Request|RPC request|Request Arguments):/i,
+    )[0] ?? value
+  return message
+    .trimEnd()
+    .replace(/https?:\/\/[^\s"'<>]+/g, redactUrlCredentials)
+    .replace(/\bBearer\s+[^\s"',;}]+/gi, 'Bearer [redacted]')
+    .replace(
+      /(\b(?:authorization|password|access_token|refresh_token|id_token|api_key|private_?key|secret|signature|calldata|callData|data|input)["']?\s*[:=]\s*["']?)[^\s"',;}\]]+/gi,
+      '$1[redacted]',
+    )
+}
+
+const protectAnalyticsValue = (
+  value: unknown,
+  isException = false,
+): unknown => {
+  if (typeof value === 'string')
+    return isException
+      ? redactExceptionText(value)
+      : redactUrlCredentials(value)
+  if (Array.isArray(value))
+    return value.map((item) => protectAnalyticsValue(item, isException))
   if (
     value &&
     typeof value === 'object' &&
@@ -154,17 +173,19 @@ const protectAnalyticsValue = (value: unknown): unknown => {
   )
     return protectAnalyticsProperties(
       value as Readonly<Record<string, unknown>>,
+      isException,
     )
   return value
 }
 
 const protectAnalyticsProperties = (
   properties: Readonly<Record<string, unknown>>,
+  isException = false,
 ): Record<string, unknown> =>
   Object.fromEntries(
     Object.entries(properties)
       .filter(([key]) => !SENSITIVE_FIELDS.has(key.toLowerCase()))
-      .map(([key, value]) => [key, protectAnalyticsValue(value)]),
+      .map(([key, value]) => [key, protectAnalyticsValue(value, isException)]),
   )
 
 export const SHARED_POSTHOG_CONFIG = {
@@ -177,7 +198,11 @@ export const SHARED_POSTHOG_CONFIG = {
   capture_dead_clicks: false,
   mask_all_text: true,
   mask_all_element_attributes: true,
-  capture_exceptions: false,
+  capture_exceptions: {
+    capture_unhandled_errors: true,
+    capture_unhandled_rejections: true,
+    capture_console_errors: false,
+  },
   disable_session_recording: true,
   disable_surveys: true,
   disable_product_tours: true,
@@ -235,8 +260,7 @@ export const prepareAnalyticsEvent = <
     !hasMatchingWalletIdentity(context.walletAddress, identity, event.event)
   )
     return null
-  if (event.event === '$autocapture' || event.event === '$exception')
-    return null
+  if (event.event === '$autocapture') return null
   return {
     ...event,
     ...(event.$set ? { $set: protectAnalyticsProperties(event.$set) } : {}),
@@ -244,7 +268,10 @@ export const prepareAnalyticsEvent = <
       ? { $set_once: protectAnalyticsProperties(event.$set_once) }
       : {}),
     properties: {
-      ...protectAnalyticsProperties(event.properties),
+      ...protectAnalyticsProperties(
+        event.properties,
+        event.event === '$exception',
+      ),
       source_app: context.sourceApp,
       environment:
         context.environment.network === 'mainnet' ? 'production' : 'staging',

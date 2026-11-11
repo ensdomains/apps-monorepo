@@ -4,6 +4,7 @@ import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
+import posthog from '@posthog/rollup-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -27,6 +28,14 @@ export default defineConfig(({ mode, command, isPreview }) => {
     endpoints: PORTAL_ENDPOINTS,
     allowMissingEndpoints: true,
   })
+  if (
+    command === 'build' &&
+    env.VITE_PUBLIC_POSTHOG_KEY &&
+    !env.POSTHOG_API_KEY
+  )
+    console.warn(
+      '[posthog] Source maps are not uploaded: POSTHOG_API_KEY is not configured for this build.',
+    )
   return {
     server: {
       port: 3001,
@@ -62,6 +71,25 @@ export default defineConfig(({ mode, command, isPreview }) => {
       viteReact(),
       i18nextLoader({ paths: [locales] }),
       tailwindcss(),
+      ...(command === 'build' &&
+      env.POSTHOG_API_KEY &&
+      env.POSTHOG_PROJECT_ID &&
+      env.VITE_PUBLIC_POSTHOG_KEY
+        ? [
+            posthog({
+              personalApiKey: env.POSTHOG_API_KEY,
+              projectId: env.POSTHOG_PROJECT_ID,
+              host: env.POSTHOG_HOST,
+              cliBinaryPath: env.POSTHOG_CLI_BINARY_PATH,
+              sourcemaps: {
+                releaseName: 'ens-portal',
+                releaseVersion: process.env.GITHUB_SHA,
+                releaseMode: 'symbol-set',
+                deleteAfterUpload: true,
+              },
+            }),
+          ]
+        : []),
       ...(command === 'build' || isPreview ? [cloudflare()] : []),
     ],
     resolve: {

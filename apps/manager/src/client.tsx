@@ -4,6 +4,7 @@ import '@ens-apps/dev-time-travel/setup'
 import { StartClient } from '@tanstack/react-start/client'
 import { StrictMode } from 'react'
 import { hydrateRoot } from 'react-dom/client'
+import { captureException } from './lib/posthog/events'
 import reportWebVitals from './reportWebVitals'
 
 hydrateRoot(
@@ -11,6 +12,7 @@ hydrateRoot(
   <StrictMode>
     <StartClient />
   </StrictMode>,
+  { onCaughtError: captureException },
 )
 
 // If you want to start measuring performance in your app, pass a function

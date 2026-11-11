@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin'
+import posthog from '@posthog/rollup-plugin'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
@@ -13,11 +14,19 @@ import {
 import { MANAGER_ENDPOINTS } from './src/endpoints.ts'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
   assertDeploymentEnvironment(env, mode)
   // Validate here so direct Vite commands and --mode use the same env files.
   assertNetworkConfig(env, { endpoints: MANAGER_ENDPOINTS })
+  if (
+    command === 'build' &&
+    env.VITE_PUBLIC_POSTHOG_KEY &&
+    !env.POSTHOG_API_KEY
+  )
+    console.warn(
+      '[posthog] Source maps are not uploaded: POSTHOG_API_KEY is not configured for this build.',
+    )
   return {
     server: {
       port: 3000,
@@ -62,6 +71,25 @@ export default defineConfig(({ mode }) => {
         presets: [linguiTransformerBabelPreset()],
       }),
       tailwindcss(),
+      ...(command === 'build' &&
+      env.POSTHOG_API_KEY &&
+      env.POSTHOG_PROJECT_ID &&
+      env.VITE_PUBLIC_POSTHOG_KEY
+        ? [
+            posthog({
+              personalApiKey: env.POSTHOG_API_KEY,
+              projectId: env.POSTHOG_PROJECT_ID,
+              host: env.POSTHOG_HOST,
+              cliBinaryPath: env.POSTHOG_CLI_BINARY_PATH,
+              sourcemaps: {
+                releaseName: 'ens-manager',
+                releaseVersion: process.env.GITHUB_SHA,
+                releaseMode: 'symbol-set',
+                deleteAfterUpload: true,
+              },
+            }),
+          ]
+        : []),
     ],
     optimizeDeps: {
       // Pre-bundle deps that Vite discovers late (during route navigation).

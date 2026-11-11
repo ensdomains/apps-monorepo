@@ -176,6 +176,9 @@ catalogs:
     '@ensdomains/ensjs-abi':
       specifier: ^5.0.5
       version: 5.0.5
+    '@posthog/rollup-plugin':
+      specifier: ^1.6.3
+      version: 1.6.3
     '@rhinestone/sdk':
       specifier: 1.22.0
       version: 1.22.0
@@ -518,6 +521,9 @@ importers:
       '@lingui/vite-plugin':
         specifier: 6.3.0
         version: 6.3.0(@babel/core@7.29.7(supports-color@10.2.2))(@lingui/babel-plugin-lingui-macro@6.3.0(supports-color@10.2.2))(@rolldown/plugin-babel@0.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@babel/runtime@8.0.7)(rolldown@1.2.14)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))(rolldown@1.2.14)(supports-color@10.2.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@posthog/rollup-plugin':
+        specifier: 'catalog:'
+        version: 1.6.3
       '@rolldown/plugin-babel':
         specifier: ^0.2.4
         version: 0.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@babel/runtime@8.0.7)(rolldown@1.2.14)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -810,6 +816,9 @@ importers:
       '@ensdomains/vite-plugin-i18next-loader':
         specifier: ^4.0.3
         version: 4.0.3(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@posthog/rollup-plugin':
+        specifier: 'catalog:'
+        version: 1.6.3
       '@statelyai/inspect':
         specifier: ^0.4.0
         version: 0.4.0(ws@8.22.0)(xstate@5.33.3(patch_hash=e93cf3ef96ce4349c3662071e9d49d95ca4d654a3d2cb90112d8abe588a5db38))
@@ -3408,8 +3417,21 @@ packages:
   '@poppinss/exception@1.2.3':
     resolution: {integrity: sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw==}
 
+  '@posthog/cli@0.18.12':
+    resolution: {integrity: sha512-/eT9riWOkBb9uwsdOxQgW3fan/T3hwT8rvwZCzPl3DAgSBEhzpP59usD0fyFS++X2967E5AQe74nrBw1rywf6A==}
+    engines: {node: '>=14.14', npm: '>=6'}
+    hasBin: true
+
   '@posthog/core@1.59.1':
     resolution: {integrity: sha512-P39YgzQVDh6oz6wAzQXEnoHgTYpM7gifonmVKq1scAJco79h31XmmNVurRq9tTmmyIrr1uX8FHT0riCsyfV9AQ==}
+
+  '@posthog/plugin-utils@2.0.1':
+    resolution: {integrity: sha512-ZiQfUcgY65EjF2vkqL4Aau6sx0aqvSWoXaGSGu9Solnmv6e6VRjQbAU0SCKbxpJxcEsCJof9vmvnrFTQIEOUAQ==}
+
+  '@posthog/rollup-plugin@1.6.3':
+    resolution: {integrity: sha512-Z+S78boVxU9I/FthoJLi1Ql743WL9QMn/UK+kUNadHbTzlB9BHN37aLjBWGYWi56RrOTjfAWtb5j8l8TVzEQXg==}
+    peerDependencies:
+      rollup: '>= 4.0.0'
 
   '@posthog/types@1.416.0':
     resolution: {integrity: sha512-0/9+02s/0uDyrH4G/qUg1yyl6gXUg8Uuxw/PlDad3KLzo9FFS9zS/kAQaEshx/saVGupj1aAy/4EUBxWisBogw==}
@@ -9783,9 +9805,23 @@ snapshots:
 
   '@poppinss/exception@1.2.3': {}
 
+  '@posthog/cli@0.18.12':
+    dependencies:
+      detect-libc: 2.1.2
+
   '@posthog/core@1.59.1':
     dependencies:
       '@posthog/types': 1.416.0
+
+  '@posthog/plugin-utils@2.0.1':
+    dependencies:
+      cross-spawn: 7.0.6
+
+  '@posthog/rollup-plugin@1.6.3':
+    dependencies:
+      '@posthog/cli': 0.18.12
+      '@posthog/plugin-utils': 2.0.1
+      magic-string: 0.30.21
 
   '@posthog/types@1.416.0': {}
 

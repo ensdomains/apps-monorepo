@@ -108,6 +108,7 @@
     "@lingui/cli": "^6.10.0",
     "@lingui/format-po": "^6.10.0",
     "@lingui/vite-plugin": "6.3.0",
+    "@posthog/rollup-plugin": "catalog:",
     "@rolldown/plugin-babel": "^0.2.4",
     "@statelyai/inspect": "^0.4.0",
     "@storybook/tanstack-react": "^10.6.2",

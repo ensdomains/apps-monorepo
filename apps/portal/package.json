@@ -98,6 +98,7 @@
     "@cloudflare/vite-plugin": "catalog:",
     "@ens-apps/test-utils": "workspace:*",
     "@ensdomains/vite-plugin-i18next-loader": "^4.0.3",
+    "@posthog/rollup-plugin": "catalog:",
     "@statelyai/inspect": "^0.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.2",

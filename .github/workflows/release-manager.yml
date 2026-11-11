@@ -107,6 +107,7 @@ jobs:
         run: pnpm build:manager:mainnet
         env:
           VITE_BIGNAME_API_URL: ${{ vars.VITE_BIGNAME_API_URL }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
       - name: Download the release notes
         uses: actions/download-artifact@v8
