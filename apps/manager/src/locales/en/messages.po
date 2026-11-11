@@ -1863,6 +1863,7 @@ msgstr "Loading NFT artwork…"
 
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 #: src/features/bulk-renew/components/BulkRenewPaymentStep.tsx
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
 #: src/features/register-v2/workflow/pricing/components/CheckoutSummaryCard.tsx
@@ -3251,6 +3252,7 @@ msgstr "Some names are more in-demand than others — the stats below can help y
 msgid "Some names are more in-demand than others."
 msgstr "Some names are more in-demand than others."
 
+#: src/features/dashboard/components/FavoritesList.tsx
 #: src/features/dashboard/components/MyNamesList.tsx
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
