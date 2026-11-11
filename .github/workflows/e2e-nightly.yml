@@ -151,7 +151,8 @@ jobs:
 
       # ── fund test accounts ──────────────────────────────────────
       - name: Fund Rhinestone smart accounts
-        if: matrix.config.project != 'portal' && matrix.config.project != 'metadata'
+        # The metadata project's V2 fixtures send from one of these EOAs too.
+        if: matrix.config.project != 'portal'
         run: bash e2e/infra/scripts/fund-rhinestone-account.sh
 
       - name: Fund test EOA
