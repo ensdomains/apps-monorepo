@@ -188,6 +188,28 @@ const makeLiveOwnerQuote = async () => {
   }
 }
 
+const withoutGasRefund = () => {
+  const route = makeRoute()
+  const [element] = route.intentOp.elements
+  const { gasRefund: _gasRefund, ...settlementContext } =
+    element.mandate.qualifier.settlementContext
+  return {
+    ...route,
+    intentOp: {
+      ...route.intentOp,
+      elements: [
+        {
+          ...element,
+          mandate: {
+            ...element.mandate,
+            qualifier: { settlementContext },
+          },
+        },
+      ],
+    },
+  }
+}
+
 describe('checkOwnerIntentRoute', () => {
   it('accepts only the capped Paymaster approval and the verified SingleChainOps authorization', async () => {
     expect(checkOwnerIntentRoute(await makeLiveOwnerQuote())).toBeUndefined()
@@ -352,6 +374,32 @@ describe('checkOwnerIntentRoute', () => {
       makeRoute({ mandate: { destinationChainId: '8453' } }),
     ],
     ['wrong recipient', makeRoute({ mandate: { recipient: REGISTRAR } })],
+    [
+      'wrong sponsor',
+      {
+        ...makeRoute(),
+        intentOp: { ...makeRoute().intentOp, sponsor: REGISTRAR },
+      },
+    ],
+    [
+      'token requirements',
+      { ...makeRoute(), tokenRequirements: { [TOKEN]: '1' } },
+    ],
+    [
+      'origin swap',
+      makeRoute({ element: { swapOrigins: { [TOKEN]: REGISTRAR } } }),
+    ],
+    [
+      'destination swap',
+      makeRoute({ mandate: { swapDestinations: [REGISTRAR] } }),
+    ],
+    ['non-7579 settlement', makeRoute({ context: { using7579: false } })],
+    ['missing gas refund', withoutGasRefund()],
+    [
+      'malformed calldata',
+      withCalls([{ ...CALLS[0], data: '0xabc' }, CALLS[1]]),
+    ],
+    ['uint256 overflow', makeRoute({ refund: { overhead: 1n << 256n } })],
     ['token claims', makeRoute({ element: { idsAndAmounts: [['1', '1']] } })],
     ['token spending', makeRoute({ element: { spendTokens: [['1', '1']] } })],
     ['token delivery', makeRoute({ mandate: { tokenOut: [['1', '1']] } })],

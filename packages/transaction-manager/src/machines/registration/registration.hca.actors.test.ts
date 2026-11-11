@@ -475,6 +475,17 @@ describe('submitFundingAndCommitActor', () => {
     })
   })
 
+  it('does not let the owner setup fee ceiling exceed the reviewed funding grant', async () => {
+    const { input, approvalFallback } = await makeRegistrationFundingRun()
+
+    expect((await submitFundingAndCommitActor(input)).isOk()).toBe(true)
+
+    const limits = submittedRequest().rhinestoneParams.ownerIntentLimits
+    expect(limits?.refundCaps.maxRefundAmount).toBeLessThanOrEqual(
+      approvalFallback.targetBalance,
+    )
+  })
+
   it('keeps a compatible permit in the atomic batch without an approval prompt', async () => {
     const { input, publicClient, approvalFallback, walletClient } =
       await makeRegistrationFundingRun()
