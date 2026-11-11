@@ -96,6 +96,8 @@ describe('getL2Sources', () => {
     '=http://127.0.0.1:8547',
     'base=http://127.0.0.1:8547',
     '84532=',
+    '84532=not-a-url',
+    '84532=ws://127.0.0.1:8547',
   ])('refuses the malformed override %j', (value) => {
     expect(() => parseL2RpcOverrides(value)).toThrow('VITE_L2_RPC_URLS')
   })

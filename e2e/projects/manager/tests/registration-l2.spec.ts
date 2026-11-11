@@ -13,7 +13,7 @@
  */
 
 import { expect } from '@playwright/test'
-import type { Address } from 'viem'
+import { type Address, isAddressEqual } from 'viem'
 import {
   authorizeTransactionsWhile,
   test,
@@ -33,7 +33,7 @@ import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { assertV2Registered } from '../../../helpers/migration-assertions.js'
 import { clickRegistrationPaymentAction } from '../../../helpers/payment-picker.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
-import { hcaOf } from '../../../helpers/v2-reads.js'
+import { ethRegistryState, hcaOf } from '../../../helpers/v2-reads.js'
 
 const L2_FUNDS = 100_000_000n // 100 USDC
 
@@ -110,6 +110,11 @@ test.describe('Registration paid from an L2', () => {
         await authorizeSetupTxs
 
         await assertV2Registered(label)
+        const { latestOwner } = await ethRegistryState(label)
+        expect(
+          isAddressEqual(latestOwner, owner),
+          `the name is owned by the paying wallet, not ${latestOwner}`,
+        ).toBe(true)
         const l2Debit = L2_FUNDS - (await l2UsdcBalance(fork, owner))
         expect(l2Debit, 'the L2 wallet paid').toBeGreaterThan(0n)
         expect(

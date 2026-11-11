@@ -120,6 +120,14 @@ export const getL2Sources = (
     }
   })
 
+// The override replaces the whole RPC list and `failover` speaks HTTP only,
+// so anything else would leave that L2 unreadable.
+const isHttpUrl = (value: string): boolean => {
+  if (!URL.canParse(value)) return false
+  const { protocol } = new URL(value)
+  return protocol === 'http:' || protocol === 'https:'
+}
+
 /**
  * Per-L2 RPC overrides, as comma-separated `chainId=url` pairs (e2e points
  * Base Sepolia at a local fork with `84532=http://127.0.0.1:8547`).
@@ -136,7 +144,7 @@ export const parseL2RpcOverrides = (
         const separator = pair.indexOf('=')
         const chainId = Number(pair.slice(0, separator))
         const url = pair.slice(separator + 1).trim()
-        if (separator < 1 || !Number.isInteger(chainId) || !url) {
+        if (separator < 1 || !Number.isInteger(chainId) || !isHttpUrl(url)) {
           throw new Error(
             `VITE_L2_RPC_URLS: expected chainId=url, got "${pair}"`,
           )
