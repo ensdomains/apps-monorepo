@@ -220,6 +220,23 @@ export const computeStandaloneHcaAddress = (params: {
   })
 }
 
+/** The owner-paid `StandaloneHCAFactory.deploy` call for `owner`'s standalone HCA. */
+export function buildStandaloneHcaDeploymentCall(params: {
+  readonly chainId: number
+  readonly owner: Address
+}): Call {
+  const contracts = getDestinationContracts(params.chainId)
+  return {
+    to: contracts.standaloneHcaFactory,
+    value: 0n,
+    data: encodeFunctionData({
+      abi: standaloneHcaFactoryAbi,
+      functionName: 'deploy',
+      args: [params.owner, contracts.standaloneHcaImplementation, USER_SALT],
+    }),
+  }
+}
+
 /**
  * Build the standalone factory call exposed by the SDK for direct deployment.
  * This is useful before an EOA submits `executeByOwner(...)` directly, where
@@ -297,15 +314,10 @@ export function buildHcaDeploymentCall(
     })
   }
 
-  const expectedFactoryData = encodeFunctionData({
-    abi: standaloneHcaFactoryAbi,
-    functionName: 'deploy',
-    args: [
-      params.expectedOwner,
-      contracts.standaloneHcaImplementation,
-      USER_SALT,
-    ],
-  })
+  const expectedFactoryData = buildStandaloneHcaDeploymentCall({
+    chainId: params.chainId,
+    owner: params.expectedOwner,
+  }).data
   if (factoryData.toLowerCase() !== expectedFactoryData.toLowerCase()) {
     throw new HcaDeploymentCallValidationError({
       field: 'calldata',

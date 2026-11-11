@@ -16,7 +16,6 @@ export const prepareGraceRenewalMigration = async (params: {
   readonly managerRestorationNames?: readonly string[]
   /** The owner wallet bundles calls atomically (EIP-5792). */
   readonly canBatchAtomically?: boolean
-  readonly isSubnameRecreationEnabled?: boolean
   readonly signal?: AbortSignal
 }) => {
   const managerRestorationNames = params.managerRestorationNames ?? []
@@ -27,15 +26,13 @@ export const prepareGraceRenewalMigration = async (params: {
     (domain) => refreshed.get(domain.id) ?? domain,
   )
   params.signal?.throwIfAborted()
-  const discovery = params.isSubnameRecreationEnabled
-    ? await discoverSubnameRecreation({
-        domains,
-        owner: params.ownerAddress,
-        publicClient: params.publicClient,
-        signal: params.signal,
-      })
-    : undefined
-  const recreation = discovery?.snapshot.roots.length ? discovery : undefined
+  const discovery = await discoverSubnameRecreation({
+    domains,
+    owner: params.ownerAddress,
+    publicClient: params.publicClient,
+    signal: params.signal,
+  })
+  const recreation = discovery.snapshot.roots.length ? discovery : undefined
   const preflight = await computeMigrationPreflight({
     eoa: params.ownerAddress,
     hcaAddress: params.hcaAddress,

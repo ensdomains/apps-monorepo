@@ -52,7 +52,10 @@ vi.mock('@/lib/wagmi/helpers', async () => {
   const { ok } = await import('neverthrow')
   return { safeGetClient: () => ok(mocks.client) }
 })
-vi.mock('@/utils/debug-features', () => ({ isDebugProfileName: () => false }))
+vi.mock('@/utils/debug-features', () => ({
+  loadDebugProfiles: undefined,
+  isMaybeDebugName: () => false,
+}))
 vi.mock('./changeResolver', () => {
   class NameRegistryNotFoundError extends Error {}
   return {

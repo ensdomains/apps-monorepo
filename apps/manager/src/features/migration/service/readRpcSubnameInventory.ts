@@ -89,6 +89,7 @@ export type RpcSubnameInventoryParameters = {
   readonly scanDescendants?: (
     source: RpcSubnameSource,
     checkpoint: RpcSubnameInventory['checkpoint'],
+    depth: number,
   ) => boolean
   readonly signal?: AbortSignal
   /** Loading can wait for RPC recovery; final signing checks keep immediate failure. */
@@ -486,6 +487,7 @@ const readNodeGraph = async (
             return !params.scanDescendants?.(
               sourceFacts(source, edge, knownNames),
               checkpoint,
+              edge.depth,
             )
           })
           .map(({ node }) => node),

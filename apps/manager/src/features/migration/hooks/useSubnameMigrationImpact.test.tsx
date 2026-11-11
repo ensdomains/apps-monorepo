@@ -65,7 +65,6 @@ const mocks = vi.hoisted(() => ({
   historyFailure: false,
   reorg: false,
 }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
 vi.mock('./useMigrationRecoverySnapshot', () => ({
   useMigrationRecoverySnapshot: () => null,
 }))

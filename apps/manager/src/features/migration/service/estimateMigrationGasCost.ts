@@ -1,10 +1,15 @@
+import { requireChainId } from '@ens-apps/config'
+import {
+  buildStandaloneHcaDeploymentCall,
+  type Call,
+} from '@ens-apps/smart-account'
 import type { PublicClient } from 'viem'
 import type { MigrationPlan } from './buildMigrationPlan'
-
-const APPROVAL_GAS = 55_000n
-// The same standalone HCA deployment used by registration consumes ~393k gas
-// on Sepolia. Keep a conservative margin for the owner-paid factory call.
-const HCA_DEPLOYMENT_GAS = 450_000n
+import { approvalNeedsFor } from './migrationApprovalNeeds'
+import {
+  buildMigrationApprovalCall,
+  type MigrationApproval,
+} from './migrationApprovals'
 
 export type MigrationGasEstimate =
   | {
@@ -19,22 +24,85 @@ export type MigrationGasEstimate =
       readonly error: unknown
     }
 
+/** Fallback for approvals a projected renewal revives but the chain cannot measure yet. */
+const FALLBACK_APPROVAL_GAS = 55_000n
+
 type EstimateMigrationGasCostParams = {
   readonly plan: MigrationPlan
   readonly publicClient: PublicClient
+  /** Grace renewals only: execution rebuilds the plan after the renewal. */
+  readonly budgetUnmeasurableApprovals?: boolean
 }
 
-const predictedGasUnits = (plan: MigrationPlan): bigint => {
-  const approvals = plan.preflight.migrationApprovals ?? []
-  const approvalCount = BigInt(approvals.length)
-  const deploymentGas = plan.hcaDeploymentRequired ? HCA_DEPLOYMENT_GAS : 0n
-  const approvalGas = approvalCount * APPROVAL_GAS
+/** Recovery keeps migrated names' token approvals as done steps; execution only sends the remaining ones. */
+const approvalsToSend = (plan: MigrationPlan): readonly MigrationApproval[] => {
+  const tokenIds = new Set(approvalNeedsFor(plan.groups).unwrappedTokenIds)
+  return (plan.preflight.migrationApprovals ?? []).filter(
+    (approval) =>
+      approval.kind !== 'erc721-token' || tokenIds.has(approval.tokenId),
+  )
+}
+
+type SetupCall = {
+  readonly call: Call
+  readonly tokenApproval: boolean
+}
+
+/** The setup transactions the owner sends before any batch; the wallet estimates each. */
+const setupCalls = (
+  plan: MigrationPlan,
+  publicClient: PublicClient,
+): readonly SetupCall[] => [
+  ...(plan.hcaDeploymentRequired
+    ? [
+        {
+          call: buildStandaloneHcaDeploymentCall({
+            chainId: requireChainId(publicClient, 'migration'),
+            owner: plan.migrationOwner,
+          }),
+          tokenApproval: false,
+        },
+      ]
+    : []),
+  ...approvalsToSend(plan).map((approval) => ({
+    call: buildMigrationApprovalCall(approval),
+    tokenApproval: approval.kind === 'erc721-token',
+  })),
+]
+
+const estimateSetupGas = (
+  plan: MigrationPlan,
+  publicClient: PublicClient,
+  budgetUnmeasurableApprovals: boolean,
+): Promise<readonly bigint[]> =>
+  Promise.all(
+    setupCalls(plan, publicClient).map(async ({ call, tokenApproval }) => {
+      try {
+        return await publicClient.estimateGas({
+          account: plan.migrationOwner,
+          to: call.to,
+          data: call.data,
+          value: call.value,
+        })
+      } catch (error) {
+        // BaseRegistrar.ownerOf reverts during grace; the renewal restores it.
+        if (!tokenApproval || !budgetUnmeasurableApprovals) throw error
+        return FALLBACK_APPROVAL_GAS
+      }
+    }),
+  )
+
+const predictedGasUnits = (
+  plan: MigrationPlan,
+  setupGas: readonly bigint[],
+): bigint => {
+  const setupGasTotal = setupGas.reduce((total, gas) => total + gas, 0n)
   const atomicBatchGas = plan.atomicBatches.reduce(
     (total, batch) => total + batch.estimatedGas + batch.walletEstimatedGas,
     0n,
   )
 
-  return deploymentGas + approvalGas + atomicBatchGas
+  return setupGasTotal + atomicBatchGas
 }
 
 const predictedTransactionCount = (plan: MigrationPlan): number => {
@@ -66,10 +134,14 @@ const estimateFeePerGas = async (
 export const estimateMigrationGasCost = async ({
   plan,
   publicClient,
+  budgetUnmeasurableApprovals = false,
 }: EstimateMigrationGasCostParams): Promise<MigrationGasEstimate> => {
   try {
-    const gasUnits = predictedGasUnits(plan)
-    const feePerGasWei = await estimateFeePerGas(publicClient)
+    const [setupGas, feePerGasWei] = await Promise.all([
+      estimateSetupGas(plan, publicClient, budgetUnmeasurableApprovals),
+      estimateFeePerGas(publicClient),
+    ])
+    const gasUnits = predictedGasUnits(plan, setupGas)
 
     return {
       status: 'ready',
