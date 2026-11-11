@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  formatRoleHolderCount,
   getResolverNodesQueryOptions,
   getResolverOverviewQueryOptions,
   invalidateResolverOverview,
@@ -244,7 +245,7 @@ describe('getResolverOverviewQueryOptions', () => {
     expect(bigname.resolver).toHaveBeenCalledWith(
       11155111,
       RESOLVER,
-      { page_size: 1, include: ['total_count'] },
+      { page_size: 100 },
       { signal: expect.any(AbortSignal) },
     )
     expect(bigname.events).toHaveBeenCalledWith(
@@ -422,12 +423,12 @@ describe('getResolverNodesQueryOptions', () => {
     expect(bigname.resolver).toHaveBeenCalledWith(
       11155111,
       RESOLVER,
-      { page_size: 100, include: ['total_count'] },
+      { page_size: 100 },
       { signal: expect.any(AbortSignal) },
     )
   })
 
-  it('counts the bound names on the first page only', async () => {
+  it('passes the cursor when reading the next page', async () => {
     bigname.resolver
       .mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
       .mockReturnValueOnce(overview(['b.eth']))
@@ -461,6 +462,20 @@ describe('resolverCollectionCount', () => {
     expect(resolverCollectionCount(0, 'partial')).toBe('0+')
     expect(resolverCollectionCount(12, 'partial')).toBe('12+')
   })
+})
+
+describe('formatRoleHolderCount', () => {
+  it.each([
+    { count: 1, status: 'full', expected: '1 role holder' },
+    { count: 2, status: 'full', expected: '2 role holders' },
+    { count: 1, status: 'partial', expected: '1+ role holders' },
+    { count: undefined, status: undefined, expected: 'Role holders unknown' },
+  ] as const)(
+    '$count ($status) reads $expected',
+    ({ count, status, expected }) => {
+      expect(formatRoleHolderCount(count, status)).toBe(expected)
+    },
+  )
 })
 
 describe('invalidateResolverOverview', () => {

@@ -1,12 +1,7 @@
+import { type BignameClient, readAllEnvelopes } from '@ens-apps/indexer/bigname'
 import {
-  type BignameClient,
-  type Meta,
-  readAllEnvelopes,
-  type Subname,
-} from '@ens-apps/indexer/bigname'
-import {
-  readSubnameMigrationImpact,
   type SubnameMigrationImpact,
+  unknownLabelhashOf,
   type V1Domain,
 } from '@ens-apps/migration'
 import {
@@ -16,6 +11,8 @@ import {
 import { nameWrapperGetDataSnippet } from '@ensdomains/ensjs-abi/v1/nameWrapper'
 import {
   type Address,
+  concat,
+  type GetLogsReturnType,
   type Hex,
   isAddress,
   isAddressEqual,
@@ -37,7 +34,21 @@ import {
   type CopyClassifiedName,
   classifyNames,
 } from './classifyNames'
-import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
+import {
+  type RpcSubnameInventory,
+  type RpcSubnameSource,
+  readRpcSubnameInventory,
+} from './readRpcSubnameInventory'
+import { readRpcSubnameMigrationImpact } from './readRpcSubnameMigrationImpact'
+import {
+  getKnownSubnamePreimages,
+  getProvenSubnameName,
+} from './rpcSubnameInventory'
+import {
+  isEmptyRpcSubnameTombstone,
+  isResourceFreeRpcSubname,
+} from './rpcSubnameMigrationImpact'
+import { readSubnameMigrationImpactWithRetry } from './subnameMigrationImpactRetry'
 import {
   assertSubnameRecreationSnapshotCurrent,
   SubnameRecreationError,
@@ -53,10 +64,24 @@ export type SubnameRecreationSnapshot = {
   readonly blockHash: Hex
   readonly chainId?: number
   readonly inventoryDigest?: Hex
+  readonly registryAddresses?: readonly Address[]
+  /** Unknown-label leaves left on ENSv1; checked for new descendants before signing. */
+  readonly skipped?: readonly string[]
 }
 
 const SOURCE_MAX_AGE_SECONDS = 300n
 const MAX_DIRECT_CHILDREN = 200
+const LIVE_SCAN_DEPTH = 2
+// Fits a full direct tree's owner/resolver reads; larger selections split at the same checkpoint.
+const SOURCE_MULTICALL_BATCH_BYTES = 24_576
+const SOURCE_LOG_BATCH_SIZE = 200
+
+/** Live branches stop at grandchildren; a deleted one is followed until it is proven empty. */
+const scanRecreationDescendants = (
+  source: RpcSubnameSource,
+  _checkpoint: RpcSubnameInventory['checkpoint'],
+  depth: number,
+): boolean => depth < LIVE_SCAN_DEPTH || isResourceFreeRpcSubname(source)
 const newOwnerEvent = parseAbi([
   'event NewOwner(bytes32 indexed node, bytes32 indexed label, address owner)',
 ])[0]
@@ -68,21 +93,17 @@ const fail: (ensName: string, reason: string) => never = (ensName, reason) => {
   })
 }
 const parentOf = (name: string): string => name.slice(name.indexOf('.') + 1)
-const countOf = (name: string, count: number | null | undefined): number => {
-  if (
-    count === null ||
-    count === undefined ||
-    !Number.isSafeInteger(count) ||
-    count < 0
-  ) {
-    return fail(
-      name,
-      'the subname inventory is incomplete. Please refresh and try again.',
-    )
-  }
-  return count
-}
 const assertIdentity = (name: string, node: string): void => {
+  const unknownLabelhash = unknownLabelhashOf(name)
+  if (unknownLabelhash) {
+    // The label was never published, so prove the node from its hash instead.
+    if (
+      keccak256(concat([namehash(parentOf(name)), unknownLabelhash])) !==
+      node.toLowerCase()
+    )
+      fail(name, 'an exact, valid subname label is required before migration.')
+    return
+  }
   if (
     name.includes('[') ||
     normalize(name) !== name ||
@@ -221,170 +242,153 @@ export const applySubnameRecreation = (params: {
   ]
 }
 
-const recordPublication = (
-  meta: Meta,
-  name: string,
-  publications: Map<bigint, Hex>,
-): void => {
-  const position = meta.as_of?.[String(envConfig.chain.id)]
-  if (
-    meta.completeness === 'partial' ||
-    meta.completeness === 'unsupported' ||
-    ['partial', 'unsupported'].includes(
-      meta.as_of_completeness?.[String(envConfig.chain.id)]?.completeness ??
-        'full',
-    ) ||
-    !position ||
-    !Number.isSafeInteger(position.block_number) ||
-    !/^0x[0-9a-f]{64}$/i.test(position.block_hash)
-  ) {
-    fail(
-      name,
-      'a complete indexed inventory with a canonical checkpoint is required.',
-    )
-  }
-  const number = BigInt(position.block_number)
-  const prior = publications.get(number)
-  if (prior && prior.toLowerCase() !== position.block_hash.toLowerCase())
-    fail(name, 'the index returned inconsistent block identities.')
-  publications.set(number, position.block_hash)
-}
-
-const readDirectInventory = async (
+/** Indexer data supplies preimages only; RPC establishes every child identity. */
+const readLabelHints = async (
   indexer: BignameClient,
-  name: string,
-  publications: Map<bigint, Hex>,
+  rootName: string,
   signal?: AbortSignal,
-): Promise<readonly Subname[]> => {
-  const detail = await indexer.name(
-    name,
-    { namespace: 'ens', include: ['counts'] },
-    { signal },
-  )
-  if (detail.isErr())
-    fail(name, 'the indexed child inventory could not be read.')
-  const rootRecord = detail.value
-  assertIdentity(rootRecord.data.name, rootRecord.data.namehash)
-  if (rootRecord.data.name !== name || rootRecord.data.read_status !== 'ok')
-    fail(name, 'the parent inventory is unavailable.')
-  const count = countOf(name, rootRecord.data.subname_count)
-  if (count === 0) return []
-  recordPublication(rootRecord.meta, name, publications)
-  if (count > MAX_DIRECT_CHILDREN)
-    fail(name, 'this tree is too large for a single safe import batch.')
-  const pages = await readAllEnvelopes(
-    (cursor, pageSignal) =>
+): Promise<readonly string[]> => {
+  const result = await readAllEnvelopes(
+    (cursor, requestSignal) =>
       indexer.subnames(
-        name,
+        rootName,
         {
           namespace: 'ens',
-          include: ['counts'],
           include_expired: 'true',
           page_size: 200,
           sort: 'name',
-          ...(cursor ? { cursor } : {}),
+          ...(cursor !== undefined && { cursor }),
         },
-        { signal: pageSignal },
+        { signal: requestSignal },
       ),
     { signal },
   )
-  if (pages.isErr())
-    fail(name, 'the complete child inventory could not be read.')
-  const rows = pages.value.flatMap((page) => {
-    recordPublication(page.meta, name, publications)
-    if (countOf(name, page.page?.total_count) !== count)
-      fail(
-        name,
-        'the indexed child count changed during discovery. Please refresh.',
-      )
-    return page.data
+  signal?.throwIfAborted()
+  if (result.isErr())
+    return fail(
+      rootName,
+      'an exact child label could not be resolved. Please refresh and try again.',
+    )
+  return result.value.flatMap(({ data }) => data.map(({ name }) => name))
+}
+
+type SubnameSource = {
+  readonly registryOwner: Address
+  readonly resolver: Address
+  readonly wrapper: readonly [Address, number, bigint] | null
+}
+
+const readSubnameSources = async (params: {
+  readonly publicClient: PublicClient
+  readonly nodes: readonly Hex[]
+  readonly blockNumber: bigint
+  readonly signal?: AbortSignal
+}): Promise<ReadonlyMap<Hex, SubnameSource>> => {
+  params.signal?.throwIfAborted()
+  if (params.nodes.length === 0) return new Map()
+  const records = await params.publicClient.multicall({
+    allowFailure: false,
+    blockNumber: params.blockNumber,
+    batchSize: SOURCE_MULTICALL_BATCH_BYTES,
+    contracts: params.nodes.flatMap((node) => [
+      {
+        address: V1_CONTRACTS.LegacyRegistry,
+        abi: registryOwnerSnippet,
+        functionName: 'owner' as const,
+        args: [node] as const,
+      },
+      {
+        address: V1_CONTRACTS.LegacyRegistry,
+        abi: registryResolverSnippet,
+        functionName: 'resolver' as const,
+        args: [node] as const,
+      },
+    ]),
   })
-  if (
-    rows.length !== count ||
-    new Set(rows.map((row) => row.namehash.toLowerCase())).size !== count
+  params.signal?.throwIfAborted()
+  const sources = params.nodes.map((node, index) => {
+    const registryOwner = records[index * 2]
+    const resolver = records[index * 2 + 1]
+    if (registryOwner === undefined || resolver === undefined)
+      fail('selection', 'one or more source identities could not be read.')
+    return { node, registryOwner, resolver }
+  })
+  const wrapped = sources.filter(({ registryOwner }) =>
+    isAddressEqual(registryOwner, V1_CONTRACTS.NameWrapper),
   )
-    fail(name, 'one or more child identities are missing or duplicated.')
-  for (const row of rows) {
-    assertIdentity(row.name, row.namehash)
-    if (parentOf(row.name) !== name)
-      fail(
-        name,
-        'the inventory contains an unexpected parent or deeper subname.',
-      )
-    if (countOf(row.name, row.subname_count) > 0)
-      fail(
-        row.name,
-        'fourth-level and deeper subnames are not supported yet. Keep the whole tree on ENSv1.',
-      )
-  }
-  return rows
+  const data =
+    wrapped.length > 0
+      ? await params.publicClient.multicall({
+          allowFailure: false,
+          blockNumber: params.blockNumber,
+          batchSize: SOURCE_MULTICALL_BATCH_BYTES,
+          contracts: wrapped.map(({ node }) => ({
+            address: V1_CONTRACTS.NameWrapper,
+            abi: nameWrapperGetDataSnippet,
+            functionName: 'getData' as const,
+            args: [BigInt(node)] as const,
+          })),
+        })
+      : []
+  params.signal?.throwIfAborted()
+  const wrappers = new Map(
+    wrapped.map(({ node }, index) => {
+      const wrapper = data[index]
+      if (wrapper === undefined)
+        fail(
+          'selection',
+          'one or more wrapped source identities could not be read.',
+        )
+      return [node, wrapper] as const
+    }),
+  )
+  return new Map(
+    sources.map(({ node, ...source }) => [
+      node,
+      { ...source, wrapper: wrappers.get(node) ?? null },
+    ]),
+  )
 }
 
-const assertCanonicalPublications = async (
-  publicClient: PublicClient,
-  publications: ReadonlyMap<bigint, Hex>,
-  block: { timestamp: bigint },
-): Promise<void> => {
-  for (const [number, hash] of publications) {
-    const publication = await publicClient.getBlock({ blockNumber: number })
-    if (
-      publication.hash?.toLowerCase() !== hash.toLowerCase() ||
-      publication.timestamp > block.timestamp ||
-      block.timestamp - publication.timestamp > SOURCE_MAX_AGE_SECONDS
-    )
-      fail(
-        'selection',
-        'the indexed source checkpoint is stale or no longer canonical.',
-      )
+const readNewOwnerChanges = async (params: {
+  readonly publicClient: PublicClient
+  readonly nodes: readonly Hex[]
+  readonly fromBlock: bigint
+  readonly toBlock: bigint
+  readonly registryAddresses?: readonly Address[]
+}): Promise<GetLogsReturnType<typeof newOwnerEvent>> => {
+  let events: GetLogsReturnType<typeof newOwnerEvent> = []
+  for (
+    let offset = 0;
+    offset < params.nodes.length;
+    offset += SOURCE_LOG_BATCH_SIZE
+  ) {
+    events = [
+      ...events,
+      ...(await params.publicClient.getLogs({
+        address: params.registryAddresses?.length
+          ? [...params.registryAddresses]
+          : V1_CONTRACTS.LegacyRegistry,
+        event: newOwnerEvent,
+        args: {
+          node: params.nodes.slice(offset, offset + SOURCE_LOG_BATCH_SIZE),
+        },
+        fromBlock: params.fromBlock,
+        toBlock: params.toBlock,
+      })),
+    ]
   }
+  return events
 }
 
-const readChildSource = async (
-  publicClient: PublicClient,
+const childDomainFromSource = (
   root: V1Domain,
-  row: Subname,
-  oldestPublication: bigint,
-  block: { number: bigint },
-): Promise<V1Domain> => {
-  const descendants = await publicClient.getLogs({
-    address: V1_CONTRACTS.LegacyRegistry,
-    event: newOwnerEvent,
-    args: { node: row.namehash },
-    fromBlock: oldestPublication,
-    toBlock: block.number,
-  })
-  if (descendants.length)
-    fail(
-      row.name,
-      'its descendants changed after indexing. Refresh the complete tree before continuing.',
-    )
-  const [registryOwner, resolver] = await Promise.all([
-    publicClient.readContract({
-      address: V1_CONTRACTS.LegacyRegistry,
-      abi: registryOwnerSnippet,
-      functionName: 'owner',
-      args: [row.namehash],
-      blockNumber: block.number,
-    }),
-    publicClient.readContract({
-      address: V1_CONTRACTS.LegacyRegistry,
-      abi: registryResolverSnippet,
-      functionName: 'resolver',
-      args: [row.namehash],
-      blockNumber: block.number,
-    }),
-  ])
+  row: { readonly name: string; readonly namehash: Hex },
+  source: SubnameSource,
+): V1Domain => {
+  const { registryOwner, resolver, wrapper } = source
   if (isAddressEqual(registryOwner, zeroAddress))
     fail(row.name, 'the child has no verifiable live controller.')
-  const wrapper = isAddressEqual(registryOwner, V1_CONTRACTS.NameWrapper)
-    ? await publicClient.readContract({
-        address: V1_CONTRACTS.NameWrapper,
-        abi: nameWrapperGetDataSnippet,
-        functionName: 'getData',
-        args: [BigInt(row.namehash)],
-        blockNumber: block.number,
-      })
-    : null
   if (wrapper && (wrapper[1] !== 0 || isAddressEqual(wrapper[0], zeroAddress)))
     fail(
       row.name,
@@ -415,27 +419,149 @@ const readChildSource = async (
   }
 }
 
-/** Reads labels from the index, but owner/resolver/permissions from a canonical RPC checkpoint. */
+/** Read complete RPC identities and source facts; use indexer labels only if needed. */
+const hasRecreationCoverage = (
+  inventory: RpcSubnameInventory,
+  candidateNodes: readonly string[],
+): boolean => {
+  const roots = new Set(inventory.roots.map(({ node }) => node.toLowerCase()))
+  const scanned = new Set(
+    inventory.scannedParentNodes.map((node) => node.toLowerCase()),
+  )
+  const candidates = new Set(candidateNodes.map((node) => node.toLowerCase()))
+  return (
+    candidateNodes.every(
+      (node) =>
+        roots.has(node.toLowerCase()) && scanned.has(node.toLowerCase()),
+    ) &&
+    inventory.nodes.every(
+      (node) =>
+        !candidates.has(node.parentNode.toLowerCase()) ||
+        scanned.has(node.node.toLowerCase()),
+    )
+  )
+}
+
+const readRecreationInventory = async (params: {
+  readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
+  readonly inventory?: RpcSubnameInventory
+  readonly names: readonly string[]
+  readonly candidates: readonly V1Domain[]
+  readonly signal?: AbortSignal
+}): Promise<RpcSubnameInventory> => {
+  const { publicClient, signal } = params
+  const supplied = params.inventory
+  if (
+    supplied &&
+    (supplied.chainId !== envConfig.chain.id ||
+      supplied.registryAddress.toLowerCase() !==
+        V1_CONTRACTS.LegacyRegistry.toLowerCase() ||
+      supplied.nameWrapperAddress.toLowerCase() !==
+        V1_CONTRACTS.NameWrapper.toLowerCase())
+  )
+    fail(
+      'selection',
+      'the source inventory belongs to another network or registry.',
+    )
+  const [actualChainId, latest, previousCheckpoint] = supplied
+    ? await Promise.all([
+        publicClient.request({ method: 'eth_chainId' }, { signal }),
+        publicClient.getBlock({ blockTag: 'latest' }),
+        (params.verificationClient ?? publicClient).getBlock({
+          blockNumber: supplied.checkpoint.number,
+        }),
+      ])
+    : [null, null, null]
+  signal?.throwIfAborted()
+  if (
+    actualChainId !== null &&
+    BigInt(actualChainId) !== BigInt(envConfig.chain.id)
+  )
+    fail('selection', 'the inventory RPC is connected to another chain.')
+  if (
+    supplied &&
+    (previousCheckpoint?.hash?.toLowerCase() !==
+      supplied.checkpoint.hash.toLowerCase() ||
+      (latest && latest.number < supplied.checkpoint.number))
+  )
+    fail(
+      'selection',
+      'the source checkpoint is no longer canonical. Please refresh.',
+    )
+  const hasCoverage =
+    supplied &&
+    hasRecreationCoverage(
+      supplied,
+      params.candidates.map(({ id }) => id),
+    )
+  const canReuse =
+    supplied &&
+    hasCoverage &&
+    latest?.number === supplied.checkpoint.number &&
+    latest.hash?.toLowerCase() === supplied.checkpoint.hash.toLowerCase()
+  const previous =
+    hasCoverage && supplied.unscannedParentNodes.length === 0
+      ? supplied
+      : undefined
+  const inventory = canReuse
+    ? supplied
+    : await readRpcSubnameInventory({
+        publicClient,
+        verificationClient: params.verificationClient,
+        chainId: envConfig.chain.id,
+        registryAddress: V1_CONTRACTS.LegacyRegistry,
+        nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+        roots:
+          previous?.roots ??
+          params.candidates.map(({ name }) => ({ node: namehash(name), name })),
+        previousInventory: previous,
+        knownNames: params.names,
+        scanDescendants: previous ? undefined : scanRecreationDescendants,
+        signal,
+      })
+  if (
+    inventory.chainId !== envConfig.chain.id ||
+    inventory.registryAddress.toLowerCase() !==
+      V1_CONTRACTS.LegacyRegistry.toLowerCase() ||
+    inventory.nameWrapperAddress.toLowerCase() !==
+      V1_CONTRACTS.NameWrapper.toLowerCase()
+  )
+    fail(
+      'selection',
+      'the source inventory belongs to another network or registry.',
+    )
+  return inventory
+}
+
+const unknownLabelNameOf = (
+  hints: readonly string[],
+  node: Hex,
+): string | undefined =>
+  hints.find(
+    (name) =>
+      unknownLabelhashOf(name) !== null &&
+      namehash(name).toLowerCase() === node.toLowerCase(),
+  )
+
 export const discoverSubnameRecreation = async (params: {
   readonly domains: readonly V1Domain[]
   readonly owner: Address
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly indexer?: BignameClient
+  readonly inventory?: RpcSubnameInventory
   readonly signal?: AbortSignal
+  readonly onNamesChecked?: (names: readonly string[]) => void | Promise<void>
 }): Promise<{
   readonly domains: readonly V1Domain[]
   readonly snapshot: SubnameRecreationSnapshot
+  readonly inventory: RpcSubnameInventory
+  /** Unknown-label subnames the upgrade leaves behind on ENSv1. */
+  readonly unrecoverable: readonly string[]
 }> => {
   const { publicClient, signal } = params
-  const indexer =
-    params.indexer ??
-    (await getMigrationInventoryIndexer({
-      indexer: bigname,
-      ownerAddress: params.owner,
-      names: params.domains.map(({ name }) => name),
-      chainId: envConfig.chain.id,
-      signal,
-    }))
+  signal?.throwIfAborted()
   const classified = classifyNames(
     [...params.domains],
     params.owner,
@@ -447,92 +573,215 @@ export const discoverSubnameRecreation = async (params: {
       name.parentName === 'eth' &&
       ['unwrapped', 'unlocked'].includes(name.tokenType),
   )
-  const roots: typeof candidates = []
-  const domains = new Map(params.domains.map((domain) => [domain.name, domain]))
-  const publications = new Map<bigint, Hex>()
-  const rowsByRoot = new Map<string, readonly Subname[]>()
+  const inventory = await readRecreationInventory({
+    publicClient,
+    verificationClient: params.verificationClient,
+    inventory: params.inventory,
+    names: params.domains.map(({ name }) => name),
+    candidates: candidates.map(({ domain }) => domain),
+    signal,
+  })
+  const rootsByNode = new Map(
+    inventory.roots.map((root) => [root.node.toLowerCase(), root]),
+  )
+  const scanned = new Set(
+    inventory.scannedParentNodes.map((node) => node.toLowerCase()),
+  )
+  if (
+    candidates.some(
+      ({ domain }) =>
+        !rootsByNode.has(domain.id.toLowerCase()) ||
+        !scanned.has(domain.id.toLowerCase()),
+    )
+  )
+    fail('selection', 'the complete parent inventory has not been checked.')
+  const [block, head] = await Promise.all([
+    publicClient.getBlock({ blockNumber: inventory.checkpoint.number }),
+    publicClient.getBlock({ blockTag: 'latest' }),
+  ])
+  signal?.throwIfAborted()
+  if (block.hash?.toLowerCase() !== inventory.checkpoint.hash.toLowerCase())
+    fail(
+      'selection',
+      'the source checkpoint is no longer canonical. Please refresh.',
+    )
+  if (
+    head.timestamp < block.timestamp ||
+    head.timestamp - block.timestamp > SOURCE_MAX_AGE_SECONDS
+  )
+    fail('selection', 'the source checkpoint is stale. Please refresh.')
+  const candidateNames = new Set(candidates.map(({ domain }) => domain.name))
+  let checkedNames: readonly string[] = params.domains
+    .filter(({ name }) => !candidateNames.has(name))
+    .map(({ name }) => name)
+  await params.onNamesChecked?.(checkedNames)
+  let imports: readonly V1Domain[] = []
+  let importRoots: readonly string[] = []
+  let unrecoverable: readonly string[] = []
   for (const root of candidates) {
     signal?.throwIfAborted()
-    const name = root.domain.name
-    const rows = await readDirectInventory(indexer, name, publications, signal)
-    if (rows.length > 0) {
-      roots.push(root)
-      rowsByRoot.set(name, rows)
-    }
-  }
-  const block = await publicClient.getBlock({ blockTag: 'latest' })
-  if (!block.hash)
-    fail('selection', 'the source block is not confirmed by the RPC.')
-  await assertCanonicalPublications(publicClient, publications, block)
-  const oldestPublication = [...publications.keys()].reduce(
-    (oldest, number) => (number < oldest ? number : oldest),
-    block.number,
-  )
-  for (const root of roots) {
-    const name = root.domain.name
-    const rows = rowsByRoot.get(name) ?? []
-    const labels = new Set(
-      rows.map((row) => labelhash(row.name.split('.')[0] ?? '').toLowerCase()),
+    const children = inventory.nodes.filter(
+      (node) =>
+        node.parentNode.toLowerCase() === root.domain.id.toLowerCase() &&
+        !isEmptyRpcSubnameTombstone(node, inventory),
     )
-    const events = await publicClient.getLogs({
-      address: V1_CONTRACTS.LegacyRegistry,
-      event: newOwnerEvent,
-      args: { node: namehash(name) },
-      fromBlock: oldestPublication,
-      toBlock: block.number,
-    })
+    if (children.length > MAX_DIRECT_CHILDREN)
+      fail(
+        root.domain.name,
+        'this tree is too large for a single safe import batch.',
+      )
+    if (children.some((child) => !scanned.has(child.node.toLowerCase())))
+      fail(
+        root.domain.name,
+        'the complete descendant inventory has not been checked.',
+      )
     if (
-      events.some(
-        (event) =>
-          !event.args.label || !labels.has(event.args.label.toLowerCase()),
+      children.some((child) =>
+        inventory.nodes.some(
+          (node) =>
+            node.parentNode === child.node &&
+            !isEmptyRpcSubnameTombstone(node, inventory),
+        ),
       )
     )
       fail(
-        name,
-        'the parent changed after indexing. Refresh the full inventory before continuing.',
+        root.domain.name,
+        'fourth-level and deeper subnames are not supported yet. Keep the whole tree on ENSv1.',
       )
-    for (const row of rows) {
-      signal?.throwIfAborted()
-      domains.set(
-        row.name,
-        await readChildSource(
-          publicClient,
-          root.domain,
-          row,
-          oldestPublication,
-          block,
-        ),
+    const hints = children.some(({ name }) => name === null)
+      ? await readLabelHints(
+          params.indexer ?? bigname,
+          root.domain.name,
+          signal,
+        )
+      : []
+    const hintPreimages = getKnownSubnamePreimages(hints)
+    const imported = children.flatMap((child) => {
+      const hint = hintPreimages.get(child.node)
+      const name =
+        child.name ??
+        getProvenSubnameName({
+          ...child,
+          knownNames: hint ? [hint] : [],
+          wrapperName: '0x',
+        }) ??
+        unknownLabelNameOf(hints, child.node)
+      if (!name)
+        return fail(
+          root.domain.name,
+          'an exact, valid subname label is required before migration.',
+        )
+      assertIdentity(name, child.node)
+      if (parentOf(name) !== root.domain.name)
+        return fail(
+          root.domain.name,
+          'a child label, owner or parent could not be verified.',
+        )
+      // Unknown labels cannot be recreated in ENSv2; the upgrade drops them.
+      if (unknownLabelhashOf(name)) {
+        unrecoverable = [...unrecoverable, name]
+        return []
+      }
+      return childDomainFromSource(
+        root.domain,
+        { name, namehash: child.node },
+        {
+          registryOwner: child.registryOwner,
+          resolver: child.resolver,
+          wrapper: child.wrappedData,
+        },
       )
-    }
+    })
+    imports = [...imports, ...imported]
+    if (children.length > 0) importRoots = [...importRoots, root.domain.name]
+    checkedNames = [...checkedNames, root.domain.name]
+    await params.onNamesChecked?.(checkedNames)
   }
-  const values = [...domains.values()]
-  // Number-pinned reads can span an RPC reorg. Do not label a mixture of
-  // branches with the hash captured before the child reads started.
-  const confirmed = await publicClient.getBlock({ blockNumber: block.number })
-  if (confirmed.hash?.toLowerCase() !== block.hash.toLowerCase())
+  const values = [
+    ...new Map(
+      [...params.domains, ...imports].map((domain) => [domain.name, domain]),
+    ).values(),
+  ]
+  const confirmed = await (params.verificationClient ?? publicClient).getBlock({
+    blockNumber: block.number,
+  })
+  signal?.throwIfAborted()
+  if (confirmed.hash?.toLowerCase() !== inventory.checkpoint.hash.toLowerCase())
     fail(
       'selection',
       'the source checkpoint changed while reading the inventory. Please refresh.',
     )
   const snapshot: SubnameRecreationSnapshot = {
     version: 5,
-    roots: roots.map(({ domain }) => domain.name),
+    roots: importRoots,
     names: values.map(({ name }) => name),
     blockNumber: block.number.toString(),
-    blockHash: block.hash,
+    blockHash: inventory.checkpoint.hash,
     timestamp: block.timestamp.toString(),
     chainId: envConfig.chain.id,
     inventoryDigest: inventoryDigest(values),
+    registryAddresses: inventory.registries.map(({ address }) => address),
+    ...(unrecoverable.length > 0 ? { skipped: unrecoverable } : {}),
   }
-  return { domains: values, snapshot }
+  return {
+    domains: values,
+    snapshot,
+    inventory: withValidatedInventoryLabels(inventory, values),
+    unrecoverable,
+  }
+}
+
+const getSubnameSourceChange = (
+  domain: V1Domain,
+  source: SubnameSource,
+): 'controller-or-resolver' | 'wrapped-state' | null => {
+  if (
+    source.registryOwner.toLowerCase() !== domain.owner.id.toLowerCase() ||
+    source.resolver.toLowerCase() !==
+      (domain.resolver?.address ?? zeroAddress).toLowerCase()
+  )
+    return 'controller-or-resolver'
+  if (
+    domain.wrappedDomain &&
+    (!source.wrapper ||
+      source.wrapper[0].toLowerCase() !==
+        domain.wrappedOwner?.id.toLowerCase() ||
+      source.wrapper[1] !== domain.wrappedDomain.fuses ||
+      source.wrapper[2].toString() !== domain.wrappedDomain.expiryDate)
+  )
+    return 'wrapped-state'
+  return null
+}
+
+const withValidatedInventoryLabels = (
+  inventory: RpcSubnameInventory,
+  domains: readonly V1Domain[],
+): RpcSubnameInventory => {
+  const names = new Map(domains.map(({ id, name }) => [id.toLowerCase(), name]))
+  return {
+    ...inventory,
+    nodes: inventory.nodes.map((node) => {
+      const name = names.get(node.node.toLowerCase())
+      return {
+        ...node,
+        name:
+          node.name ??
+          getProvenSubnameName({
+            ...node,
+            knownNames: name ? [name] : [],
+            wrapperName: '0x',
+          }),
+      }
+    }),
+  }
 }
 
 /** Revalidate source identities before signing. Receipt checks verify the reviewed import, not live V1 synchronisation. */
 export const assertSubnameRecreationUnchanged = async (params: {
   readonly publicClient: PublicClient
+  readonly verificationClient?: PublicClient
   readonly snapshot: SubnameRecreationSnapshot
   readonly domains: readonly V1Domain[]
-  readonly toBlock?: bigint
   readonly ownTransactionHash?: Hex
 }): Promise<void> => {
   assertSubnameRecreationSnapshotCurrent(params.snapshot)
@@ -555,88 +804,78 @@ export const assertSubnameRecreationUnchanged = async (params: {
       (domain) => domain.name === root || domain.name.endsWith(`.${root}`),
     ),
   )
-  for (const root of relevantRoots) {
-    if (head.number <= BigInt(params.snapshot.blockNumber)) continue
-    const events = await params.publicClient.getLogs({
-      address: V1_CONTRACTS.LegacyRegistry,
-      event: newOwnerEvent,
-      args: { node: namehash(root) },
+  const children = params.domains.filter((domain) =>
+    relevantRoots.includes(parentOf(domain.name)),
+  )
+  const watched = [
+    ...children.map(({ name }) => name),
+    ...(params.snapshot.skipped ?? []).filter((name) =>
+      relevantRoots.includes(parentOf(name)),
+    ),
+  ]
+  if (head.number > BigInt(params.snapshot.blockNumber)) {
+    const events = await readNewOwnerChanges({
+      publicClient: params.publicClient,
+      nodes: relevantRoots.map((root) => namehash(root)),
       fromBlock: BigInt(params.snapshot.blockNumber) + 1n,
       toBlock: head.number,
+      registryAddresses: params.snapshot.registryAddresses,
     })
     if (events.length)
       fail(
-        root,
+        relevantRoots.find((root) =>
+          events.some(
+            ({ args }) =>
+              args.node?.toLowerCase() === namehash(root).toLowerCase(),
+          ),
+        ) ?? 'selection',
         'the child inventory changed after review. Prepare and review a fresh import.',
       )
-  }
-  for (const domain of params.domains) {
-    if (!relevantRoots.includes(parentOf(domain.name))) continue
-    if (head.number > BigInt(params.snapshot.blockNumber)) {
-      const descendants = await params.publicClient.getLogs({
-        address: V1_CONTRACTS.LegacyRegistry,
-        event: newOwnerEvent,
-        args: { node: namehash(domain.name) },
-        fromBlock: BigInt(params.snapshot.blockNumber) + 1n,
-        toBlock: head.number,
-      })
-      if (descendants.length)
-        fail(
-          domain.name,
-          'its descendants changed after review. Prepare a fresh import.',
-        )
-    }
-    const [owner, resolver] = await Promise.all([
-      params.publicClient.readContract({
-        address: V1_CONTRACTS.LegacyRegistry,
-        abi: registryOwnerSnippet,
-        functionName: 'owner',
-        args: [namehash(domain.name)],
-        blockNumber: head.number,
-      }),
-      params.publicClient.readContract({
-        address: V1_CONTRACTS.LegacyRegistry,
-        abi: registryResolverSnippet,
-        functionName: 'resolver',
-        args: [namehash(domain.name)],
-        blockNumber: head.number,
-      }),
-    ])
-    if (
-      !isAddressEqual(owner, domain.owner.id as Address) ||
-      !isAddressEqual(
-        resolver,
-        (domain.resolver?.address ?? zeroAddress) as Address,
+    const descendants = await readNewOwnerChanges({
+      publicClient: params.publicClient,
+      nodes: watched.map((name) => namehash(name)),
+      fromBlock: BigInt(params.snapshot.blockNumber) + 1n,
+      toBlock: head.number,
+      registryAddresses: params.snapshot.registryAddresses,
+    })
+    if (descendants.length)
+      fail(
+        watched.find((name) =>
+          descendants.some(
+            ({ args }) =>
+              args.node?.toLowerCase() === namehash(name).toLowerCase(),
+          ),
+        ) ?? 'selection',
+        'its descendants changed after review. Prepare a fresh import.',
       )
-    )
+  }
+  const sources = await readSubnameSources({
+    publicClient: params.publicClient,
+    nodes: children.map(({ name }) => namehash(name)),
+    blockNumber: head.number,
+  })
+  for (const domain of children) {
+    const source = sources.get(namehash(domain.name))
+    if (!source) fail(domain.name, 'the child source could not be verified.')
+    const change = getSubnameSourceChange(domain, source)
+    if (change === 'controller-or-resolver')
       fail(
         domain.name,
         'its V1 controller or resolver changed after review. Prepare a fresh import.',
       )
-    if (domain.wrappedDomain) {
-      const [holder, fuses, expiry] = await params.publicClient.readContract({
-        address: V1_CONTRACTS.NameWrapper,
-        abi: nameWrapperGetDataSnippet,
-        functionName: 'getData',
-        args: [BigInt(domain.id)],
-        blockNumber: head.number,
-      })
-      if (
-        !isAddressEqual(holder, domain.wrappedOwner?.id as Address) ||
-        fuses !== domain.wrappedDomain.fuses ||
-        expiry.toString() !== domain.wrappedDomain.expiryDate
+    if (change === 'wrapped-state')
+      fail(
+        domain.name,
+        'its wrapped owner or permissions changed after review. Prepare a fresh import.',
       )
-        fail(
-          domain.name,
-          'its wrapped owner or permissions changed after review. Prepare a fresh import.',
-        )
-    }
   }
   const [confirmedCutoff, confirmedHead] = await Promise.all([
-    params.publicClient.getBlock({
+    (params.verificationClient ?? params.publicClient).getBlock({
       blockNumber: BigInt(params.snapshot.blockNumber),
     }),
-    params.publicClient.getBlock({ blockNumber: head.number }),
+    (params.verificationClient ?? params.publicClient).getBlock({
+      blockNumber: head.number,
+    }),
   ])
   if (
     confirmedCutoff.hash?.toLowerCase() !==
@@ -652,8 +891,14 @@ export const assertSubnameRecreationUnchanged = async (params: {
 /** Every omitted dependent name is a blocker, including when import rollout is disabled. */
 export const assertSupportedSubnameMigration = async (params: {
   readonly publicClient: PublicClient
-  readonly ownerAddress?: Address
+  readonly verificationClient?: PublicClient
   readonly classified: readonly ClassifiedName[]
+  readonly inventory?: RpcSubnameInventory
+  readonly onInventory?: (
+    inventory: RpcSubnameInventory,
+  ) => void | Promise<void>
+  /** Unknown-label leaves the reviewed import skipped; they are dropped, not lost. */
+  readonly unknownLabelNames?: readonly string[]
   readonly signal?: AbortSignal
 }): Promise<SubnameMigrationImpact> => {
   const unreviewed = params.classified.find(
@@ -667,21 +912,20 @@ export const assertSupportedSubnameMigration = async (params: {
   const migratingNames = params.classified
     .filter((name) => name.action === 'migrate')
     .map(({ domain }) => domain.name)
-  const indexer = await getMigrationInventoryIndexer({
-    indexer: bigname,
-    ownerAddress: params.ownerAddress,
-    names: migratingNames,
-    chainId: envConfig.chain.id,
-    signal: params.signal,
-  })
-  const impact = await readSubnameMigrationImpact({
-    shouldSkipEmptySubtrees: true,
-    indexer,
-    publicClient: params.publicClient,
-    migratingNames,
-    copiedNames: params.classified
-      .filter((name) => name.action === 'copy')
-      .map(({ domain }) => domain.name),
+  const impact = await readSubnameMigrationImpactWithRetry({
+    read: () =>
+      readRpcSubnameMigrationImpact({
+        inventory: params.inventory,
+        onInventory: params.onInventory,
+        publicClient: params.publicClient,
+        verificationClient: params.verificationClient,
+        migratingNames,
+        copiedNames: params.classified
+          .filter((name) => name.action === 'copy')
+          .map(({ domain }) => domain.name),
+        unknownLabelNames: params.unknownLabelNames,
+        signal: params.signal,
+      }),
     signal: params.signal,
   })
   if (impact.affectedCount > 0)

@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -82,18 +83,25 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <PageHeading parent={{ type: 'registry', address }}>Roles</PageHeading>
-        {isAdmin && (
-          <Button
-            variant="default"
-            className="flex items-center gap-2"
-            onClick={() => setIsAddUserOpen(true)}
-          >
-            <Plus className="size-4" />
-            Add User
-          </Button>
-        )}
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between">
+          <PageHeading parent={{ type: 'registry', address }}>
+            Roles
+          </PageHeading>
+          {isAdmin && (
+            <Button
+              variant="default"
+              className="flex items-center gap-2"
+              onClick={() => setIsAddUserOpen(true)}
+            >
+              <Plus className="size-4" />
+              Add User
+            </Button>
+          )}
+        </div>
+        <EntityBadge variant="contract" address={address} isRegistry>
+          {truncateAddress(address)}
+        </EntityBadge>
       </div>
       <RegistryRolesTable address={address} />
       {isAdmin && (

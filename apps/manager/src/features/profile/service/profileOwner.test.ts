@@ -78,6 +78,14 @@ describe('getOwner', () => {
     vi.useRealTimers()
   })
 
+  it('does not give an undefined .example profile the fixture owner', async () => {
+    const result = await getOwner({ name: 'not-defined.example' })
+    expect(result._unsafeUnwrap()).toBeNull()
+    expect(mocks.getV1Owner).toHaveBeenCalledExactlyOnceWith(mocks.client, {
+      name: 'not-defined.example',
+    })
+  })
+
   it('returns V2 ownership without querying V1', async () => {
     mocks.getV2Owner.mockResolvedValue(
       '0x0000000000000000000000000000000000000002',

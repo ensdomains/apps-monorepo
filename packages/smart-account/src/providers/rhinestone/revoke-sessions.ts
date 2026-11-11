@@ -136,22 +136,12 @@ function assertChain(params: RevokeSessionsParams): void {
   }
 }
 
-/**
- * Gas for `revokeSessions()`. Fixed rather than estimated: a wallet in
- * EIP-7702 smart-account mode (MetaMask) wraps the transaction in its
- * delegation redemption and forwards the estimate to the inner call, which
- * then runs out of gas two delegatecalls deep. The call itself needs well
- * under 100k.
- */
-export const REVOKE_SESSIONS_GAS_LIMIT = 150_000n
-
 /** Send one owner transaction and require a successful receipt. */
 async function sendAndConfirm(
   params: RevokeSessionsParams,
   account: NonNullable<WalletClient['account']>,
   call: Call,
   failureMessage: string,
-  gas?: bigint,
 ): Promise<TransactionReceipt> {
   const hash = await params.walletClient.sendTransaction({
     account,
@@ -159,7 +149,6 @@ async function sendAndConfirm(
     to: call.to,
     value: call.value,
     data: call.data,
-    ...(gas === undefined ? {} : { gas }),
   })
   const receipt = await params.publicClient.waitForTransactionReceipt({ hash })
   if (receipt.status !== 'success') {
@@ -276,7 +265,6 @@ export function revokeSessionsOnChain(
         account,
         buildRevokeSessionsCall({ hca: params.hca }),
         'revokeSessions transaction reverted',
-        REVOKE_SESSIONS_GAS_LIMIT,
       )
       const sessionNonce = readRevokedNonce(receipt, params.hca)
       if (sessionNonce === undefined) {

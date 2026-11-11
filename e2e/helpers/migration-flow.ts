@@ -25,6 +25,7 @@ import { expect } from '@playwright/test'
 import {
   authorizeTransactionsWhile,
   dismissBackendAuthModal,
+  getBackendAuthDialog,
 } from './manager-auth.js'
 import { findSearchInput } from './search-input.js'
 
@@ -97,11 +98,7 @@ export async function openMigrationFlow(page: Page): Promise<void> {
         async () => {
           // Locator handlers run before actions, not visibility reads. A delayed
           // optional sign-in overlay otherwise hides an already loaded heading.
-          if (
-            await page
-              .getByRole('alertdialog', { name: 'Verify your wallet' })
-              .isVisible()
-          )
+          if (await getBackendAuthDialog(page).isVisible())
             await dismissBackendAuthModal(page, { timeout: 1000 })
           landed = await heading.isVisible()
           return landed || /\/dashboard(\?|$)/.test(page.url())
@@ -250,7 +247,27 @@ export async function confirmAndAuthorize(
     const successIndicator = page.getByRole('heading', {
       name: /your names? (has|have) been upgraded/i,
     })
-    await successIndicator.waitFor({ state: 'visible', timeout: 120_000 })
+    // A name with subnames opens the subname review first (#1660). Continue
+    // only where the app says the subnames are carried or unaffected; a
+    // review that leaves subnames behind or cannot check them is never
+    // accepted, so the wait below fails on it.
+    const continueMigration = page
+      .getByRole('dialog')
+      .filter({
+        hasText: /What happens to your subnames|Your subnames are unaffected/,
+      })
+      .getByRole('button', { name: 'Continue migration', exact: true })
+    const deadline = Date.now() + 120_000
+    while (!(await successIndicator.isVisible())) {
+      if (Date.now() > deadline)
+        await successIndicator.waitFor({ state: 'visible', timeout: 1 })
+      if (
+        (await continueMigration.isVisible().catch(() => false)) &&
+        (await continueMigration.isEnabled().catch(() => false))
+      )
+        await continueMigration.click()
+      await page.waitForTimeout(500)
+    }
   } finally {
     // Stop the wallet loop before a failed flow is recovered or the next case starts.
     migrationComplete = true
@@ -372,10 +389,13 @@ export const UPGRADE_OUTCOMES = {
   permissionMissing: /A permission is missing/i,
   planChanged: /Your permissions changed/i,
   subregistryConflict: /now has its own subname registry/i,
+  subnamesNotPreserved: /These subnames can.t be preserved yet/i,
   retryBlocked: /couldn.t safely retry/i,
+  walletOutOfEth: /needs more ETH for network fees/i,
   generic: /Upgrade details:/i,
 } as const
-export type UpgradeOutcome = keyof typeof UPGRADE_OUTCOMES
+/** `stuck`: no ending appeared before the deadline (a hang, not a refusal). */
+export type UpgradeOutcome = keyof typeof UPGRADE_OUTCOMES | 'stuck'
 
 /**
  * Click Upgrade, authorize whatever the wallet is asked, and return the first
@@ -438,7 +458,7 @@ export async function upgradeAndSettle(
     }
     if (!settled) await page.waitForTimeout(500)
   }
-  settled ??= 'generic'
+  settled ??= 'stuck'
   // Bounded: a send that fails at estimate is never answered by the wallet.
   await Promise.race([authorizing, page.waitForTimeout(5_000)])
   console.log(`[migration] outcome: ${settled}`)

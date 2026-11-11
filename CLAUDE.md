@@ -61,6 +61,20 @@ unknown }>` per operation, `ResultFn` for multi-step async `Result`s,
 
 Inside `packages/transaction-manager/`, also follow its `CLAUDE.md`.
 
+## Creating Linear tickets
+
+Before creating, drafting, splitting or refining a Linear ticket, follow the
+latest `ens-linear-tickets` skill from the ens-labs-wiki (onboarding clones it to
+`~/ens/ens-labs-wiki`; it changes often):
+
+1. Run `git -C <wiki> fetch origin main`. On a clean `main` checkout, also run
+   `git -C <wiki> pull --ff-only`. Never reset, stash or switch branches.
+2. If `skills/ens-linear-tickets/` still differs from `origin/main` (local
+   edits), read it from `origin/main` with `git show`, not the local copy.
+3. Load `skills/ens-linear-tickets/SKILL.md` and follow it.
+4. If there is no wiki clone, the fetch fails, or the skill is missing, say so,
+   use whatever copy exists (noting its commit), and don't block the task.
+
 ## PR Conventions when working from Linear tickets
 
 This is a monorepo with multiple apps under `apps/`. When working on a ticket,
@@ -129,6 +143,26 @@ in passing.
 - For UI changes, check the screen in the running app at desktop and
   mobile width. Green tests don't prove a working screen.
 
+**Audit the diff before opening the PR.** Read `git diff origin/main...HEAD`
+the way Greptile and a reviewer will, and fix what you find before pushing:
+- Walk it against `.greptile/config.json` (the `high` rules first) and the
+  STYLEGUIDE sections in the map above for everything you touched.
+- Logic: decisions live in pure functions, not components or hooks; no
+  predicate copied into a second file; no `Result` unwrapped by throwing
+  (return `Promise.reject(result.error)` at a promise boundary, or `yield*`
+  inside `ResultFn`).
+- viem first: `formatUnits`/`parseUnits` rather than our own converters,
+  viem's `*ErrorType` as the `cause` when the failure is a viem call, and
+  `bigint` for amounts until they are displayed.
+- The added lines carry no `any`, `!`, `as unknown as`, `biome-ignore` or
+  `@ts-expect-error`, and every added comment is one line.
+- `npx biome lint` on the changed files raises no complexity warning above
+  what the same function had on `main`.
+- Run `main`'s version of every test you edited against your code; each
+  failure must be an intended behaviour change.
+- This repo is public: no wording in commits, branches or the PR that reads
+  as a vulnerability.
+
 **Add a "Regression check" section to the PR body:** the callers you
 checked, existing tests you changed and why (or "none"), and any behaviour
 that changes for users or other callers.
@@ -185,3 +219,16 @@ When working in specific packages, consult these design documents:
 
 **When to Consult**: Any time a registration intent fails simulation, or before
 changing the shape of a call in the commit/reveal batch.
+
+### Registration and renewal payment (manager)
+**Location**: `apps/manager/src/features/register-v2/workflow/pricing/` (registration) and `apps/manager/src/features/renew/workflow/pricing/` (single and bulk renewal)
+**Documentation**: `BEHAVIOUR.md` in each
+
+**Key Concepts**:
+- What the page and payment sheet must do, from the design, each rule with the test that holds it
+- Known limits that are not bugs (the Sepolia L2 cap, cent rounding, $8.01-style prices)
+- The sheet's base is shared; the checkout receipt is switched on by `checkoutReceipt`, and renewal follows registration's design
+
+**When to Consult**: Before any change to registration or renewal pricing, the payment
+sheet, `PaymentAction`, the fallback choice, the ETH swap, or the registration or renewal UI machine. A change to a
+listed rule is a product change: name the rule and the test it changes in the PR body.

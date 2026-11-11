@@ -106,7 +106,7 @@ import {
   nameCount,
 } from './migrationProgressCopy'
 import { planSetupBundles } from './planSetupBundles'
-
+import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
   assertSubnameRecreationUnchanged,
@@ -1501,7 +1501,6 @@ const reconcileSubmittedAtomicBatch = async (params: {
         domains: params.plan.registryContext
           .filter(({ domain }) => submission.names.includes(domain.name))
           .map(({ domain }) => domain),
-        toBlock: receipt.blockNumber,
         ownTransactionHash: submission.hash,
       })
     await verifyAtomicMigrationBatch({
@@ -2327,36 +2326,20 @@ const replayWalletRecords = async (params: {
   params.ctx.tracker.emit('Records copied')
 }
 
-const assertSubnameRecreationEnabled = (
-  plan: MigrationPlan,
-  canRecreateSubnames?: () => boolean,
-): void => {
-  if (
-    plan.subnameRecreation &&
-    (plan.isSubnameRecreationEnabled === false ||
-      canRecreateSubnames?.() === false)
-  ) {
-    throw new Error(
-      'Subname migration is not enabled for this session. Your transaction history has been reconciled; remaining imports are preserved for later.',
-    )
-  }
-}
-
 const executeRemainingAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
   readonly publicClient: PublicClient
   readonly onBatchComplete?: OnBatchComplete
   readonly retryPermissionHeadLag: boolean
-  readonly canRecreateSubnames?: () => boolean
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
   let remaining = [...params.plan.classified]
   const journalScope = batchJournalScope(params.ctx)
   let retryPermissionHeadLag = params.retryPermissionHeadLag
+  let subnameInventory: RpcSubnameInventory | undefined
 
   while (remaining.length > 0) {
-    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const batch = await buildNextAtomicBatch({
       ctx: params.ctx,
       plan: params.plan,
@@ -2376,10 +2359,14 @@ const executeRemainingAtomicBatches = async (params: {
     })
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
-      ownerAddress: params.plan.migrationOwner,
       classified: remaining,
+      signal: params.ctx.submissionGate.signal,
+      inventory: subnameInventory,
+      onInventory: (inventory) => {
+        subnameInventory = inventory
+      },
+      unknownLabelNames: params.plan.subnameRecreation?.skipped,
     })
-    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const description = describeUpgradeOperations(batch.operations)
     try {
       await replayWalletRecords({
@@ -2403,7 +2390,6 @@ const executeRemainingAtomicBatches = async (params: {
       names: batch.names,
       operations: batch.operations,
     }
-    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     params.ctx.submissionGate.signal.throwIfAborted()
     persistPendingAtomicMigrationAttempt(journalScope, {
       recovery: recoverySnapshotFor(
@@ -2447,7 +2433,6 @@ const executeRemainingAtomicBatches = async (params: {
           domains: params.plan.registryContext
             .filter(({ domain }) => batch.names.includes(domain.name))
             .map(({ domain }) => domain),
-          toBlock: receipt.blockNumber,
           ownTransactionHash: hash,
         })
       await verifyAtomicMigrationBatch({
@@ -2528,7 +2513,6 @@ export const executeMigration = async (params: {
   readonly onBatchComplete?: OnBatchComplete
   /** Set on retry to reconcile a receipt whose post-state polling was uncertain. */
   readonly reconcileBeforeSubmit?: boolean
-  readonly canRecreateSubnames?: () => boolean
 }): Promise<MigrationResult> => {
   const {
     plan,
@@ -2597,7 +2581,6 @@ export const executeMigration = async (params: {
     // Reconcile mined work before checking capabilities: completed recovery
     // does not need a wallet bundle and must not resubmit completed migrations.
     await assertAtomicBatchingAvailable(ctx)
-    assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
     // Re-read every destination pointer this plan writes, immediately before
     // the first wallet prompt. Preflight checks it too, but that verdict is as
     // old as the preview the user has been reading — and a retry rebuilds the
@@ -2638,7 +2621,6 @@ export const executeMigration = async (params: {
   })
 
   if (executionPlan.classified.length > 0) {
-    assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
     const setup = await ensureMigrationSetup({
       ctx,
       plan: executionPlan,
@@ -2660,7 +2642,6 @@ export const executeMigration = async (params: {
         publicClient,
         onBatchComplete,
         retryPermissionHeadLag: setup.hasGrantedApprovals,
-        canRecreateSubnames: params.canRecreateSubnames,
       })),
     )
   }

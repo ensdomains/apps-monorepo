@@ -5,12 +5,14 @@ import { useSubnameMigrationImpact } from './useSubnameMigrationImpact'
 export const useDefaultMigrationSelection = ({
   eligible,
   gracePeriodNames,
+  unknownLabelNames,
   ownerAddress,
   isPending,
   shouldSkip,
 }: {
   readonly eligible: readonly ClassifiedName[]
   readonly gracePeriodNames: readonly IneligibleName[]
+  readonly unknownLabelNames?: readonly string[]
   readonly ownerAddress?: string | null
   readonly isPending: boolean
   readonly shouldSkip: boolean
@@ -27,6 +29,7 @@ export const useDefaultMigrationSelection = ({
     selectedNames: candidates,
     classified: eligible,
     renewingNames: gracePeriodNames.map(({ domain }) => domain.name),
+    unknownLabelNames,
     ownerAddress,
     isEnabled: !shouldSkip,
     isPrepared: !isPending,

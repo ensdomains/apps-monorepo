@@ -120,6 +120,7 @@ describe('useGraceRenewalGasEstimate', () => {
     expect(queryOptions().enabled).toBe(true)
     await expect(queryOptions().queryFn({ signal })).resolves.toEqual(estimate)
     expect(mocks.estimate).toHaveBeenCalledExactlyOnceWith({
+      onProgress: expect.any(Function),
       quote,
       domains: [graceDomain, activeDomain],
       hcaAddress: HCA,
@@ -127,7 +128,6 @@ describe('useGraceRenewalGasEstimate', () => {
       wagmiConfig,
       managerRestorationNames: [],
       canBatchAtomically: false,
-      isSubnameRecreationEnabled: false,
       signal,
     })
     unmount()

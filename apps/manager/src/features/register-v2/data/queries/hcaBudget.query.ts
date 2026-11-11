@@ -177,7 +177,7 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
     enabled: isHcaBudgetQuoteRequired(params),
     // One retry for a flaky orchestrator. If it still fails the caller must
     // surface that: here "no budget" means "the permit cannot be sized", not
-    // "show the rent alone".
+    // "show the price alone".
     retry: 1,
     staleTime: HCA_BUDGET_STALE_TIME_MS,
     // The primary-name toggle is part of the key, so flipping it starts a

@@ -8,7 +8,7 @@
  *     budget = commitLegCost           (commit intent, USDC the orchestrator
  *                                       actually pulls)
  *            + registerLegCost         (register intent, USDC)
- *            + registrationPrice       (the .eth rent, USDC)
+ *            + registrationPrice       (the .eth price, USDC)
  *
  * There is NO percentage buffer — see the `total` computation for why one would
  * be a guess layered on a derived number.

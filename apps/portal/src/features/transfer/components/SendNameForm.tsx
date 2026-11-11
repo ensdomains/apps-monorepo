@@ -4,6 +4,7 @@ import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadge } from '@/components/EntityBadge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -108,7 +109,7 @@ const OPTIONS: readonly OptionConfig[] = [
     description:
       'Takes back the permissions you granted other accounts on this name. They are held on the name itself, not on the token, so they survive the transfer unless you revoke them first.',
     warning:
-      'The accounts listed below keep their permissions on this name after the transfer. They hold no part of it, but they can still act on it — repointing its resolver, for instance — until the recipient revokes them.',
+      'The accounts listed above keep their permissions on this name after the transfer. They don’t own it, but until the recipient revokes them, they can still act on it, like changing its resolver.',
   },
   {
     key: 'transferManager',
@@ -439,7 +440,11 @@ export const SendNameForm = ({
           onToggle={toggleOption}
           isLocked={isPreparing}
           roleHolders={
-            <RoleHolderList revocations={roleRevocations} owner={owner} />
+            <RoleHolderList
+              revocations={roleRevocations}
+              owner={owner}
+              isRevoking={effectiveOptions.revokeRoles}
+            />
           }
         />
       )}
@@ -707,13 +712,14 @@ const TransferDetachOptions = ({
   )
 }
 
-/** One account and the permissions it holds on the name, as a single line. */
+/** One account and the permissions it holds on the name. */
 const RoleHolderLine = ({ grant }: { readonly grant: NameRoleGrant }) => (
-  <li className="flex flex-col">
-    <span className="text-foreground font-medium">
+  <li className="flex flex-wrap items-center gap-x-3">
+    <EntityBadge variant="address" address={grant.account} compact>
       {truncateAddress(grant.account)}
-    </span>
+    </EntityBadge>
     <span className="text-muted-foreground">
+      {grant.roles.length === 1 ? 'Permission' : 'Permissions'}:{' '}
       {grant.roles.map(formatRoleLabel).join(', ')}
     </span>
   </li>
@@ -731,9 +737,12 @@ const RoleHolderLine = ({ grant }: { readonly grant: NameRoleGrant }) => (
 const RoleHolderList = ({
   revocations,
   owner,
+  isRevoking,
 }: {
   readonly revocations: TransferRoleRevocations
   readonly owner: Address
+  /** The revoke is actually in the plan. */
+  readonly isRevoking: boolean
 }) => {
   if (revocations.status !== 'ready' || revocations.holders.length === 0)
     return null
@@ -743,11 +752,21 @@ const RoleHolderList = ({
   return (
     <div className="flex flex-col gap-2">
       {revocable.length > 0 && (
-        <ul className="flex flex-col gap-2 text-p">
-          {revocable.map((grant) => (
-            <RoleHolderLine key={`revocable-${grant.account}`} grant={grant} />
-          ))}
-        </ul>
+        <>
+          <p className="text-foreground text-p">
+            {isRevoking
+              ? 'These accounts will lose the permissions listed below:'
+              : 'These accounts will still have permissions on this name after the transfer:'}
+          </p>
+          <ul className="flex flex-col gap-2 text-p">
+            {revocable.map((grant) => (
+              <RoleHolderLine
+                key={`revocable-${grant.account}`}
+                grant={grant}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
       {unrevocable.length > 0 && (

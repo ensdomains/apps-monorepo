@@ -1,4 +1,9 @@
 import {
+  type TransactionRequest,
+  TransactionSubmissionError,
+} from '@ens-apps/transaction-manager'
+import { OrchestratorError } from '@rhinestone/sdk/errors'
+import {
   type Abi,
   ContractFunctionExecutionError,
   ContractFunctionRevertedError,
@@ -8,7 +13,10 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   getRegistrationFailureMessage,
+  getRegistrationFailureReason,
+  isInvalidSignatureError,
   isNameNotAvailableError,
+  isSessionRevokedFailure,
 } from './registrationFailure'
 
 const REGISTRAR = '0xa88553F454b77203B0D036A05c894d555EAAa2Cc'
@@ -68,6 +76,157 @@ describe('isNameNotAvailableError', () => {
     expect(
       isNameNotAvailableError(new Error('sent from 0x12477707e8aa5b0c')),
     ).toBe(false)
+  })
+})
+
+// The SDK error from the reported failure, trimmed to the fields we read.
+const orchestratorRejection = (context: Record<string, unknown>) =>
+  Object.assign(new Error('Simulation failed'), {
+    errorType: 'Bad Request',
+    statusCode: 400,
+    context,
+  })
+
+describe('isInvalidSignatureError', () => {
+  it.each([
+    [
+      'the orchestrator error by its category',
+      orchestratorRejection({ category: 'INVALID_SIGNATURE' }),
+    ],
+    [
+      'the orchestrator error by its selector',
+      orchestratorRejection({ errorSelector: '0x8baa579f' }),
+    ],
+    [
+      'the submission error the transport wraps it in',
+      new TransactionSubmissionError(
+        { type: 'eoa', from: REGISTRAR, chainId: 11155111, to: REGISTRAR },
+        orchestratorRejection({ category: 'INVALID_SIGNATURE' }),
+      ),
+    ],
+    [
+      'a wrapper that only kept the text',
+      new Error('Registration failed', {
+        cause: new Error(
+          'Failed to submit transaction: Simulation failed: InvalidSignature()',
+        ),
+      }),
+    ],
+  ])('spots %s', (_, error) => {
+    expect(isInvalidSignatureError(error)).toBe(true)
+  })
+
+  it.each([
+    [
+      'another orchestrator category',
+      orchestratorRejection({ category: 'INSUFFICIENT_BALANCE' }),
+    ],
+    ['a plain failure', new Error('rpc down')],
+    [
+      'an address that starts with the selector digits',
+      new Error('sent from 0x8baa579f2c4e6a8b'),
+    ],
+    [
+      'a longer error name that ends the same way',
+      new Error('execution reverted: ECDSAInvalidSignature()'),
+    ],
+    ['no error', undefined],
+  ])('ignores %s', (_, error) => {
+    expect(isInvalidSignatureError(error)).toBe(false)
+  })
+})
+
+describe('isSessionRevokedFailure', () => {
+  it.each([
+    [true, true, true],
+    // A refused signature without a reset is some other policy failure.
+    [false, true, false],
+    // A reset, but the run failed for another reason.
+    [true, false, false],
+    [false, false, false],
+  ])(
+    'reset %s, signature refused %s → %s',
+    (wasSessionAccessReset, isSignatureRejected, expected) => {
+      expect(
+        isSessionRevokedFailure({ wasSessionAccessReset, isSignatureRejected }),
+      ).toBe(expected)
+    },
+  )
+})
+
+// The orchestrator's answer when no route can pay for the reveal: one code per
+// strategy that gave up.
+const noRoute = (failureCodes: unknown) =>
+  new TransactionSubmissionError(
+    {} as TransactionRequest,
+    new OrchestratorError({
+      message: 'No viable route found for this intent.',
+      errorType: 'Unprocessable Entity',
+      statusCode: 422,
+      traceId: 'ad91fd026b13d7363f8d4accc2f9fe97',
+      context: {
+        requestedSettlementLayers: null,
+        resolvedLayers: ['ECO', 'ACROSS', 'SAME_CHAIN', 'INTENT_EXECUTOR'],
+        failureCodes,
+      },
+    }),
+  )
+
+const simulation = (category: string) =>
+  new TransactionSubmissionError(
+    {} as TransactionRequest,
+    new OrchestratorError({
+      message: 'Simulation failed due to insufficient token balance',
+      errorType: 'Unprocessable Entity',
+      statusCode: 422,
+      context: { category, retryable: false },
+    }),
+  )
+
+describe('getRegistrationFailureReason', () => {
+  it.each([
+    [
+      'a route refused for the balance',
+      noRoute([
+        'UNSUPPORTED_DESTINATION_EXECUTIONS',
+        'NO_ROUTE_SUPPORT',
+        'INSUFFICIENT_BALANCE',
+        'UNSUPPORTED_MULTI_TOKEN',
+      ]),
+      'insufficientFunds',
+    ],
+    [
+      'the same, behind a wrapper',
+      new Error('Not confirmed', {
+        cause: noRoute(['INSUFFICIENT_BALANCE']),
+      }),
+      'insufficientFunds',
+    ],
+    [
+      'a simulation refused for the balance',
+      simulation('INSUFFICIENT_BALANCE'),
+      'insufficientFunds',
+    ],
+    [
+      'a route refused for other reasons',
+      noRoute(['NO_ROUTE_SUPPORT']),
+      undefined,
+    ],
+    [
+      'failure codes that are not a list',
+      noRoute('INSUFFICIENT_BALANCE'),
+      undefined,
+    ],
+    [
+      'a simulation refused for other reasons',
+      simulation('EXECUTION_FAILED'),
+      undefined,
+    ],
+    ['a taken name', priceReadRevert(), undefined],
+    ['a plain error', new Error('rpc down'), undefined],
+    ['no error', undefined, undefined],
+  ])('%s', (_, error, expected) => {
+    expect(getRegistrationFailureReason(error)).toBe(expected)
   })
 })
 

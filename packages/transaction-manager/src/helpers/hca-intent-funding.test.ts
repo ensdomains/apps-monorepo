@@ -1,7 +1,13 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
-import { decodeFunctionData, getAddress, parseAbi } from 'viem'
-import { sepolia } from 'viem/chains'
+import {
+  createWalletClient,
+  custom,
+  decodeFunctionData,
+  getAddress,
+  parseAbi,
+} from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RhinestoneSigner, Signer } from '../types/signer.types'
 import type { Call } from '../types/transaction.types'
@@ -218,6 +224,21 @@ describe('planHcaIntentFunding', () => {
     expect(fnNameOf(funding.calls[0])).toBe('permit')
     expect(fnNameOf(funding.calls[1])).toBe('transferFrom')
     expect(funding.calls[2]).toEqual(actionCalls[0])
+  })
+
+  it('funds the fee above the quote by the margin a caller asks for', async () => {
+    mockReads({ hcaBalance: 0n })
+
+    const funding = await planHcaIntentFunding({
+      ...params,
+      feeMarginBps: 500n,
+    })
+
+    expect(funding.quotedFeeUsdc).toBe(945_000n)
+    expect(funding.incomingUsdc).toBe(945_000n)
+    expect(funding.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [C.usdc]: 945_000n },
+    })
   })
 
   it('permits only the shortfall, not the whole fee', async () => {
@@ -439,10 +460,10 @@ describe('planHcaIntentFunding', () => {
   it('quotes against the declared gas limit and its scaled fee ceiling', async () => {
     mockReads({ hcaBalance: 0n })
     const gasLimit = 1_200_000n
-    // 15 USDC is above the 300k ceiling but legitimately below the ceiling for
+    // 40 USDC is above the 300k ceiling but legitimately below the ceiling for
     // 1.2M: the rail prices on the declared limit, so the bound must come from
     // the same limit or it rejects a fee the intent really costs.
-    prepareTransaction.mockResolvedValue(quoteOf(15_000_000n))
+    prepareTransaction.mockResolvedValue(quoteOf(40_000_000n))
 
     await expect(planHcaIntentFunding({ ...params, gasLimit })).rejects.toThrow(
       /above the expected maximum/,
@@ -455,7 +476,7 @@ describe('planHcaIntentFunding', () => {
     })
 
     expect(prepareTransaction.mock.calls[0]?.[0]).toMatchObject({ gasLimit })
-    expect(funding.quotedFeeUsdc).toBe(15_000_000n)
+    expect(funding.quotedFeeUsdc).toBe(40_000_000n)
   })
 })
 
@@ -464,37 +485,36 @@ describe('hcaMaxIntentFeeUsdcFor', () => {
     expect(hcaMaxIntentFeeUsdcFor(HCA_STANDALONE_INTENT_GAS_LIMIT)).toBe(
       HCA_MAX_STANDALONE_INTENT_FEE_USDC,
     )
-    expect(hcaMaxIntentFeeUsdcFor(150_000n)).toBe(5_000_000n)
+    expect(hcaMaxIntentFeeUsdcFor(150_000n)).toBe(15_000_000n)
     // Rounded up, so a fee at the ceiling is never rejected.
-    expect(hcaMaxIntentFeeUsdcFor(150_001n)).toBe(5_000_034n)
+    expect(hcaMaxIntentFeeUsdcFor(150_001n)).toBe(15_000_100n)
   })
 
   it('adds only the per-million-gas rate above the anchor', () => {
-    // The single-renewal base and a full 25-name chunk: ~4x their measured
-    // ~3.2 and ~9.3 USDC fees, rather than the anchor's rate scaled to ~100.
-    expect(hcaMaxIntentFeeUsdcFor(600_000n)).toBe(13_000_000n)
-    expect(hcaMaxIntentFeeUsdcFor(3_000_000n)).toBe(37_000_000n)
+    // The single-renewal base and a full 25-name chunk, not the anchor's rate scaled.
+    expect(hcaMaxIntentFeeUsdcFor(600_000n)).toBe(37_500_000n)
+    expect(hcaMaxIntentFeeUsdcFor(3_000_000n)).toBe(97_500_000n)
   })
 })
 
 describe('planHcaIntentFunding for an intent that also buys something', () => {
-  // A renewal pays rent out of the same USDC balance as the rail's own fee, so
+  // A renewal pays its price out of the same USDC balance as the rail's own fee, so
   // sizing the funding on the fee alone leaves the action unfunded.
   const rentParams = { ...params, requiredUsdc: 2_000_000n }
 
-  it('funds the rent and the fee together', async () => {
+  it('funds the price and the fee together', async () => {
     mockReads({ hcaBalance: 400_000n })
 
     const funding = await planHcaIntentFunding(rentParams)
 
-    // 2.0 rent + 0.9 fee = 2.9 needed, minus the 0.4 the HCA already holds.
+    // 2.0 price + 0.9 fee = 2.9 needed, minus the 0.4 the HCA already holds.
     expect(funding.incomingUsdc).toBe(2_500_000n)
     expect(signFundingPermit.mock.calls[0]?.[0]).toMatchObject({
       value: 2_500_000n,
     })
   })
 
-  it('shows the rent as part of what the permit authorizes', async () => {
+  it('shows the price as part of what the permit authorizes', async () => {
     mockReads({ hcaBalance: 0n })
     const confirmFunding = vi.fn(() => true)
 
@@ -508,7 +528,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
     )
   })
 
-  it('bounds the permit over the rent plus the bounded fee', async () => {
+  it('bounds the permit over the price plus the bounded fee', async () => {
     mockReads({ hcaBalance: 0n })
 
     await planHcaIntentFunding(rentParams)
@@ -522,7 +542,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
     })
   })
 
-  it('submits the bare action when the HCA covers the rent and the fee', async () => {
+  it('submits the bare action when the HCA covers the price and the fee', async () => {
     mockReads({ hcaBalance: 5_000_000n })
 
     const funding = await planHcaIntentFunding(rentParams)
@@ -530,6 +550,35 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
     expect(funding.calls).toEqual(actionCalls)
     expect(funding.incomingUsdc).toBeUndefined()
     expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('waits out a node still reading the balance from before a known top-up', async () => {
+    vi.useFakeTimers()
+    // A load-balanced RPC: the first node has not seen the bridged USDC yet.
+    const hcaReads = [0n, 5_000_000n]
+    readContract.mockImplementation(
+      (_client: unknown, { args }: { args: unknown[] }) =>
+        Promise.resolve(
+          args[0] === HCA
+            ? (hcaReads.shift() ?? 5_000_000n)
+            : 1_000_000_000_000n,
+        ),
+    )
+
+    try {
+      const planned = planHcaIntentFunding({
+        ...rentParams,
+        hcaBalanceAtLeast: 5_000_000n,
+      })
+      await vi.advanceTimersByTimeAsync(10_000)
+      const funding = await planned
+
+      expect(funding.calls).toEqual(actionCalls)
+      expect(funding.incomingUsdc).toBeUndefined()
+      expect(signFundingPermit).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('pulls with a standing allowance instead of a permit, after showing the amount', async () => {
@@ -614,7 +663,7 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
 })
 
 describe('planHcaIntentFunding for a spend in another token', () => {
-  // A renewal paid in DAI: the rent is a leg of its own, the fee stays USDC.
+  // A renewal paid in DAI: the price is a leg of its own, the fee stays USDC.
   const DAI = '0x00000000000000000000000000000000000000da' as Address
   const ONE_DAI = 10n ** 18n
   const daiParams = {
@@ -643,7 +692,7 @@ describe('planHcaIntentFunding for a spend in another token', () => {
       `${C.usdc}:transferFrom`,
       'action',
     ])
-    // The rent never enters the USDC funding: only the fee is pulled in USDC.
+    // The price never enters the USDC funding: only the fee is pulled in USDC.
     expect(funding.incomingUsdc).toBe(900_000n)
     expect(funding.auxiliaryFunds).toEqual({
       [sepolia.id]: { [C.usdc]: 900_000n },
@@ -829,3 +878,363 @@ describe('planHcaIntentFunding for a spend in another token', () => {
     ])
   })
 })
+
+describe('planHcaIntentFunding after a screen showed the debit', () => {
+  // 2.0 price + 0.9 fee, out of an empty HCA: the wallet owes 2.9 USDC.
+  const rentParams = { ...params, requiredUsdc: 2_000_000n }
+  const DAI = '0x00000000000000000000000000000000000000da' as Address
+  const ONE_DAI = 10n ** 18n
+
+  it('signs without asking again when the quote matches what was shown', async () => {
+    const confirmFunding = vi.fn(() => true)
+
+    const funding = await planHcaIntentFunding({
+      ...rentParams,
+      confirmFunding,
+      displayedDebit: { usdc: 2_900_000n, token: 0n },
+    })
+
+    expect(confirmFunding).not.toHaveBeenCalled()
+    expect(signFundingPermit.mock.calls[0]?.[0]).toMatchObject({
+      value: 2_900_000n,
+    })
+    expect(funding.incomingUsdc).toBe(2_900_000n)
+  })
+
+  it.each([
+    {
+      case: 'a permit',
+      reads: {},
+      shown: { usdc: 2_300_000n, token: 0n },
+      spend: {},
+    },
+    {
+      case: 'a standing allowance',
+      reads: { allowance: 9_000_000n },
+      shown: { usdc: 2_300_000n, token: 0n },
+      spend: {},
+    },
+    {
+      case: 'the token leg',
+      reads: {},
+      shown: { usdc: 900_000n, token: (3n * ONE_DAI) / 2n },
+      spend: {
+        requiredUsdc: 0n,
+        tokenSpend: {
+          token: DAI,
+          symbol: 'DAI',
+          decimals: 18,
+          amount: 2n * ONE_DAI,
+        },
+      },
+    },
+  ])(
+    'refuses funding above the shown debit, through $case',
+    async ({ reads, shown, spend }) => {
+      mockReads(reads)
+
+      await expect(
+        planHcaIntentFunding({
+          ...rentParams,
+          ...spend,
+          displayedDebit: shown,
+        }),
+      ).rejects.toThrow(/ was shown /)
+      expect(signFundingPermit).not.toHaveBeenCalled()
+    },
+  )
+})
+
+describe('explicit renewal permit validation', () => {
+  it('stops at a failed permit preflight instead of returning a rejected permit', async () => {
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        intentCost: {
+          tokensSpent: {
+            '1': {
+              [getDestinationContracts(1).usdc.toLowerCase()]: {
+                locked: '0',
+                unlocked: '900000',
+              },
+            },
+          },
+        },
+      },
+    })
+    const failure = new Error('RPC disconnected during permit validation')
+    const simulateContract = vi.fn().mockRejectedValue(failure)
+    const confirmApproval = vi.fn(() => true)
+    await expect(
+      planHcaIntentFunding({
+        ...params,
+        chainId: 1,
+        publicClient: {
+          ...publicClient,
+          chain: mainnet,
+          simulateContract,
+          getBlockNumber: async () => 42n,
+        },
+        approvalFallback: {
+          confirmApproval,
+          environment: {
+            storage: {
+              getItem: () => null,
+              setItem: () => undefined,
+              removeItem: () => undefined,
+            },
+            locks: {
+              request: vi.fn(async (_name, _options, callback) =>
+                callback({ name: 'test', mode: 'exclusive' }),
+              ),
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow('RPC disconnected during permit validation')
+    expect(confirmApproval).not.toHaveBeenCalled()
+  })
+})
+
+it.each(['reserved', 'submitted'] as const)(
+  'uses a fully funded HCA without disturbing an unresolved %s USDC approval',
+  async (kind) => {
+    const usdc = getDestinationContracts(1).usdc
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        intentCost: {
+          tokensSpent: {
+            '1': {
+              [usdc.toLowerCase()]: { locked: '0', unlocked: '900000' },
+            },
+          },
+        },
+      },
+    })
+    mockReads({ hcaBalance: 2_900_000n })
+    const pending = JSON.stringify({
+      kind,
+      amount: '900000',
+      ...(kind === 'submitted' ? { hash: `0x${'11'.repeat(32)}` } : {}),
+    })
+    const records = new Map([['pending', pending]])
+    const walletClient = {
+      ...createWalletClient({
+        chain: mainnet,
+        transport: custom({ request: async () => undefined }),
+      }),
+      getAddresses: vi.fn().mockResolvedValue([OWNER]),
+      getChainId: vi.fn().mockResolvedValue(1),
+    }
+    const waitForTransactionReceipt = vi
+      .fn()
+      .mockRejectedValue(new Error('Approval still pending'))
+    const plan = () =>
+      planHcaIntentFunding({
+        ...params,
+        chainId: 1,
+        requiredUsdc: 2_000_000n,
+        publicClient: {
+          ...publicClient,
+          chain: mainnet,
+          readContract: vi.fn().mockResolvedValue(0n),
+          waitForTransactionReceipt,
+        },
+        approvalSigner: { type: 'eoa', walletClient },
+        approvalFallback: {
+          confirmApproval: () => true,
+          environment: {
+            storage: {
+              getItem: () => records.get('pending') ?? null,
+              setItem: (_key, value) => {
+                records.set('pending', value)
+              },
+              removeItem: () => {
+                records.delete('pending')
+              },
+            },
+            locks: {
+              request: vi.fn(async (_name, _options, callback) =>
+                callback({ name: 'test', mode: 'exclusive' }),
+              ),
+            },
+          },
+        },
+      })
+    const funding = await plan()
+
+    expect(funding.calls).toEqual(actionCalls)
+    expect(funding.incomingUsdc).toBeUndefined()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(waitForTransactionReceipt).not.toHaveBeenCalled()
+    expect([...records.values()]).toEqual([pending])
+
+    mockReads({ hcaBalance: 2_899_999n })
+    await expect(plan()).rejects.toThrow(
+      kind === 'reserved' ? 'An earlier approval' : 'Approval still pending',
+    )
+    expect([...records.values()]).toEqual([pending])
+  },
+)
+
+it('does not grow a refreshed shortfall beyond an uncertain late approval even when standing allowance is larger', async () => {
+  const usdc = getDestinationContracts(1).usdc
+  prepareTransaction.mockResolvedValue({
+    intentRoute: {
+      intentCost: {
+        tokensSpent: {
+          '1': { [usdc.toLowerCase()]: { locked: '0', unlocked: '900000' } },
+        },
+      },
+    },
+  })
+  mockReads({ hcaBalance: 1_900_000n, allowance: 4_000_000n })
+  const pending = JSON.stringify({ kind: 'reserved', amount: '1000000' })
+  const removeItem = vi.fn()
+  const walletClient = {
+    ...createWalletClient({
+      chain: mainnet,
+      transport: custom({ request: async () => undefined }),
+    }),
+    getAddresses: vi.fn().mockResolvedValue([OWNER]),
+    getChainId: vi.fn().mockResolvedValue(1),
+  }
+  const planning = planHcaIntentFunding({
+    ...params,
+    chainId: 1,
+    requiredUsdc: 2_000_000n,
+    publicClient: {
+      ...publicClient,
+      chain: mainnet,
+      readContract: vi.fn().mockImplementation(async () => {
+        mockReads({ hcaBalance: 0n, allowance: 4_000_000n })
+        return 4_000_000n
+      }),
+    },
+    approvalSigner: { type: 'eoa', walletClient },
+    approvalFallback: {
+      confirmApproval: () => true,
+      environment: {
+        storage: {
+          getItem: () => pending,
+          setItem: () => undefined,
+          removeItem,
+        },
+        locks: {
+          request: vi.fn(
+            async (_name, _options, callback) =>
+              await callback({ name: 'test', mode: 'exclusive' }),
+          ),
+        },
+      },
+    },
+  })
+  await expect(planning).rejects.toThrow('The required funding increased')
+  expect(signFundingPermit).not.toHaveBeenCalled()
+  expect(removeItem).not.toHaveBeenCalled()
+})
+
+it.each([900_000n, 1_100_000n])(
+  'refreshes HCA balances after recovering a pending approval instead of pulling a stale shortfall (fresh quote %s)',
+  async (freshFee) => {
+    prepareTransaction.mockResolvedValue({
+      intentRoute: {
+        intentCost: {
+          tokensSpent: {
+            '1': {
+              [getDestinationContracts(1).usdc.toLowerCase()]: {
+                locked: '0',
+                unlocked: freshFee.toString(),
+              },
+            },
+          },
+        },
+      },
+    })
+    const pending = {
+      kind: 'submitted',
+      amount: '900000',
+      hash: `0x${'11'.repeat(32)}`,
+    }
+    const walletClient = {
+      ...createWalletClient({
+        chain: mainnet,
+        transport: custom({ request: async () => undefined }),
+      }),
+      getAddresses: vi.fn().mockResolvedValue([OWNER]),
+      getChainId: vi.fn().mockResolvedValue(1),
+    }
+    const client = {
+      ...publicClient,
+      chain: mainnet,
+      readContract: vi.fn().mockResolvedValue(900_000n),
+      waitForTransactionReceipt: vi.fn().mockImplementation(async () => {
+        mockReads({ hcaBalance: freshFee, allowance: 900_000n })
+        return { status: 'success' }
+      }),
+    }
+    const funding = await planHcaIntentFunding({
+      ...params,
+      chainId: 1,
+      publicClient: client,
+      approvalSigner: { type: 'eoa', walletClient },
+      approvalFallback: {
+        confirmApproval: () => true,
+        environment: {
+          storage: {
+            getItem: () => JSON.stringify(pending),
+            setItem: () => undefined,
+            removeItem: () => undefined,
+          },
+          locks: {
+            request: vi.fn(
+              async (_name, _options, callback) =>
+                await callback({ name: 'test', mode: 'exclusive' }),
+            ),
+          },
+        },
+      },
+    })
+    expect(funding.calls).toEqual(actionCalls)
+    expect(funding.incomingUsdc).toBeUndefined()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  },
+)
+
+it('does not show obsolete funding consent after a cancelled quote finishes', async () => {
+  let release: (value: ReturnType<typeof quoteOf>) => void = () => undefined
+  const quote = new Promise<ReturnType<typeof quoteOf>>((resolve) => {
+    release = resolve
+  })
+  prepareTransaction.mockReturnValueOnce(quote)
+  const cancelled = new AbortController()
+  const confirmFunding = vi.fn(() => false)
+  const running = planHcaIntentFunding({
+    ...params,
+    signal: cancelled.signal,
+    confirmFunding,
+  })
+  await vi.waitFor(() => expect(prepareTransaction).toHaveBeenCalledOnce())
+  cancelled.abort()
+  release(quoteOf(900_000n))
+  await expect(running).rejects.toThrow()
+  expect(confirmFunding).not.toHaveBeenCalled()
+  expect(signFundingPermit).not.toHaveBeenCalled()
+})
+
+it.each([0n, 900_000n])(
+  'checks cancellation again after funding consent before asking for a permit (allowance %s)',
+  async (allowance) => {
+    mockReads({ allowance })
+    const cancelled = new AbortController()
+    const running = planHcaIntentFunding({
+      ...params,
+      signal: cancelled.signal,
+      confirmFunding: () => {
+        cancelled.abort()
+        return true
+      },
+    })
+    await expect(running).rejects.toThrow()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  },
+)

@@ -2,6 +2,7 @@ import type { Config } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeRpcSubnameInventory } from './_fixtures/rpcSubnameInventory'
 
 vi.mock('./buildMigrationPlan', () => ({ buildMigrationPlan: vi.fn() }))
 vi.mock('./computeMigrationPreflight', () => ({
@@ -40,8 +41,28 @@ const params = {
   wagmiConfig: {} as Config,
 }
 
+const withoutRecreation: typeof discoverSubnameRecreation = async ({
+  domains,
+}) => ({
+  inventory: makeRpcSubnameInventory({ domains: [], rootNames: [] }),
+  domains,
+  snapshot: {
+    version: 5,
+    roots: [],
+    names: domains.map(({ name }) => name),
+    blockNumber: '1',
+    blockHash: namehash('no-recreation'),
+    timestamp: '1',
+    chainId: chain.id,
+    inventoryDigest: namehash('no-recreation-inventory'),
+  },
+  unrecoverable: [],
+})
+
 beforeEach(() => {
-  vi.mocked(discoverSubnameRecreation).mockReset()
+  vi.mocked(discoverSubnameRecreation)
+    .mockReset()
+    .mockImplementation(withoutRecreation)
   vi.mocked(computeMigrationPreflight)
     .mockReset()
     .mockResolvedValue({ skipFetchProfilesPhase: false })
@@ -106,8 +127,13 @@ describe('prepareGraceRenewalMigration', () => {
         ReturnType<typeof discoverSubnameRecreation>
       >['snapshot']
       vi.mocked(discoverSubnameRecreation).mockResolvedValue({
+        inventory: makeRpcSubnameInventory({
+          domains: [...refreshed, child],
+          rootNames: refreshed.map(({ name }) => name),
+        }),
         domains: [...refreshed, child],
         snapshot,
+        unrecoverable: [],
       })
       vi.mocked(buildMigrationPlan).mockImplementation(
         async ({ domains }) =>
@@ -120,7 +146,6 @@ describe('prepareGraceRenewalMigration', () => {
         ...params,
         domains: selected,
         renewedDomains,
-        isSubnameRecreationEnabled: true,
       })
 
       expect(discoverSubnameRecreation).toHaveBeenCalledExactlyOnceWith({

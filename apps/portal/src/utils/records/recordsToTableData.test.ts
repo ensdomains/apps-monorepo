@@ -269,6 +269,26 @@ describe('recordsToTableData', () => {
     ).toEqual(['base', 'op', 'Unknown Chain (84532)'])
   })
 
+  it('names a chain ensjs cannot name yet, and keeps the ensjs name of a removed coin', () => {
+    // ensjs's address-encoder 2.0.1 predates Unichain (130) and still has 714.
+    const records: GetRecordsReturnType = {
+      texts: [],
+      coins: [
+        { coinType: 2147483778, value: 'a', symbol: 'Unknown Chain (130)' },
+        { coinType: 714, value: 'b', symbol: 'bnb' },
+      ],
+      contentHash: null,
+      abi: null,
+      resolverAddress: MOCK_RESOLVER,
+    }
+
+    expect(
+      recordsToTableData(records).map((record) =>
+        'key' in record ? record.key : null,
+      ),
+    ).toEqual(['unichain', 'bnb'])
+  })
+
   it('labels an out-of-range EVM coin type instead of the chain it aliases (WEB-1447)', () => {
     // address-encoder names both "Unknown Chain (84532)"; only the first is
     // that chain, Base Sepolia, which is named after Base.
