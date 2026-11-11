@@ -518,12 +518,13 @@ services:
   # Only needed when running the standalone-HCA e2e tests (VITE_FF_USE_EOA=false).
   mockestrator:
     # ENS fork of the Rhinestone mockestrator, pinned so the orchestrator stand-in
-    # cannot drift underneath the patched @rhinestone/sdk. This digest is the
-    # build `:latest` has resolved to since 2026-06-07, so pinning it is a no-op
-    # today and only stops a future push from silently changing CI.
+    # cannot drift underneath the patched @rhinestone/sdk. It serves the API the
+    # SDK speaks (2026-01.alps for SDK 1.x) and refuses other versions with a 400;
+    # upstream main is on 2026-04.blanc (SDK 2.x), so move the fork with the SDK.
+    # Pin: sha-509c512 (ensdomains/mockestrator#7, Across routes from L2s).
     # MOCKESTRATOR_IMAGE swaps in a local build (e.g. to try a mockestrator
     # change before it is published); CI always runs the pin.
-    image: ${MOCKESTRATOR_IMAGE:-ghcr.io/ensdomains/mockestrator@sha256:d30d9328d774e15a77f107e02733379078b1806d72598d4ffa151d8b507550ba}
+    image: ${MOCKESTRATOR_IMAGE:-ghcr.io/ensdomains/mockestrator@sha256:47f619b463ccdd9e6f2255b7b65cb9c4fd1f57b4b1db1958691e68f912c65db3}
     networks:
       e2e:
         aliases:
