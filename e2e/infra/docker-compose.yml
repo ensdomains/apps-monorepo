@@ -57,6 +57,22 @@
 #   3. Put the digest below, run the manager E2E shards locally, and record the
 #      resolved version in the trailing comment so the pin stays legible.
 
+# What every L2 fork shares (anvil-base, anvil-arb, anvil-op). Each listens on
+# 8545 inside the network and differs only in its upstream, chain id and host
+# port. Opt-in through the `l2` profile, so a public L2 RPC outage never fails
+# the rest of the suite. Unpinned like anvil-mainnet: nothing depends on L2
+# history, only on each chain's USDC (Circle FiatToken) and Permit2.
+x-anvil-l2: &anvil-l2
+  profiles: ["l2"]
+  image: ghcr.io/foundry-rs/foundry@sha256:8347b728d5d393dac1c018691b36f506d23b9dcd78341d40ea0fcb11c3a19cdd
+  entrypoint: ["anvil"]
+  healthcheck:
+    test: ["CMD", "cast", "rpc", "eth_chainId", "--rpc-url", "http://127.0.0.1:8545"]
+    interval: 5s
+    timeout: 10s
+    retries: 6
+    start_period: 20s
+
 services:
   # Anvil's fork upstream, cached on disk (bigname/upstream-cache.mjs). At a
   # pinned fork every upstream read names that block, so once warm Anvil
@@ -185,6 +201,48 @@ services:
       timeout: 10s
       retries: 6
       start_period: 20s
+
+  # L2 forks a registration can be paid from: USDC bridged in through Permit2 +
+  # Across, which the mockestrator plays. Opt-in (see x-anvil-l2):
+  #   docker compose --profile l2 up -d anvil-base anvil-arb anvil-op mockestrator
+  # then run the manager with
+  #   VITE_L2_RPC_URLS=84532=http://127.0.0.1:8547,421614=http://127.0.0.1:8549,11155420=http://127.0.0.1:8550
+  # and the specs with E2E_L2=true (or a subset, e.g. E2E_L2=base,arbitrum).
+  # The `retries`/`timeout`/`fork-retry-backoff` flags give the same headroom
+  # as `anvil` against a flaky upstream. The public defaults keep only recent
+  # state. Arbitrum Sepolia drops the fork block within minutes, and anvil then
+  # panics (exit 133, "historical state … is not available"), so point
+  # ARBITRUM_SEPOLIA_FORK_URL at an archive RPC (e.g. drpc) for anything longer
+  # than a quick run.
+  anvil-base:
+    <<: *anvil-l2
+    networks:
+      e2e:
+        aliases:
+          - anvil-base
+    command: ["--fork-url", "${BASE_SEPOLIA_FORK_URL:-https://base-sepolia-rpc.publicnode.com}", "--chain-id", "84532", "--port", "8545", "--host", "0.0.0.0", "--retries", "20", "--timeout", "120000", "--fork-retry-backoff", "2000"]
+    ports:
+      - "8547:8545"
+
+  anvil-arb:
+    <<: *anvil-l2
+    networks:
+      e2e:
+        aliases:
+          - anvil-arb
+    command: ["--fork-url", "${ARBITRUM_SEPOLIA_FORK_URL:-https://arbitrum-sepolia-rpc.publicnode.com}", "--chain-id", "421614", "--port", "8545", "--host", "0.0.0.0", "--retries", "20", "--timeout", "120000", "--fork-retry-backoff", "2000"]
+    ports:
+      - "8549:8545"
+
+  anvil-op:
+    <<: *anvil-l2
+    networks:
+      e2e:
+        aliases:
+          - anvil-op
+    command: ["--fork-url", "${OPTIMISM_SEPOLIA_FORK_URL:-https://optimism-sepolia-rpc.publicnode.com}", "--chain-id", "11155420", "--port", "8545", "--host", "0.0.0.0", "--retries", "20", "--timeout", "120000", "--fork-retry-backoff", "2000"]
+    ports:
+      - "8550:8545"
 
   alto:
     image: ghcr.io/pimlicolabs/alto:latest
@@ -465,10 +523,13 @@ services:
   # Only needed when running the standalone-HCA e2e tests (VITE_FF_USE_EOA=false).
   mockestrator:
     # ENS fork of the Rhinestone mockestrator, pinned so the orchestrator stand-in
-    # cannot drift underneath the patched @rhinestone/sdk. This digest is the
-    # build `:latest` has resolved to since 2026-06-07, so pinning it is a no-op
-    # today and only stops a future push from silently changing CI.
-    image: ghcr.io/ensdomains/mockestrator@sha256:d30d9328d774e15a77f107e02733379078b1806d72598d4ffa151d8b507550ba
+    # cannot drift underneath the patched @rhinestone/sdk. It serves the API the
+    # SDK speaks (2026-01.alps for SDK 1.x) and refuses other versions with a 400;
+    # upstream main is on 2026-04.blanc (SDK 2.x), so move the fork with the SDK.
+    # Pin: sha-509c512 (ensdomains/mockestrator#7, Across routes from L2s).
+    # MOCKESTRATOR_IMAGE swaps in a local build (e.g. to try a mockestrator
+    # change before it is published); CI always runs the pin.
+    image: ${MOCKESTRATOR_IMAGE:-ghcr.io/ensdomains/mockestrator@sha256:47f619b463ccdd9e6f2255b7b65cb9c4fd1f57b4b1db1958691e68f912c65db3}
     networks:
       e2e:
         aliases:
@@ -478,6 +539,17 @@ services:
     depends_on:
       anvil:
         condition: service_healthy
+      # Only with the `l2` profile; without them the mockestrator skips the
+      # L2s, which rpcs.json marks optional.
+      anvil-base:
+        condition: service_healthy
+        required: false
+      anvil-arb:
+        condition: service_healthy
+        required: false
+      anvil-op:
+        condition: service_healthy
+        required: false
     volumes:
       - ./mockestrator/rpcs.json:/app/rpcs.json
       - ./mockestrator/chains.json:/app/chains.json
