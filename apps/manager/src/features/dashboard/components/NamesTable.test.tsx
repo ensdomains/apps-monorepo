@@ -63,6 +63,18 @@ describe('NamesTable', () => {
     expect(screen.queryByRole('button', { name: /^Favorites/ })).toBeNull()
   })
 
+  it('offers select-all for every name but not under Subnames', () => {
+    render(<NamesTable />)
+    expect(
+      screen.getByRole('button', { name: 'Select all names' }),
+    ).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Subnames/ }))
+    expect(
+      screen.queryByRole('button', { name: 'Select all names' }),
+    ).toBeNull()
+  })
+
   it('does not reopen a filter that emptied once it has names again', () => {
     const { rerender } = render(<NamesTable />)
     fireEvent.click(screen.getByRole('button', { name: /^Subnames/ }))
