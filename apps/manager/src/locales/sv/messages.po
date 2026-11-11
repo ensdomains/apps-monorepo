@@ -509,6 +509,10 @@ msgid "Approve USDC"
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
+msgid "Approve USDC for your registration?"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
 msgid "Approve USDC for your renewal?"
 msgstr ""
 
@@ -876,6 +880,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Confirm the swap in your wallet, then wait for it to complete"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Confirm the USDC approval transaction in your wallet. Registration will continue after it confirms."
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
@@ -2802,6 +2810,10 @@ msgstr ""
 msgid "Replace resolver"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Replace this name’s resolver?"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend in {resendWait}s"
 msgstr ""
@@ -3679,6 +3691,10 @@ msgstr ""
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr ""
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name points to an address that isn’t a working resolver, so its records can’t be read or saved. To use it as your primary name, we’ll replace it with a resolver your wallet controls."
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."
 msgstr ""
@@ -4117,6 +4133,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the resolver deployment"
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Waiting for the USDC approval to confirm. Your registration has not been submitted yet."
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx
@@ -4673,6 +4693,10 @@ msgstr ""
 
 #: src/components/HcaFundingConfirmDialog.tsx
 msgid "Your wallet has already given your smart account an allowance that covers this, so you won't be asked to approve it: the amount moves when you sign."
+msgstr ""
+
+#: src/components/HcaFundingApprovalDialog.tsx
+msgid "Your wallet needs a separate transaction to approve USDC for your smart account. This costs ETH gas. After it confirms, sign the registration setup in your wallet. The registration will then continue."
 msgstr ""
 
 #: src/components/HcaFundingApprovalDialog.tsx

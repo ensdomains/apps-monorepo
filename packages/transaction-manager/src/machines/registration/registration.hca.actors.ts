@@ -44,7 +44,7 @@ import {
   registerLegGasLimit,
   withBudgetDrift,
 } from '@ens-apps/smart-account'
-import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { fromSync, ResultFn } from '@ens-apps/utils/neverthrow'
 import { ethRegistrarCommitmentsSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import {
   permissionedRegistryGetResolverSnippet,
@@ -53,6 +53,7 @@ import {
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Transaction } from '@rhinestone/sdk'
 import {
+  err,
   errAsync,
   fromPromise,
   fromThrowable,
@@ -70,7 +71,6 @@ import type {
 } from 'viem'
 import {
   bytesToHex,
-  encodeFunctionData,
   formatUnits,
   isAddressEqual,
   keccak256,
@@ -81,6 +81,8 @@ import {
 } from 'viem'
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
 import { normalize } from 'viem/ens'
+import { preflightOwnerIntentQuote } from '../../actors/warp-owner-quote'
+import { assertHcaFundingWallet } from '../../helpers/hca-funding-approval'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
   L2FundingSource,
@@ -100,6 +102,14 @@ import {
   type VerifyPollOptions,
 } from './registration.actors'
 
+import {
+  getRegistrationCommitSigner,
+  getRegistrationOwnerIntentLimits,
+  prepareRegistrationFunding,
+  type RegistrationFundingApproval,
+  RegistrationFundingError,
+} from './registration.funding'
+
 type CommitmentData = {
   commitment: Hash
   secret: Hex
@@ -115,6 +125,7 @@ export interface HcaSessionEnableParams {
 
 const erc2612Abi = parseAbi([
   'function nonces(address owner) view returns (uint256)',
+  'function allowance(address owner,address spender) view returns (uint256)',
   'function name() view returns (string)',
   'function version() view returns (string)',
   'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
@@ -630,6 +641,7 @@ function buildUserPaidRequest(params: {
   chainId: number
   calls: Call[]
   sessionEnableData?: SessionEnableData
+  ownerIntentLimits?: RhinestoneTransactionRequest['rhinestoneParams']['ownerIntentLimits']
   /**
    * USDC (6dp) this intent will pull into the HCA before it spends anything —
    * i.e. the funding permit's value. Omit when the batch carries no funding
@@ -650,6 +662,9 @@ function buildUserPaidRequest(params: {
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
+        : {}),
+      ...(params.ownerIntentLimits
+        ? { ownerIntentLimits: params.ownerIntentLimits }
         : {}),
       ...(params.deliveredUsdc !== undefined
         ? {
@@ -1339,42 +1354,44 @@ export function signFundingPermitForTokenActor(
 
 /**
  * Commit leg: fund the HCA (when needed) and submit the commitment — ONE
- * session-signed, user-paid request. Deploys the HCA lazily when absent.
+ * user-paid request. Normally session-signed; a proven delegated-wallet
+ * permit incompatibility uses an exact approval and owner-signed setup.
+ * Deploys the HCA lazily when absent.
  * Generates the secret + commitment here so the reveal binds to the exact same
  * inputs.
  */
 export function submitFundingAndCommitActor(input: {
-  name: string
-  wallet: Address
-  hca: Address
-  duration: bigint
+  readonly name: string
+  readonly wallet: Address
+  readonly hca: Address
+  readonly duration: bigint
   readonly referrer?: Hex
-  permit?: PermitSignature
-  sessionEnable?: HcaSessionEnableParams
-  signer: Signer
-  publicClient: PublicClient
-  id?: string
+  readonly permit?: PermitSignature
+  readonly sessionEnable?: HcaSessionEnableParams
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+  readonly approvalFallback?: RegistrationFundingApproval
+  readonly signal?: AbortSignal
 }): ResultAsync<
   { txId: string; resolverAddress: Address; commitment: CommitmentData },
   Error
 > {
-  return fromPromise(
-    (async () => {
-      const chainId = requireChainId(input.publicClient, 'HCA registration')
-      const contracts = getDestinationContracts(chainId)
-      const label = canonicalLabel(input.name)
-
-      const resolverAddress = computeResolverAddress({
-        chainId,
-        hca: input.hca,
-      })
-
-      // Fresh secret per attempt; the commitment binds label/wallet/secret/
-      // resolver/duration — the reveal must reuse ALL of them.
-      const secret = bytesToHex(
-        crypto.getRandomValues(new Uint8Array(32)),
-      ) as Hex
-      const commitment = await readCommitment({
+  return ResultFn(async function* () {
+    const chainId = yield* fromSync(
+      () => requireChainId(input.publicClient, 'HCA registration'),
+      (cause) => new RegistrationFundingError({ cause }),
+    )
+    const contracts = getDestinationContracts(chainId)
+    const label = yield* fromSync(
+      () => canonicalLabel(input.name),
+      (cause) => new RegistrationFundingError({ cause }),
+    )
+    const resolverAddress = computeResolverAddress({ chainId, hca: input.hca })
+    // Fresh secret per attempt; the reveal reuses all of these commitment inputs.
+    const secret = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
+    const commitment = yield* fromPromise(
+      readCommitment({
         publicClient: input.publicClient,
         chainId,
         label,
@@ -1383,81 +1400,112 @@ export function submitFundingAndCommitActor(input: {
         resolver: resolverAddress,
         duration: input.duration,
         referrer: input.referrer,
-      })
-
-      const calls: Call[] = []
-
-      // Funding pair — only when the HCA balance did not cover the budget.
-      if (input.permit) {
-        calls.push({
-          to: contracts.usdc,
-          value: 0n,
-          data: encodeFunctionData({
-            abi: erc2612Abi,
-            functionName: 'permit',
-            args: [
-              input.permit.owner,
-              input.permit.spender,
-              input.permit.value,
-              input.permit.deadline,
-              input.permit.v,
-              input.permit.r,
-              input.permit.s,
-            ],
-          }),
-        })
-        calls.push({
-          to: contracts.usdc,
-          value: 0n,
-          data: encodeFunctionData({
-            abi: erc2612Abi,
-            functionName: 'transferFrom',
-            args: [input.permit.owner, input.hca, input.permit.value],
-          }),
-        })
-      }
-
-      const commitCall = buildCommitCall({
-        chainId,
-        commitment,
-      })
-      calls.push({
-        to: commitCall.to,
-        value: commitCall.value,
-        data: commitCall.data,
-      })
-
-      const request = buildUserPaidRequest({
+      }),
+      (cause) => new RegistrationFundingError({ cause }),
+    )
+    const commitCall = buildCommitCall({ chainId, commitment })
+    const buildRequest = (funding: {
+      readonly authority: 'session' | 'owner'
+      readonly calls: readonly Call[]
+      readonly incomingUsdc: bigint
+    }) =>
+      buildUserPaidRequest({
         from: input.hca,
         chainId,
-        calls,
-        sessionEnableData: input.sessionEnable?.enableData,
-        // Exactly the permit's value — the amount this batch pulls in, and
-        // nothing the HCA already holds. `signFundingPermitActor` is signed for
-        // `budget - balance`, so the permit value IS the inflow; declaring the
-        // whole budget would double-count the standing balance.
-        ...(input.permit ? { incomingUsdc: input.permit.value } : {}),
+        calls: [...funding.calls, commitCall],
+        sessionEnableData:
+          funding.authority === 'session'
+            ? input.sessionEnable?.enableData
+            : undefined,
+        ownerIntentLimits:
+          funding.authority === 'owner'
+            ? getRegistrationOwnerIntentLimits({
+                refundToken: contracts.usdc,
+                enableData: input.sessionEnable?.enableData,
+                signer: input.signer,
+              })
+            : undefined,
+        ...(funding.incomingUsdc > 0n
+          ? { incomingUsdc: funding.incomingUsdc }
+          : {}),
       })
-
-      const txId = transactionManager.startTransaction(
-        { type: 'custom', request },
-        input.signer,
-        {
-          id: input.id,
-          description: `Set up registration for ${label}.eth`,
-          publicClient: input.publicClient,
-          timeout: 120_000,
-        },
+    const funding = yield* prepareRegistrationFunding({
+      ...input,
+      chainId,
+      token: contracts.usdc,
+      permit: input.permit,
+      approvalFallback: input.approvalFallback,
+      signal: input.signal,
+      validateOwnerSetup: (planned) => {
+        if (input.signer.type !== 'rhinestone' || !input.publicClient.chain)
+          return errAsync(
+            new RegistrationFundingError({
+              cause:
+                'The owner setup signer and funding network are unavailable.',
+            }),
+          )
+        return preflightOwnerIntentQuote({
+          request: buildRequest(planned),
+          account: input.signer.account,
+          chain: input.publicClient.chain,
+        })
+      },
+    })
+    // A bare pull is outside the session policy. The owner signs this setup
+    // intent only; the machine retains its original session signer for reveal.
+    const signer = yield* getRegistrationCommitSigner({
+      authority: funding.authority,
+      signer: input.signer,
+    })
+    const request = buildRequest(funding)
+    if (funding.authority === 'owner') {
+      const allowance = yield* fromPromise(
+        input.publicClient.readContract({
+          address: contracts.usdc,
+          abi: erc2612Abi,
+          functionName: 'allowance',
+          args: [input.wallet, input.hca],
+        }),
+        (cause) => new RegistrationFundingError({ cause }),
       )
-
-      return {
-        txId,
-        resolverAddress,
-        commitment: { commitment, secret },
-      }
-    })(),
-    (error) => (error instanceof Error ? error : new Error(String(error))),
-  )
+      if (allowance !== funding.incomingUsdc)
+        return err(
+          new RegistrationFundingError({
+            cause:
+              'The USDC allowance changed. Review a fresh registration attempt before continuing.',
+          }),
+        )
+    }
+    if (input.approvalFallback && funding.authority === 'owner') {
+      yield* assertHcaFundingWallet({
+        ...input.approvalFallback,
+        publicClient: input.publicClient,
+        owner: input.wallet,
+        chainId,
+        signal: input.signal,
+        operation: 'registration',
+      })
+    }
+    // No detached attempt can enqueue an intent after its last asynchronous read.
+    const txId = yield* fromSync(
+      () => {
+        input.signal?.throwIfAborted()
+        return transactionManager.startTransaction(
+          { type: 'custom', request },
+          signer,
+          {
+            id: input.id,
+            description: `Set up registration for ${label}.eth`,
+            publicClient: input.publicClient,
+            timeout: 120_000,
+            ...(funding.authority === 'owner' ? { retryCount: 0 } : {}),
+          },
+        )
+      },
+      (cause) => new RegistrationFundingError({ cause }),
+    )
+    return ok({ txId, resolverAddress, commitment: { commitment, secret } })
+  })()
 }
 
 /**
