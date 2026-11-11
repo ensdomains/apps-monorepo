@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+/**
+ * Claude Code and Codex adapter. Both read hook JSON on stdin and accept
+ * the same PreToolUse / PostToolUse / Stop decision fields.
+ * Command bans deny the tool. Diff findings are additionalContext, not a deny.
+ * Stop blocks once on a failed typecheck or test run, and on a PR body that
+ * is present but missing its sections. stop_hook_active skips the second pass.
+ */
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const here = path.dirname(fileURLToPath(import.meta.url))
+const runner = path.join(here, 'run.mjs')
+
+const raw = readFileSync(0, 'utf8')
+/** @type {Record<string, unknown>} */
+let input = {}
+try {
+  input = raw.trim() ? JSON.parse(raw) : {}
+} catch {
+  input = {}
+}
+
+const event = stringField(input, 'hook_event_name')
+const tool = stringField(input, 'tool_name')
+const toolInput = objectField(input, 'tool_input')
+
+if (event === 'PreToolUse' && (tool === 'Bash' || tool === 'bash')) {
+  const verdict = call(['guard-command', '--command', stringField(toolInput, 'command')])
+  if (verdict.decision === 'block') {
+    write({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: verdict.reason,
+      },
+    })
+  }
+  process.exit(0)
+}
+
+if (event === 'PostToolUse') {
+  const verdict = call(['check-diff'])
+  const parts = []
+  if (verdict.context && markOnce(stringField(input, 'session_id'))) {
+    parts.push(verdict.context)
+  }
+  if (verdict.decision === 'feedback' && verdict.reason) parts.push(verdict.reason)
+  if (parts.length > 0) {
+    write({
+      hookSpecificOutput: {
+        hookEventName: 'PostToolUse',
+        additionalContext: parts.join('\n\n'),
+      },
+    })
+  }
+  process.exit(0)
+}
+
+if (event === 'Stop' && input.stop_hook_active !== true && !stringField(input, 'agent_id')) {
+  const verified = call(['verify'])
+  if (verified.decision === 'block') {
+    write({ decision: 'block', reason: verified.reason })
+    process.exit(0)
+  }
+  const body = call(['pr-body'])
+  if (body.decision === 'block') {
+    write({ decision: 'block', reason: body.reason })
+  }
+}
+
+process.exit(0)
+
+/**
+ * @param {readonly string[]} args
+ * @returns {{ decision?: string, reason?: string, context?: string }}
+ */
+function call(args) {
+  const result = spawnSync(process.execPath, [runner, ...args], { encoding: 'utf8' })
+  const stdout = result.stdout ?? ''
+  const line = stdout.trim().split('\n').find((entry) => entry.startsWith('{'))
+  if (!line) return { decision: 'allow', reason: '' }
+  try {
+    return JSON.parse(line)
+  } catch {
+    return { decision: 'allow', reason: '' }
+  }
+}
+
+/**
+ * @param {unknown} value
+ */
+function write(value) {
+  process.stdout.write(JSON.stringify(value))
+}
+
+/**
+ * @param {Record<string, unknown>} source
+ * @param {string} key
+ */
+function stringField(source, key) {
+  const value = source[key]
+  return typeof value === 'string' ? value : ''
+}
+
+/**
+ * @param {Record<string, unknown>} source
+ * @param {string} key
+ * @returns {Record<string, unknown>}
+ */
+function objectField(source, key) {
+  const value = source[key]
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return /** @type {Record<string, unknown>} */ (value)
+  }
+  return {}
+}
+
+/**
+ * @param {string} sessionId
+ * @returns {boolean} true the first time this session asks
+ */
+function markOnce(sessionId) {
+  if (!sessionId) return true
+  const file = path.join(os.tmpdir(), 'ens-agent-checks', `${sessionId}-tm`)
+  if (existsSync(file)) return false
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, '1')
+  return true
+}

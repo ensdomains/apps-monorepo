@@ -1,6 +1,11 @@
 node_modules
 coverage
-.claude/
+# Local Claude Code state stays untracked. Skills, the reviewer subagent,
+# and project hooks are shared, so they are re-included below.
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/settings.json
 dist
 **/.DS_Store
 package-lock.json

@@ -1,0 +1,43 @@
+{
+  "description": "Same checks as .claude/settings.json. Codex runs command hooks only. Project hooks need trust.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/agent-checks/claude-codex-hook.mjs\"",
+            "timeout": 15,
+            "statusMessage": "Checking the command"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|apply_patch|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/agent-checks/claude-codex-hook.mjs\"",
+            "timeout": 30,
+            "statusMessage": "Checking the diff"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/agent-checks/claude-codex-hook.mjs\"",
+            "timeout": 180,
+            "statusMessage": "Checking typecheck and tests"
+          }
+        ]
+      }
+    ]
+  }
+}

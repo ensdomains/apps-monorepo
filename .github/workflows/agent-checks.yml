@@ -1,0 +1,41 @@
+name: Agent instruction checks
+
+# Experimental. Findings are warnings. This job does not fail the PR:
+# the diff checks allow justified exceptions, and knip is not configured
+# for every package (see the commented step in test.yml).
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Diff checks (report only)
+        run: node scripts/agent-checks/run.mjs check-diff --base "origin/${{ github.base_ref }}" --report-only
+
+      - name: PR body (report only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr view "${{ github.event.pull_request.number }}" --json body --jq .body > "$RUNNER_TEMP/pr-body.md"
+          node scripts/agent-checks/run.mjs pr-body --body-file "$RUNNER_TEMP/pr-body.md" --report-only
+
+      - name: Branch name (report only)
+        run: node scripts/agent-checks/run.mjs branch-name --report-only
+
+      - name: Dead exports (report only, skipped without knip)
+        run: node scripts/agent-checks/run.mjs dead-exports --report-only

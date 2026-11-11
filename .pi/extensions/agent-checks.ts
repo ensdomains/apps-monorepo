@@ -1,0 +1,114 @@
+import { spawnSync } from "node:child_process"
+
+type Verdict = {
+  readonly decision?: string
+  readonly reason?: string
+  readonly context?: string
+}
+
+type ToolEvent = {
+  readonly toolName: string
+  readonly input?: { readonly command?: string }
+  readonly content?: unknown
+}
+
+type SettleEvent = {
+  readonly entries: readonly unknown[]
+}
+
+type Extension = {
+  on(
+    event: "tool_call",
+    handler: (event: ToolEvent) => { block: true; reason: string } | undefined,
+  ): void
+  on(
+    event: "tool_result",
+    handler: (event: ToolEvent) => { content: unknown } | undefined,
+  ): void
+  on(
+    event: "agent_before_settle",
+    handler: (
+      event: SettleEvent,
+    ) => { continue: true; entries: readonly unknown[] } | undefined,
+  ): void
+}
+
+let continued = false
+
+function repoRoot(): string {
+  const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
+    encoding: "utf8",
+  })
+  return (result.stdout ?? "").trim()
+}
+
+function verdict(args: readonly string[]): Verdict {
+  const root = repoRoot()
+  if (!root) return { decision: "allow" }
+  const result = spawnSync(process.execPath, [`${root}/scripts/agent-checks/run.mjs`, ...args], {
+    cwd: root,
+    encoding: "utf8",
+  })
+  const line = (result.stdout ?? "")
+    .split("\n")
+    .find((entry) => entry.startsWith("{"))
+  if (!line) return { decision: "allow" }
+  try {
+    return JSON.parse(line) as Verdict
+  } catch {
+    return { decision: "allow" }
+  }
+}
+
+function withNote(content: unknown, note: string): unknown {
+  if (typeof content === "string") return `${content}\n\n${note}`
+  if (Array.isArray(content)) return [...content, { type: "text", text: note }]
+  return content
+}
+
+export default function agentChecks(pi: Extension) {
+  pi.on("tool_call", (event) => {
+    if (event.toolName !== "bash") return undefined
+    const checked = verdict([
+      "guard-command",
+      "--command",
+      event.input?.command ?? "",
+    ])
+    if (checked.decision === "block" && checked.reason) {
+      return { block: true, reason: checked.reason }
+    }
+    return undefined
+  })
+
+  pi.on("tool_result", (event) => {
+    if (event.toolName !== "bash" && event.toolName !== "write" && event.toolName !== "edit") {
+      return undefined
+    }
+    const checked = verdict(["check-diff"])
+    const parts = [checked.context ?? "", checked.decision === "feedback" ? (checked.reason ?? "") : ""]
+    const note = parts.filter((part) => part.length > 0).join("\n\n")
+    if (!note) return undefined
+    const content = withNote(event.content, note)
+    if (content === event.content) return undefined
+    return { content }
+  })
+
+  pi.on("agent_before_settle", (event) => {
+    if (continued) return undefined
+    const checked = verdict(["verify"])
+    if (checked.decision !== "block" || !checked.reason) return undefined
+    continued = true
+    return {
+      continue: true,
+      entries: [
+        ...event.entries,
+        {
+          type: "custom_message",
+          customType: "agent-checks",
+          content: checked.reason,
+          display: false,
+        },
+      ],
+    }
+  })
+}
