@@ -52,10 +52,8 @@ export const HomeSearchInput = ({
   const { isAvailable: isPaletteAvailable, openPalette } = useCommandPalette()
   const triggerRef = useRef<HTMLDivElement | null>(null)
 
-  const trimmedSearch = useDebouncedValue(
-    searchValue,
-    SEARCH_DEBOUNCE_MS,
-  ).trim()
+  const trimmedSearch = searchValue.trim()
+  const verifiedSearch = useDebouncedValue(trimmedSearch, SEARCH_DEBOUNCE_MS)
 
   const navigateToAddress = useCallback(
     (address: string) => {
@@ -86,10 +84,11 @@ export const HomeSearchInput = ({
 
   const searchResults = useSearchResults({
     searchValue: trimmedSearch,
-    enabled: Boolean(trimmedSearch),
+    enabled: trimmedSearch === verifiedSearch,
     fetchOwnedNames: false,
     suggestionMode: 'focused',
     verificationLimit: 1,
+    shouldDeferDnsVerification: true,
     queryStaleTime: PALETTE_AVAILABILITY_STALE_TIME_MS,
     navigateToName,
     navigateToAddress,
@@ -108,7 +107,6 @@ export const HomeSearchInput = ({
     nameVerificationBySuggestionId,
   } = searchResults
 
-  const isCurrentQuery = searchValue.trim() === trimmedSearch
   const selection = {
     items: allItems,
     selectedValue,
@@ -118,8 +116,7 @@ export const HomeSearchInput = ({
   const activeIndex = allItems.findIndex(
     ({ value }) => value === activeItem?.value,
   )
-  const isPopoverOpen =
-    menuOpen && isCurrentQuery && (hasAnySection || Boolean(searchNotice))
+  const isPopoverOpen = menuOpen && (hasAnySection || Boolean(searchNotice))
   const updateSearchValue = useCallback((value: string) => {
     setSearchValue(value)
     setSelectedValue(null)
@@ -157,7 +154,7 @@ export const HomeSearchInput = ({
       ...selection,
       key: event.key,
       isComposing: event.nativeEvent.isComposing || event.keyCode === 229,
-      isCurrentQuery,
+      isCurrentQuery: true,
     })
     match(action)
       .with({ type: 'ignore' }, () => {})

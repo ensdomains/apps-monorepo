@@ -50,6 +50,7 @@ export type UseSearchResultsParams = {
   readonly suggestionMode?: 'expanded' | 'focused'
   readonly verificationLimit?: number
   readonly verificationMode?: SearchVerificationMode
+  readonly shouldDeferDnsVerification?: boolean
   readonly queryStaleTime?: number
 }
 
@@ -107,6 +108,7 @@ export const useSearchResults = ({
   suggestionMode = 'expanded',
   verificationLimit = Number.POSITIVE_INFINITY,
   verificationMode = 'full',
+  shouldDeferDnsVerification = false,
   queryStaleTime,
 }: UseSearchResultsParams): UseSearchResultsReturn => {
   const freshness =
@@ -227,10 +229,18 @@ export const useSearchResults = ({
         .slice(0, verificationLimit)
         .filter(
           (suggestion) =>
-            getSearchVerificationPolicy(suggestion.inputValue, verificationMode)
-              .shouldReadOwner,
+            getSearchVerificationPolicy(
+              suggestion.inputValue,
+              verificationMode,
+              shouldDeferDnsVerification,
+            ).shouldReadOwner,
         ),
-    [nameSuggestions, verificationLimit, verificationMode],
+    [
+      nameSuggestions,
+      verificationLimit,
+      verificationMode,
+      shouldDeferDnsVerification,
+    ],
   )
   const ownerQueries = useQueries({
     queries: ownerSuggestions.map((s) => ({
@@ -246,6 +256,7 @@ export const useSearchResults = ({
         const policy = getSearchVerificationPolicy(
           s.inputValue,
           verificationMode,
+          shouldDeferDnsVerification,
         )
         return (
           policy.shouldReadRecords &&
@@ -253,7 +264,13 @@ export const useSearchResults = ({
             (ownerQueries[i]?.data === null && !ownerQueries[i]?.isError))
         )
       }),
-    [nameSuggestions, ownerQueries, verificationLimit, verificationMode],
+    [
+      nameSuggestions,
+      ownerQueries,
+      verificationLimit,
+      verificationMode,
+      shouldDeferDnsVerification,
+    ],
   )
 
   const recordsQueries = useQueries({
@@ -381,6 +398,7 @@ export const useSearchResults = ({
         isOwnerEnabled: getSearchVerificationPolicy(
           suggestion.inputValue,
           verificationMode,
+          shouldDeferDnsVerification,
         ).shouldReadOwner,
         isEnabled: enabled && index < verificationLimit,
         owner: ownerQuery,

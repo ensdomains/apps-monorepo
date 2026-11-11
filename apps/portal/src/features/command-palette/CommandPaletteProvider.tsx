@@ -307,7 +307,7 @@ export const CommandPaletteProvider = ({
     const currentContext = latestContext.current
     const resolution = resolveCommandTarget({
       command,
-      context: currentContext,
+      context: { ...currentContext, entity: undefined },
       entity: explicitEntity,
     })
     if (resolution.status === 'needs-target') {
@@ -367,6 +367,7 @@ export const CommandPaletteProvider = ({
     fetchOwnedNames: state.status === 'open' && policy.shouldFetchOwnedNames,
     suggestionMode: 'focused',
     verificationLimit: 1,
+    shouldDeferDnsVerification: true,
     verificationMode: 'discovery',
     queryStaleTime: PALETTE_AVAILABILITY_STALE_TIME_MS,
     navigateToName: NO_NAVIGATION,

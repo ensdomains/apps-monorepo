@@ -262,8 +262,11 @@ export type SearchVerificationMode = 'full' | 'availability-only' | 'discovery'
 export const getSearchVerificationPolicy = (
   name: string,
   mode: SearchVerificationMode,
-) =>
-  match(mode)
+  shouldDeferDnsVerification = false,
+) => {
+  if (shouldDeferDnsVerification && name.includes('.') && !isEthName(name))
+    return { shouldReadOwner: false, shouldReadRecords: false }
+  return match(mode)
     .with('full', () => ({
       shouldReadOwner: true,
       shouldReadRecords: isSubname(name),
@@ -277,6 +280,7 @@ export const getSearchVerificationPolicy = (
       shouldReadRecords: name.includes('.') && !isEthName(name),
     }))
     .exhaustive()
+}
 
 export const getSearchOwnerData = <T>(
   query: SearchQuerySnapshot<T> | undefined,

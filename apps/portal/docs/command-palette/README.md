@@ -49,7 +49,7 @@ validation still determine whether a particular action can continue.
 - **Actions are visible.** The selected row shows its primary keyboard hint
   inline on desktop and a separate **→ Actions** button. Actions stays visible
   on touch. Hover or focus darkens that button; clicking the row still opens
-  the entity. The button is a sibling of the option, avoiding nested controls.
+  the entity. The button occupies a separate grid cell, avoiding nested primary controls.
   Right Arrow at the end of the query opens Actions. Left Arrow at the start
   returns to the previous view; selection and modified arrows stay native. Tab
   and Shift+Tab move focus normally. The modal has no footer.
@@ -89,7 +89,7 @@ still block opening.
 the homepage retains its inline dropdown. It now opts into the focused
 completion policy, a one-candidate verification limit, and the palette's
 availability freshness window. Its existing full verification still recognizes
-offchain names. Sharing the palette's result presentation inside that dropdown
+offchain `.eth` names; expensive DNS verification waits for inspection. Sharing the palette's result presentation inside that dropdown
 remains a separate implementation step.
 
 [Entity feedback](https://enslabsworkspace.slack.com/archives/D0BEMQJKBNX/p1794332174465039):
@@ -158,6 +158,46 @@ Share their presentation through a small results component while preserving each
 surface's interaction model. Permission presentation belongs on the selected
 entity and should consume existing feature decisions; it should not add another
 command execution or authorization framework.
+
+## UX review fixes
+
+The review fixes keep the existing workflows and deferred design decisions.
+
+- Every bound command is checked against its own target's known facts. An
+  unsuitable ambient target becomes a generic action; explicitly chosen targets
+  are never silently substituted. The execution boundary consumes the row's
+  resolved target and cannot bind an unbound action to the route again.
+- Strong command matches suppress weak subsequence matches. Fuzzy-only queries
+  still work. An existing name result replaces its redundant Search-for row;
+  View and verified Register stay separate.
+- Homepage candidates and Enter follow current input immediately. Only IO waits
+  for the debounce. Exact DNS search is cheap on both entry points.
+- Results use an accessible grid with native table rows and separate action
+  cells. Clear-history controls live outside it. The input controls the grid
+  through its active descendant; keyboard selection, scroll restoration, and
+  native button activation remain covered. A real screen-reader pass remains
+  necessary before production.
+- Empty pickers describe the expected target, and the global shortcut supports
+  physical K on non-Latin layouts while retaining composition and dialog guards.
+
+### Behavior changes and regression check
+
+The name escape-hatch test now checks the fallback when no entity row exists;
+new coverage rejects duplication when it does. Palette tests replace option and
+listbox role queries with row and grid queries while retaining their behavior
+assertions. The secondary action is asserted in its own grid cell. Inline button
+activation also covers Enter and Space; arrow navigation and the global
+shortcut work when that button has focus. Homepage tests use the real debounce
+instead of its previous identity mock. Existing shared-search defaults and
+immediate DNS-verification tests remain unchanged.
+
+Regression tests failed before their fixes, including generic registration's
+full click-through from a name page. Validation covers 350 affected tests,
+Portal typecheck, changed-file lint, desktop and mobile at 1440×1000, 390×700,
+and 390×420, plus scrolling a long entity view. Browser accessibility data
+exposes grid → rowgroup → row → gridcell; DNS search performs zero palette RPC
+requests before inspection. Connected-wallet authorization and real assistive
+technology are outside this verification.
 
 ## Running locally
 
@@ -246,7 +286,7 @@ produces `example.com`, without `.eth` alternatives or speculative DNS suffixes.
 Partial `.eth` input still completes; short explicit DNS names remain searchable.
 
 The palette supplies `suggestionMode: focused`, `verificationLimit: 1`, and
-`verificationMode: discovery` to the shared search hook. Other callers retain
+`verificationMode: discovery`, with `shouldDeferDnsVerification: true`, to the shared search hook. Other callers retain
 their existing defaults. Search helpers and TanStack Query factories remain
 shared; there is no second cache or relationship registry.
 
@@ -254,7 +294,7 @@ shared; there is no second cache or relationship registry.
 | --- | --- |
 | Closed, empty root, or `>` command search | None; cached facts and avatars can render |
 | Bare label or explicit `.eth` name | After debounce: registrable availability for the leading candidate only; no owner or profile reads |
-| Explicit DNS name | After debounce: current ENS records for that exact candidate; no DNSSEC suffix discovery, ownership lookup, or DNS purchase-availability check |
+| Explicit DNS name | No background record reads; show the exact candidate with an explicit inspection hint |
 | Complete address | After debounce: resolver-interface detection |
 | Explicitly open an entity's actions | Check the governing `.eth` registration, then load owner, ETH address, and resolver; addresses load their primary name |
 | Name target picker | Existing portfolio query; recent targets are local shortcuts |
@@ -308,12 +348,12 @@ profile inventory, text records, other coin records, contenthash, or ABI just to
 find one ETH address. The ETH record uses coin 60 on the configured ENS network;
 the coin identifier does not select the mainnet RPC.
 
-Search checks registration availability for `.eth` candidates and current
-resolution for explicit DNS candidates. Unchecked candidates stay navigable.
-DNS results say **Found in ENS** when records resolve or **No ENS records found**
-when the checked records are empty; failed reads remain verification failures.
-These labels make no claim about DNS registration or purchase availability.
-Existing inline search retains its full verification behavior. Palette queries
+Search checks registration availability for `.eth` candidates. Explicit DNS
+candidates remain navigable and say **Open to inspect ENS records**. Enter opens
+the exact name's page; Actions loads the selected entity's relationships on
+demand. Search does not claim that unchecked DNS names have ENS records, are
+absent from DNS, or can be purchased. Both inline and palette search opt into
+this DNS deferral; other shared-hook callers keep their defaults. Palette queries
 use explicit freshness: 30 seconds for search and registration checks, 60 seconds
 for relationships. Fresh results are reused on reopening; stale registration is
 rechecked before loading dependent relationships. These windows curate the UI;
@@ -354,22 +394,17 @@ for a bare label. Already known matching wallet names can still appear, and
 users can enter any complete DNS name or subname explicitly. There is no global
 DNS suffix probe or DNS-registrar integration.
 
-DNS verification reuses the profile query with `includeLegacyRecords: false`.
-That scope reads the current resolver, including indexed record keys and
-wildcard records, without falling back to historical resolver data. Its query
-key includes the scope so a previously cached historical profile cannot satisfy
-a current-usability check. Other profile callers keep their existing defaults;
-record-save invalidation uses the name-only prefix and covers both scopes.
-
-The record check is debounced and limited to one explicit DNS candidate. It can
-read multiple records for that candidate; it does not fan out across possible
-suffixes. An empty record result is an observation about the checked ENS records,
-not proof that the name is absent from DNS or available to buy. Enter continues
-to open the exact name, and DNS verification never creates an ENS Register row.
+DNS search defers expensive record verification until explicit inspection.
+It does not read full profile inventory, text records, multiple coin records,
+or the DNSSEC oracle merely to decorate an unselected candidate. Opening an
+entity's Actions uses existing owner, ETH address, and resolver queries; opening
+its page uses that feature's normal authoritative data. The older current-only
+profile query scope remains available to callers opting into immediate DNS
+verification, and its cache stays separate from historical profile data.
 
 Regression coverage preserves existing shared-search defaults and checks exact
 DNS navigation, focused completions, current-only resolution, cache isolation,
-and DNS labels. Browser checks at desktop/mobile widths showed one `.eth`
+and DNS labels. Before DNS deferral, browser checks at desktop/mobile widths showed one `.eth`
 completion for `helgesson` and one `example.com` row labeled **No ENS records
 found**, with no page errors. The existing expanded builder's complexity warning
 is unchanged at 58; the focused adapter does not add complexity to it. Final

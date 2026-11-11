@@ -144,6 +144,11 @@ const getVerificationMeta = (
   return match(verification.status)
     .returnType<PaletteRowMeta | undefined>()
     .with('available', () => ({ text: 'Available', tone: 'positive' }))
+    .with('unchecked', () =>
+      isEthName(suggestion.inputValue)
+        ? undefined
+        : { text: 'Open to inspect ENS records', tone: 'muted' },
+    )
     .with('checking', () => ({ text: 'Checking…', tone: 'pending' }))
     .with('failed', () => ({ text: 'Couldn’t verify', tone: 'warning' }))
     .with('not-found', () => ({
@@ -333,6 +338,22 @@ const canShowCommand = (
   !command.isApplicable ||
   command.isApplicable(getBoundTargetMetadata(entity, metadata))
 
+const getApplicableMatch = (
+  entry: PaletteCommandMatch,
+  frame: PaletteFrame,
+  isCurrent: boolean,
+  metadata?: PaletteTargetMetadata,
+): readonly PaletteCommandMatch[] => {
+  if (canShowCommand(entry.command, entry.entity, metadata)) return [entry]
+  if (
+    entry.targetSource === 'explicit' ||
+    frame.screen.type === 'entity' ||
+    isCurrent
+  )
+    return []
+  return [{ ...entry, entity: undefined, title: entry.command.title }]
+}
+
 const getCommandPresentation = ({
   command,
   title,
@@ -381,11 +402,11 @@ const getCommandRows = ({
         navigation.includes(command.id) ||
         (context.entity && defaults.includes(command.id)),
     )
-    .filter(({ command, entity }) =>
-      canShowCommand(
-        command,
-        scopedEntity ??
-          (isEmptyRoot && defaults.includes(command.id) ? entity : undefined),
+    .flatMap((entry) =>
+      getApplicableMatch(
+        entry,
+        frame,
+        isEmptyRoot && defaults.includes(entry.command.id),
         targetMetadata,
       ),
     )
@@ -581,6 +602,7 @@ const getRelatedCopyRows = (
 const getNameEscapeHatch = (
   frame: PaletteFrame,
   hasCommandMatches: boolean,
+  entities: readonly PaletteRow[],
 ): readonly PaletteRow[] => {
   const parsed = parsePaletteQuery(frame.query)
   const query = parsed.query
@@ -592,7 +614,16 @@ const getNameEscapeHatch = (
     return []
   if (!query || query.includes('.') || query.includes(' ')) return []
   const candidate = ensureEthSuffix(query)
-  if (!isValidEnsName(candidate)) return []
+  if (
+    !isValidEnsName(candidate) ||
+    entities.some(
+      ({ action }) =>
+        action.type === 'view' &&
+        action.entity.type === 'name' &&
+        action.entity.name === candidate,
+    )
+  )
+    return []
   return [
     {
       id: `search:${candidate}`,
@@ -712,7 +743,7 @@ export const buildPaletteRows = (
   }
   const entities = getEntityRows({ ...params, data, commands })
   const another = getAnotherTarget(frame, matches)
-  const nameSearch = getNameEscapeHatch(frame, matches.length > 0)
+  const nameSearch = getNameEscapeHatch(frame, matches.length > 0, entities)
   const explicitEntity =
     query.includes('.') || isAddress(query, { strict: false })
   const relatedRows = getRelatedRows(frame, context, related)

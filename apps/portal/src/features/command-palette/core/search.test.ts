@@ -84,6 +84,14 @@ describe('searchCommands', () => {
     ).toEqual([])
   })
 
+  it('suppresses weak fuzzy matches when a strong command match exists', () => {
+    const ids = run('ren').map(({ command }) => command.id)
+    expect(ids).toContain('name.renew')
+    expect(ids).not.toContain('address.copy-link')
+    expect(ids).not.toContain('name.burn-fuses')
+    expect(ids).not.toContain('wallet.primary-name')
+  })
+
   it('finds a fuzzy command without changing the command target', () => {
     const result = run('rnw').find(({ command }) => command.id === 'name.renew')
     expect(result?.entity).toEqual({ type: 'name', name: 'alice.eth' })

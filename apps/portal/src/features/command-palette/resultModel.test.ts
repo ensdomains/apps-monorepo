@@ -217,6 +217,37 @@ describe('buildPaletteRows', () => {
     ).toBe(true)
   })
 
+  it.each([undefined, false])(
+    'keeps registration unbound when page availability is %s',
+    (isAvailable) => {
+      const rows = run({
+        context: { chainId: 1, developerEnabled: false, entity: ALICE },
+        targetMetadata: { entity: ALICE, isAvailable },
+      })
+      const register = rows.find(
+        ({ action }) =>
+          action.type === 'command' && action.command.id === 'name.register',
+      )
+      expect(register?.action).toEqual({
+        type: 'command',
+        command: PALETTE_COMMANDS.find(({ id }) => id === 'name.register'),
+        entity: undefined,
+      })
+      expect(register?.title).toBe('Register name')
+    },
+  )
+
+  it('does not duplicate an existing entity with a Search for escape hatch', () => {
+    const rows = run({
+      frame: makeFrame({ query: 'renew' }),
+      data: makeData({ suggestions: [makeSuggestion('renew.eth')] }),
+    })
+    expect(rows.filter(({ action }) => action.type === 'query')).toEqual([])
+    expect(rows.find(({ action }) => action.type === 'view')?.title).toBe(
+      'renew.eth',
+    )
+  })
+
   it('applies known target facts to current-page empty shortcuts while preserving generic navigation', () => {
     const rows = run({
       context: {
@@ -275,7 +306,9 @@ describe('buildPaletteRows', () => {
       entity: undefined,
     })
     expect(
-      actionRows.find(({ action }) => action.type === 'query')?.action,
+      run({ frame: makeFrame({ query: 'renew' }) }).find(
+        ({ action }) => action.type === 'query',
+      )?.action,
     ).toEqual({ type: 'query', query: 'renew.eth' })
   })
 

@@ -306,7 +306,7 @@ describe('CommandPaletteProvider integration', () => {
       .spyOn(navigator.clipboard, 'writeText')
       .mockReturnValue(attempt.promise)
     await user.click(screen.getByRole('button', { name: 'Open alice actions' }))
-    await user.click(await screen.findByRole('option', { name: /^Copy name$/ }))
+    await user.click(await screen.findByRole('row', { name: /^Copy name$/ }))
     await waitFor(() =>
       expect(writeClipboard).toHaveBeenCalledExactlyOnceWith('alice.eth'),
     )
@@ -326,7 +326,7 @@ describe('CommandPaletteProvider integration', () => {
     const { user } = await setup(onPageAction)
     await user.click(screen.getByRole('button', { name: 'Open search' }))
     await user.click(
-      await screen.findByRole('option', { name: /^Delayed page action/ }),
+      await screen.findByRole('row', { name: /^Delayed page action/ }),
     )
     await waitFor(() => expect(onPageAction).toHaveBeenCalledOnce())
     await user.click(screen.getByRole('button', { name: 'Open search' }))
@@ -334,6 +334,48 @@ describe('CommandPaletteProvider integration', () => {
     await act(async () => attempt.reject(new Error('Page action failed')))
     expect(screen.getByRole('combobox')).toHaveValue('primary')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('opens target selection for generic registration on a name page', async () => {
+    const { user, router } = await setup()
+    await act(async () =>
+      router.navigate({ to: '/$name', params: { name: 'helgesson.eth' } }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.click(await screen.findByRole('row', { name: /^Register name/ }))
+    expect(
+      screen.getByRole('combobox', { name: 'Choose a name…' }),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/helgesson.eth')
+    expect(io.availability).not.toHaveBeenCalled()
+  })
+
+  it('opens with the physical K shortcut on a non-Latin layout', async () => {
+    await setup()
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'л',
+        code: 'KeyK',
+        ctrlKey: true,
+        bubbles: true,
+      }),
+    )
+    expect(
+      await screen.findByRole('dialog', { name: 'Search and actions' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the global shortcut working from a focused inline action', async () => {
+    const { user } = await setup()
+    await user.click(screen.getByRole('button', { name: 'Open search' }))
+    await user.type(screen.getByRole('combobox'), 'helgesson.eth')
+    screen.getByRole('button', { name: 'Actions for helgesson.eth' }).focus()
+    await user.keyboard('{Control>}k{/Control}')
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Search and actions' }),
+      ).not.toBeInTheDocument(),
+    )
   })
 
   it('owns one global shortcut across the real hero and toggles one root dialog', async () => {
@@ -417,14 +459,12 @@ describe('CommandPaletteProvider integration', () => {
     const { user } = await setup()
     await user.click(screen.getByRole('button', { name: 'Open search' }))
     await user.type(screen.getByRole('combobox'), 'alice.eth')
-    expect(
-      screen.getByRole('option', { name: /^alice.eth/ }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /^alice.eth/ })).toBeInTheDocument()
     await user.clear(screen.getByRole('combobox'))
     await user.type(screen.getByRole('combobox'), 'bob.eth')
-    expect(screen.getByRole('option', { name: /^bob.eth/ })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /^bob.eth/ })).toBeInTheDocument()
     expect(
-      screen.queryByRole('option', { name: /^alice.eth/ }),
+      screen.queryByRole('row', { name: /^alice.eth/ }),
     ).not.toBeInTheDocument()
   })
 
@@ -446,17 +486,17 @@ describe('CommandPaletteProvider integration', () => {
     const { user } = await setup()
     await user.click(screen.getByRole('button', { name: 'Open search' }))
     await user.type(screen.getByRole('combobox'), 'helgesson')
-    expect(screen.getAllByRole('option')).toHaveLength(1)
-    expect(screen.getByRole('option')).toHaveTextContent('helgesson.eth')
+    expect(screen.getAllByRole('row')).toHaveLength(1)
+    expect(screen.getByRole('row')).toHaveTextContent('helgesson.eth')
   })
 
   it('opens an explicit DNS name without substituting an ETH completion or suggesting other suffixes', async () => {
     const { user, router } = await setup()
     await user.click(screen.getByRole('button', { name: 'Open search' }))
     await user.type(screen.getByRole('combobox'), 'helgesson.com')
-    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getAllByRole('row')).toHaveLength(1)
     expect(
-      screen.getByRole('option', { name: /^helgesson.com/ }),
+      screen.getByRole('row', { name: /^helgesson.com/ }),
     ).toBeInTheDocument()
     await user.keyboard('{Enter}')
     await waitFor(() =>
@@ -487,7 +527,7 @@ describe('CommandPaletteProvider integration', () => {
       .mockResolvedValue()
     await user.click(screen.getByRole('button', { name: 'Open alice actions' }))
     await user.click(
-      await screen.findByRole('option', { name: /^Copy ETH address$/ }),
+      await screen.findByRole('row', { name: /^Copy ETH address$/ }),
     )
     await waitFor(() =>
       expect(writeClipboard).toHaveBeenCalledExactlyOnceWith(resolvedAddress),
@@ -516,9 +556,9 @@ describe('CommandPaletteProvider integration', () => {
     const { user, router } = await setup()
     await user.click(screen.getByRole('button', { name: 'Open search' }))
     await user.type(screen.getByRole('combobox'), 'renew')
-    await user.click(await screen.findByRole('option', { name: /^Renew name/ }))
+    await user.click(await screen.findByRole('row', { name: /^Renew name/ }))
     await user.type(screen.getByRole('combobox'), 'bob.eth')
-    await user.click(await screen.findByRole('option', { name: /^bob.eth/ }))
+    await user.click(await screen.findByRole('row', { name: /^bob.eth/ }))
     await screen.findByRole('dialog', { name: 'Connect a wallet' })
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     await user.keyboard('{Control>}k{/Control}')
@@ -530,7 +570,7 @@ describe('CommandPaletteProvider integration', () => {
 
     await screen.findByRole('dialog', { name: 'Search and actions' })
     expect(screen.getByRole('combobox')).toHaveValue('bob.eth')
-    expect(screen.getByRole('option', { selected: true })).toHaveTextContent(
+    expect(screen.getByRole('row', { selected: true })).toHaveTextContent(
       'bob.eth',
     )
     await user.click(screen.getByRole('button', { name: 'Close search' }))
@@ -552,7 +592,7 @@ describe('CommandPaletteProvider integration', () => {
       screen.getByRole('button', { name: 'Open unsafe name actions' }),
     )
     await user.click(
-      await screen.findByRole('option', {
+      await screen.findByRole('row', {
         name: /^Edit records$/,
       }),
     )

@@ -46,6 +46,7 @@ import {
 import {
   type KeyboardEvent,
   type ReactNode,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -53,18 +54,14 @@ import {
 import { match } from 'ts-pattern'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
+import { Command, CommandItem } from '@/components/ui/command'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
@@ -173,7 +170,8 @@ export const PaletteDialog = ({
   onRetry,
   onClearHistory,
 }: PaletteDialogProps) => {
-  const listRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLTableElement>(null)
+  const listId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const isMobile = useIsMobile()
   const viewportRef = usePaletteViewport({ isOpen, isMobile })
@@ -202,8 +200,9 @@ export const PaletteDialog = ({
     onActivate(row)
     inputRef.current?.focus()
   }
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    const input = event.currentTarget
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const input = inputRef.current
+    if (!input) return
     const action = getKeyboardAction({
       key: event.key,
       isComposing: event.nativeEvent.isComposing || event.keyCode === 229,
@@ -286,6 +285,7 @@ export const PaletteDialog = ({
             autoFocus
             role="combobox"
             aria-expanded={isOpen}
+            aria-haspopup="grid"
             aria-autocomplete="list"
             aria-controls={aria.listId}
             aria-activedescendant={aria.activeId}
@@ -354,20 +354,52 @@ export const PaletteDialog = ({
             </Button>
           </div>
         )}
+        {groups
+          .filter((group) =>
+            rows.some((row) => row.group === group && row.isGroupClearable),
+          )
+          .map((group) => (
+            <div key={group} className="flex shrink-0 justify-end px-4 py-1">
+              <button
+                type="button"
+                onClick={() => {
+                  onClearHistory()
+                  inputRef.current?.focus()
+                }}
+                aria-label={`Clear ${group.toLowerCase()}`}
+                className="rounded-sm px-1 text-small text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                Clear {group.toLowerCase()}
+              </button>
+            </div>
+          ))}
         {/* Keep the input mounted while resetting cmdk's result store after structural changes. */}
         <Command
           key={listKey}
           shouldFilter={false}
           value={selectedId}
           disablePointerSelection
-          className="min-h-0 flex-1 rounded-none bg-transparent"
+          onKeyDownCapture={(event) => {
+            if (
+              event.target instanceof HTMLButtonElement &&
+              ['Enter', ' '].includes(event.key)
+            )
+              return
+            onKeyDown(event)
+            if (event.defaultPrevented) inputRef.current?.focus()
+          }}
+          className="min-h-0 flex-1 rounded-none bg-transparent [&>[data-slot=table-container]]:min-h-0 [&>[data-slot=table-container]]:flex-1 [&>[data-slot=table-container]]:overflow-visible"
           aria-label="Search results"
         >
-          <CommandList
+          <Table
+            role="grid"
+            id={listId}
+            tabIndex={-1}
+            aria-label="Search results"
             ref={listRef}
             data-palette-list={listKey}
             onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
-            className="min-h-0 max-h-none flex-1 overflow-y-auto overscroll-contain px-2 pb-2 sm:h-[min(23rem,52vh)] sm:flex-none"
+            className="block h-full w-full min-h-0 max-h-none flex-1 overflow-y-auto overscroll-contain px-2 pb-2 sm:h-[min(23rem,52vh)] sm:flex-none"
           >
             {groups.map((group) => (
               <PaletteResultGroup
@@ -378,16 +410,20 @@ export const PaletteDialog = ({
                 query={query}
                 onActivate={activateAndFocus}
                 onSelectionChange={onSelectionChange}
-                onClear={() => {
-                  onClearHistory()
-                  inputRef.current?.focus()
-                }}
               />
             ))}
-            {!rows.length && (
-              <PaletteEmptyState isSearching={isSearching} query={query} />
-            )}
-          </CommandList>
+          </Table>
+          {!rows.length && (
+            <PaletteEmptyState
+              isSearching={isSearching}
+              query={query}
+              target={
+                frame?.screen.type === 'target'
+                  ? frame.screen.target
+                  : undefined
+              }
+            />
+          )}
         </Command>
       </DialogContent>
     </Dialog>
@@ -433,7 +469,6 @@ const PaletteResultGroup = ({
   query,
   onActivate,
   onSelectionChange,
-  onClear,
 }: {
   readonly group: string
   readonly selectedId: string
@@ -441,53 +476,46 @@ const PaletteResultGroup = ({
   readonly query: string
   readonly onActivate: (row: PaletteRow) => void
   readonly onSelectionChange: (id: string) => void
-  readonly onClear: () => void
-}) => {
-  const first = rows.at(0)
-  return (
-    <CommandGroup
-      heading={
-        <span className="flex items-baseline gap-2 text-smallcaps text-muted-foreground">
-          {group}
-          {first?.groupDetail && (
-            <span className="normal-case tracking-normal text-small text-muted-foreground/70">
-              {first.groupDetail}
-            </span>
-          )}
-        </span>
-      }
-      className="relative p-0 **:[[cmdk-group-heading]]:pt-3"
-    >
-      {first?.isGroupClearable && (
-        <button
-          type="button"
-          onClick={onClear}
-          aria-label={`Clear ${group.toLowerCase()}`}
-          className="absolute right-2 top-2.5 rounded-sm px-1 text-small text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Clear
-        </button>
-      )}
-      {rows.map((row) => (
-        <PaletteResultRow
-          key={row.id}
-          row={row}
-          isSelected={row.id === selectedId}
-          query={query}
-          onActivate={onActivate}
-          onSelectionChange={onSelectionChange}
-        />
-      ))}
-    </CommandGroup>
-  )
-}
+}) => (
+  <TableBody
+    cmdk-group=""
+    aria-label={group}
+    className="block p-0 text-foreground"
+  >
+    <TableRow aria-hidden="true" className="block border-0">
+      <TableCell
+        cmdk-group-heading=""
+        className="flex items-baseline gap-2 px-2 pb-1.5 pt-3 text-smallcaps text-muted-foreground"
+      >
+        {group}
+        {rows.at(0)?.groupDetail && (
+          <span className="normal-case tracking-normal text-small text-muted-foreground/70">
+            {rows.at(0)?.groupDetail}
+          </span>
+        )}
+      </TableCell>
+    </TableRow>
+    {rows.map((row) => (
+      <PaletteResultRow
+        key={row.id}
+        row={row}
+        isSelected={row.id === selectedId}
+        query={query}
+        onActivate={onActivate}
+        onSelectionChange={onSelectionChange}
+      />
+    ))}
+  </TableBody>
+)
 
 const PaletteEmptyState = ({
   isSearching,
   query,
+  target,
 }: {
   readonly isSearching?: boolean
   readonly query: string
+  readonly target?: 'name' | 'address'
 }) =>
   isSearching ? (
     <SearchingRows />
@@ -497,7 +525,9 @@ const PaletteEmptyState = ({
         {query ? `No names or actions match “${query}”` : 'Nothing to show yet'}
       </p>
       <p className="max-w-xs text-small text-muted-foreground">
-        Try a full ENS name, an address, or an action like “renew”.
+        {target
+          ? `Type a full ENS ${target === 'name' ? 'name' : 'name or address'} to choose a target.`
+          : 'Try a full ENS name, an address, or an action like “renew”.'}
       </p>
     </div>
   )
@@ -655,65 +685,75 @@ const PaletteResultRow = ({
 }) => {
   const secondary = getSecondaryRow(row)
   return (
-    <div
-      className="group/result relative"
+    <CommandItem
+      asChild
+      value={row.id}
+      onSelect={() => onActivate(row)}
+      className="group/row relative min-h-12 cursor-pointer gap-2 rounded-md px-2 text-base data-[selected=true]:bg-accent sm:min-h-10"
       data-selected={isSelected}
       onPointerMoveCapture={(event) => {
         if (event.pointerType !== 'touch') onSelectionChange(row.id)
       }}
       onPointerDown={() => onSelectionChange(row.id)}
     >
-      <CommandItem
-        value={row.id}
-        onSelect={() => onActivate(row)}
-        className={cn(
-          'group/row h-12 cursor-pointer gap-3 rounded-md px-2 text-base data-[selected=true]:bg-accent sm:h-10 sm:gap-2.5',
-          secondary && 'pr-24',
-          row.inlineAddress && 'h-auto min-h-12 sm:h-auto sm:min-h-10',
-        )}
-      >
-        <RowLeading leading={row.leading} />
-        <RowTitle row={row} query={query} />
-        {row.meta && (
+      <TableRow role="row" className="border-0">
+        <TableCell
+          role="gridcell"
+          tabIndex={-1}
+          className="flex min-w-0 flex-1 items-center gap-3 sm:gap-2.5"
+        >
+          <RowLeading leading={row.leading} />
+          <RowTitle row={row} query={query} />
+          {row.meta && (
+            <span
+              className={cn(
+                'max-w-[45%] shrink truncate text-small',
+                META_TONES[row.meta.tone],
+              )}
+              title={row.meta.text}
+            >
+              {row.meta.text}
+            </span>
+          )}
+          {row.hasNextStep && (
+            <ChevronRight
+              aria-hidden="true"
+              className="size-4 text-muted-foreground/60"
+            />
+          )}
           <span
-            className={cn(
-              'max-w-[45%] shrink truncate text-small',
-              META_TONES[row.meta.tone],
-            )}
-            title={row.meta.text}
-          >
-            {row.meta.text}
-          </span>
-        )}
-        {row.hasNextStep && (
-          <ChevronRight
             aria-hidden="true"
-            className="size-4 text-muted-foreground/60"
-          />
+            className="hidden shrink-0 items-center gap-1 text-small text-muted-foreground sm:group-data-[selected=true]/row:inline-flex"
+          >
+            <Kbd>↵</Kbd>
+            {getRowEnterLabel(row)}
+          </span>
+        </TableCell>
+        {secondary && secondary.action.type === 'actions' && (
+          <TableCell role="gridcell" tabIndex={-1} className="shrink-0">
+            <button
+              type="button"
+              data-palette-secondary
+              aria-label={`Actions for ${getEntityLabel(secondary.action.entity)}`}
+              aria-keyshortcuts="ArrowRight"
+              tabIndex={isSelected ? 0 : -1}
+              onClick={(event) => {
+                event.stopPropagation()
+                onActivate(secondary)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ')
+                  event.stopPropagation()
+              }}
+              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-small text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:bg-foreground/10 focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:hidden sm:h-7 sm:group-data-[selected=true]/row:inline-flex sm:group-focus-within/row:inline-flex"
+            >
+              <Kbd className="text-current">→</Kbd>
+              Actions
+            </button>
+          </TableCell>
         )}
-        <span
-          aria-hidden="true"
-          className="hidden shrink-0 items-center gap-1 text-small text-muted-foreground sm:group-data-[selected=true]/row:inline-flex"
-        >
-          <Kbd>↵</Kbd>
-          {getRowEnterLabel(row)}
-        </span>
-      </CommandItem>
-      {secondary && secondary.action.type === 'actions' && (
-        <button
-          type="button"
-          data-palette-secondary
-          aria-label={`Actions for ${getEntityLabel(secondary.action.entity)}`}
-          aria-keyshortcuts="ArrowRight"
-          tabIndex={isSelected ? 0 : -1}
-          onClick={() => onActivate(secondary)}
-          className="absolute right-2 top-1/2 inline-flex h-8 -translate-y-1/2 items-center gap-1 rounded-md px-2 text-small text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:bg-foreground/10 focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:hidden sm:h-7 sm:group-data-[selected=true]/result:inline-flex sm:group-focus-within/result:inline-flex"
-        >
-          <Kbd className="text-current">→</Kbd>
-          Actions
-        </button>
-      )}
-    </div>
+      </TableRow>
+    </CommandItem>
   )
 }
 
@@ -777,7 +817,7 @@ const revealRow = (list: HTMLElement, id: string) => {
 }
 
 const useResultListAria = (
-  list: { readonly current: HTMLDivElement | null },
+  list: { readonly current: HTMLTableElement | null },
   selectedId: string,
   listKey: string,
 ) => {

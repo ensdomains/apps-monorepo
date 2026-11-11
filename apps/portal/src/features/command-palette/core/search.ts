@@ -190,7 +190,7 @@ export const searchCommands = ({
     scope,
     developerEnabled: context.developerEnabled,
   })
-  return available
+  const matches = available
     .map((command) => {
       const inline = getInlineTarget(command, parsed.query)
       const score = getCommandSearchScore(command, inline.query)
@@ -203,12 +203,19 @@ export const searchCommands = ({
       const hasContext = command.target !== 'none' && target !== null
       return {
         command,
+        targetSource:
+          inline.entity || entity
+            ? ('explicit' as const)
+            : ('context' as const),
         title: getContextualTitle(command, target ?? undefined),
         entity: target ?? undefined,
         score: score > 0 ? score + Number(hasContext) * 20 : 0,
       }
     })
     .filter(({ score }) => score > 0)
+  const hasStrongMatch = matches.some(({ score }) => score >= 390)
+  return matches
+    .filter(({ score }) => !hasStrongMatch || score >= 390)
     .toSorted(
       (a, b) => b.score - a.score || a.command.id.localeCompare(b.command.id),
     )

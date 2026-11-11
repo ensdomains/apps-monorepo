@@ -139,6 +139,45 @@ const Harness = ({
 }
 
 describe('PaletteDialog', () => {
+  it('uses a grid with real secondary controls and keeps history clearing outside it', () => {
+    const row = makeRow({ actionsFor: ENTITY, isGroupClearable: true })
+    render(<Harness rows={[row]} />)
+    const grid = screen.getByRole('grid')
+    const result = within(grid).getByRole('row')
+    expect(within(result).getAllByRole('gridcell')).toHaveLength(2)
+    expect(
+      within(result).getByRole('button', { name: 'Actions for alice.eth' }),
+    ).toBeInTheDocument()
+    expect(grid).not.toContainElement(
+      screen.getByRole('button', { name: 'Clear names' }),
+    )
+    expect(screen.getByRole('combobox')).toHaveAttribute(
+      'aria-haspopup',
+      'grid',
+    )
+  })
+
+  it('guides an empty target picker to a name instead of another action', () => {
+    render(
+      <Harness
+        rows={[]}
+        initialState={makeOpenState(
+          makeFrame({
+            screen: {
+              type: 'target',
+              commandId: 'name.edit-records',
+              target: 'name',
+            },
+          }),
+        )}
+      />,
+    )
+    expect(
+      screen.getByText('Type a full ENS name to choose a target.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/action like/)).not.toBeInTheDocument()
+  })
+
   it('shows a full address inline with Copy and keeps activation on the row', async () => {
     const address = '0x1111111111111111111111111111111111111111'
     const copy = makeRow({
@@ -150,7 +189,7 @@ describe('PaletteDialog', () => {
     const onActivate = vi.fn()
     const user = userEvent.setup()
     render(<Harness rows={[copy]} onActivate={onActivate} />)
-    const option = screen.getByRole('option')
+    const option = screen.getByRole('row')
     expect(within(option).getByText(address)).toBeVisible()
     expect(within(option).queryByRole('button')).not.toBeInTheDocument()
     expect(within(option).queryByRole('link')).not.toBeInTheDocument()
@@ -190,7 +229,7 @@ describe('PaletteDialog', () => {
     expect(input).toHaveFocus()
   })
 
-  it('keeps address badges inert inside options, with palette activation owning navigation', async () => {
+  it('keeps address badges inert inside result cells, with palette activation owning navigation', async () => {
     const entity = {
       type: 'address',
       address: '0x1111111111111111111111111111111111111111',
@@ -204,7 +243,7 @@ describe('PaletteDialog', () => {
     const onActivate = vi.fn()
     const user = userEvent.setup()
     render(<Harness rows={[resolver]} onActivate={onActivate} />)
-    const option = screen.getByRole('option')
+    const option = screen.getByRole('row')
     await user.hover(option)
     expect(within(option).queryByRole('link')).not.toBeInTheDocument()
     expect(within(option).queryByRole('button')).not.toBeInTheDocument()
@@ -216,7 +255,7 @@ describe('PaletteDialog', () => {
     const user = userEvent.setup()
     const onActivate = vi.fn()
     render(<Harness rows={[VIEW, ACTIONS]} onActivate={onActivate} />)
-    const actions = screen.getAllByRole('option')[1]
+    const actions = screen.getAllByRole('row')[1]
     fireEvent.pointerEnter(actions)
     await user.click(screen.getByRole('combobox'))
     await user.keyboard('{Enter}')
@@ -294,9 +333,7 @@ describe('PaletteDialog', () => {
     const action = makeRow({ ...REGISTER, group: 'Actions' })
     render(<Harness rows={[VIEW, action, otherName]} onActivate={onActivate} />)
     expect(
-      screen
-        .getAllByRole('option')
-        .map((row) => row.getAttribute('data-value')),
+      screen.getAllByRole('row').map((row) => row.getAttribute('data-value')),
     ).toEqual([VIEW.id, otherName.id, action.id])
     await user.click(screen.getByRole('combobox'))
     await user.keyboard('{ArrowDown}{Enter}')
@@ -353,18 +390,18 @@ describe('PaletteDialog', () => {
     await user.type(screen.getByRole('combobox'), 'register')
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByRole('combobox')).toHaveValue('alice')
-    expect(screen.getByRole('option', { selected: true })).toHaveAttribute(
+    expect(screen.getByRole('row', { selected: true })).toHaveAttribute(
       'data-value',
       ACTIONS.id,
     )
-    expect(screen.getByRole('listbox').scrollTop).toBe(37)
+    expect(screen.getByRole('grid').scrollTop).toBe(37)
     await user.keyboard(' copy')
     expect(screen.getByRole('combobox')).toHaveValue('alice copy')
   })
 
-  it('keeps actionable controls outside listbox options', () => {
+  it('keeps primary-only rows free of nested controls', () => {
     render(<Harness rows={[VIEW, ACTIONS, REGISTER]} />)
-    for (const row of screen.getAllByRole('option')) {
+    for (const row of screen.getAllByRole('row')) {
       expect(row.querySelector('button, a, input, select, textarea')).toBeNull()
     }
     expect(
@@ -422,15 +459,33 @@ describe('PaletteDialog', () => {
       expect(screen.getByRole('combobox')).not.toHaveFocus()
     })
 
-    it('opens actions from the inline button without viewing the name', async () => {
+    it('continues result navigation from a focused inline action', async () => {
       const onActivate = vi.fn<(row: PaletteRow) => void>()
       const user = userEvent.setup()
-      render(<Harness rows={[NAME]} onActivate={onActivate} />)
-      await user.click(
-        screen.getByRole('button', { name: 'Actions for alice.eth' }),
-      )
-      expect(openedActions(onActivate)).toEqual(['actions'])
+      render(<Harness rows={[NAME, REGISTER]} onActivate={onActivate} />)
+      screen.getByRole('button', { name: 'Actions for alice.eth' }).focus()
+      await user.keyboard('{ArrowDown}{Enter}')
+      expect(onActivate).toHaveBeenCalledExactlyOnceWith(REGISTER)
+      expect(screen.getByRole('combobox')).toHaveFocus()
     })
+
+    it.each(['pointer', 'Enter', ' '])(
+      'opens actions from the inline button via %s without viewing the name',
+      async (input) => {
+        const onActivate = vi.fn<(row: PaletteRow) => void>()
+        const user = userEvent.setup()
+        render(<Harness rows={[NAME]} onActivate={onActivate} />)
+        const button = screen.getByRole('button', {
+          name: 'Actions for alice.eth',
+        })
+        if (input === 'pointer') await user.click(button)
+        else {
+          button.focus()
+          await user.keyboard(input === 'Enter' ? '{Enter}' : ' ')
+        }
+        expect(openedActions(onActivate)).toEqual(['actions'])
+      },
+    )
 
     it('treats a click on the row pill as actions, not as the row', () => {
       const onActivate = vi.fn<(row: PaletteRow) => void>()
@@ -438,14 +493,16 @@ describe('PaletteDialog', () => {
       const button = screen.getByRole('button', {
         name: 'Actions for alice.eth',
       })
-      expect(screen.getByRole('option')).not.toContainElement(button)
+      expect(
+        within(screen.getByRole('row')).getAllByRole('gridcell')[1],
+      ).toContainElement(button)
       fireEvent.click(button)
       expect(openedActions(onActivate)).toEqual(['actions'])
     })
 
     it('shows primary and secondary keyboard labels inline without a footer', () => {
       render(<Harness rows={[NAME]} />)
-      const option = screen.getByRole('option')
+      const option = screen.getByRole('row')
       expect(within(option).getByText('Open name')).toBeInTheDocument()
       expect(within(option).getByText('↵')).toBeInTheDocument()
       const actions = screen.getByRole('button', {

@@ -203,6 +203,30 @@ describe('useSearchResults', () => {
     expect(reads.tlds).toHaveBeenLastCalledWith(false)
   })
 
+  it('defers DNS record verification while preserving the exact candidate', () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () =>
+        useSearchResults({
+          ...navigation,
+          searchValue: 'helgesson.com',
+          suggestionMode: 'focused',
+          verificationMode: 'discovery',
+          shouldDeferDnsVerification: true,
+          fetchOwnedNames: false,
+        }),
+      { wrapper },
+    )
+    expect(
+      result.current.suggestions.map(({ inputValue }) => inputValue),
+    ).toEqual(['helgesson.com'])
+    expect(
+      result.current.nameVerificationBySuggestionId.get('name:helgesson.com'),
+    ).toEqual({ status: 'unchecked' })
+    expect(reads.profile).not.toHaveBeenCalled()
+    expect(reads.owner).not.toHaveBeenCalled()
+  })
+
   it('can check availability without querying ownership or full profile records', async () => {
     const { wrapper } = makeWrapper()
     const { result } = renderHook(

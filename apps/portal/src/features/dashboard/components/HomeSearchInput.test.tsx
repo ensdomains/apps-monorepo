@@ -30,10 +30,6 @@ vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: vi.fn(),
 }))
 
-vi.mock('@/hooks/useDebounce', () => ({
-  useDebouncedValue: (value: string) => value,
-}))
-
 vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: ({ name }: { name: string }) => (
     <div data-testid="name-avatar">{name}</div>
@@ -119,6 +115,7 @@ describe('HomeSearchInput', () => {
   beforeEach(() => {
     boundary.navigate.mockClear()
     boundary.address = undefined
+    boundary.availability.mockClear()
     boundary.availability.mockResolvedValue({ isAvailable: false })
     boundary.tlds.mockReturnValue({ validTlds: ['eth'], isLoading: false })
   })
@@ -140,6 +137,20 @@ describe('HomeSearchInput', () => {
     expect(
       screen.queryByRole('dialog', { name: 'Search and actions' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('opens the current candidate when Enter is pressed before verification debounces', async () => {
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper() })
+    const input = await openSearchDialog(user)
+    await user.type(input, 'helgesson')
+    expect(screen.getByRole('listbox')).toBeVisible()
+    await user.keyboard('{Enter}')
+    expect(boundary.navigate).toHaveBeenLastCalledWith({
+      to: '/$name',
+      params: { name: 'helgesson.eth' },
+    })
+    expect(boundary.availability).not.toHaveBeenCalled()
   })
 
   it('keeps View distinct from the explicit Register action', async () => {

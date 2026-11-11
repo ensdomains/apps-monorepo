@@ -5,7 +5,7 @@ const isPaletteShortcut = (event: KeyboardEvent): boolean =>
   !event.isComposing &&
   !event.altKey &&
   (event.metaKey || event.ctrlKey) &&
-  event.key.toLowerCase() === 'k'
+  (event.key.toLowerCase() === 'k' || event.code === 'KeyK')
 
 export const usePaletteShortcut = ({
   isOpen,

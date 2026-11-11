@@ -127,6 +127,7 @@ export type CommandTargetResolution =
   | { readonly status: 'needs-wallet' }
 
 export type PaletteCommandMatch = {
+  readonly targetSource?: 'explicit' | 'context'
   readonly command: PaletteCommand
   readonly title: string
   readonly entity?: PaletteEntity
