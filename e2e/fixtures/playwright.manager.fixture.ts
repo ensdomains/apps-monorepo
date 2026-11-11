@@ -1,6 +1,5 @@
-import { existsSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+// First, so helpers that read env at load time (anvil-client, l2-fork) see it.
+import '../helpers/load-e2e-env.js'
 import {
   injectHeadlessWeb3Provider,
   type Web3ProviderBackend,
@@ -36,16 +35,6 @@ import {
   type OffchainNameConfig,
 } from './offchainName.js'
 import { createTime, type Time } from './time.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// Load the e2e `.env` natively (replaces `dotenv`). `process.loadEnvFile`
-// throws if the file is missing, so guard on existence to keep the previous
-// silent-when-absent behaviour.
-const envPath = path.resolve(__dirname, '..', '.env')
-if (existsSync(envPath)) {
-  process.loadEnvFile(envPath)
-}
 
 // Override Sepolia chain to point at the local Anvil fork. The headless
 // provider's internal walletClient uses this RPC to sign/submit.

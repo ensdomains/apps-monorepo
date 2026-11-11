@@ -4,6 +4,8 @@
  * it: `true` for all of them, or a comma-separated subset of their keys
  * (e.g. `E2E_L2=base,arbitrum`).
  */
+// E2E_L2 and the fork URLs are read at load time, so e2e/.env must be in first.
+import './load-e2e-env.js'
 import type { Page } from '@playwright/test'
 import {
   type Address,
