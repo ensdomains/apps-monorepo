@@ -23,9 +23,9 @@ import {
 
 afterEach(resetTransactionManager)
 
-const makeRun = () => {
+const makeRun = (flowId?: string) => {
   const capture = vi.fn()
-  const analytics = createRegistrationAnalytics(11155111, { capture })
+  const analytics = createRegistrationAnalytics(11155111, { capture }, flowId)
   const observe = (value: string, retryTarget?: string) =>
     analytics.observe({ value, context: { retryTarget } })
   return { capture, analytics, observe }
@@ -51,7 +51,7 @@ describe('registration journey observation', () => {
   })
 
   it('keeps one flow through a failed stage and retry, completing only after ownership verification', () => {
-    const { capture, analytics, observe } = makeRun()
+    const { capture, analytics, observe } = makeRun('registration-entry')
     analytics.start(false)
     observe('committingTransaction')
     observe('waitingForCommitment')
@@ -80,6 +80,7 @@ describe('registration journey observation', () => {
       'registration:flow_complete',
     ])
     const flowId = capture.mock.calls[0]?.[1].flow_id
+    expect(flowId).toBe('registration-entry')
     expect(capture.mock.calls[2]?.[1]).toEqual({
       flow_id: flowId,
       execution_method: 'eoa',

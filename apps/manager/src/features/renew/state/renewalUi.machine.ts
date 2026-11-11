@@ -133,11 +133,13 @@ const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
 const getAnalyticsProperties = (
   context: {
     readonly analytics: AnalyticsFlow
+    readonly protocol: RenewalProtocol
     readonly submissionData?: SubmissionData
   },
   chainId: number,
 ) => ({
   flow_id: context.analytics.flow_id,
+  protocol_version: context.protocol,
   chain_id: chainId,
   execution_method: getAnalyticsExecutionMethod(
     context.submissionData?.signer.type,

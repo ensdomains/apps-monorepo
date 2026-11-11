@@ -38,3 +38,18 @@ Current checks, test-pruning decisions and browser observations are in [the shar
 ## Query use
 
 Use ordered registration funnels by `flow_id`: flow start/resume → commit → cooldown → registration → flow complete, with applicable setup/approval branches as optional steps. Compare `source_app` rather than treating apps as funnel stages. Renewal funnel: start → execution → complete. Use `stage_fail` for registration friction; renewal transaction confirmations measure completed transaction stages and must not be counted as renewed names. Sum final renewal `item_count` for completed batches only. Feature adoption uses dedicated management outcomes grouped by app/chain/action. Migration handoff is adoption of the upgrade link, not a migration success rate.
+
+## Entry funnels and protocol dimensions
+
+Registration now observes the available-name duration form before execution. Payment visibility is a separate observation when the connected-wallet payment controls are shown, even though both controls share one page. The observed entry ID is retained into the accepted start and existing actor-owned outcomes. A resumed operation keeps its existing separate correlation segment; earlier screens are not replayed.
+
+Renewal entry observes the open modal, duration/settings surface and payment confirmation/summary. Single/multi-name starters retain that ID into receipt-backed execution. Every renewal event carries protocol context derived from the actual selected name targets: `v1`, `v2` or `mixed`; bulk events additionally carry `v1_item_count` and `v2_item_count`. Those are selection counts, not an assertion about per-name confirmed expiry.
+
+1. Open registration without a wallet, consent accepted: `registration:flow_view`, `duration_view`. Connect: one `payment_view`. Starting execution must retain `flow_id`; no separate page transition is inferred between controls on the same page.
+2. Open single renewal; observe entry, then duration/settings, then payment confirmation. Expect `renewal:flow_view`, `duration_view`, `payment_view`, followed by the same flow's existing start/stages/outcome. Non-owner disclaimer entry may precede duration.
+3. Repeat with a mixed V1/V2 bulk selection. Compare version counts to actual names and verify `protocol_version=mixed` on entry, start, receipt confirmations and completion. Reject/retry partway without a premature completion.
+4. Deny consent on entry, grant on confirmation: observe only the currently visible screen, no historical duration visit. Re-renders do not add views; returning to a screen may.
+5. On `/alice.eth/edit-records` (replace with a controlled test name), observe the editor, make one actual addition/change/deletion, then save: `profile:edit_view`, `edit_start`, `save_start`, confirmed `records_update`, `save_complete(save_type=records)` with the same `flow_id`. Reject and retry: a failed attempt remains distinct from final success.
+6. Cold-load the editor with saved consent, discard/re-edit, leave while awaiting a receipt and switch wallet while pending. Compare capture to the visible state; no raw values, false success or outcomes attributed to the new wallet.
+
+Views are best-effort current-surface observations after consent/identity readiness. Outcomes remain service/actor-owned. All sequences above still require real-wallet browser QA; unit/hook tests do not establish ingestion. Remaining coverage and revenue setup are in `analytics.md`.

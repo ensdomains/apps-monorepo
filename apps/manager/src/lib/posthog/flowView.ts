@@ -2,8 +2,13 @@ export type AnalyticsView = {
   readonly flow_id: string
 } & (
   | {
-      readonly flow: 'registration' | 'renewal'
+      readonly flow: 'registration'
       readonly step: 'duration' | 'payment'
+    }
+  | {
+      readonly flow: 'renewal'
+      readonly step: 'duration' | 'payment'
+      readonly protocol_version: 'v1' | 'v2'
     }
   | { readonly flow: 'migration'; readonly step?: undefined }
 )
@@ -46,7 +51,12 @@ export const getFlowViewEvents = (
     previous.flow === view.flow &&
     previous.flow_id === view.flow_id
   const isSameScreen = isSameFlow && previous.step === view.step
-  const properties = { flow_id: view.flow_id }
+  const properties = {
+    flow_id: view.flow_id,
+    ...(view.flow === 'renewal'
+      ? { protocol_version: view.protocol_version }
+      : {}),
+  }
   const screenEvent =
     view.flow === 'migration' ? undefined : SCREEN_EVENTS[view.flow][view.step]
   return {

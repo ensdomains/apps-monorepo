@@ -16,6 +16,7 @@ const getAnalyticsView = (
   if (!snapshot.matches('pricing')) return undefined
   return {
     flow: 'renewal',
+    protocol_version: snapshot.context.protocol,
     flow_id: snapshot.context.analytics.flow_id,
     step: snapshot.matches({ pricing: 'duration' }) ? 'duration' : 'payment',
   }

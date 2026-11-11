@@ -56,6 +56,7 @@ const ethRegistrar = getChainContractAddress({
 type UseRegistrationTransactionsParams = {
   readonly name: string
   readonly duration: number
+  readonly analyticsFlowId?: string
 }
 
 type SavedRegistrationParams = {
@@ -236,6 +237,7 @@ function buildSetupBundleStep({
 export const useRegistrationTransactions = ({
   name,
   duration,
+  analyticsFlowId,
 }: UseRegistrationTransactionsParams) => {
   const { referrer } = useSearch({ strict: false })
   const chainId = ensChain.id
@@ -461,7 +463,11 @@ export const useRegistrationTransactions = ({
     }
     setResumed(null)
 
-    const pendingAnalytics = createRegistrationAnalytics(chainId)
+    const pendingAnalytics = createRegistrationAnalytics(
+      chainId,
+      undefined,
+      analyticsFlowId,
+    )
     const walletClient = await getWalletClient(config, {
       account: connection.address,
     })
@@ -534,6 +540,7 @@ export const useRegistrationTransactions = ({
     refetchWalletResolver,
     canBatchAtomically,
     handleProceed,
+    analyticsFlowId,
   ])
 
   const handleDone = useCallback(() => {

@@ -7,6 +7,7 @@ import {
   useAtomicBatchSupport,
   useHasDeclinedAtomicUpgrade,
 } from '@ens-apps/transaction-manager'
+import { createAnalyticsFlowId } from '@ens-apps/utils/posthog/flowId'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
@@ -35,7 +36,9 @@ import {
 } from '../utils/buildRenewIntent'
 import {
   createRenewalAnalytics,
+  getRenewalProtocolProperties,
   type RenewalTransactionStarter,
+  type RenewalView,
 } from '../utils/renewalAnalytics'
 import { getRenewerAddress } from '../utils/renewer'
 import { planMultiRenewSteps } from '../utils/renewerPayments'
@@ -464,6 +467,18 @@ export const useRenewalTransactions = ({
   // abandoned run would otherwise leave its finished actors behind.
   const attempt = useFlowAttempt()
   const [flow, setFlow] = useState<RenewalFlow | null>(null)
+  const [analyticsView, setAnalyticsView] = useState<RenewalView>()
+  const beginAnalyticsFlow = (
+    names: readonly SelectedName[],
+    isBulk: boolean,
+  ) => {
+    const flowId = createAnalyticsFlowId()
+    setAnalyticsView(
+      flowId
+        ? { flow_id: flowId, ...getRenewalProtocolProperties(names, isBulk) }
+        : undefined,
+    )
+  }
   const analytics = useRef<ReturnType<typeof createRenewalAnalytics> | null>(
     null,
   )
@@ -707,7 +722,10 @@ export const useRenewalTransactions = ({
   // Both starters name the attempt themselves, so a caller cannot open the
   // modal on unscoped step ids by forgetting to call `attempt.start`.
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
-    analytics.current = createRenewalAnalytics(1, ensChain.id)
+    analytics.current = createRenewalAnalytics(1, ensChain.id, undefined, {
+      ...getRenewalProtocolProperties([name], false),
+      flow_id: analyticsView?.flow_id ?? createAnalyticsFlowId() ?? '',
+    })
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
     ).symbol
@@ -733,6 +751,14 @@ export const useRenewalTransactions = ({
     analytics.current = createRenewalAnalytics(
       flowConfig.renewals.length,
       ensChain.id,
+      undefined,
+      {
+        ...getRenewalProtocolProperties(
+          flowConfig.renewals.map(({ selectedName }) => selectedName),
+          true,
+        ),
+        flow_id: analyticsView?.flow_id ?? createAnalyticsFlowId() ?? '',
+      },
     )
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
@@ -768,6 +794,8 @@ export const useRenewalTransactions = ({
 
   return {
     transactions,
+    analyticsView,
+    beginAnalyticsFlow,
     startFlow,
     startMultiFlow,
     clearIncompatibleRenewalState,

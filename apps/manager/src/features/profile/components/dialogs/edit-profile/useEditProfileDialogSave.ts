@@ -1,3 +1,4 @@
+import type { ProfileSaveAttempt } from '@ens-apps/utils/posthog/profileEditing'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { t } from '@lingui/core/macro'
 import {
@@ -112,6 +113,12 @@ const getSaveBlockedDescription = ({
     .otherwise(
       () => t`Something went wrong preparing the save. Please try again.`,
     )
+
+const getProfileSaveType = (hasRecordChanges: boolean, hasImages: boolean) =>
+  match({ hasRecordChanges, hasImages })
+    .with({ hasRecordChanges: false }, () => 'image' as const)
+    .with({ hasImages: true }, () => 'records_and_image' as const)
+    .otherwise(() => 'records' as const)
 
 const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
   coins.find(({ coinType }) => coinType === 60)?.value
@@ -355,6 +362,7 @@ export const useEditProfileDialogSave = ({
 
   const handleImageUploadPrepared = useCallback(
     (upload: PreparedProfileImageUpload) => {
+      dialogActor.send({ type: 'RECORDS_CHANGED', isChanged: true })
       setPreparedImageUploads((currentUploads) => [
         ...currentUploads.filter(
           (currentUpload) => currentUpload.kind !== upload.kind,
@@ -362,24 +370,28 @@ export const useEditProfileDialogSave = ({
         upload,
       ])
     },
-    [],
+    [dialogActor],
   )
 
   const submitPreparedImageUploads = useCallback(
-    async (uploads: readonly PreparedProfileImageUpload[]) => {
+    async (
+      uploads: readonly PreparedProfileImageUpload[],
+      onUploaded?: () => void,
+    ) => {
       if (uploads.length === 0) return
 
       if (!isConnected || !address) {
         throw new Error('Please connect your wallet before uploading an image')
       }
 
-      for (const upload of uploads) {
+      for (const [index, upload] of uploads.entries()) {
         assertCurrentIdentity()
         await submitPreparedProfileImageUpload({
           address,
           signTypedDataAsync,
           upload,
         })
+        if (index === uploads.length - 1) onUploaded?.()
         // The hosted image has now changed, even if a later upload or record
         // transaction fails. Refresh only this successfully published image.
         await refreshProfileImageCaches({ images: [upload], queryClient })
@@ -491,15 +503,22 @@ export const useEditProfileDialogSave = ({
   )
 
   const submitPreparedImageUploadsForSave = useCallback(
-    async (uploads: readonly PreparedProfileImageUpload[]) => {
+    async (
+      uploads: readonly PreparedProfileImageUpload[],
+      analyticsAttempt: ProfileSaveAttempt,
+      hasRecordChanges: boolean,
+    ) => {
       if (uploads.length === 0) return true
 
       setIsFinalizingImageSave(true)
 
       try {
-        await submitPreparedImageUploads(uploads)
+        await submitPreparedImageUploads(uploads, () => {
+          if (!hasRecordChanges) analyticsAttempt.complete()
+        })
         return true
       } catch {
+        analyticsAttempt.fail('image_upload')
         dialogActor.send({ type: 'RESET_SAVE_STATE' })
         return false
       } finally {
@@ -514,13 +533,16 @@ export const useEditProfileDialogSave = ({
       currentRecords,
       hasRecordChanges,
       uploads,
+      analyticsAttempt,
     }: {
+      readonly analyticsAttempt: ProfileSaveAttempt
       readonly currentRecords: ProfileRecords
       readonly hasRecordChanges: boolean
       readonly uploads: readonly PreparedProfileImageUpload[]
     }) => {
       if (hasRecordChanges || uploads.length === 0) return false
 
+      analyticsAttempt.complete()
       await finalizeImageOnlySave(currentRecords)
       return true
     },
@@ -528,21 +550,23 @@ export const useEditProfileDialogSave = ({
   )
 
   const submitPendingRecordSave = useCallback(
-    (pendingRecordSave: PendingSave) => {
+    (pendingRecordSave: PendingSave, analyticsAttempt: ProfileSaveAttempt) => {
       try {
         assertCurrentIdentity()
       } catch (error) {
+        analyticsAttempt.fail('preparation')
         dialogActor.send({ type: 'RESET_SAVE_STATE' })
         toastSaveError(error)
         return
       }
       match(pendingRecordSave)
         .with({ kind: 'setup' }, (pendingSave) => {
-          setupResolverMutation.mutate({ pendingSave })
+          setupResolverMutation.mutate({ pendingSave, analyticsAttempt })
         })
         .with({ kind: 'update' }, (pendingSave) => {
           saveRecordsMutation.mutate({
             ...pendingSave.params,
+            analyticsAttempt,
             currentRecords: pendingSave.currentRecords,
           })
         })
@@ -562,7 +586,17 @@ export const useEditProfileDialogSave = ({
       options: Parameters<EditProfileSaveHandler>[1],
       recordReview?: ResolverRecordReview,
     ) => {
+      const analyticsAttempt = dialogActor
+        .getSnapshot()
+        .context.analytics.startSave(
+          chainId,
+          getProfileSaveType(
+            options.hasRecordChanges,
+            options.preparedImageUploads.length > 0,
+          ),
+        )
       if (isResolverAccessPending) {
+        analyticsAttempt.fail('preparation')
         toastSaveError(
           new Error(
             'The resolver or your permissions need to be checked. Close the editor and review the current records before publishing.',
@@ -573,6 +607,7 @@ export const useEditProfileDialogSave = ({
       try {
         assertCurrentIdentity()
       } catch (error) {
+        analyticsAttempt.fail('preparation')
         toastSaveError(error)
         return
       }
@@ -589,6 +624,7 @@ export const useEditProfileDialogSave = ({
             requireWriteAccess: !resolverCopySource,
           })
         } catch (error) {
+          analyticsAttempt.fail('preparation')
           toastSaveError(error)
           return
         }
@@ -597,11 +633,14 @@ export const useEditProfileDialogSave = ({
           : null
 
         if (options.hasRecordChanges && !pendingRecordSave) {
+          analyticsAttempt.fail('preparation')
           return
         }
 
         const imageUploadsSubmitted = await submitPreparedImageUploadsForSave(
           options.preparedImageUploads,
+          analyticsAttempt,
+          options.hasRecordChanges,
         )
 
         if (!imageUploadsSubmitted) {
@@ -612,16 +651,20 @@ export const useEditProfileDialogSave = ({
           currentRecords,
           hasRecordChanges: options.hasRecordChanges,
           uploads: options.preparedImageUploads,
+          analyticsAttempt,
         })
 
         if (imageOnlySaveFinalized) {
           return
         }
 
-        pendingRecordSave && submitPendingRecordSave(pendingRecordSave)
+        pendingRecordSave &&
+          submitPendingRecordSave(pendingRecordSave, analyticsAttempt)
       })()
     },
     [
+      chainId,
+      dialogActor,
       finalizePreparedImageOnlySave,
       getPendingRecordSave,
       resetSaveState,

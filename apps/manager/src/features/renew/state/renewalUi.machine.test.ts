@@ -773,3 +773,25 @@ describe('renewal analytics operation lifetime', () => {
     },
   )
 })
+
+it.each(['v1', 'v2'] as const)(
+  'attributes the %s renewal start and confirmed completion to its actual protocol',
+  async (protocol) => {
+    const actor = startRenewal(protocol)
+    await waitForState(actor, 'success')
+    const flowId = actor.getSnapshot().context.analytics.flow_id
+    expect(mocks.capture).toHaveBeenCalledWith(
+      'renewal:flow_start',
+      expect.objectContaining({ flow_id: flowId, protocol_version: protocol }),
+    )
+    expect(mocks.capture).toHaveBeenCalledWith(
+      'renewal:flow_complete',
+      expect.objectContaining({
+        flow_id: flowId,
+        protocol_version: protocol,
+        item_count: 1,
+      }),
+    )
+    actor.stop()
+  },
+)

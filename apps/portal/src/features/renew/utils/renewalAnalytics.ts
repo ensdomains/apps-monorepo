@@ -1,7 +1,34 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
+import type { RenewalProtocolProperties } from '@ens-apps/utils/posthog/eventContracts'
 import { createAnalyticsFlowId } from '@ens-apps/utils/posthog/flowId'
+import { match, P } from 'ts-pattern'
 import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { observeTransactionReceipt } from '@/utils/observeTransactionReceipt'
+
+export const getRenewalProtocolProperties = (
+  names: readonly { readonly isV2: boolean }[],
+  isBulk: boolean,
+) => {
+  const v2Count = names.filter(({ isV2 }) => isV2).length
+  const v1Count = names.length - v2Count
+  return {
+    is_bulk: isBulk,
+    ...(names.length
+      ? {
+          protocol_version: match([v1Count, v2Count])
+            .with([0, P._], () => 'v2' as const)
+            .with([P._, 0], () => 'v1' as const)
+            .otherwise(() => 'mixed' as const),
+        }
+      : {}),
+    ...(isBulk ? { v1_item_count: v1Count, v2_item_count: v2Count } : {}),
+  }
+}
+
+export type RenewalView = RenewalProtocolProperties & {
+  readonly flow_id: string
+  readonly is_bulk: boolean
+}
 
 type StartTransaction = typeof transactionManager.startTransaction
 type TransactionIdentity =
@@ -18,14 +45,15 @@ export const createRenewalAnalytics = (
   itemCount: number,
   chainId: number,
   operation = startAnalyticsOperation(),
+  view?: RenewalView,
 ): { readonly startTransaction: RenewalTransactionStarter } => {
-  const flowId = createAnalyticsFlowId()
+  const flowId = view?.flow_id ?? createAnalyticsFlowId()
   if (!flowId)
     return {
       startTransaction: (_stage, _count, ...args) =>
         transactionManager.startTransaction(...args),
     }
-  const properties = { flow_id: flowId, chain_id: chainId }
+  const properties = { ...view, flow_id: flowId, chain_id: chainId }
   let completed: ReadonlySet<string> = new Set()
   let pending: ReadonlyMap<string, TransactionIdentity> = new Map()
   let attempted: ReadonlySet<string> = new Set()

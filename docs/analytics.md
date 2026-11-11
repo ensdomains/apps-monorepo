@@ -47,21 +47,24 @@ All outgoing events receive `source_app: manager | explorer`, `environment: prod
 
 | Events | Properties / trigger | Apps |
 | --- | --- | --- |
-| `registration:flow_view`, `duration_view`, `payment_view` | `flow_id`; currently observed idle screen | Manager |
+| `registration:flow_view`, `duration_view`, `payment_view` | `flow_id`; observed current screen/controls after consent; Explorer payment appears only with connected picker | Both |
 | `registration:flow_start`, `flow_resume`, `flow_retry` | `flow_id`, known `chain_id`, `execution_method`; explicit operation intent/recovery | Both |
 | `registration:stage_enter` | Above plus controlled `stage`: setup/approval/commit/cooldown/registration/verification; Manager also execution/post_registration | Both |
 | `registration:stage_fail` | Stage plus `is_retryable`, known bounded `error_code` only; never guessed from every error | Both |
 | `registration:payment_option_select` | `flow_id`, `payment_asset`, optional `funding_chain_id`; user choice, excluding automatic fallback selection | Manager |
 | `registration:flow_complete` | Required registration confirmed or verified; optional post-registration setup remains separate | Both |
-| `renewal:flow_view`, `duration_view`, `payment_view` | `flow_id`; optional observed idle pricing screen | Manager |
-| `renewal:flow_start`, `flow_retry`, `stage_enter`, `stage_fail` | `flow_id`, known chain/method; stage approval/execution/verification; bulk failure `completed_count` where known | Both; app stages differ |
+| `renewal:flow_view`, `duration_view`, `payment_view` | `flow_id`, `protocol_version`; observed pricing/modal screen; Explorer bulk includes version counts | Both (Manager single-name views) |
+| `renewal:flow_start`, `flow_retry`, `stage_enter`, `stage_fail` | `flow_id`, `protocol_version`, bulk selection version counts where known, known chain/method; stage approval/execution/verification; bulk failure `completed_count` where known | Both; app stages differ |
 | `renewal:transaction_confirm` | `flow_id`, `chain_id`, stage approval/execution; one successful receipt, not a renewed-name count | Explorer |
-| `renewal:flow_complete` | `flow_id`, `item_count`; all required renewal work confirmed, once per run | Both |
+| `renewal:flow_complete` | `flow_id`, `protocol_version`, `item_count`, bulk `v1_item_count`/`v2_item_count`; all required renewal work confirmed, once per run | Both |
 | `renewal:payment_option_select` | Same deliberate payment properties as registration | Manager |
 | `migration:flow_view`, `flow_start`, `flow_retry`, `stage_enter`, `stage_fail`, `flow_complete` | `flow_id`; stage renewal/execution; completion actual `item_count`, `migrated_count`, `copied_count`, `ineligible_count` | Manager |
 | `migration:manager_open` | `is_wrapped`; outgoing handoff, not migration completion | Explorer |
 | `name_search:result_select` | `source`, required name/address/resolver `result_type`, optional `is_available`, `name_length`; explicit selection | Both |
-| `profile:records_update`, `profile:primary_name_update` | Confirmed write, `chain_id`, optional record count; no record values or manufactured operation UUID | Both |
+| `profile:edit_view`, `profile:edit_start` | `flow_id`; observed editable surface, then first actual change in that session | Both |
+| `profile:save_start`, `profile:save_fail` | `flow_id`, `chain_id`; accepted save attempt, failed attempt with `stage=preparation/image_upload/execution` and `is_retryable` | Both |
+| `profile:save_complete` | `flow_id`, `chain_id`, `save_type=records/image/records_and_image`; requested writes/publications succeed before UI/cache finalization | Both (Explorer records only) |
+| `profile:records_update`, `profile:primary_name_update` | Confirmed write, `chain_id`, optional record count; record updates carry optional edit `flow_id`; no record values | Both |
 | `subname:name_create`, `resolver:configuration_update`, `roles:permissions_update`, `dns:manager_sync` | Receipt-backed operation; chain and bounded action where applicable | Explorer |
 | `notifications:preferences_update` | Successful preferences response; no destinations/preferences payload | Manager |
 | `transaction:execution_end` | Selected failed TM run metadata: opaque operation ID, failure/cancel outcome, stage, known method/chain, attempt count | Manager |
@@ -193,3 +196,62 @@ Follow-up validation: Manager 146 tests in four files, Explorer 23 in three, sha
 Native PostHog opt-in/opt-out state remains authoritative. The local operation revision and shared generation cookie are invalidation markers, not additional consent answers or user identities. Current consent and distinct ID can both return to their earlier values after withdrawal/regrant or A→B→A; comparing only their final values would allow a stale pending outcome. A same-origin storage event or BroadcastChannel does not cover sibling app origins, and periodic polling alone can miss a complete withdrawal/regrant cycle. The installed SDK exposes capture/flag/session hooks but no shared monotonic consent/account revision that replaces these guards. No consent bookkeeping was removed in this pass. A shared reference-counted polling subscription could reduce timers later without changing this safety model; removing the generation requires another way to preserve cross-tab/app invalidation.
 
 Consent-gated reciprocal Intercom linkage is restored, and replay remains disabled. Custom flag hooks remain because they provide guarded SDK reads/subscriptions with no automatic exposure events; this pass does not add a React SDK dependency.
+
+## Funnel follow-up matrix
+
+The next additions retain existing verified outcomes and add observations at explicit actions. No close/unmount event infers abandonment.
+
+| Flow / apps | Addition / exact trigger | Correlation and QA |
+| --- | --- | --- |
+| Renewal / both | `protocol_version=v1/v2/mixed` on renewal events; bulk `v1_item_count`/`v2_item_count` from actual renewal targets | Same protocol context through start, retry, failure and completion; mixed batch counts describe the selected operation, not confirmed partial items |
+| Profile editing / both | `profile:edit_view` on editor entry, `edit_start` on first actual change, `save_start` on accepted save attempt, `save_fail` on failed attempt; existing `records_update` after confirmed records write | Shared `flow_id` from edit session through service-owned outcome; reject/retry, leave while pending, change wallet; record values excluded |
+| Explorer registration | `registration:flow_view`, `duration_view`, `payment_view` at actual pre-execution surfaces | Retain correlation into existing start/stage/outcome events; no backfilled screens on resume or consent grant |
+| Explorer renewal | `renewal:flow_view`, `duration_view`, `payment_view` at actual pre-execution surfaces | Includes single/multi-name entry; preserve existing receipt-based outcomes independently of Done/unmount |
+
+Implemented additions are detailed below; revenue integration, search-event consolidation and other coverage gaps remain explicit follow-ups. Explorer keeps its actual screen structure.
+
+### Reading the funnels
+
+Use `flow_view → payment_view → flow_start → flow_complete` for registration/renewal conversion, with applicable execution stages as optional breakdowns. `flow_view` is the first observed surface; `duration_view` can be observed again on return. They often co-fire on entry and should not be treated as two separate conversion hurdles. Explorer's registration duration and payment controls can share a page, so payment visibility is not necessarily progression to a new page. Views are best-effort screen observations; transaction outcomes remain attached to services/actors and do not depend on a mounted screen or Done button.
+
+Renewal `protocol_version` describes the actual renewal targets: `v1`, `v2` or `mixed`. Manager single-name routes use their explicit protocol; Manager bulk renewal is V2-only. Explorer can mix versions in a batch. Bulk `v1_item_count` and `v2_item_count` describe the operation's selection, not confirmed partial progress. Use final `item_count` for completed batches; approval confirmations are not renewed names.
+
+Profile views require an actually available editor (not a loading/permission-denied route). Save attempts begin after the user accepts the transaction authorization handler or required resolver-replacement review; merely opening a review modal is not a save attempt. Review abandonment therefore remains between editing and accepted save, without another screen event.
+
+Profile conversion uses `profile:edit_view → profile:edit_start → profile:save_start → profile:save_complete`. `edit_start` marks the first actual change, not each keystroke; each accepted retry produces another `save_start`. `save_fail` is an attempt failure at `preparation`, `image_upload` or `execution`, never inferred abandonment. `save_complete.save_type` distinguishes `records`, `image` and `records_and_image`. `profile:records_update` remains the separate receipt-confirmed record outcome, with the editing `flow_id` when available. Count `save_complete` for editor conversion and `records_update` for on-chain record adoption; do not add their counts together.
+
+### Remaining coverage and simplification decisions
+
+| Area | Current limitation / concrete next step |
+| --- | --- |
+| Marketing revenue | No monetary properties are emitted yet. Implement confirmed fee accounting and configure the existing outcome/payment events as PostHog revenue sources only after the amount semantics below are agreed. |
+| Search | Result selection is tracked; query intent, empty/error results and abandonment before selection are not. Keep canonical `name_search:result_select` and legacy `name:search_selected` together until the API Worker's popularity query is migrated; deleting the legacy event alone breaks demand statistics. |
+| Wallet | Connected/disconnected identities are tracked. Connection request, rejected connection and connector failures lack a dedicated intent/result funnel. |
+| Primary name, subnames, resolver/role changes and DNS sync | Confirmed adoption outcomes exist; dedicated pre-submit entry/attempt funnels remain follow-up. Prioritize operations whose own multi-step UI shows meaningful friction. |
+| DNS import / advanced Explorer | DNS import intermediate steps, registry deployment/parent configuration and transfer/fuse operations are not comprehensive funnels. DNSSEC debugger verdicts do not measure import completion. |
+| Selection dimensions | Selected registration/renewal duration is not yet included. Payment-option events distinguish asset category/funding chain, not every stablecoin. Add these dimensions at committed selection/start boundaries, without keystroke or pricing-refresh events. |
+| Execution detail | Existing grouped registration stages show major milestones; detailed bridge/swap/funding decisions and recovery prompts are not fully exposed. Add only distinct user decisions/failures, not every internal state. |
+| Bulk renewal | Manager's bulk instrumentation starts at submission; its pre-submit selection/payment abandonment remains follow-up. Explorer has pre-submit views. Explorer partial transaction confirmations do not establish per-name renewed expiry counts. |
+| Reload / consent | A resumed registration creates a new observed correlation segment. Consent and wallet changes can deliberately suppress an old outcome; browser analytics is not complete on-chain accounting. No pre-consent history is replayed. |
+
+Retain `renewal:transaction_confirm` for transaction-stage progress and `renewal:flow_complete` for the whole selected operation. A successful approval is not a renewal. Keep the common `execution` stage only as a meaningful coarse execution boundary; do not use it and an immediately adjacent `flow_start` as artificial funnel progress. No broad event renaming or native pageview replacement is needed for these improvements.
+
+### Revenue handoff (documented, not implemented)
+
+PostHog accepts existing custom events as revenue sources, with configurable amount/currency properties; another analytics wrapper or purchase taxonomy is unnecessary. See [revenue event setup](https://posthog.com/docs/revenue-analytics/capture-revenue-events). ETH is not a supported revenue currency; [PostHog recommends converting crypto payments to a supported currency](https://posthog.com/docs/revenue-analytics/troubleshooting), such as USD, before sending the amount.
+
+- Define the measure as registration/renewal **protocol fees**, not automatically ENS Labs revenue or the wallet's total debit. Separate any premium from base fees if applicable; exclude gas, funding/bridge/swap costs, refunds and unused excess.
+- Prefer actual confirmed fees. A quote is an estimate and must not be presented as a settled amount. Preserve integer on-chain units internally; a normalized `revenue_usd_cents` number at the analytics boundary needs an explicit conversion source and timestamp. Unknown amounts stay absent, never silently zero.
+- Reuse single-operation completion events where there is one confirmed payment. Partial bulk operations require payment-level reporting so successful payments still count if later work fails. Never report the same money again on final flow completion, optional setup, retries or recovered callbacks. This needs confirmed-payment identity/deduplication beyond simply counting flow IDs.
+- Keep payment asset, protocol version, application and attribution available as breakdowns. Validate staging queries against confirmed transactions before configuring production revenue sources.
+- Consent-based browser revenue measures attributed consenting traffic. Complete protocol revenue belongs in on-chain/indexer accounting; blockers, closed browsers and consent changes prevent browser capture from being an accounting ledger.
+
+### Follow-up validation and regression check (2026-11-11)
+
+Automated checks passed: Manager's 12 affected test files (137 tests), Explorer's 21 affected files (197 tests), shared PostHog utilities (34 tests), all three typechecks and both application builds. Changed/new TypeScript files pass lint; the three complexity warnings match existing baselines. Regression mutations demonstrated that missing protocol metadata and missing first-change deduplication fail their tests. These are focused existing/new checks, not a full application suite.
+
+The independent static review caught and corrected editor-session replacement during route revalidation, missing late-consent editor views and empty flow IDs suppressing canonical record outcomes. Shared helper callers were checked in both apps; no Worker uses the new editor helper. The Manager bulk completion assertion intentionally adds V2/count properties; existing profile assertions remain, and Explorer's registration correlation assertion is stronger. No existing assertion was removed or weakened.
+
+No new real-wallet browser journey or staging ingestion is claimed for these additions. Run the appended scenarios in the Manager/Explorer matrices before shipping, particularly mixed-version bulk renewal, late consent, pending-save unmount and image-only failure/recovery. Existing error-tracking browser/upload verification remains separate from these flow checks.
+
+The profile helper owns only an edit ID, first-change/view deduplication and per-attempt outcome guards. Existing services/machines still own writes, recovery and success. Current-screen readiness remains app-local framework wiring; no universal operation observer, persisted analytics journal or new SDK instance was added. Existing profile/multi-step modules retain their current structure and complexity; a broader restructuring belongs in a separate change.

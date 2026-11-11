@@ -13,7 +13,10 @@ import { createWalletClient, custom, toHex } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { waitFor } from 'xstate'
-import { createRenewalAnalytics } from './renewalAnalytics'
+import {
+  createRenewalAnalytics,
+  getRenewalProtocolProperties,
+} from './renewalAnalytics'
 
 afterEach(resetTransactionManager)
 
@@ -266,4 +269,69 @@ describe('renewal analytics', () => {
       transactionManager.getTransaction('approval')?.getSnapshot().value,
     ).toBe('success')
   })
+})
+
+it.each([
+  {
+    names: [{ isV2: false }],
+    isBulk: false,
+    expected: { is_bulk: false, protocol_version: 'v1' },
+  },
+  {
+    names: [{ isV2: true }],
+    isBulk: false,
+    expected: { is_bulk: false, protocol_version: 'v2' },
+  },
+  {
+    names: [{ isV2: false }, { isV2: true }, { isV2: true }],
+    isBulk: true,
+    expected: {
+      is_bulk: true,
+      protocol_version: 'mixed',
+      v1_item_count: 1,
+      v2_item_count: 2,
+    },
+  },
+])(
+  'classifies actual renewal targets as $expected.protocol_version',
+  ({ names, isBulk, expected }) => {
+    expect(getRenewalProtocolProperties(names, isBulk)).toEqual(expected)
+  },
+)
+
+it('keeps the preview flow and mixed protocol counts through receipt-backed completion', async () => {
+  const capture = vi.fn()
+  const signer = createCountingWallet(
+    '0x1111111111111111111111111111111111111111',
+  )
+  const properties = {
+    flow_id: 'preview-flow',
+    ...getRenewalProtocolProperties([{ isV2: false }, { isV2: true }], true),
+  }
+  const analytics = createRenewalAnalytics(
+    2,
+    sepolia.id,
+    { capture },
+    properties,
+  )
+  const id = analytics.startTransaction(
+    'execution',
+    1,
+    testIntent(signer.address),
+    signer.signer,
+    { id: 'mixed-protocol-analytics', publicClient: testPublicClient },
+  )
+  await waitForTransaction(id)
+  expect(capture.mock.calls[0]).toEqual([
+    'renewal:flow_start',
+    { ...properties, chain_id: sepolia.id },
+  ])
+  expect(
+    capture.mock.calls.filter(([name]) => name === 'renewal:flow_complete'),
+  ).toEqual([
+    [
+      'renewal:flow_complete',
+      { ...properties, chain_id: sepolia.id, item_count: 2 },
+    ],
+  ])
 })

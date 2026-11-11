@@ -91,8 +91,8 @@ const getRegistrationTransition = (
 export const createRegistrationAnalytics = (
   chainId: number,
   operation = startAnalyticsOperation(),
+  flowId = createAnalyticsFlowId(),
 ) => {
-  const flowId = createAnalyticsFlowId()
   const properties = flowId
     ? {
         flow_id: flowId,

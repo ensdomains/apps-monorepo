@@ -400,7 +400,10 @@ const createBulkRenewalCompletionReporter = (
     analytics.capture('renewal:flow_complete', {
       flow_id: analytics.flow_id,
       is_bulk: true,
+      protocol_version: 'v2',
       item_count: itemCount,
+      v1_item_count: 0,
+      v2_item_count: itemCount,
     })
   }
 }
@@ -513,6 +516,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     analytics?.capture('renewal:stage_fail', {
       flow_id: analytics.flow_id,
       is_bulk: true,
+      protocol_version: 'v2',
       stage: 'execution',
       is_retryable: true,
       completed_count: completedRef.current.size,
@@ -653,20 +657,24 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     await finishSuccess(isCurrent)
   }
 
-  const beginAnalytics = () => {
+  const beginAnalytics = (itemCount: number) => {
     if (!failedRef.current)
       analyticsRef.current = bindAnalyticsFlow(createAnalyticsFlowId() ?? '')
     const analytics = analyticsRef.current
     analytics?.capture(
       failedRef.current ? 'renewal:flow_retry' : 'renewal:flow_start',
       {
+        v1_item_count: 0,
+        v2_item_count: itemCount,
         flow_id: analytics.flow_id,
         is_bulk: true,
+        protocol_version: 'v2',
       },
     )
     analytics?.capture('renewal:stage_enter', {
       flow_id: analytics.flow_id,
       is_bulk: true,
+      protocol_version: 'v2',
       stage: 'execution',
     })
   }
@@ -691,7 +699,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const runId = runIdRef.current
     const isCurrent = () => runIdRef.current === runId
 
-    beginAnalytics()
+    beginAnalytics(items.length)
 
     const hca = resolveHcaContext(account, signer, token)
     const ctx = resolveContext(signer, token)

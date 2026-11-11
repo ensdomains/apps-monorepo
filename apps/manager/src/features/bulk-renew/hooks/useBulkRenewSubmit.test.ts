@@ -808,6 +808,9 @@ it.each(['eoa', 'hca'] as const)(
     expect(mocks.capture).toHaveBeenCalledWith('renewal:flow_complete', {
       flow_id: started.flow_id,
       is_bulk: true,
+      protocol_version: 'v2',
+      v1_item_count: 0,
+      v2_item_count: 3,
       item_count: 3,
     })
     expect(

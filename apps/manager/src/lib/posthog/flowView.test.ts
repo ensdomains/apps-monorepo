@@ -17,3 +17,23 @@ it('observes a returned screen without manufacturing another flow entry', () => 
     getFlowViewEvents(returned.observation, view, 'anonymous').events,
   ).toEqual([])
 })
+
+it('retains the actual renewal protocol on entry and payment observations', () => {
+  const view = {
+    flow: 'renewal',
+    flow_id: 'renewal-flow',
+    step: 'payment',
+    protocol_version: 'v1',
+  } as const
+  const result = getFlowViewEvents(undefined, view, 'anonymous')
+  expect(result.events).toEqual([
+    {
+      name: 'renewal:flow_view',
+      properties: { flow_id: 'renewal-flow', protocol_version: 'v1' },
+    },
+    {
+      name: 'renewal:payment_view',
+      properties: { flow_id: 'renewal-flow', protocol_version: 'v1' },
+    },
+  ])
+})

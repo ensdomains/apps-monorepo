@@ -1,4 +1,5 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
+import { createProfileEditingAnalytics } from '@ens-apps/utils/posthog/profileEditing'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
@@ -34,6 +35,8 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
+import { startAnalyticsOperation, track } from '@/lib/posthog/events'
+import { useAnalyticsScreenView } from '@/lib/posthog/useAnalyticsScreenView'
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
@@ -233,6 +236,15 @@ const EditRecordsContent = ({
   editableTypes: EditableTypes
 }) => {
   const navigate = useNavigate()
+  const { analytics } = useMemo(() => {
+    const editor = createProfileEditingAnalytics({
+      track,
+      startOperation: startAnalyticsOperation,
+    })
+    editor.open()
+    return { name, analytics: editor }
+  }, [name])
+  useAnalyticsScreenView(true, analytics.view)
   const { isConnected } = useAccount()
 
   // Form state
@@ -270,7 +282,7 @@ const EditRecordsContent = ({
     deleteRecord,
     updateRecord,
     discardAll,
-  } = useEditRecordsState(originalRecords)
+  } = useEditRecordsState(originalRecords, analytics.change)
 
   const {
     isOpen: isTransactionModalOpen,
@@ -326,6 +338,7 @@ const EditRecordsContent = ({
       originalRecords,
       pendingChanges,
       id: saveRecordsTxId,
+      analyticsAttempt: analytics.startSave(ensChain.id, 'records'),
     })
   }
 

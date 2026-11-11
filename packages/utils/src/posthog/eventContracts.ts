@@ -16,11 +16,18 @@ export type RegistrationStage =
   | 'registration'
   | 'verification'
 
-type RenewalProperties = FlowIdentity & {
-  readonly is_bulk?: boolean
-  readonly execution_method?: 'eoa' | 'hca'
-  readonly chain_id?: number
+export type RenewalProtocolProperties = {
+  readonly protocol_version?: 'v1' | 'v2' | 'mixed'
+  readonly v1_item_count?: number
+  readonly v2_item_count?: number
 }
+
+type RenewalProperties = FlowIdentity &
+  RenewalProtocolProperties & {
+    readonly is_bulk?: boolean
+    readonly execution_method?: 'eoa' | 'hca'
+    readonly chain_id?: number
+  }
 
 type RenewalStage = 'execution' | 'approval' | 'verification'
 
@@ -59,15 +66,15 @@ export type AnalyticsEvents = {
   /** The user chooses a payment asset, token or funding chain. */
   readonly 'registration:payment_option_select': PaymentSelection
   /** Renewal entry screen opens. */
-  readonly 'renewal:flow_view': FlowIdentity
+  readonly 'renewal:flow_view': RenewalProperties
   /** The user starts single or bulk renewal execution. */
   readonly 'renewal:flow_start': RenewalProperties
   /** The user retries a failed renewal. */
   readonly 'renewal:flow_retry': RenewalProperties
   /** The renewal duration screen is observed; best effort. */
-  readonly 'renewal:duration_view': FlowIdentity
+  readonly 'renewal:duration_view': RenewalProperties
   /** The renewal payment screen is observed; best effort. */
-  readonly 'renewal:payment_view': FlowIdentity
+  readonly 'renewal:payment_view': RenewalProperties
   /** A renewal operation enters execution or verification. */
   readonly 'renewal:stage_enter': RenewalProperties & {
     readonly stage: RenewalStage
@@ -87,7 +94,8 @@ export type AnalyticsEvents = {
     readonly item_count: number
   }
   /** The user chooses a renewal payment asset, token or funding chain. */
-  readonly 'renewal:payment_option_select': PaymentSelection
+  readonly 'renewal:payment_option_select': PaymentSelection &
+    RenewalProtocolProperties
   /** Migration entry screen opens. */
   readonly 'migration:flow_view': FlowIdentity
   /** The user starts migration execution. */
@@ -110,8 +118,26 @@ export type AnalyticsEvents = {
     readonly copied_count: number
     readonly ineligible_count: number
   }
+  /** The available records editor is observed after consent; a view does not imply an edit. */
+  readonly 'profile:edit_view': FlowIdentity
+  /** The user makes the first actual change in this edit session. */
+  readonly 'profile:edit_start': FlowIdentity
+  /** A save attempt begins, before asynchronous preparation or wallet requests. */
+  readonly 'profile:save_start': FlowIdentity & { readonly chain_id?: number }
+  /** A save attempt fails; the editor may remain open for another attempt. */
+  readonly 'profile:save_fail': FlowIdentity & {
+    readonly chain_id?: number
+    readonly stage: 'preparation' | 'image_upload' | 'execution'
+    readonly is_retryable: boolean
+  }
+  /** Requested records/images are saved, independently of closing or refreshing the editor. */
+  readonly 'profile:save_complete': FlowIdentity & {
+    readonly chain_id?: number
+    readonly save_type: 'records' | 'image' | 'records_and_image'
+  }
   /** Profile record writes confirm onchain. */
   readonly 'profile:records_update': {
+    readonly flow_id?: string
     readonly chain_id: number
     readonly record_count?: number
   }
