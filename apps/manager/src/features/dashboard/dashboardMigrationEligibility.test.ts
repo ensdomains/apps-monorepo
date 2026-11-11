@@ -150,6 +150,25 @@ describe('getMigrationHolders', () => {
 })
 
 describe('classifyForHolders', () => {
+  it('uses the supplied clock for classification and grace bucketing at expiry', () => {
+    const expiring = makeDomain({ registrationExpiry: String(NOW) })
+    vi.setSystemTime(Number(NOW + 1n) * 1000)
+    try {
+      const result = classifyForHolders({
+        domains: [expiring],
+        holders: [OWNER],
+        chainId: sepolia.id,
+        nowSeconds: NOW - 1n,
+      })
+      expect(result[0]?.classified.map(({ domain }) => domain.id)).toEqual([
+        expiring.id,
+      ])
+      expect(result[0]?.renewedGraceNames).toEqual([])
+    } finally {
+      vi.setSystemTime(Number(NOW) * 1000)
+    }
+  })
+
   it('puts a name under the registrant who can upgrade it, not the manager', () => {
     const managed = makeDomain({
       id: '0x01',
