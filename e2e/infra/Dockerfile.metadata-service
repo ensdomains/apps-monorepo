@@ -7,6 +7,9 @@
 # deliberately (new commit SHA, verified locally) rather than tracking a
 # branch.
 FROM node:22-bookworm
+# Links the published image (ghcr.io/ensdomains/e2e-metadata-service) to this
+# repo, so its workflows can pull it with GITHUB_TOKEN.
+LABEL org.opencontainers.image.source=https://github.com/ensdomains/apps-monorepo
 
 ARG METADATA_SERVICE_REPO=https://github.com/ensdomains/metadata-service-v2.git
 # main as of 2026-11-05: "fix: back off from avatar hosts that throttle or

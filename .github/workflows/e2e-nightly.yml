@@ -134,15 +134,13 @@ jobs:
           echo "✅ Paymaster ready"
 
           if [[ "${{ matrix.config.project }}" == "metadata" ]]; then
-            # Its image clones the private metadata-service-v2 repo; the token
-            # reaches the build as a BuildKit secret, never an image layer.
-            docker compose -f e2e/infra/docker-compose.yml --profile metadata up -d --build metadata-service
+            # Pulls the prebuilt, digest-pinned image from GHCR (see the
+            # metadata-service entry in docker-compose.yml); nothing is built.
+            docker compose -f e2e/infra/docker-compose.yml --profile metadata up -d --no-build metadata-service
             echo "Waiting for the metadata service..."
             timeout 300 bash -c 'until curl -sf http://127.0.0.1:8787/health > /dev/null 2>&1; do sleep 5; done'
             echo "✅ Metadata service ready"
           fi
-        env:
-          GH_TOKEN: ${{ secrets.METADATA_SERVICE_GH_TOKEN }}
 
       # ── write .env from checked-in CI templates ─────────────────
       - name: Copy CI env files

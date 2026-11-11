@@ -413,9 +413,14 @@ services:
   # own fallback.test.ts / outage-taxonomy.test.ts — this is intended,
   # resilience-tested behaviour, not a workaround).
   metadata-service:
-    # Opt-in (`--profile metadata`): its image builds from a private repo with
-    # a GitHub token, so a default `up` must not need it.
+    # Opt-in (`--profile metadata`). CI pulls this prebuilt image (multi-arch,
+    # metadata-service-v2 at 2c640c4c); it is linked to this repo, so
+    # GITHUB_TOKEN can pull it. To bump: change METADATA_SERVICE_COMMIT in the
+    # Dockerfile, build with GH_TOKEN=$(gh auth token) for linux/amd64 and
+    # linux/arm64, push to ghcr.io/ensdomains/e2e-metadata-service:<commit>,
+    # and pin the new index digest here.
     profiles: ["metadata"]
+    image: ghcr.io/ensdomains/e2e-metadata-service@sha256:3517534a51bd2708a393b73fc49eb92675b8b3a245065aabbee2933bb5657e73
     build:
       context: .
       dockerfile: Dockerfile.metadata-service
