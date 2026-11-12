@@ -13,14 +13,24 @@ A comprehensive guide for writing clean, maintainable, and type-safe code across
 3. ✅ **Document the trade-off** - what you gained vs what you gave up
 
 ```typescript
-// ✅ GOOD - Rule break is documented
-function processLargeDataset(data: any) { // Using 'any' because third-party library has no types
-  return transform(data)
+// ✅ GOOD - Rule break is documented, with a reason only this site has
+function sumVisibleValues(points: readonly ChartPoint[]): number {
+  // A loop, not filter + reduce: this runs on every scroll frame over the
+  // whole chart, and the chained version allocated a new array each frame
+  let total = 0
+  for (const point of points) {
+    if (point.isVisible) total += point.value
+  }
+  return total
 }
 
 // ❌ BAD - Silent rule break
-function processLargeDataset(data: any) {
-  return transform(data)
+function sumVisibleValues(points: readonly ChartPoint[]): number {
+  let total = 0
+  for (const point of points) {
+    if (point.isVisible) total += point.value
+  }
+  return total
 }
 ```
 
@@ -3896,11 +3906,11 @@ Use sparingly for legitimate cases:
 
 ```typescript
 // Ignore specific line
-// biome-ignore lint/suspicious/noExplicitAny: Third-party types unavailable
-const data: any = externalLibrary.getData()
+// biome-ignore lint/suspicious/noExplicitAny: test stub with only getBlockNumber, the one client method getLatestBlock calls; any other call throws and fails this test
+const publicClient: any = { getBlockNumber: async () => 1n }
 ```
 
-**When to ignore**: Third-party type issues, generated files, documented edge cases  
+**When to ignore**: Third-party type issues, generated files, documented edge cases, each with a reason only that site has (see [Rule Severity](#rule-severity))  
 **When NOT to ignore**: To avoid fixing real issues, skip proper typing, suppress a11y warnings
 
 ## Summary
