@@ -36,7 +36,7 @@ import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pr
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import { getRunPaymentToken, type SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
@@ -227,6 +227,8 @@ type Events =
       displayedL2Charge?: bigint
       /** Standalone-HCA: the wallet's ETH pays, swapped into USDC first. */
       ethFunding?: EthFunding
+      /** Standalone-HCA: ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+      isCirclePayment?: boolean
     }
   | {
       /**
@@ -783,11 +785,18 @@ const getStartL2Funding = (
 const getStartFunding = (
   event: Pick<
     Extract<Events, { type: 'registration.start' }>,
-    'l2FundingChainId' | 'ethFunding'
+    'l2FundingChainId' | 'ethFunding' | 'isCirclePayment'
   >,
   owner: Address,
   isHcaRegistration: boolean,
-): { l2Funding?: L2FundingSource; ethFunding?: EthFunding } | Error => {
+):
+  | {
+      l2Funding?: L2FundingSource
+      ethFunding?: EthFunding
+      /** What an ETH- or L2-paid run pays in, when not the deployment's USDC. */
+      paymentTokenAddress?: Address
+    }
+  | Error => {
   const l2Funding = getStartL2Funding(
     event.l2FundingChainId,
     owner,
@@ -797,7 +806,17 @@ const getStartFunding = (
   if (event.ethFunding && !isHcaRegistration) {
     return new Error('Cannot register: paying with ETH needs an ENS account.')
   }
-  return { l2Funding, ethFunding: event.ethFunding }
+  // ETH and a bridge bring in Circle's USDC; a chosen L2 with nothing to bridge pays in what the account holds of it.
+  const paymentTokenAddress = getRunPaymentToken(
+    !!event.ethFunding ||
+      l2Funding !== undefined ||
+      (isHcaRegistration && !!event.isCirclePayment),
+  )
+  return {
+    l2Funding,
+    ethFunding: event.ethFunding,
+    ...(paymentTokenAddress ? { paymentTokenAddress } : {}),
+  }
 }
 
 const startRegistrationAction = machineSetup.createAction(
@@ -943,6 +962,8 @@ const startRegistrationAction = machineSetup.createAction(
         l2Funding: funding.l2Funding,
         displayedL2Charge: event.displayedL2Charge,
         ethFunding: funding.ethFunding,
+        // ETH buys a USDC the deployment may not pay in; the run pays in that.
+        paymentTokenAddress: funding.paymentTokenAddress,
         // A cancelled run's swap may still land: count it, don't buy twice.
         pendingEthSwap: readPendingEthSwap(context.chainId, ownerAddress),
         // A cancelled run's bridge may still arrive: wait for it, don't pay twice.

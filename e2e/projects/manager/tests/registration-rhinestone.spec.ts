@@ -19,8 +19,8 @@
  * Prerequisites:
  *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Mockestrator)
  *   - Anvil snapshot baked with the STANDALONE-HCA deployment (StandaloneHCA
- *     Factory/Impl, HCAOwnerAndSessionValidator, new registrar/registry, Circle
- *     USDC) and `mockestrator/chains.json` USDC/DAI pointed at those addresses.
+ *     Factory/Impl, HCAOwnerAndSessionValidator, new registrar/registry,
+ *     MockUSDC) and `mockestrator/chains.json` USDC/DAI pointed at those addresses.
  *   - Manager app with VITE_FF_USE_EOA=false.
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
