@@ -487,6 +487,19 @@ const FUNDING_LEG_PAYS_COPY: Readonly<Record<FundingLegPays, string>> = {
   'cost-and-network-fee': 'to cover its cost and the network fee',
 }
 
+/** The USDC leg pays only the fee unless the intent also buys something in USDC. */
+const usdcLegPays = (requiredUsdc: bigint): FundingLegPays =>
+  requiredUsdc > 0n ? 'cost-and-network-fee' : 'network-fee'
+
+/** What a wallet holding `walletBalance`, short of the leg, is told. */
+const walletShortOfLegMessage = (
+  leg: Pick<FundingLeg, 'shortfall' | 'decimals' | 'symbol' | 'pays'>,
+  walletBalance: bigint,
+): string =>
+  `This action needs ${formatUnits(leg.shortfall, leg.decimals)} ` +
+  `${leg.symbol} ${FUNDING_LEG_PAYS_COPY[leg.pays]}, but your wallet ` +
+  `holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`
+
 /** One token the wallet tops the HCA up with. */
 type FundingLeg = {
   readonly token: Address
@@ -524,11 +537,7 @@ async function planFundingLeg(
     }),
   ])
   if (walletBalance < leg.shortfall) {
-    throw new Error(
-      `This action needs ${formatUnits(leg.shortfall, leg.decimals)} ` +
-        `${leg.symbol} ${FUNDING_LEG_PAYS_COPY[leg.pays]}, but your wallet ` +
-        `holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`,
-    )
+    throw new Error(walletShortOfLegMessage(leg, walletBalance))
   }
   return { ...leg, requiresPermit: allowance < leg.shortfall }
 }
@@ -1063,7 +1072,7 @@ async function fundShortfalls(
           symbol: 'USDC',
           decimals: 6,
           shortfall: usdcShortfall,
-          pays: requiredUsdc > 0n ? 'cost-and-network-fee' : 'network-fee',
+          pays: usdcLegPays(requiredUsdc),
           permitKind: 'eip2612',
         })
       : null
