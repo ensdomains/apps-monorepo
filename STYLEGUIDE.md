@@ -3558,9 +3558,18 @@ Write code that is easy to test by design:
 3. **Separation of concerns** - Business logic separate from UI
 4. **Small, focused functions** - Each function does one thing
 
-### Integration and Property Tests Over Thin Unit Tests (🟡 Default)
+### The Testing Pyramid (🟢 Guideline)
 
-Prefer property-based and integration tests, which pin down behaviour across many inputs and across real seams, over thin example-based unit tests that only restate the implementation. Keep E2E tests for critical user flows.
+**Test Distribution:**
+- **70% Unit Tests** - Fast, isolated, test pure functions
+- **20% Integration Tests** - Test module interactions
+- **10% E2E Tests** - Test critical user flows
+
+The proportions are a guide, not a quota to game. Prefer pushing a behaviour down the pyramid (extract a pure function and unit-test it) over pinning it at the top with an E2E test.
+
+### Prefer Integration and Property Coverage Over Thin Unit Tests (🟡 Default)
+
+Within the unit and integration bands, prefer tests that exercise real behaviour over example tests that merely restate the implementation. For functions with a clear contract over a range of inputs, reach for property-style coverage over a single happy-path example.
 
 ### Writing Testable Code
 
@@ -3848,7 +3857,7 @@ const data: any = externalLibrary.getData()
 40. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
 41. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
 42. **Test user behavior** - Component tests from user perspective (🟡 Default)
-43. **Integration and property tests** - Prefer them over thin example-based unit tests that restate the implementation (🟡 Default)
+43. **70/20/10 test distribution** - Unit/Integration/E2E, a guide, not a quota (🟢 Guideline); within those bands, prefer integration and property coverage over thin example-based unit tests (🟡 Default)
 
 #### Performance & Reliability
 
