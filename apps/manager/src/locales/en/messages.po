@@ -1428,11 +1428,6 @@ msgstr "Error loading names"
 msgid "Est. fee: {0}"
 msgstr "Est. fee: {0}"
 
-#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Est. fee: ~{0}"
-msgstr "Est. fee: ~{0}"
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 #: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
 msgid "Estimated network fee"
