@@ -174,6 +174,7 @@ describe('readNamesForAddress', () => {
           relations: ['owner', 'role_holder'],
           isPrimary: true,
           isMigrated: true,
+          isWrapped: false,
           registrationStatus: 'active',
           expiresAt: new Date('2029-09-28T11:29:36Z'),
           servedExpiry: 1_885_289_376n,
@@ -235,6 +236,32 @@ describe('readNamesForAddress', () => {
     expect(legacy?.protocol).toBe('v1')
     expect(summary).not.toHaveProperty('subnameCount')
   })
+
+  it.each([
+    ['wrapped', true],
+    ['emancipated', true],
+    ['locked', true],
+    ['unwrapped', false],
+    ['lapsed', false],
+  ] as const)(
+    'reads an ENSv1 wrapper state of %s as wrapped: %s',
+    async (wrapper_state, isWrapped) => {
+      const { client } = clientWith(
+        envelope(
+          [{ ...row, authority: 'ens_v1', ens_v1: { wrapper_state } }],
+          page,
+        ),
+      )
+
+      const [summary] = (
+        await readNamesForAddress(client)({
+          address: '0xb15c4ca5ec894369dec40f6298e63eae60db2756',
+        })
+      )._unsafeUnwrap().items
+
+      expect(summary?.isWrapped).toBe(isWrapped)
+    },
+  )
 
   it('maps a stale cursor to a stale read error with the cause attached', async () => {
     const { client } = clientWith(apiError('stale', 409))

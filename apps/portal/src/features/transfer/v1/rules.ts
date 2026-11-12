@@ -20,7 +20,7 @@
  */
 
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { is2LD } from '@/utils/ens/tldHelpers'
 import type {
   TransferDetachOptionKey,
@@ -318,11 +318,59 @@ export const getV1Holder = (subject: V1TransferSubject): Address =>
 export const canReclaimV1Manager = (
   state: V1NameState | null | undefined,
   account: Address | undefined,
-): boolean =>
-  !!state &&
-  !!account &&
-  state.subject?.kind === 'v1-registrar' &&
-  state.registration === 'active' &&
-  isAddressEqual(state.subject.registrant, account) &&
-  (!state.subject.controller ||
-    !isAddressEqual(state.subject.controller, account))
+): boolean => {
+  const gate = getV1ManagerChangeGate(state, account)
+  return (
+    !!account &&
+    gate?.authority === 'registrant' &&
+    (!gate.currentManager || !isAddressEqual(gate.currentManager, account))
+  )
+}
+
+/** How a wallet moves an unwrapped `.eth` 2LD's manager role: `reclaim` as registrant, `setOwner` as controller. */
+export type V1ManagerAuthority = 'registrant' | 'controller'
+
+export type V1ManagerChangeGate = {
+  readonly authority: V1ManagerAuthority
+  /** Null when nobody manages the name. */
+  readonly currentManager: Address | null
+}
+
+/** How `account` can change the name's manager, or null when it can't. */
+export const getV1ManagerChangeGate = (
+  state: V1NameState | null | undefined,
+  account: Address | undefined,
+): V1ManagerChangeGate | null => {
+  if (!state || !account || state.registration !== 'active') return null
+  return match(state.subject)
+    .with(
+      { kind: 'v1-registrar' },
+      ({ registrant }) => isAddressEqual(registrant, account),
+      ({ controller }) => ({
+        authority: 'registrant' as const,
+        currentManager: controller,
+      }),
+    )
+    .with(
+      { kind: 'v1-registrar', controller: P.string },
+      ({ controller }) => isAddressEqual(controller, account),
+      ({ controller }) => ({
+        authority: 'controller' as const,
+        currentManager: controller,
+      }),
+    )
+    .otherwise(() => null)
+}
+
+export type V1ManagerCandidateIssue = 'zero-address' | 'already-manager'
+
+/** Why `candidate` can't become the manager, or null when it can. */
+export const getV1ManagerCandidateIssue = (
+  candidate: Address,
+  currentManager: Address | null,
+): V1ManagerCandidateIssue | null => {
+  if (isAddressEqual(candidate, zeroAddress)) return 'zero-address'
+  return currentManager && isAddressEqual(candidate, currentManager)
+    ? 'already-manager'
+    : null
+}

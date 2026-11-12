@@ -38,6 +38,7 @@ import { RecordCount } from '@/features/profile/components/RecordCount'
 import { RegistryCard } from '@/features/profile/components/RegistryCard'
 import { ResolverCard } from '@/features/profile/components/ResolverCard'
 import { SubnameCount } from '@/features/profile/components/SubnameCount'
+import { V1WrapperRow } from '@/features/profile/components/V1WrapperRow'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
@@ -475,7 +476,10 @@ const Profile = ({
             protocolVersion={resolvedProtocolVersion}
           />
           {resolvedProtocolVersion === 'ENSv1' ? (
-            <V1ProtocolRow name={name} />
+            <>
+              <V1ProtocolRow name={name} />
+              <V1WrapperRow name={name} />
+            </>
           ) : (
             <ProtocolRow protocolVersion={resolvedProtocolVersion} />
           )}

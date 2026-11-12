@@ -59,7 +59,10 @@ export const toAddressNameItem = (
         status: summary.registrationStatus,
         subdomainCount: summary.subnameCount,
         recordCount: summary.recordCount,
-        relations: summary.relations,
+        // A wrapped name has one role: bigname's `manager` names the wrapper owner again.
+        relations: summary.isWrapped
+          ? summary.relations.filter((relation) => relation !== 'manager')
+          : summary.relations,
         protocolVersion: summary.protocol === 'v1' ? 'ENSv1' : 'ENSv2',
       }
 

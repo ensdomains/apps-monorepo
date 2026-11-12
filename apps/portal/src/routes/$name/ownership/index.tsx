@@ -14,6 +14,7 @@ import {
   OWNERSHIP_HISTORY_TYPES,
   OWNERSHIP_TYPE_LABELS,
 } from '@/features/history/eventTypes'
+import { ChangeManagerButton } from '@/features/ownership/components/ChangeManagerButton'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
 import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimManagerButton'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
@@ -107,6 +108,11 @@ function RouteComponent() {
         <PageHeading parent={{ type: 'name', name }}>Ownership</PageHeading>
         <div className="flex flex-row items-center gap-2">
           <ReclaimManagerButton
+            name={name}
+            protocolVersion={data.protocolVersion}
+            account={address}
+          />
+          <ChangeManagerButton
             name={name}
             protocolVersion={data.protocolVersion}
             account={address}
