@@ -1,13 +1,10 @@
 export const DEBUG_FEATURES_ENABLED =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEBUG_FEATURES === 'true'
 
-export const DEBUG_PROFILE_NAME = 'debug.example'
-export const DEBUG_ADDRESSES_PROFILE_NAME = 'debug-addresses.example'
+// Keep the import beside the flag so production builds prune the fixture chunk.
+export const loadDebugProfiles = DEBUG_FEATURES_ENABLED
+  ? () => import('../features/profile/MOCK')
+  : undefined
 
-const DEBUG_PROFILE_NAMES = new Set([
-  DEBUG_PROFILE_NAME,
-  DEBUG_ADDRESSES_PROFILE_NAME,
-])
-
-export const isDebugProfileName = (name: string) =>
-  DEBUG_FEATURES_ENABLED && DEBUG_PROFILE_NAMES.has(name)
+export const isMaybeDebugName = (name: string): boolean =>
+  DEBUG_FEATURES_ENABLED && name.endsWith('.example')

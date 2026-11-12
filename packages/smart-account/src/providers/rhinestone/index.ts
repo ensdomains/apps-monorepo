@@ -54,6 +54,7 @@ export {
   type BuildHcaDeploymentCallParams,
   buildHcaDeploymentCall,
   buildStandaloneAccountConfig,
+  buildStandaloneHcaDeploymentCall,
   computeStandaloneHcaAddress,
   getHcaDirectExecutionReadiness,
   HcaDeploymentCallValidationError,
@@ -176,4 +177,5 @@ export {
   serializeChainDigests,
   serializeRefundCaps,
   storedRefundCaps,
+  storedRefundToken,
 } from './types'

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   client: {},
   getRecords: vi.fn(),
-  isDebugProfileName: vi.fn(() => false),
+  isMaybeDebugName: vi.fn(() => false),
 }))
 
 vi.mock('@ensdomains/ensjs/public', () => ({ getRecords: mocks.getRecords }))
@@ -12,11 +12,12 @@ vi.mock('@/lib/wagmi/helpers', async () => {
   return { safeGetClient: () => ok(mocks.client) }
 })
 vi.mock('@/utils/debug-features', () => ({
-  isDebugProfileName: mocks.isDebugProfileName,
+  loadDebugProfiles: () => import('@/features/profile/MOCK'),
+  isMaybeDebugName: mocks.isMaybeDebugName,
 }))
 vi.mock('@/features/profile/MOCK', () => ({
   getDebugProfileRecords: () =>
-    mocks.isDebugProfileName()
+    mocks.isMaybeDebugName()
       ? {
           texts: [
             { key: 'theme', value: '#123456' },
@@ -31,7 +32,7 @@ import { getNameRowRecords, nameRowRecordsQuery } from './nameRowRecordsQuery'
 describe('dashboard row records', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.isDebugProfileName.mockReturnValue(false)
+    mocks.isMaybeDebugName.mockReturnValue(false)
   })
 
   it('requests only avatar and theme, excluding coins, ABI and content hash', async () => {
@@ -59,7 +60,7 @@ describe('dashboard row records', () => {
   })
 
   it('preserves debug previews without a resolver request', async () => {
-    mocks.isDebugProfileName.mockReturnValue(true)
+    mocks.isMaybeDebugName.mockReturnValue(true)
     expect((await getNameRowRecords('debug.eth'))._unsafeUnwrap()).toEqual({
       texts: [{ key: 'theme', value: '#123456' }],
     })

@@ -43,6 +43,7 @@ export type IneligibleReason =
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
+  | 'locked-parent'
   | 'parent-upgraded'
   | 'frozen-approval'
   | 'already-migrated'
@@ -519,6 +520,9 @@ export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
   chainId: SupportedL1ChainId,
+  options: { readonly nowSeconds: bigint } = {
+    nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
+  },
 ): ClassifyResult => {
   if (hasUnknownLabel(domain)) return ineligible(domain, 'unknown-label')
   const label = domain.labelName
@@ -528,7 +532,7 @@ export const classifyName = (
   }
 
   const ownerAddressLower = ownerAddress.toLowerCase()
-  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  const { nowSeconds } = options
   const context: ClassificationContext = {
     chainId,
     domain,
@@ -566,9 +570,12 @@ export const classifyNames = (
   domains: readonly V1Domain[],
   ownerAddress: Address,
   chainId: SupportedL1ChainId,
+  options: { readonly nowSeconds: bigint } = {
+    nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
+  },
 ): ClassifyNamesResult => {
   const results = domains.map((domain) =>
-    classifyName(domain, ownerAddress, chainId),
+    classifyName(domain, ownerAddress, chainId, options),
   )
   const classifiedByName = new Map<string, ClassifiedName>()
 
@@ -596,7 +603,7 @@ export const classifyNames = (
       child = parent
     }
 
-    return isCopyRoot(child) ? null : 'missing-parent'
+    return isCopyRoot(child) ? null : 'locked-parent'
   }
 
   const classified: ClassifiedName[] = []

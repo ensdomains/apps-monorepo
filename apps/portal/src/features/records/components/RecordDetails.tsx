@@ -8,6 +8,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import {
   getRecordHistoryQueryOptions,
   type RecordHistoryEvent,
@@ -102,7 +103,8 @@ const ResolverView = ({ name }: ResolverViewProps) => {
         description="Error fetching the resolver. Please refresh the page."
       />
     )
-  if (!resolverAddress) return <div>No resolver set</div>
+  if (!resolverAddress)
+    return <NoResultsMessage compact description="No resolver set." />
 
   return (
     <InfoCard title="Resolver">
@@ -207,9 +209,10 @@ const HistoryView = ({ name, record }: HistoryViewProps) => {
       </div>
       <div>
         {events.length === 0 ? (
-          <p className="text-muted-foreground text-p py-4">
-            No history available for this record.
-          </p>
+          <NoResultsMessage
+            compact
+            description="No history available for this record."
+          />
         ) : (
           <DataTable data={events} columns={columns} />
         )}

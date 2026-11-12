@@ -36,7 +36,7 @@ vi.mock('../../providers/transactionManager', () => ({
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
 const CONTRACTS = ensL1Contracts[sepolia.id]
-// USDC is the manifest's (Circle's on Sepolia), not ensjs' MockUSDC.
+// USDC is the manifest's (ensjs' MockUSDC on Sepolia).
 const TOKENS = {
   USDC: { address: getDestinationContracts(sepolia.id).usdc },
   DAI: CONTRACTS.dai,
