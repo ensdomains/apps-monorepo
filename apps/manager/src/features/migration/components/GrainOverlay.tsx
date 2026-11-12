@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 export const GrainOverlay = ({
   className,
@@ -11,7 +11,7 @@ export const GrainOverlay = ({
   return (
     <svg
       aria-hidden="true"
-      className={tw(
+      className={cn(
         'pointer-events-none absolute inset-0 size-full opacity-40',
         className,
       )}
