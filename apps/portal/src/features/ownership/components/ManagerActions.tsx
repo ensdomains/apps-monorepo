@@ -4,8 +4,9 @@ import {
 } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Info, UserRoundPen } from 'lucide-react'
-import { useState } from 'react'
-import type { Address } from 'viem'
+import { useId, useState } from 'react'
+import { type Address, isAddressEqual } from 'viem'
+import { ShieldPersonIcon } from '@/assets/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,6 +35,7 @@ import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAtte
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import {
+  canReclaimV1Manager,
   getV1ManagerCandidateIssue,
   getV1ManagerChangeGate,
   type V1ManagerCandidateIssue,
@@ -55,6 +57,7 @@ const ChangeManagerDialog = ({
   readonly gate: V1ManagerChangeGate
   readonly onConfirm: (manager: Address) => void
 }) => {
+  const managerInputId = useId()
   const [managerInput, setManagerInput] = useState('')
   const resolution = useAddressResolution(managerInput)
   const { address, isResolving } = resolution
@@ -74,9 +77,9 @@ const ChangeManagerDialog = ({
         </DialogHeader>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="new-manager">New manager</Label>
+          <Label htmlFor={managerInputId}>New manager</Label>
           <AddressNameInput
-            id="new-manager"
+            id={managerInputId}
             value={managerInput}
             onChange={setManagerInput}
             resolution={resolution}
@@ -125,8 +128,12 @@ const ChangeManagerDialog = ({
   )
 }
 
-/** Hands an unwrapped `.eth` 2LD's manager role to another wallet in one transaction; the owner stays. */
-export const ChangeManagerButton = ({
+/**
+ * The Ownership page's manager actions for an unwrapped `.eth` 2LD: Reclaim (the
+ * way out of the transfer flow's "Reclaim the parent first" refusal) and Change.
+ * One flow and one modal, since the modal's open state is app-wide.
+ */
+export const ManagerActions = ({
   name,
   protocolVersion,
   account,
@@ -146,29 +153,55 @@ export const ChangeManagerButton = ({
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const attempt = useFlowAttempt()
-  const id = scopeTransactionId(`change-manager-${name}`, attempt.scope)
-  const changeTxState = useActiveTransactionState(id)
+  const id = scopeTransactionId(`manager-${name}`, attempt.scope)
+  // Scoped to this flow's own id: the cancel below must never reach another
+  // flow's entry in the manager.
+  const txState = useActiveTransactionState(id)
+  const title =
+    change && account && isAddressEqual(change.manager, account)
+      ? 'Reclaim manager role'
+      : 'Change manager'
   const { mutate: changeManager } = useChangeManagerMutation({
     name,
     id,
-    description: `Change manager - ${name}`,
+    description: `${title} - ${name}`,
   })
 
   const gate = getV1ManagerChangeGate(v1State, account)
   // A manager who hands the role on loses the gate once it lands; the modal stays until they close it.
   if (!account || (!gate && !change)) return null
 
+  const isInFlight = isTransactionInFlight(txState)
+  const start = (next: V1ManagerChange) => {
+    // A stale terminal-state transaction under this id blocks the modal; drop
+    // just that entry so a fresh change can start (same guard as ExtendNameButton).
+    if (txState && !isInFlight)
+      transactionManager.cancelTransaction(txState.txId)
+    setChange(next)
+    attempt.start(account)
+  }
+
   return (
     <>
-      {gate && (
+      {canReclaimV1Manager(v1State, account) && (
         <Button
           variant="outline"
           className="gap-2"
           onClick={() =>
-            isTransactionInFlight(changeTxState)
+            isInFlight
               ? openModal()
-              : setIsDialogOpen(true)
+              : start({ manager: account, authority: 'registrant' })
           }
+        >
+          <ShieldPersonIcon className="size-4" />
+          Reclaim manager
+        </Button>
+      )}
+      {gate && (
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => (isInFlight ? openModal() : setIsDialogOpen(true))}
         >
           <UserRoundPen className="size-4" />
           Change manager
@@ -180,23 +213,19 @@ export const ChangeManagerButton = ({
           onClose={() => setIsDialogOpen(false)}
           gate={gate}
           onConfirm={(manager) => {
-            // Same stale-entry guard as ReclaimManagerButton.
-            if (changeTxState && !isTransactionInFlight(changeTxState))
-              transactionManager.cancelTransaction(changeTxState.txId)
-            setChange({ manager, authority: gate.authority })
             setIsDialogOpen(false)
-            attempt.start(account)
+            start({ manager, authority: gate.authority })
           }}
         />
       )}
-      {/* Mounted only during a change: the modal's open state is shared with Reclaim manager's. */}
       {change && attempt.scope && (
         <TransactionModal
           transactions={[
             {
               id,
-              title: 'Change manager',
-              transactionName: `Change manager - ${name}`,
+              title,
+              transactionName: `${title} - ${name}`,
+              // Fixed once confirmed, so the modal can estimate gas the moment it opens.
               intent: {
                 prepare: (ctx) =>
                   prepareChangeManagerTransaction({ ...ctx, ...change, name }),

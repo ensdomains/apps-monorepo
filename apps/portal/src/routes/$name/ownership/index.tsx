@@ -14,9 +14,8 @@ import {
   OWNERSHIP_HISTORY_TYPES,
   OWNERSHIP_TYPE_LABELS,
 } from '@/features/history/eventTypes'
-import { ChangeManagerButton } from '@/features/ownership/components/ChangeManagerButton'
+import { ManagerActions } from '@/features/ownership/components/ManagerActions'
 import { NameOwnerRow } from '@/features/ownership/components/NameOwnerRow'
-import { ReclaimManagerButton } from '@/features/ownership/components/ReclaimManagerButton'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
 import { V2NameManagersRow } from '@/features/ownership/components/V2NameManagersRow'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
@@ -107,12 +106,7 @@ function RouteComponent() {
       <div className="flex flex-row items-center justify-between">
         <PageHeading parent={{ type: 'name', name }}>Ownership</PageHeading>
         <div className="flex flex-row items-center gap-2">
-          <ReclaimManagerButton
-            name={name}
-            protocolVersion={data.protocolVersion}
-            account={address}
-          />
-          <ChangeManagerButton
+          <ManagerActions
             name={name}
             protocolVersion={data.protocolVersion}
             account={address}
