@@ -60,7 +60,7 @@ The codebase is built on these fundamental principles:
 
 ### 1. Thin React Layer
 
-**Keep React components focused on presentation and user interaction, not business logic.**
+**A component renders and dispatches user events. Anything you would want to unit-test without rendering belongs outside the component: in a pure function or a helper module it calls.**
 
 Components should:
 - Render UI based on props and state
@@ -122,7 +122,7 @@ A violation blocks the change unless a comment at that site names the specific c
 - **Type safety** - No `any` types, use `unknown` + type guards (use `Record<string, unknown>` for objects)
 - **BigInt for blockchain values** - All numeric blockchain values use BigInt
 - **ENS contract ABIs from ENSjs** - Never hand-write or hand-copy an ENS contract ABI into app or package code
-- **Dependent writes** - One atomic batch where the wallet supports it, otherwise ordered steps through the transaction manager
+- **Every write through the transaction manager** - Single and dependent writes alike; see [the rule](#every-write-goes-through-the-transaction-manager--must)
 - **Immutability** - Never mutate data you did not create: inputs, shared state or cached state. A function may build and change values it created itself; once it returns a value, callers treat it as fixed.
 - **Never use useEffect for data fetching** - Always use TanStack Query
 
@@ -877,11 +877,10 @@ const ProfileHeader = ({ name, avatar }: ProfileHeaderProps) => {
 // ✅ Good - Split when there's actual complexity
 const ProfileRecordsEditor = ({ records, onChange }: Props) => {
   const [editMode, setEditMode] = useState(false)
-  const { writeContractAsync } = useWriteContract()
-  
-  const handleSave = async () => {
-    // 30+ lines of validation, encoding, transaction logic
-  }
+  const saveRecordsMutation = useMutation({ mutationFn: saveRecords })
+
+  // Validation and encoding live in saveRecords, outside the component
+  const handleSave = () => saveRecordsMutation.mutate({ records })
   
   return editMode ? <Editor /> : <Display />
 }
@@ -1060,9 +1059,15 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
 }
 ```
 
+### Every Write Goes Through the Transaction Manager 🔴 Must
+
+**Every write goes through the transaction manager**, a single write as much as dependent ones. Build the write as an intent and start it with `transactionManager.startTransaction` and a `Signer`; the app's step runner shows its progress (`TransactionModal` in the portal). App code never sends a write with wagmi's `useWriteContract` or `useSendTransaction`, or with a wallet client directly; [Why Not Just Use Wagmi?](#why-not-just-use-wagmi) gives the reasons. The one write outside it is the L2 primary name write in the portal, until it moves.
+
+The shape for a single write is the [Single Transaction Pattern](#single-transaction-pattern--default); for dependent writes, the section below and [Combining Multiple Requests](#combining-multiple-requests).
+
 ### Multi-Step Transaction Orchestration Anti-Pattern 🔴 Must
 
-**Every write goes through the transaction manager.** When one write depends on another (e.g., deploy → setSubregistry), send them as one atomic batch where the wallet supports it. Otherwise run them as ordered steps that each call the transaction manager and advance only when the previous step is confirmed: an XState machine, or the app's step runner. Never chain them from component state or effects. See [Combining Multiple Requests](#combining-multiple-requests) for an example.
+When one write depends on another (e.g., deploy → setSubregistry), send them as one atomic batch where the wallet supports it. Otherwise run them as ordered steps that each call the transaction manager and advance only when the previous step is confirmed: an XState machine, or the app's step runner. Never chain them from component state or effects. See [Combining Multiple Requests](#combining-multiple-requests) for an example.
 
 #### How to Detect This Anti-Pattern
 
@@ -1144,7 +1149,7 @@ const snapshot = useSelector(actor, s => s)
 
 ### Single Transaction Pattern 🟡 Default
 
-For **single transactions** (not multi-step flows), use pure async functions with `useMutation` instead of feature-specific XState machines.
+For **single transactions** (not multi-step flows), use pure async functions with `useMutation` instead of feature-specific XState machines. The write itself still starts through the transaction manager, a [🔴 Must](#every-write-goes-through-the-transaction-manager--must); only the `useMutation` shape around it is a default.
 
 #### When to Use This Pattern
 
@@ -1640,8 +1645,8 @@ const handleSubmit = async () => {
 // ✅ ALSO GOOD: try-catch in a handler that touches no Result
 const handleSubmit = async () => {
   try {
-    await sendTransaction(params)
-    console.log('Success')
+    await navigator.clipboard.writeText(address)
+    console.log('Copied')
   } catch (error) {
     console.error('Failed:', error)
   }
@@ -3894,7 +3899,7 @@ const data: any = externalLibrary.getData()
 36. **BigInt for blockchain values** - All numeric blockchain values (🔴 Must)
 37. **Instantiate clients once** - Never create clients inside components (🔴 Must)
 38. **ENS ABIs from ENSjs** - Never hand-write or hand-copy an ENS contract ABI into app or package code (🔴 Must)
-39. **Dependent writes** - One atomic batch where the wallet supports it, otherwise ordered steps through the transaction manager; never chained from component state or effects (🔴 Must)
+39. **Every write through the transaction manager** - Single and dependent writes alike; dependent writes as one atomic batch or ordered steps, never chained from component state or effects; see [the rule](#every-write-goes-through-the-transaction-manager--must) (🔴 Must)
 40. **Define contracts once** - Contract address + ABI in one place (🟡 Default)
 41. **Use wagmi hooks for reads** - In React components, never call contracts directly (🟡 Default)
 
