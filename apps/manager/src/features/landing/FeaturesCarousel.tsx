@@ -1,5 +1,4 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import clsx from 'clsx'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { motion, useMotionValue, useTransform } from 'motion/react'
 import type { ComponentProps, ReactNode } from 'react'
@@ -237,7 +236,7 @@ export const FeaturesCarousel = () => {
               (index - offset + FEATURE_CARDS.length) % FEATURE_CARDS.length
             return (
               <CarouselCard
-                className={clsx(className, 'basis-(--s2-basis)')}
+                className={cn(className, 'basis-(--s2-basis)')}
                 data={data}
                 drag={cardIndex === 0 ? 'x' : false}
                 dragConstraints={{
@@ -289,7 +288,7 @@ export const FeaturesCarousel = () => {
               return (
                 <button
                   aria-label={t`Go to slide ${index + 1}`}
-                  className={clsx(
+                  className={cn(
                     'size-4 rounded-xs border-2 bg-transparent transition-colors',
                     indicatorClass,
                   )}
