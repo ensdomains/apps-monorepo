@@ -76,3 +76,9 @@ it.each(['subscribe', 'unsubscribe'] as const)(
     expect(unmount).not.toThrow()
   },
 )
+
+it('leaves exposure tracking enabled for normal feature flag reads', () => {
+  const client = makeClient()
+  renderHook(() => useFeatureFlagEnabled(client, 'flag'))
+  expect(client.isFeatureEnabled).toHaveBeenCalledWith('flag')
+})

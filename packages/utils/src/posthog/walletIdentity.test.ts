@@ -1,5 +1,9 @@
+import { getAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { getWalletIdentityAction } from './walletIdentity'
+import {
+  getWalletIdentityAction,
+  hasMatchingWalletIdentity,
+} from './walletIdentity'
 
 describe('getWalletIdentityAction', () => {
   it('resets before identifying a different connected wallet', () => {
@@ -7,17 +11,20 @@ describe('getWalletIdentityAction', () => {
       getWalletIdentityAction({
         isGranted: true,
         isIdentified: true,
-        distinctId: '0xaaa',
-        address: '0xBBB',
+        distinctId: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       }),
-    ).toEqual({ type: 'replace', address: '0xbbb' })
+    ).toEqual({
+      type: 'replace',
+      address: getAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'),
+    })
   })
   it('forgets a persisted wallet when the current app is disconnected', () => {
     expect(
       getWalletIdentityAction({
         isGranted: true,
         isIdentified: true,
-        distinctId: '0xaaa',
+        distinctId: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       }),
     ).toEqual({ type: 'reset' })
   })
@@ -27,7 +34,7 @@ describe('getWalletIdentityAction', () => {
         isGranted: false,
         isIdentified: false,
         distinctId: 'anonymous',
-        address: '0xaaa',
+        address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       }),
     ).toEqual({ type: 'none' })
   })
@@ -36,9 +43,23 @@ describe('getWalletIdentityAction', () => {
       getWalletIdentityAction({
         isGranted: true,
         isIdentified: true,
-        distinctId: '0xaaa',
-        address: '0xAAA',
+        distinctId: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        address: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
       }),
     ).toEqual({ type: 'none' })
   })
+})
+
+it('retains an already identified checksummed wallet and accepts its captures', () => {
+  const wallet = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
+  const identity = getAddress(wallet)
+  expect(
+    getWalletIdentityAction({
+      isGranted: true,
+      isIdentified: true,
+      distinctId: identity,
+      address: wallet,
+    }),
+  ).toEqual({ type: 'none' })
+  expect(hasMatchingWalletIdentity(wallet, identity)).toBe(true)
 })

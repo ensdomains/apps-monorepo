@@ -5,14 +5,14 @@ type FeatureFlagClient = {
   readonly isFeatureEnabled: (key: string) => boolean | string | undefined
   readonly getFeatureFlagResult: (
     key: string,
-    options: { readonly send_event: false },
+    options?: { readonly send_event: boolean },
   ) => { readonly payload?: unknown } | undefined
   readonly onFeatureFlags: (listener: () => void) => () => void
 }
 
 const readPayload = (client: FeatureFlagClient, key: string): unknown => {
   try {
-    return client.getFeatureFlagResult(key, { send_event: false })?.payload
+    return client.getFeatureFlagResult(key)?.payload
   } catch {
     return undefined
   }

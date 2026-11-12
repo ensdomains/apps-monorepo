@@ -59,7 +59,10 @@ initializeIntercom()
 const rootElement = document.getElementById('app')
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement, {
-    onCaughtError: captureException,
+    onCaughtError: (error, info) => {
+      console.error(error, info.componentStack)
+      captureException(error)
+    },
   })
   root.render(
     <StrictMode>

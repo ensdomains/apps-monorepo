@@ -5,8 +5,8 @@
  * production only — Vite HMR needs the eval/ws this policy forbids.
  *
  * Unlike portal (static SPA), manager SSRs its hydration scripts, so
- * `script-src` is nonce + `strict-dynamic` based. PostHog reporting is
- * temporarily disabled while PostHog is retained only for feature flags.
+ * `script-src` is nonce + `strict-dynamic` based.
+ * CSP violation reporting to PostHog stays disabled; SDK error tracking is separate.
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'

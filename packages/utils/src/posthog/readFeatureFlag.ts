@@ -9,7 +9,7 @@ export const readFeatureFlag = (
   key: string,
 ): boolean => {
   try {
-    return client.isFeatureEnabled(key, { send_event: false }) === true
+    return client.isFeatureEnabled(key) === true
   } catch {
     return false
   }

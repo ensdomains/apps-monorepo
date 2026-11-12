@@ -8,6 +8,7 @@ import {
 import { act, render } from '@testing-library/react'
 import { createConfig, http } from '@wagmi/core'
 import posthog from 'posthog-js/dist/module.full.no-external'
+import { getAddress } from 'viem'
 import { mainnet } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection, useConnectionEffect } from 'wagmi'
@@ -223,9 +224,13 @@ describe('PostHog provider', () => {
       </PHProvider>,
     )
     expect(posthog.reset).toHaveBeenCalledOnce()
-    expect(posthog.identify).toHaveBeenCalledWith(nextAddress.toLowerCase())
+    expect(posthog.identify).toHaveBeenCalledWith(
+      getAddress(nextAddress),
+      { address: getAddress(nextAddress) },
+      { initial_address: getAddress(nextAddress) },
+    )
     expect(update).toHaveBeenLastCalledWith({
-      posthog_distinct_id: nextAddress.toLowerCase(),
+      posthog_distinct_id: getAddress(nextAddress),
     })
     expect(posthog.setPersonProperties).toHaveBeenCalledWith({
       intercom_visitor_id: 'intercom-visitor',
@@ -250,7 +255,11 @@ describe('PostHog provider', () => {
     renderProvider()
     connectWallet()
 
-    expect(posthog.identify).toHaveBeenCalledWith(WALLET.address)
+    expect(posthog.identify).toHaveBeenCalledWith(
+      WALLET.address,
+      { address: WALLET.address },
+      { initial_address: WALLET.address },
+    )
     expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
       chain_id: 1,
       wallet_connector: connector.name,
@@ -267,7 +276,11 @@ describe('PostHog provider', () => {
     connectWallet()
 
     act(() => setAnalyticsConsent(posthog, true))
-    expect(posthog.identify).toHaveBeenCalledWith(WALLET.address)
+    expect(posthog.identify).toHaveBeenCalledWith(
+      WALLET.address,
+      { address: WALLET.address },
+      { initial_address: WALLET.address },
+    )
 
     act(() => setAnalyticsConsent(posthog, false))
     expect(posthog.reset).toHaveBeenCalled()

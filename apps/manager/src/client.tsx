@@ -12,7 +12,12 @@ hydrateRoot(
   <StrictMode>
     <StartClient />
   </StrictMode>,
-  { onCaughtError: captureException },
+  {
+    onCaughtError: (error, info) => {
+      console.error(error, info.componentStack)
+      captureException(error)
+    },
+  },
 )
 
 // If you want to start measuring performance in your app, pass a function

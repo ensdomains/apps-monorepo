@@ -1,3 +1,5 @@
+import { getAddress } from 'viem'
+
 type IdentityInput = {
   readonly isGranted: boolean
   readonly isIdentified: boolean
@@ -15,9 +17,12 @@ export const getWalletIdentityAction = (
   if (!input.isGranted) return { type: input.isIdentified ? 'reset' : 'none' }
   if (!input.address) return { type: input.isIdentified ? 'reset' : 'none' }
   const address = input.address.toLowerCase()
-  if (input.isIdentified && input.distinctId === address)
+  if (input.isIdentified && input.distinctId.toLowerCase() === address)
     return { type: 'none' }
-  return { type: input.isIdentified ? 'replace' : 'identify', address }
+  return {
+    type: input.isIdentified ? 'replace' : 'identify',
+    address: getAddress(input.address),
+  }
 }
 
 /** Undefined means the connector is unresolved; null means a stable disconnection. */
@@ -31,5 +36,5 @@ export const hasMatchingWalletIdentity = (
   if (address === undefined) return false
   if (address === null)
     return event === 'wallet:disconnect' || !/^0x[\da-f]{40}$/i.test(identity)
-  return address.toLowerCase() === identity
+  return address.toLowerCase() === identity.toLowerCase()
 }

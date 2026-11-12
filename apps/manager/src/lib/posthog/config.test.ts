@@ -9,6 +9,7 @@ import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConse
 import { createAnalyticsTracker } from '@ens-apps/utils/posthog/createAnalyticsTracker'
 import { synchronizeAnalyticsIdentity } from '@ens-apps/utils/posthog/identitySync'
 import { PostHog } from 'posthog-js/dist/module.full.no-external'
+import { getAddress } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getConnectedWalletAddress } from './events'
 
@@ -368,6 +369,30 @@ describe('PostHog consent', () => {
       ).toHaveLength(2)
     },
   )
+
+  it('preserves legacy checksummed identity, campaign and session through synchronization', () => {
+    const wallet = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
+    const legacyId = getAddress(wallet)
+    vi.mocked(getConnectedWalletAddress).mockReturnValue(wallet)
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    client.identify(
+      legacyId,
+      { address: legacyId },
+      { initial_address: legacyId },
+    )
+    client.register({ utm_campaign: 'legacy-campaign' })
+    const session = client.get_session_id()
+    const reset = vi.spyOn(client, 'reset')
+    synchronizeAnalyticsIdentity(client, wallet, true)
+    expect(reset).not.toHaveBeenCalled()
+    expect(client.get_distinct_id()).toBe(legacyId)
+    expect(client.get_session_id()).toBe(session)
+    expect(client.get_property('utm_campaign')).toBe('legacy-campaign')
+    expect(client.capture('wallet:connect')?.properties.distinct_id).toBe(
+      legacyId,
+    )
+  })
 
   it('contains errors in the SDK loaded callback', () => {
     const { client } = initClient()

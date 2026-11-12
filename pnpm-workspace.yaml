@@ -102,9 +102,9 @@ patchedDependencies:
   '@rhinestone/sdk@1.22.0': patches/@rhinestone__sdk@1.22.0.patch
 
 # pnpm >=11 fails the install on any dependency build script not listed here.
-# Most ship prebuilt binaries; PostHog CLI downloads its platform binary.
+# Most ship prebuilt binaries; PostHog CLI downloads on first use in upload builds.
 allowBuilds:
-  '@posthog/cli': true
+  '@posthog/cli': false
   "@reown/appkit": false
   "@tailwindcss/oxide": false
   core-js: false

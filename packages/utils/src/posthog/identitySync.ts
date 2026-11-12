@@ -6,7 +6,11 @@ export type AnalyticsIdentityClient = Parameters<
   typeof resetKeepingConsent
 >[0] & {
   readonly get_distinct_id: () => string
-  readonly identify: (address: string) => void
+  readonly identify: (
+    address: string,
+    properties?: Readonly<Record<string, unknown>>,
+    initialProperties?: Readonly<Record<string, unknown>>,
+  ) => void
   readonly register: (properties: Readonly<Record<string, unknown>>) => void
   readonly config?: { readonly capture_pageview?: unknown }
   readonly set_config: (config: {
@@ -35,7 +39,11 @@ export const synchronizeAnalyticsIdentity = (
   if (action.type === 'reset' || action.type === 'replace')
     resetKeepingConsent(client)
   if (action.type === 'identify' || action.type === 'replace')
-    client.identify(action.address)
+    client.identify(
+      action.address,
+      { address: action.address },
+      { initial_address: action.address },
+    )
   if (client.config?.capture_pageview === false) {
     client.set_config({ capture_pageview: 'history_change' })
     // The SDK deduplicates its native initial pageview, including repeat opt-ins.
