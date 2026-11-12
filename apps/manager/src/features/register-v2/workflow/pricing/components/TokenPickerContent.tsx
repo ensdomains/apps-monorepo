@@ -284,14 +284,14 @@ const resolvePricingErrorMessage = (
   value: PricingWarning,
   i18n: { readonly _: (descriptor: MessageDescriptor) => string },
   explorerRegisterUrl: string | null,
-): ReactNode => {
-  if (value === null) return null
-  if (typeof value === 'string') return value
-  if ('kind' in value) {
-    return <GasRefusalWarning explorerRegisterUrl={explorerRegisterUrl} />
-  }
-  return i18n._(value)
-}
+): ReactNode =>
+  match(value)
+    .with(null, () => null)
+    .with(P.string, (text) => text)
+    .with(GAS_REFUSAL, () => (
+      <GasRefusalWarning explorerRegisterUrl={explorerRegisterUrl} />
+    ))
+    .otherwise((descriptor) => i18n._(descriptor))
 
 const PaymentMethods = <T extends TOKEN_SYMBOL>({
   showNetworkFeeDetails,
