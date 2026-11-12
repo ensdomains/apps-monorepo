@@ -5,6 +5,7 @@ import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { EXPLORER_URL } from '@/constants'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 
 // Drives the connected `TokenPickerContent`, so the budget-failure flag is
@@ -140,7 +141,7 @@ describe('TokenPickerContent budget quote', () => {
     expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
   })
 
-  it('on a gas-coverage refusal shows the name price, no fee figure, and still blocks checkout', async () => {
+  it('on a gas-coverage refusal shows the name price, no fee figure, an Explorer link, and still blocks checkout', async () => {
     mockAccount({
       // Any failure in the quote pipeline reaches the sheet through the same cause chain.
       getSessionEnablePayload: vi.fn().mockRejectedValue(
@@ -159,11 +160,13 @@ describe('TokenPickerContent budget quote', () => {
     })
     renderConnectedPicker()
 
-    expect(
-      await screen.findByText(
-        "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower.",
-      ),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Network fees are elevated right now, if you'd still like to register this name, please use the Explorer",
+    )
+    expect(screen.getByRole('link', { name: 'Explorer' })).toHaveAttribute(
+      'href',
+      `${EXPLORER_URL}/register?name=jeff.eth`,
+    )
     // No quote ever succeeded: the name price fills the total, and the fallback's flat fees never show.
     expect(receiptRow('Registration total')).toHaveTextContent('$330.00')
     expect(receiptRow('Estimated network fee')).toHaveTextContent('—')

@@ -2052,8 +2052,8 @@ msgstr ""
 msgid "Network fee"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower."
+#: src/features/register-v2/workflow/pricing/components/GasRefusalWarning.tsx
+msgid "Network fees are elevated right now, if you'd still like to register this name, please use the <0>Explorer</0>"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts

@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
 import { getCheckoutReceiptTotalRaw } from '../lib/budgetQuoteRecovery'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
+import { GasRefusalWarning } from './GasRefusalWarning'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
 import {
   PaymentMethodList,
@@ -20,6 +21,7 @@ import {
 } from './PaymentMethodList'
 import { PaymentMethodRow } from './PaymentMethodRow'
 import { PaymentReceipt } from './PaymentReceipt'
+import { getExplorerRegisterUrl } from './SafeWalletDialog'
 import {
   type RegistrationFundingSummary,
   TokenPickerContentBase,
@@ -78,7 +80,7 @@ interface TokenPickerDialogShellProps {
   readonly isConnected?: boolean
   readonly isLoadingBalances?: boolean
   readonly stablecoinBalances?: StablecoinBalance[]
-  readonly globalErrorMessage?: string | null
+  readonly globalErrorMessage?: ReactNode
   readonly helpMessage?: string
   readonly footer?: ReactNode
   readonly initialSelectedToken?: SUPPORTED_TOKEN
@@ -519,7 +521,7 @@ export const LongNameWithApprovalDetails: Story = {
   ),
 }
 
-/** WEB-2061: Rhinestone refused a quote during a gas spike; name price, no fee figure, Try again. */
+/** WEB-2061: Rhinestone refused a quote during a gas spike; name price, no fee figure, an Explorer link, Try again. */
 export const BudgetQuoteGasCoverageFailed: Story = {
   args: {
     label: 'freedz',
@@ -530,8 +532,11 @@ export const BudgetQuoteGasCoverageFailed: Story = {
     ],
     hasBudgetQuoteFailed: true,
     isGasCoverageRefusal: true,
-    globalErrorMessage:
-      "Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower.",
+    globalErrorMessage: (
+      <GasRefusalWarning
+        explorerRegisterUrl={getExplorerRegisterUrl('freedz')}
+      />
+    ),
   },
 }
 

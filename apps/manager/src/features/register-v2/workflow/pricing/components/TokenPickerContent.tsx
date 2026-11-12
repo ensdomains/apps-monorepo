@@ -85,6 +85,7 @@ import {
   getEthSwapGasUsdcRaw,
   isEthShortOfFunds,
 } from './EthPaymentListItem'
+import { GasRefusalWarning } from './GasRefusalWarning'
 import {
   getEstimatedL2AmountIn,
   getL2SelectionMessage,
@@ -99,6 +100,7 @@ import {
 import { NetworkFeeReceipt, PaymentReceipt } from './PaymentReceipt'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { RECEIPT_LABEL } from './receiptTypography'
+import { getExplorerRegisterUrl } from './SafeWalletDialog'
 import { TokenListItem } from './TokenListItem'
 
 const MEDIUM_NAME_CHAR_THRESHOLD = 10
@@ -195,6 +197,11 @@ const getDomainSizeClasses = (domainName: string): string => {
   return 'text-[40px]'
 }
 
+/** Marks the gas refusal, whose warning carries an Explorer link rather than plain text. */
+const GAS_REFUSAL = { kind: 'gas-refusal' } as const
+
+type PricingWarning = MessageDescriptor | string | typeof GAS_REFUSAL | null
+
 /** Sheet-level warning above the CTA. Kept out of the component body for complexity. */
 const getPricingGlobalErrorMessage = ({
   approvalState,
@@ -213,14 +220,10 @@ const getPricingGlobalErrorMessage = ({
   readonly mutationError: unknown
   readonly isAvailabilityError: boolean
   readonly domainName: string
-}): MessageDescriptor | string | null => {
+}): PricingWarning => {
   // No amount on a refusal: the fallback fees are a placeholder, not a gas estimate.
   const budgetFailureMessage = match(budgetFailureKind)
-    .with(
-      'gas-coverage',
-      () =>
-        msg`Network fees are elevated right now, so we couldn't calculate a total. Please try again when gas is lower.`,
-    )
+    .with('gas-coverage', () => GAS_REFUSAL)
     .with(
       'generic',
       () => msg`We couldn't calculate the total. Please try again.`,
@@ -278,11 +281,15 @@ const getPricingGlobalErrorMessage = ({
 }
 
 const resolvePricingErrorMessage = (
-  value: MessageDescriptor | string | null,
+  value: PricingWarning,
   i18n: { readonly _: (descriptor: MessageDescriptor) => string },
-): string | null => {
+  explorerRegisterUrl: string | null,
+): ReactNode => {
   if (value === null) return null
   if (typeof value === 'string') return value
+  if ('kind' in value) {
+    return <GasRefusalWarning explorerRegisterUrl={explorerRegisterUrl} />
+  }
   return i18n._(value)
 }
 
@@ -745,6 +752,7 @@ export const TokenPickerContent = () => {
       domainName,
     }),
     i18n,
+    getExplorerRegisterUrl(label),
   )
 
   const isBusy = availabilityMutation.isPending || approvalState.isApproving
@@ -1209,7 +1217,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly pricingData: number | undefined
   readonly isInPriceCooldown?: boolean
   readonly selectedToken: T | undefined
-  readonly globalErrorMessage?: string | null
+  readonly globalErrorMessage?: ReactNode
   /** A shortfall found at click time, shown when the render saw none. */
   readonly revalidatedShortfall?: number | undefined
   readonly helpMessage?: ReactNode
