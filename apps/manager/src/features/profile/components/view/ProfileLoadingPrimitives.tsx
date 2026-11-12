@@ -1,6 +1,5 @@
 import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
-import { tw } from '@/utils/tailwind'
 
 type SkeletonBlockProps = {
   readonly className?: string
@@ -44,14 +43,14 @@ export const ProfileSectionLoading = ({
   titleWidth,
 }: ProfileSectionLoadingProps) => (
   <motion.section
-    className={tw(
+    className={cn(
       'border-[0.25px] border-transparent bg-transparent px-5 py-6 shadow-none xl:px-8 xl:pt-8 xl:pb-6',
       className,
     )}
     {...getMotionProps(shouldReduceMotion, index * 0.05)}
   >
     <SkeletonBlock
-      className={tw('h-6', titleWidth)}
+      className={cn('h-6', titleWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
     <div className="mt-3">{children}</div>
