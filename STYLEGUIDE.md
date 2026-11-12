@@ -2156,7 +2156,7 @@ features/
 
 ### Contract Interaction Patterns
 
-**Source ENS contract ABIs and calls from ENSjs (🔴 Must).** Every interaction with an ENS protocol contract goes through `@ensdomains/ensjs`: use its read or write function when one exists, and when you encode the call yourself, import the ABI snippet from `@ensdomains/ensjs/contracts` (or `@ensdomains/ensjs-abi`). Never hand-write or hand-copy an ENS contract ABI into app or package code. If ENSjs lacks the function, add it to ENSjs; a local ABI is allowed only as a temporary stopgap whose comment names the missing ENSjs surface.
+**Source ENS contract ABIs and calls from ENSjs (🔴 Must).** Every interaction with an ENS protocol contract goes through `@ensdomains/ensjs`: use its read function, or for a write its `...WriteParameters` function feeding the transaction manager, when one exists, and when you encode the call yourself, import the ABI snippet from `@ensdomains/ensjs/contracts` (or `@ensdomains/ensjs-abi`). Never hand-write or hand-copy an ENS contract ABI into app or package code. If ENSjs lacks the function, add it to ENSjs; a local ABI is allowed only as a temporary stopgap whose comment names the missing ENSjs surface.
 
 The codebase follows specific patterns for creating contract interaction helpers. There are two main patterns depending on where the helper lives:
 
