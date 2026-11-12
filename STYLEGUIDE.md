@@ -6,7 +6,7 @@ A comprehensive guide for writing clean, maintainable, and type-safe code across
 
 ## Breaking the Rules
 
-**Every rule can and will be broken in certain cases.** When you deviate from these guidelines:
+**Default and Guideline rules can and will be broken in certain cases. A Must rule is broken only on the terms under [Rule Severity](#rule-severity).** When you deviate from these guidelines:
 
 1. ✅ **Leave a comment in the code** explaining why
 2. ✅ **Make it intentional** - not accidental
@@ -92,7 +92,7 @@ Components should NOT:
 
 **Embrace functional programming principles pragmatically:**
 
-- **Immutability**: Transform data, don't mutate it (🔴 Must)
+- **Immutability**: Never mutate data you did not create: inputs, shared state or cached state (🔴 Must). A function may build and change values it created itself; once it returns a value, callers treat it as fixed.
 - **Pure functions**: Same input → same output, no side effects (🟡 Default)
 - **Composition**: Build complex operations from simple ones (🟡 Default)
 - **Prefer array methods**: Use `map`, `filter`, `reduce` over loops (🟢 Guideline)
@@ -102,8 +102,8 @@ Components should NOT:
 
 **Leverage TypeScript to catch errors at compile time:**
 
-- Strict mode enabled
-- Explicit type annotations for function signatures
+- Strict mode enabled (🔴 Must)
+- Exported functions state their parameter and return types (🟡 Default); inside a function the compiler infers
 - No `any` types (use `unknown` if needed)
 - Use discriminated unions for state management
 
@@ -111,15 +111,17 @@ Components should NOT:
 
 Not all rules are equally important. Use these tiers to guide your decisions:
 
-### 🔴 Must (Violations require strong justification)
+### 🔴 Must (A violation blocks the change)
 
-These rules protect against bugs, security issues, or severe maintainability problems:
+These rules protect against bugs, security issues, or severe maintainability problems.
+
+A violation blocks the change unless a comment at that site names the specific check, type or state transition that makes it safe, and the reviewer accepts it. A reason that would read the same at any other site does not count, and neither does a suppression for a whole file.
 
 - **Thin React Layer** - Business logic must be extracted from components
 - **Use neverthrow for Result types** - Never mix Result with try-catch
 - **Type safety** - No `any` types, use `unknown` + type guards (use `Record<string, unknown>` for objects)
 - **BigInt for blockchain values** - All numeric blockchain values use BigInt
-- **Immutability** - Don't mutate data structures
+- **Immutability** - Never mutate data you did not create: inputs, shared state or cached state. A function may build and change values it created itself; once it returns a value, callers treat it as fixed.
 - **Never use useEffect for data fetching** - Always use TanStack Query
 
 ### 🟡 Default (Follow unless there is a clear reason not to)
@@ -142,7 +144,7 @@ These rules represent best practices but allow pragmatic exceptions:
 These rules improve code quality but are stylistic preferences:
 
 - **Array methods over loops** - Prefer `map`/`filter`/`reduce` (loops OK for performance/clarity)
-- **Component size** - Keep components under 80 lines (flexible based on complexity)
+- **Component size** - Split components by complexity, not by line count
 - **Co-location** - Place code next to usage (balance with reusability)
 - **Explaining variables** - Extract complex expressions (use judgment)
 
@@ -365,6 +367,8 @@ interface ProfileCardProps {
 }
 ```
 
+**Generic parameter names** (🟢 Guideline): One or two generic parameters may use the conventional single letters (`T`, `K`, `V`) when the constraint shows the role. With three or more, or when the role is not clear from the constraint, give each a `T`-prefixed name (`TData`, `TError`).
+
 ### Constants
 
 Use `UPPER_SNAKE_CASE` for true constants:
@@ -386,7 +390,7 @@ const wagmiConfig = {
 
 ### Strict Type Annotations
 
-Always define types for function parameters and return values:
+Strict compiler mode: 🔴 Must. An exported function states its parameter types and its return type: 🟡 Default. Inside a function the compiler infers: no annotation on a local variable or a callback unless inference gives the wrong type. Where a library derives the type (a schema, a route, query options), leave it derived.
 
 ```typescript
 // Good
@@ -844,11 +848,11 @@ export const AutoFocusInput = () => {
 
 ### Component Size and Complexity (🟢 Guideline)
 
-**Split by responsibility, not line counts.** There's no objective maximum — line and prop counts are just "look here" prompts to ask "is this doing too much?" The real gate is **cognitive complexity** (how hard the control flow is to follow), enforced by Biome's `noExcessiveCognitiveComplexity` (threshold 15).
+**Split by responsibility, not line counts.** There's no objective maximum — line and prop counts are just "look here" prompts to ask "is this doing too much?" The real signal is **cognitive complexity** (how hard the control flow is to follow), checked by Biome's `noExcessiveCognitiveComplexity` (threshold 15). The rule is set to `warn`; see [Key Linting Rules](#key-linting-rules) for how warnings are treated.
 
 | Dimension | Tripwire | How it's checked |
 | --- | --- | --- |
-| Cognitive complexity | 15 per function | Biome (`warn`) — hard signal |
+| Cognitive complexity | 15 per function | Biome (`warn`); an agent treats it as an error |
 | File length | ~500 lines | Greptile soft signal |
 | Component/function length | ~150 lines | Manual — covered by the complexity gate above |
 | One primary component per file | 1 primary (small helpers OK, even with minor state) | Greptile soft signal |
@@ -2768,9 +2772,11 @@ function getProfile(address: string) {
 
 ## Component Composition
 
-### Composition Over Configuration
+### Composition Over Configuration (🟡 Default)
 
-Build flexible components through composition:
+Build flexible components through composition: children, slots and smaller components, not boolean configuration props. A boolean prop that says what the thing is (`isExpired`) is fine. The rule is against a boolean that switches a part of the layout on or off (`showAvatar`).
+
+To cure prop drilling, in this order: read server data with a query hook where it is used; pass the built element down as children or a slot; use context only for a value that many components in one feature need, as a provider.
 
 ```typescript
 // Good - Composition
@@ -3563,12 +3569,9 @@ Write code that is easy to test by design:
 3. **Separation of concerns** - Business logic separate from UI
 4. **Small, focused functions** - Each function does one thing
 
-### The Testing Pyramid
+### Integration and Property Tests Over Thin Unit Tests (🟡 Default)
 
-**Test Distribution:**
-- **70% Unit Tests** - Fast, isolated, test pure functions
-- **20% Integration Tests** - Test module interactions
-- **10% E2E Tests** - Test critical user flows
+Prefer property-based and integration tests, which pin down behaviour across many inputs and across real seams, over thin example-based unit tests that only restate the implementation. Keep E2E tests for critical user flows.
 
 ### Writing Testable Code
 
@@ -3748,6 +3751,8 @@ import { Button } from '@/components/ui/button'
 
 ### Key Linting Rules
 
+An agent treats every lint warning as an error, through the `agent:lint` command once it is merged. Each project decides for now how it enforces lint rules for people. The direction is every rule an error.
+
 | Rule                           | Purpose                                       | Fix                               |
 | ------------------------------ | --------------------------------------------- | --------------------------------- |
 | `noExplicitAny`                | Avoid `any` types                             | Use `unknown` + type guards       |
@@ -3799,7 +3804,7 @@ const data: any = externalLibrary.getData()
 
 #### TypeScript & Code Quality
 
-7. **Type everything** - Leverage TypeScript's strict mode (🔴 Must)
+7. **Strict mode and typed signatures** - Strict compiler mode (🔴 Must); exported functions state parameter and return types, and the compiler infers inside (🟡 Default)
 8. **No `any` types** - Use `unknown` or `Record<string, unknown>` for type-safe handling (🔴 Must)
 9. **Use generics** - Preserve type information in utility functions (🟡 Default)
 10. **Use readonly** - Enforce immutability at type level (🟡 Default)
@@ -3808,7 +3813,7 @@ const data: any = externalLibrary.getData()
 #### Functional Programming
 
 12. **Pure functions** - Same input → same output, no side effects (🟡 Default)
-13. **Immutability** - Transform data, don't mutate (🔴 Must)
+13. **Immutability** - Never mutate data you did not create: inputs, shared or cached state (🔴 Must)
 14. **Prefer array methods** - Use `map`, `filter`, `reduce` (🟢 Guideline)
 15. **Composition** - Build complex operations from simple ones (🟡 Default)
 
@@ -3825,8 +3830,8 @@ const data: any = externalLibrary.getData()
 21. **Extract effects** - Extract `useEffect` in components to custom hooks (🟡 Default, ≤5 lines OK)
 22. **Pattern match** - Use ts-pattern over conditionals (🟡 Default)
 23. **Custom hooks for APIs** - Only for DOM/framework APIs, not business logic (🟡 Default)
-24. **Component composition** - Build flexible UIs with composition (🟢 Guideline)
-25. **Avoid prop drilling** - Use hooks/context for app state, props for local data (🟡 Default)
+24. **Component composition** - Compose components; do not configure them with layout-switching boolean props (🟡 Default)
+25. **Avoid prop drilling** - Read server data with a query hook where it is used; pass the built element down as children or a slot; use context only for a value that many components in one feature need, as a provider (🟡 Default)
 
 #### State Management & Data Fetching
 
@@ -3853,7 +3858,7 @@ const data: any = externalLibrary.getData()
 40. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
 41. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
 42. **Test user behavior** - Component tests from user perspective (🟡 Default)
-43. **70/20/10 test distribution** - Unit/Integration/E2E (🟢 Guideline)
+43. **Integration and property tests** - Prefer them over thin example-based unit tests that restate the implementation (🟡 Default)
 
 #### Performance & Reliability
 
@@ -3926,7 +3931,7 @@ Ask yourself these questions when writing code:
 5. **Grouping query loading/error states** - Handle independently
 6. **Using `any` type** - Use `unknown` or `Record<string, unknown>`
 7. **Losing type information** - Use generics to preserve types
-8. **Mutating data** - Use immutable transformations
+8. **Mutating data you did not create** - Build a new value instead
 9. **Mixing Result with try-catch** - Choose one approach
 10. **Non-null assertions (`!`)** - Use type guards or optional chaining
 11. **Complex nested conditionals** - Use pattern matching
