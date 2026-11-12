@@ -3,8 +3,8 @@ import {
   transactionManager,
 } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Info, UserRoundPen } from 'lucide-react'
-import { useId, useState } from 'react'
+import { UserRoundPen } from 'lucide-react'
+import { useState } from 'react'
 import { type Address, isAddressEqual } from 'viem'
 import { ShieldPersonIcon } from '@/assets/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -18,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import {
@@ -57,13 +56,13 @@ const ChangeManagerDialog = ({
   readonly gate: V1ManagerChangeGate
   readonly onConfirm: (manager: Address) => void
 }) => {
-  const managerInputId = useId()
   const [managerInput, setManagerInput] = useState('')
   const resolution = useAddressResolution(managerInput)
   const { address, isResolving } = resolution
   const issue = address
     ? getV1ManagerCandidateIssue(address, gate.currentManager)
     : null
+  const manager = address && !isResolving && !issue ? address : null
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -71,58 +70,53 @@ const ChangeManagerDialog = ({
         <DialogHeader>
           <DialogTitle>Change manager</DialogTitle>
           <DialogDescription>
-            The manager controls this name’s records, resolver and subnames. The
-            owner stays the same.
+            The manager controls this name’s records, resolver and subnames.{' '}
+            {gate.authority === 'registrant'
+              ? 'You stay the owner and can take the role back at any time.'
+              : 'The owner stays the same.'}
           </DialogDescription>
         </DialogHeader>
-
-        <div className="flex flex-col gap-1">
-          <Label htmlFor={managerInputId}>New manager</Label>
-          <AddressNameInput
-            id={managerInputId}
-            value={managerInput}
-            onChange={setManagerInput}
-            resolution={resolution}
-            className="h-9"
-            resolvedContent={
-              issue ? (
-                <p className="text-p mt-1.5 text-destructive">
-                  {CANDIDATE_ISSUE_MESSAGES[issue]}
-                </p>
-              ) : undefined
-            }
-          />
-        </div>
-
-        {gate.authority === 'controller' ? (
-          <Alert variant="warning">
-            <AlertTriangle className="size-4" />
-            <AlertDescription>
-              You’ll stop managing this name. After this, only the new manager
-              or the owner can change it.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Alert variant="neutral">
-            <Info className="size-4" />
-            <AlertDescription>
-              You stay the owner, so you can take the manager role back at any
-              time.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
-          <Button
-            disabled={!address || isResolving || issue !== null}
-            onClick={() => address && onConfirm(address)}
-          >
-            Change manager
-          </Button>
-        </DialogFooter>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (manager) onConfirm(manager)
+          }}
+        >
+          <div>
+            <AddressNameInput
+              aria-label="New manager"
+              value={managerInput}
+              onChange={setManagerInput}
+              resolution={resolution}
+              resolvedContent={
+                issue ? (
+                  <p className="text-p mt-1.5 text-danger">
+                    {CANDIDATE_ISSUE_MESSAGES[issue]}
+                  </p>
+                ) : undefined
+              }
+            />
+          </div>
+          {gate.authority === 'controller' && (
+            <Alert variant="warning">
+              <AlertDescription>
+                You’ll stop managing this name. After this, only the new manager
+                or the owner can change it.
+              </AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={!manager}>
+              Change manager
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )
