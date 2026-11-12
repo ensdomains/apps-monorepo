@@ -58,6 +58,22 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
+const SCOPES: readonly NameScope[] = ['subnames', 'v1', 'v2']
+
+// Favorites filter by version only, and their counts are not read.
+const toScopeChips = (
+  isOwnedList: boolean,
+  labels: Readonly<Record<NameScope, string>>,
+  counts: Readonly<Record<NameScope, number | undefined>>,
+): FilterChipDef<NameScope>[] =>
+  SCOPES.filter((value) => isOwnedList || value !== 'subnames').map(
+    (value) => ({
+      value,
+      label: labels[value],
+      count: isOwnedList ? counts[value] : undefined,
+    }),
+  )
+
 const toScopeFilter = (scope: NameScope | null) => ({
   version: scope === 'subnames' ? null : scope,
   isSubnamesOnly: scope === 'subnames',
@@ -219,30 +235,22 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
       : []),
   ]
 
-  // Subnames, v1 and v2 are exclusive; clicking the active one shows all again.
-  // Switching drops the selection so Renew can't include a name that's hidden.
-  const scopeChips: FilterChipDef<NameScope>[] = [
-    {
-      value: 'subnames',
-      label: t`Subnames`,
-      count: countOf(subnames),
-    },
-    {
-      value: 'v1',
-      label: t`V1`,
-      count: countOf(v1Names, false),
-    },
-    {
-      value: 'v2',
-      label: t`V2`,
-      count: countOf(v2Names),
-    },
-  ]
   // A hidden chip can't be clicked, so an emptied selection falls back.
   const activeFilter = resolveSelectedChip(
     chips,
     filter,
     firstOpenChip(chips, 'owned'),
+  )
+  // Subnames, v1 and v2 are exclusive; clicking the active one shows all again.
+  // Switching drops the selection so Renew can't include a name that's hidden.
+  const scopeChips = toScopeChips(
+    activeFilter === 'owned',
+    { subnames: t`Subnames`, v1: t`V1`, v2: t`V2` },
+    {
+      subnames: countOf(subnames),
+      v1: countOf(v1Names, false),
+      v2: countOf(v2Names),
+    },
   )
   const scope = resolveSelectedChip(scopeChips, selectedScope, null)
   // Keep the fallback, so the emptied filter doesn't reopen when names return.
@@ -319,15 +327,13 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             shouldHideEmpty
             value={activeFilter}
           />
-          {activeFilter === 'owned' && (
-            <FilterChips
-              chips={scopeChips}
-              onChange={changeScope}
-              onClear={() => changeScope(null)}
-              shouldHideEmpty
-              value={scope}
-            />
-          )}
+          <FilterChips
+            chips={scopeChips}
+            onChange={changeScope}
+            onClear={() => changeScope(null)}
+            shouldHideEmpty
+            value={scope}
+          />
         </div>
 
         {activeFilter === 'owned' && ownedTotal > 0 && canSelectAll && (
@@ -422,6 +428,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
                 isAuthenticated={isAuthed}
                 searchQuery={searchQuery}
                 sort={favoritesSort}
+                version={version}
               />
             </motion.div>
           ))
