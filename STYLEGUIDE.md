@@ -118,7 +118,7 @@ These rules protect against bugs, security issues, or severe maintainability pro
 A violation blocks the change unless a comment at that site names the specific check, type or state transition that makes it safe, and the reviewer accepts it. A reason that would read the same at any other site does not count, and neither does a suppression for a whole file.
 
 - **Thin React Layer** - Business logic must be extracted from components
-- **Use neverthrow for Result types** - Never mix Result with try-catch
+- **Use neverthrow for Result types** - Code that handles a Result has no try/catch
 - **Type safety** - No `any` types, use `unknown` + type guards (use `Record<string, unknown>` for objects)
 - **BigInt for blockchain values** - All numeric blockchain values use BigInt
 - **Immutability** - Never mutate data you did not create: inputs, shared state or cached state. A function may build and change values it created itself; once it returns a value, callers treat it as fixed.
@@ -480,19 +480,11 @@ function processConfig(config: Record<string, unknown>) {
   const name = typeof config.name === 'string' ? config.name : 'default'
   return name
 }
-
-// ✅ ACCEPTABLE - Record<string, any> when structure is truly unknown
-// Use sparingly, prefer Record<string, unknown> for stricter type safety
-function processApiResponse(response: Record<string, any>) {
-  // When you need flexibility but know it's an object
-  return response
-}
 ```
 
 **Guidelines:**
 - ✅ **Use `unknown`** - For values of unknown type (requires type guards)
 - ✅ **Use `Record<string, unknown>`** - For objects with unknown shape (stricter)
-- ⚠️ **Use `Record<string, any>`** - Only when you need flexibility and know it's an object
 - ❌ **Never use `any`** - Bypasses all type safety
 
 ### Use Generics to Preserve Types 🟡 Default
@@ -660,7 +652,7 @@ export const ShowPrice = ({ price }) => {
 export const ShowPrice = ({ price }: { price: bigint | null }) => {
   return match({ price })
     .with({ price: P.not(P.nullish) }, ({ price }) => (
-      <div>Price: {formatEther(price!)}</div>
+      <div>Price: {formatEther(price)}</div>
     ))
     .otherwise(() => null)
 }
@@ -807,10 +799,9 @@ export const ModalComponent = ({ isOpen }: { isOpen: boolean }) => {
   return <div>...</div>
 }
 
+// ✅ CORRECT: Data comes from TanStack Query, never from an effect
 export const ProfilePage = ({ name }: { name: string }) => {
-  const [profile, setProfile] = useState<Profile | null>(null)
-  
-  useProfileData(name, setProfile)
+  const { data: profile } = useQuery(getProfileQueryOptions(name))
   
   return <div>...</div>
 }
@@ -1333,28 +1324,26 @@ export const RenewalButton = ({ name }: { name: string }) => {
     if (!walletClient) return
     
     setIsPending(true)
-    try {
-      const result = await prepareENSRenewal({
-        name,
-        duration: YEAR_IN_SECONDS,
-        publicClient,
-        walletClient,
-      })
-      
-      // If helper returns Result, check for errors
-      if (result.isErr()) {
-        console.error('Failed to prepare renewal:', result.error.message)
-        return
-      }
-      
-      // Use the prepared data
-      const hash = await writeContractAsync(result.value)
-      console.log('Transaction sent:', hash)
-    } catch (error) {
-      console.error('Failed to renew:', error)
-    } finally {
-      setIsPending(false)
+    // The throwing wallet call becomes a Result at the call site: no try/catch
+    const result = await prepareENSRenewal({
+      name,
+      duration: YEAR_IN_SECONDS,
+      publicClient,
+      walletClient,
+    }).andThen((renewal) =>
+      ResultAsync.fromPromise(
+        writeContractAsync(renewal),
+        (error) => new RenewalError({ cause: error }),
+      ),
+    )
+    setIsPending(false)
+
+    if (result.isErr()) {
+      console.error('Failed to renew:', result.error.message)
+      return
     }
+
+    console.log('Transaction sent:', result.value)
   }
   
   return (
@@ -1507,7 +1496,7 @@ The codebase uses `neverthrow` for functional error handling with `Result` types
 1. Use `Result<T, E>` for sync operations, `ResultAsync<T, E>` for async
 2. Create specific error classes extending `TaggedError`
 3. Always handle both success and error cases explicitly
-4. **NEVER mix Result with try-catch**
+4. **Code that handles a Result has no try/catch.** Turn each throwing or rejecting call into a Result at the call site with `ResultAsync.fromPromise` or `Result.fromThrowable`. A plain try/catch is allowed only in a handler that touches no Result.
 
 ### Creating Result Functions
 
@@ -1646,7 +1635,7 @@ const handleSubmit = async () => {
   )
 }
 
-// ✅ ALSO GOOD: try-catch when helper throws
+// ✅ ALSO GOOD: try-catch in a handler that touches no Result
 const handleSubmit = async () => {
   try {
     await sendTransaction(params)
@@ -3244,17 +3233,17 @@ routes/
 ```typescript
 // routes/$name.tsx
 import { createFileRoute } from '@tanstack/react-router'
+import * as v from 'valibot'
 
 export const Route = createFileRoute('/$name')({
-  // Type-safe params
-  validateSearch: (search) => ({
-    tab: (search.tab as 'profile' | 'records') || 'profile',
+  // Search params are validated at the route, never cast
+  validateSearch: v.object({
+    tab: v.optional(v.picklist(['profile', 'records']), 'profile'),
   }),
   
-  // Load data before rendering
-  loader: async ({ params: { name } }) => {
-    return await getProfile(name)
-  },
+  // Load data before rendering, through the query cache
+  loader: ({ context: { queryClient }, params: { name } }) =>
+    queryClient.ensureQueryData(getProfileQueryOptions(name)),
   
   // Component
   component: function NamePage() {
@@ -3669,7 +3658,8 @@ describe('calculateRenewalPrice', () => {
   it('should handle invalid names', async () => {
     const result = await calculateRenewalPrice('', YEAR_IN_SECONDS)
     assert(result.isErr())
-    expect(result.error).toBeInstanceOf(InvalidNameError)
+    expect(result.error._tag).toBe('InvalidNameError')
+    expect(result.error.input).toBe('')
   })
 })
 ```
@@ -3822,7 +3812,7 @@ const data: any = externalLibrary.getData()
 16. **Use neverthrow** - Functional error handling with `Result` types (🔴 Must)
 17. **TaggedError classes** - For discriminated error unions (🟡 Default)
 18. **ResultFn generators** - For clean error composition (🟡 Default)
-19. **Never mix Result with try-catch** - Choose one approach (🔴 Must)
+19. **No try/catch where a Result is handled** - Turn throwing calls into Results with `ResultAsync.fromPromise` or `Result.fromThrowable` (🔴 Must)
 
 #### React Patterns
 
@@ -3932,7 +3922,7 @@ Ask yourself these questions when writing code:
 6. **Using `any` type** - Use `unknown` or `Record<string, unknown>`
 7. **Losing type information** - Use generics to preserve types
 8. **Mutating data you did not create** - Build a new value instead
-9. **Mixing Result with try-catch** - Choose one approach
+9. **try/catch in code that handles a Result** - Turn the throwing call into a Result at the call site
 10. **Non-null assertions (`!`)** - Use type guards or optional chaining
 11. **Complex nested conditionals** - Use pattern matching
 12. **Magic numbers and strings** - Extract to named constants
