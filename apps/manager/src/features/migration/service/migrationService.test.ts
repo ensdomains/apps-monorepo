@@ -117,7 +117,7 @@ import type {
   BuildAtomicMigrationBatchesParams,
 } from './buildAtomicMigrationBatches'
 import { buildMigrationHelperCall } from './buildMigrationHelperCall'
-import type { MigrationPlan } from './buildMigrationPlan'
+import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import { buildStepDescriptors } from './buildStepDescriptors'
 import type { ClassifiedName, CopyClassifiedName } from './classifyNames'
 import { groupClassifiedNames } from './classifyNames'
@@ -716,6 +716,63 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it('allows only one same-scope execution to reach wallet submission', async () => {
+    await Promise.allSettled([runExecute(), runExecute()])
+
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+  })
+
+  it('keeps retry operations when equivalent classifications were rehydrated', () => {
+    const alice = classifiedFor('alice')
+    const bob = classifiedFor('bob')
+    const original = planFromClassified([alice, bob])
+    const rehydratedBob = { ...bob, domain: { ...bob.domain } }
+    const rehydratedPlan = {
+      ...original,
+      classified: [alice, rehydratedBob],
+      groups: groupClassifiedNames([alice, rehydratedBob]),
+    }
+
+    const adjusted = adjustPlanForRetry(rehydratedPlan, [alice.domain.name])
+
+    expect(adjusted.classified.map(({ domain }) => domain.name)).toEqual([
+      bob.domain.name,
+    ])
+    expect(adjusted.atomicBatches.flatMap(({ names }) => names)).toEqual([
+      bob.domain.name,
+    ])
+  })
+
+  it('keeps a journaled hash locked when its receipt is unavailable', async () => {
+    const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+    persistSubmittedAtomicMigrationBatch(scope, {
+      intentId: 'receipt-unavailable',
+      hash: hashFor(9),
+      names: ['alice.eth'],
+      operations: [{ name: 'alice.eth', action: 'migrate' }],
+    })
+    getTransactionReceiptMock.mockRejectedValueOnce(
+      new Error('RPC unavailable'),
+    )
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValueOnce({
+      status: 'incomplete',
+      verification: {
+        batchIndex: 0,
+        status: 'confirmed',
+        results: [{ expectationId: 'alice.eth:name-owner', satisfied: false }],
+      },
+      mismatches: [{ expectationId: 'alice.eth:name-owner' }],
+    })
+
+    await expect(
+      runExecute({ reconcileBeforeSubmit: true }),
+    ).rejects.toMatchObject({
+      cause: { name: 'SubmittedAtomicMigrationIndeterminateError' },
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(1)
+  })
+
   it('counts live split batches before their prompts and emits completion after both verify', async () => {
     const preview = planFor(['alice', 'bob'])
     const plan = {
