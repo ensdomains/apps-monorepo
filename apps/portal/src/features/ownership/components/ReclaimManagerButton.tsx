@@ -7,9 +7,10 @@ import type { Address } from 'viem'
 import { ShieldPersonIcon } from '@/assets/icons'
 import { Button } from '@/components/ui/button'
 import {
-  prepareReclaimManagerTransaction,
-  useReclaimManagerMutation,
-} from '@/features/ownership/hooks/useReclaimManagerMutation'
+  prepareChangeManagerTransaction,
+  useChangeManagerMutation,
+  type V1ManagerChange,
+} from '@/features/ownership/hooks/useChangeManagerMutation'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
   isTransactionInFlight,
@@ -50,9 +51,15 @@ export const ReclaimManagerButton = ({
   // Scoped to this flow's own id: the cancel below must never reach another
   // flow's entry in the manager.
   const reclaimTxState = useActiveTransactionState(id)
-  const { mutate: reclaimManager } = useReclaimManagerMutation({ name, id })
+  const { mutate: changeManager } = useChangeManagerMutation({
+    name,
+    id,
+    description: `Reclaim manager role - ${name}`,
+  })
 
   if (!account || !canReclaimV1Manager(v1State, account)) return null
+
+  const reclaim: V1ManagerChange = { manager: account, authority: 'registrant' }
 
   return (
     <>
@@ -71,27 +78,30 @@ export const ReclaimManagerButton = ({
         <ShieldPersonIcon className="size-4" />
         Reclaim manager
       </Button>
-      <TransactionModal
-        transactions={[
-          {
-            id,
-            title: 'Reclaim manager role',
-            transactionName: `Reclaim manager role - ${name}`,
-            // Fully determined by the name and the connected wallet, so the
-            // modal can estimate gas the moment it opens.
-            intent: {
-              prepare: (ctx) =>
-                prepareReclaimManagerTransaction({ ...ctx, name, account }),
+      {/* Mounted only during a reclaim: the modal's open state is shared with Change manager's. */}
+      {attempt.scope && (
+        <TransactionModal
+          transactions={[
+            {
+              id,
+              title: 'Reclaim manager role',
+              transactionName: `Reclaim manager role - ${name}`,
+              // Fully determined by the name and the connected wallet, so the
+              // modal can estimate gas the moment it opens.
+              intent: {
+                prepare: (ctx) =>
+                  prepareChangeManagerTransaction({ ...ctx, ...reclaim, name }),
+              },
+              onStart: () => changeManager(reclaim),
+              onDone: () => {
+                closeModal()
+                clearTransaction()
+                attempt.end()
+              },
             },
-            onStart: () => reclaimManager(),
-            onDone: () => {
-              closeModal()
-              clearTransaction()
-              attempt.end()
-            },
-          },
-        ]}
-      />
+          ]}
+        />
+      )}
     </>
   )
 }

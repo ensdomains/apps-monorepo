@@ -1,4 +1,4 @@
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
 import type { V1ParentState, V1TransferSubject } from '../types'
 import type { V1NameState } from './getV1NameState'
@@ -6,6 +6,8 @@ import {
   canReclaimV1Manager,
   getV1DetachTargets,
   getV1Holder,
+  getV1ManagerCandidateIssue,
+  getV1ManagerChangeGate,
   getV1ParentPowers,
   getV1TransferGate,
 } from './rules'
@@ -502,5 +504,59 @@ describe('canReclaimV1Manager', () => {
   it('refuses with no state or no connected wallet', () => {
     expect(canReclaimV1Manager(null, ME)).toBe(false)
     expect(canReclaimV1Manager(state(registrar(), live), undefined)).toBe(false)
+  })
+})
+
+describe('getV1ManagerChangeGate', () => {
+  const live = { registration: 'active' } as const
+
+  it.each([
+    [
+      'the registrant, whoever manages it',
+      state(registrar(ME, OTHER), live),
+      { authority: 'registrant', currentManager: OTHER },
+    ],
+    [
+      'the registrant who also manages it',
+      state(registrar(ME, ME), live),
+      { authority: 'registrant', currentManager: ME },
+    ],
+    [
+      'the registrant of a name with no manager',
+      state(registrar(ME, null), live),
+      { authority: 'registrant', currentManager: null },
+    ],
+    [
+      'a manager who holds no token',
+      state(registrar(OTHER, ME), live),
+      { authority: 'controller', currentManager: ME },
+    ],
+    ['a stranger', state(registrar(OTHER, OTHER), live), null],
+    [
+      'the owner in grace',
+      state(registrar(), { registration: 'gracePeriod' }),
+      null,
+    ],
+    ['the owner of a wrapped name', state(wrapped({}, null, ME), live), null],
+  ] as const)('answers %s', (_, nameState, expected) => {
+    expect(getV1ManagerChangeGate(nameState, ME)).toEqual(expected)
+  })
+
+  it('has no answer without state or a connected wallet', () => {
+    expect(getV1ManagerChangeGate(null, ME)).toBeNull()
+    expect(
+      getV1ManagerChangeGate(state(registrar(), live), undefined),
+    ).toBeNull()
+  })
+})
+
+describe('getV1ManagerCandidateIssue', () => {
+  it.each([
+    ['the zero address', zeroAddress, OTHER, 'zero-address'],
+    ['the current manager', OTHER, OTHER, 'already-manager'],
+    ['another wallet', ME, OTHER, null],
+    ['anyone when nobody manages it', OTHER, null, null],
+  ] as const)('answers %s', (_, candidate, currentManager, expected) => {
+    expect(getV1ManagerCandidateIssue(candidate, currentManager)).toBe(expected)
   })
 })

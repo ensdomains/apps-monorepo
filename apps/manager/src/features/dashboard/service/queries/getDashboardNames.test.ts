@@ -45,6 +45,7 @@ const summary = (
   relations: ['owner'],
   isPrimary: false,
   isMigrated: false,
+  isWrapped: false,
   registrationStatus: 'active',
   expiresAt: new Date('2027-01-01T00:00:00Z'),
   servedExpiry: null,

@@ -23,6 +23,7 @@ const summary = (
   relations: ['owner'],
   isPrimary: false,
   isMigrated: false,
+  isWrapped: false,
   registrationStatus,
   expiresAt: null,
   servedExpiry: null,
