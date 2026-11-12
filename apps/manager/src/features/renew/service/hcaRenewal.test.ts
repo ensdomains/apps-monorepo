@@ -570,6 +570,25 @@ describe('submitHcaRenewal paid from an L2', () => {
     expect(fundingParams()).toMatchObject({ hcaBalanceAtLeast: 2_125_000n })
   })
 
+  it('bridges, reads and renews in the USDC the bridge delivers', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+
+    await submitHcaRenewal({
+      ...params,
+      l2Funding: { source, displayedCharge: 2_100_000n },
+      paymentToken: circleUsdc,
+    })
+
+    expect(mocks.readHcaUsdcBalanceActor).toHaveBeenCalledWith(
+      expect.objectContaining({ token: circleUsdc }),
+    )
+    expect(bridged()).toMatchObject({ paymentToken: circleUsdc })
+    expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
+      expect.objectContaining({ atLeast: 2_125_000n, token: circleUsdc }),
+    )
+    expect(fundingParams()).toMatchObject({ paymentToken: circleUsdc })
+  })
+
   it('sends nothing from the L2 when the account already covers the renewal', async () => {
     mocks.readHcaUsdcBalanceActor.mockReturnValue(okAsync(5_000_000n))
 
@@ -824,6 +843,21 @@ describe('submitHcaRenewal paid with ETH', () => {
     // The wallet still pays by permit, so the debit shown is still checked.
     expect(fundingParams()).toMatchObject({ displayedDebit })
     expect(readPendingEthSwap(params.chainId, OWNER)).toBeUndefined()
+  })
+
+  it('pays the renewal in the USDC the swap buys', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+
+    await submitHcaRenewal({ ...params, ethFunding, paymentToken: circleUsdc })
+
+    expect(mocks.readHcaUsdcBalanceAtLeastActor).toHaveBeenCalledWith(
+      expect.objectContaining({ hca: OWNER, token: circleUsdc }),
+    )
+    expect(fundingParams()).toMatchObject({
+      paymentToken: circleUsdc,
+      tokenSpend: { token: circleUsdc },
+    })
+    expect(actionCalls()?.[0]?.to).toBe(circleUsdc)
   })
 
   it('counts a swap an earlier attempt sent instead of buying again', async () => {

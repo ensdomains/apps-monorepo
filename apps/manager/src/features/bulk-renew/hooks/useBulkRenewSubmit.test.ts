@@ -326,8 +326,30 @@ describe('useBulkRenewSubmit (smart account)', () => {
     })
     // The bridge funded the account, so no chunk pays from the L2 again.
     expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+    // Every chunk pays in the USDC the bridge delivered: Circle's, on Sepolia.
+    const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    expect(funding.paymentToken).toBe(circleUsdc)
     for (const [input] of mocks.submitHcaRenewal.mock.calls) {
       expect(input).not.toHaveProperty('l2Funding')
+      expect(input.paymentToken).toBe(circleUsdc)
+    }
+  })
+
+  // Say a retry once the bridge landed: the chosen L2 has nothing left to send.
+  it('renews a chosen L2 with nothing to bridge in the Circle USDC the account holds', async () => {
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit({ ...args, isCirclePayment: true })
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(mocks.fundHcaRenewalsFromL2).not.toHaveBeenCalled()
+    expect(mocks.submitHcaRenewal).toHaveBeenCalled()
+    for (const [input] of mocks.submitHcaRenewal.mock.calls) {
+      expect(input.paymentToken).toBe(
+        '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+      )
     }
   })
 
@@ -354,8 +376,12 @@ describe('useBulkRenewSubmit (smart account)', () => {
     ])
     expect(funding.ethFunding).toEqual({ displayedCharge: 10n ** 16n })
     expect(intentLabels().map((labels) => labels.length)).toEqual([25, 1])
+    // Every chunk pays in the USDC the swap bought: Circle's, on Sepolia.
+    const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    expect(funding.paymentToken).toBe(circleUsdc)
     for (const [input] of mocks.submitHcaRenewal.mock.calls) {
       expect(input).not.toHaveProperty('ethFunding')
+      expect(input.paymentToken).toBe(circleUsdc)
     }
   })
 

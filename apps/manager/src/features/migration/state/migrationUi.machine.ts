@@ -16,6 +16,7 @@ import {
 } from '@/features/migration/service/buildMigrationPlan'
 import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import {
+  canRetryMigration,
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
@@ -486,9 +487,19 @@ export const migrationUiMachine = setup({
         ),
       }
     }),
-    setProgress: assign({
-      progress: ({ event, context }) =>
-        event.type === 'migration.progress' ? event.progress : context.progress,
+    setProgress: assign(({ event, context }) => {
+      if (event.type !== 'migration.progress') return {}
+      return {
+        progress: event.progress,
+        stepDescriptors: event.progress.stepDescriptors
+          ? [
+              ...(context.renewedDomains
+                ? renewalStepsOf(context.stepDescriptors)
+                : []),
+              ...event.progress.stepDescriptors,
+            ]
+          : context.stepDescriptors,
+      }
     }),
     appendBatchComplete: assign(({ event, context }) => {
       if (event.type !== 'migration.batchComplete') return {}
@@ -786,17 +797,20 @@ export const migrationUiMachine = setup({
       on: {
         retry: [
           {
-            guard: ({ context }) => !!context.plan,
+            guard: ({ context }) =>
+              !!context.plan && canRetryMigration(context.lastError),
             target: 'migrate.running',
             actions: ['analyticsRetry', 'resetForRetry'],
           },
           {
-            guard: ({ context }) => !!context.renewedDomains,
+            guard: ({ context }) =>
+              !!context.renewedDomains && canRetryMigration(context.lastError),
             target: 'migrate.preparing',
             actions: ['analyticsRetry', assign({ lastError: undefined })],
           },
           {
-            guard: ({ context }) => !!context.renewal,
+            guard: ({ context }) =>
+              !!context.renewal && canRetryMigration(context.lastError),
             target: 'migrate.renewing',
             actions: ['analyticsRetry', assign({ lastError: undefined })],
           },

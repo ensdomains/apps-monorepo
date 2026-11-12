@@ -5,10 +5,12 @@ import { createContext, use, useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
 import {
   type AnalyticsView,
   useAnalyticsFlowView,
 } from '@/lib/posthog/useAnalyticsFlowView'
+import { useHcaFundingPrompt } from '@/lib/smart-account/useHcaFundingPrompt'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -66,9 +68,25 @@ export const RegistrationV2UiProvider = ({
   children: React.ReactNode
   label: string
 }) => {
+  const {
+    confirmApproval,
+    confirmApprovalRecovery,
+    approvalState,
+    onApprovalState,
+    approve,
+    decline,
+  } = useHcaFundingPrompt()
   const chainId = useChainId()
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
-    input: { chainId, analyticsName: `${label}.eth` },
+    input: {
+      chainId,
+      analyticsName: `${label}.eth`,
+      approvalFallback: {
+        confirmApproval,
+        confirmApprovalRecovery,
+        onState: onApprovalState,
+      },
+    },
   })
 
   useAnalyticsFlowView(registrationV2UiActor, getAnalyticsView)
@@ -175,6 +193,12 @@ export const RegistrationV2UiProvider = ({
       }}
     >
       {children}
+      <HcaFundingApprovalDialog
+        onApprove={approve}
+        onDecline={decline}
+        operation="registration"
+        state={approvalState}
+      />
     </RegistrationV2UiContext2.Provider>
   )
 }
