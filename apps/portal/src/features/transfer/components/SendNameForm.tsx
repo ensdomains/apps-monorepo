@@ -818,7 +818,7 @@ const RecipientResolvedContent = ({
     ))
     .otherwise(() => null)
 
-const RecipientPreview = ({ address }: { address: Address }) => {
+export const RecipientPreview = ({ address }: { address: Address }) => {
   const { data: primaryName, isLoading } = useQuery(
     getPrimaryNameQueryOptions(address),
   )
