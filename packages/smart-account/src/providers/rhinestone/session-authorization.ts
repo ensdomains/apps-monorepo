@@ -9,6 +9,7 @@ import {
   hexToNumber,
   isAddressEqual,
   keccak256,
+  maxUint64,
   recoverAddress,
   size,
   slice,
@@ -52,6 +53,10 @@ export const getSessionAuthorizationDigest = (
   )
 }
 
+/** A stored digest the validator could decode: a uint64 chain id and a 32-byte session digest. */
+const isEncodableChainDigest = ({ chainId, sessionDigest }: ChainDigest) =>
+  chainId >= 0n && chainId <= maxUint64 && size(sessionDigest) === 32
+
 /** The signer the validator recovers, or `null` where it would recover none. */
 const recoverValidatorSigner = async (
   digest: Hex,
@@ -78,6 +83,7 @@ export const isOwnerSessionAuthorization = async (params: {
   readonly userSignature: Hex
 }): Promise<boolean> => {
   if (
+    !params.hashesAndChainIds.every(isEncodableChainDigest) ||
     size(params.userSignature) !== VALIDATOR_PREFIX_LENGTH + SIGNATURE_LENGTH ||
     !isAddressEqual(
       slice(params.userSignature, 0, VALIDATOR_PREFIX_LENGTH),

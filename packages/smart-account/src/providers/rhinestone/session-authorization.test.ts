@@ -146,3 +146,32 @@ describe('isOwnerSessionAuthorization', () => {
     ).toBe(expected)
   })
 })
+
+describe('isOwnerSessionAuthorization with malformed stored digests', () => {
+  it.each([
+    [
+      'a short session digest',
+      [{ chainId: BigInt(sepolia.id), sessionDigest: '0x1234' }],
+    ],
+    [
+      'a chain id beyond uint64',
+      [
+        {
+          chainId: 2n ** 64n,
+          sessionDigest: HASHES_AND_CHAIN_IDS[0].sessionDigest,
+        },
+      ],
+    ],
+  ] as const)(
+    'is false, without throwing, for %s',
+    async (_, hashesAndChainIds) => {
+      expect(
+        await isOwnerSessionAuthorization({
+          owner: OWNER.address,
+          hashesAndChainIds,
+          userSignature: asUserSignature(await ownerSignature()),
+        }),
+      ).toBe(false)
+    },
+  )
+})
