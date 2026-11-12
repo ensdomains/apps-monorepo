@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 type PriceCooldownBannerHeaderProps = {
   periodDays: number
@@ -23,7 +23,7 @@ const CooldownDescription = ({
   className?: string
 }) => (
   <p
-    className={tw(
+    className={cn(
       'text-[#3f3f3e] text-sm leading-[1.2] tracking-wide',
       className,
     )}
@@ -43,7 +43,7 @@ export const PriceCooldownBannerHeader = ({
     <HourglassIcon />
     <div className="flex min-w-0 flex-1 flex-col gap-1.5 md:gap-3">
       <h2
-        className={tw(
+        className={cn(
           'font-normal text-[#353535] leading-[1.1] tracking-tight',
           'text-base md:text-xl',
         )}
