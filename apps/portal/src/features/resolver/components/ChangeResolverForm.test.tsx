@@ -1,8 +1,10 @@
+import { LATEST_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireResourceIdForName } from '@/lib/resource/resourceId'
+import { ensChain } from '@/lib/wagmi'
 import { ChangeResolverForm } from './ChangeResolverForm'
 
 // Captures the transaction descriptors so the tests can drive the lifecycle
@@ -380,5 +382,40 @@ describe('ChangeResolverForm', () => {
       to: '/$name/resolver',
       params: { name },
     })
+  })
+
+  it('sets the latest public resolver on a V1 name in one click', async () => {
+    const user = userEvent.setup()
+    render(
+      <ChangeResolverForm
+        name={name}
+        target={{ protocol: 'ENSv1', isWrapped: false }}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: 'Use the latest resolver' }),
+    )
+
+    expect(screen.getByLabelText(/Contract address/i)).toHaveValue(
+      LATEST_V1_PUBLIC_RESOLVERS[ensChain.id],
+    )
+    transactionById('tx-change-resolver')?.onStart?.()
+    expect(mockChangeResolver).toHaveBeenCalledWith(
+      LATEST_V1_PUBLIC_RESOLVERS[ensChain.id],
+    )
+  })
+
+  it('does not offer the V1 public resolver to a V2 name', async () => {
+    const user = userEvent.setup()
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Use the latest resolver' }),
+    ).not.toBeInTheDocument()
   })
 })
