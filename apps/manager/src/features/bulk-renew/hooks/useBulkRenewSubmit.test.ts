@@ -177,6 +177,7 @@ describe('useBulkRenewSubmit (smart account)', () => {
 
     expect(result.current.phase).toBe('error')
     expect(result.current.errorMessage).toBe(WALLET_REQUIRED_MESSAGE)
+    expect(mocks.capture).not.toHaveBeenCalled()
     expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
     expect(mocks.submitRenewBatchActor).not.toHaveBeenCalled()
   })
@@ -195,6 +196,7 @@ describe('useBulkRenewSubmit (smart account)', () => {
 
     expect(result.current.phase).toBe('error')
     expect(result.current.errorMessage).toBe(ACCOUNT_LOADING_MESSAGE)
+    expect(mocks.capture).not.toHaveBeenCalled()
     expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
     expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
     expect(mocks.submitRenewBatchActor).not.toHaveBeenCalled()

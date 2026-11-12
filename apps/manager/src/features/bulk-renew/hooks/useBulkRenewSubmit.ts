@@ -699,8 +699,6 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const runId = runIdRef.current
     const isCurrent = () => runIdRef.current === runId
 
-    beginAnalytics(items.length)
-
     const hca = resolveHcaContext(account, signer, token)
     const ctx = resolveContext(signer, token)
     if (!hca && !ctx) {
@@ -712,6 +710,8 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       setPhase('error')
       return
     }
+
+    beginAnalytics(items.length)
 
     // A failed run may have renewed names it never recorded, so a retry
     // re-reads their expiries before paying again.
