@@ -478,6 +478,15 @@ export const STANDALONE_INTENT_PERMIT_PURPOSE: PermitPurpose = {
     'what the smart account already holds.',
 }
 
+/** What a leg's pull pays for, as a wallet too short for it is told. */
+type FundingLegPays = 'network-fee' | 'cost' | 'cost-and-network-fee'
+
+const FUNDING_LEG_PAYS_COPY: Readonly<Record<FundingLegPays, string>> = {
+  'network-fee': 'to pay the network fee',
+  cost: 'to cover its cost',
+  'cost-and-network-fee': 'to cover its cost and the network fee',
+}
+
 /** One token the wallet tops the HCA up with. */
 type FundingLeg = {
   readonly token: Address
@@ -485,6 +494,7 @@ type FundingLeg = {
   readonly decimals: number
   /** What the HCA is short of this token. */
   readonly shortfall: bigint
+  readonly pays: FundingLegPays
   /** `false` when a standing allowance on the wallet already covers the pull. */
   readonly requiresPermit: boolean
   readonly permitKind: PermitKind
@@ -516,8 +526,8 @@ async function planFundingLeg(
   if (walletBalance < leg.shortfall) {
     throw new Error(
       `This action needs ${formatUnits(leg.shortfall, leg.decimals)} ` +
-        `${leg.symbol} moved into the smart account, but the connected ` +
-        `wallet holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`,
+        `${leg.symbol} ${FUNDING_LEG_PAYS_COPY[leg.pays]}, but your wallet ` +
+        `holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`,
     )
   }
   return { ...leg, requiresPermit: allowance < leg.shortfall }
@@ -1053,6 +1063,7 @@ async function fundShortfalls(
           symbol: 'USDC',
           decimals: 6,
           shortfall: usdcShortfall,
+          pays: requiredUsdc > 0n ? 'cost-and-network-fee' : 'network-fee',
           permitKind: 'eip2612',
         })
       : null
@@ -1063,6 +1074,7 @@ async function fundShortfalls(
           symbol: otherSpend.symbol,
           decimals: otherSpend.decimals,
           shortfall: quoted.tokenShortfall,
+          pays: 'cost',
           permitKind: otherSpend.permitKind ?? 'eip2612',
         })
       : null
