@@ -187,6 +187,8 @@ export interface SubmitHcaRenewalParams {
   readonly l2Funding?: HcaRenewalL2Funding
   /** Swap the wallet's ETH for the USDC its permit moves, before the funding is planned. */
   readonly ethFunding?: HcaRenewalEthFunding
+  /** The USDC the renewal and its fee are paid in when not the deployment's: the one ETH buys. */
+  readonly paymentToken?: Address
 }
 
 /** The batch's price, read now: the renewer charges exactly this, as its rates are fixed. */
@@ -220,6 +222,7 @@ const buildRenewalIntent = async (params: {
   readonly hca: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  readonly paymentToken?: Address
 }): Promise<RenewalIntent> => {
   const { items, renewerAddress, protocol, token, hca, publicClient } = params
   const [first, ...rest] = items
@@ -227,7 +230,7 @@ const buildRenewalIntent = async (params: {
     throw new Error('A renewal intent needs at least one name.')
   }
   const single = rest.length === 0 ? first : undefined
-  const tokenAddress = TOKENS[token].address
+  const tokenAddress = params.paymentToken ?? TOKENS[token].address
 
   // Unwrapped at this promise boundary: the service reports failures by
   // rejecting, and the reads themselves are composed as one Result.
@@ -360,6 +363,8 @@ const awaitHcaBalance = ResultFn(async function* (params: {
   readonly publicClient: PublicClient
   readonly chainId: number
   readonly atLeast: bigint
+  /** The USDC the bridge delivers. Defaults to the deployment's. */
+  readonly token?: Address
 }) {
   const balance = yield* readHcaUsdcBalanceAtLeastActor(params)
   return balance >= params.atLeast
@@ -383,8 +388,10 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
   readonly hca: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  /** The USDC bridges deliver. Defaults to the deployment's. */
+  readonly token?: Address
 }) {
-  const { hca, publicClient, chainId } = params
+  const { hca, publicClient, chainId, token } = params
   const pending = readPendingL2Bridge(chainId, hca)
   if (!pending) return ok(undefined)
 
@@ -398,6 +405,7 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
       hca,
       publicClient,
       chainId,
+      token,
       atLeast: pending.fundsHcaTo,
     })
   }
@@ -415,8 +423,9 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
   readonly hca: Address
   /** Why nothing is paid when a fee can't be quoted. */
   readonly unpricedMessage: string
+  readonly paymentToken?: Address
 }) {
-  const { intents, signer, publicClient, chainId, hca } = params
+  const { intents, signer, publicClient, chainId, hca, paymentToken } = params
   const fees = yield* ResultAsync.combine(
     intents.map((intent) =>
       fromPromise(
@@ -429,6 +438,7 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
           requiredUsdc: intent.rentTotal,
           gasLimit: intent.gasLimit,
           feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
+          paymentToken,
         }),
         toError,
       ),
@@ -448,6 +458,7 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
     hca,
     publicClient,
     chainId,
+    token: paymentToken,
   })
   const amount = getL2RenewalAmountOut({
     rentTotal: intents.reduce((sum, intent) => sum + intent.rentTotal, 0n),
@@ -471,8 +482,10 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
   readonly ownerAddress: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  /** The USDC the bridge delivers and the renewal pays in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
 }) {
-  const { l2Funding, signer, publicClient, chainId } = params
+  const { l2Funding, signer, publicClient, chainId, paymentToken } = params
   const { source } = l2Funding
   if (params.token !== 'USDC') {
     return err(
@@ -481,7 +494,12 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
   }
 
   const hca = getSmartAccountAddress(signer)
-  yield* settlePendingL2Bridge({ hca, publicClient, chainId })
+  yield* settlePendingL2Bridge({
+    hca,
+    publicClient,
+    chainId,
+    token: paymentToken,
+  })
 
   const { amount, hcaBalance } = yield* sizeRenewalShortfall({
     ...params,
@@ -503,10 +521,17 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
         fundsHcaTo,
       })
     },
+    paymentToken,
   })
   yield* fromPromise(waitForTransaction(txId), toError)
   // A lagging read would otherwise ask the wallet to fund it all over again.
-  yield* awaitHcaBalance({ hca, publicClient, chainId, atLeast: fundsHcaTo })
+  yield* awaitHcaBalance({
+    hca,
+    publicClient,
+    chainId,
+    atLeast: fundsHcaTo,
+    token: paymentToken,
+  })
   clearPendingL2Bridge(chainId, hca)
   return ok(fundsHcaTo)
 })
@@ -665,6 +690,7 @@ const prefundRenewal = ResultFn(async function* (
       ownerAddress,
       publicClient,
       chainId,
+      paymentToken: params.paymentToken,
     })
     return ok<bigint | undefined>(balance)
   }
@@ -738,6 +764,7 @@ export async function submitHcaRenewal(
       hca,
       publicClient,
       chainId,
+      paymentToken: params.paymentToken,
     })
 
   // Owner-signed on purpose: `renew` is not one of the calls
@@ -775,6 +802,7 @@ export async function submitHcaRenewal(
     },
     gasLimit,
     feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
+    paymentToken: params.paymentToken,
     ...(hcaBalanceAtLeast === undefined ? {} : { hcaBalanceAtLeast }),
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
     ...fundingConsent(params),

@@ -28,7 +28,8 @@ const OWNER: Address = '0x1111111111111111111111111111111111111111'
 const OTHER_OWNER: Address = '0x2222222222222222222222222222222222222222'
 
 const NOW_SEC = Math.floor(Date.now() / 1000)
-const SESSION_STORAGE_KEY = 'ens-sessions-v10'
+const SESSION_STORAGE_KEY = 'ens-sessions-v11'
+const CIRCLE_USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 
 function makeSession(
   overrides: Partial<RhinestoneStoredSession> = {},
@@ -226,6 +227,19 @@ describe('session-storage', () => {
     saveSession(b)
     expect(getSession(HCA_A)?.id).toBe(a.id)
     expect(getSession(HCA_B)?.id).toBe(b.id)
+  })
+
+  it('keeps one session per refund token for an account', () => {
+    const usdc = makeSession()
+    const circle = makeSession({ refundToken: CIRCLE_USDC })
+    saveSession(usdc)
+    saveSession(circle)
+    expect(getSession(HCA_A)?.id).toBe(usdc.id)
+    expect(getSession(HCA_A, CIRCLE_USDC)?.id).toBe(circle.id)
+
+    // Revocation bumps one nonce for every token, so forgetting drops both.
+    removeSession(HCA_A)
+    expect(getAllSessions()).toEqual([])
   })
 
   it('removes by account and by owner', () => {

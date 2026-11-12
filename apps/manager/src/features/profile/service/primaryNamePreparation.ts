@@ -1,6 +1,8 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getResolver } from '@ensdomains/ensjs/public'
+import { erc165SupportsInterfaceSnippet } from '@ensdomains/ensjs-abi/erc165'
 import { fromPromise } from 'neverthrow'
 import { match } from 'ts-pattern'
 import {
@@ -39,6 +41,8 @@ export type PrimaryNamePreparation =
       readonly hasResolver: boolean
       /** Its records come from an outside gateway, so only that provider can set them. */
       readonly hasOffchainResolver: boolean
+      /** The resolver being replaced is not a working resolver. */
+      readonly isResolverInvalid: boolean
     }
 
 /** An ENSv1 resolver that resolution no longer reaches, e.g. under an expired parent. */
@@ -146,6 +150,75 @@ export const getUnreachableV1NameQueryOptions = (
       ),
   })
 
+/**
+ * ERC-165 ids a working resolver reports at least one of: `addr`, multicoin
+ * `addr`, `text`, `contenthash` (V1 and public resolvers) or
+ * `IExtendedResolver` (the V2 PermissionedResolver reports only this).
+ */
+const RESOLVER_INTERFACE_IDS = [
+  '0x3b3b57de',
+  '0xf1cb7e06',
+  '0x59d1d43c',
+  '0xbc1c58d1',
+  '0x9061b923',
+] as const
+
+/** One `supportsInterface` answer from the multicall; a revert is a failure. */
+export type InterfaceProbeResult =
+  | { readonly status: 'success'; readonly result: boolean }
+  | { readonly status: 'failure' }
+
+/**
+ * Whether the ERC-165 answers come from a resolver: at least one of the
+ * resolver ids answered `true`. An EOA or a contract that is not a resolver
+ * answers none, whether it reverts or returns false.
+ */
+export const answersAsResolver = (
+  results: readonly InterfaceProbeResult[],
+): boolean =>
+  results.some((result) => result.status === 'success' && result.result)
+
+/**
+ * Whether `address` answers as a resolver. An EOA, or a contract that is not a
+ * resolver, answers none of the ids; an RPC failure throws.
+ */
+const isWorkingResolver = async (
+  publicClient: PublicClient,
+  address: Address,
+): Promise<boolean> => {
+  const results = await publicClient.multicall({
+    contracts: RESOLVER_INTERFACE_IDS.map((interfaceId) => ({
+      address,
+      abi: erc165SupportsInterfaceSnippet,
+      functionName: 'supportsInterface' as const,
+      args: [interfaceId] as const,
+    })),
+    allowFailure: true,
+  })
+  return answersAsResolver(results)
+}
+
+type ResolverPointerClient = Parameters<typeof getResolver>[0]
+
+/** ensjs reads the pointer through the UniversalResolver, so the chain must name it. */
+const hasUniversalResolver = (
+  client: PublicClient,
+): client is PublicClient & ResolverPointerClient =>
+  client.chain?.contracts?.ensUniversalResolver !== undefined
+
+/**
+ * The name's resolver pointer, past ENSv2's mirror of an ENSv1 name, even when
+ * it is not a contract the UniversalResolver can call.
+ */
+const readResolverPointer = async (
+  publicClient: PublicClient,
+  name: string,
+): Promise<Address | undefined> => {
+  if (!hasUniversalResolver(publicClient))
+    throw new Error('No ENS UniversalResolver is configured for this network')
+  return (await getResolver(publicClient, { name })) ?? undefined
+}
+
 /** Decide from fresh chain reads, not cached profile records or indexer hints. */
 export async function getPrimaryNamePreparation(
   publicClient: PublicClient,
@@ -170,6 +243,14 @@ export async function getPrimaryNamePreparation(
     return { kind: 'update-eth-address', existingEthAddress, resolverAddress }
   }
 
+  // Only a resolver the wallet cannot write needs telling apart from a
+  // non-resolver. With none reached, the pointer may still be set: the
+  // UniversalResolver reports no resolver when it is not a contract.
+  const pointer =
+    resolverAddress ?? (await readResolverPointer(publicClient, name))
+  const isResolverInvalid =
+    pointer !== undefined && !(await isWorkingResolver(publicClient, pointer))
+
   return {
     kind: 'setup-resolver',
     existingEthAddress,
@@ -178,5 +259,6 @@ export async function getPrimaryNamePreparation(
     hasOffchainResolver:
       resolverAddress !== undefined &&
       (await isOffchainResolver(publicClient, resolverAddress, name)),
+    isResolverInvalid,
   }
 }
