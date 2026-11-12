@@ -75,11 +75,8 @@ vi.mock('@/features/profile/components/ExpiryWithRegistrationData', () => ({
 vi.mock('@/features/profile/components/ParentName', () => ({
   ParentName: () => null,
 }))
-vi.mock('@/features/ownership/components/ReclaimManagerButton', () => ({
-  ReclaimManagerButton: () => null,
-}))
-vi.mock('@/features/ownership/components/ChangeManagerButton', () => ({
-  ChangeManagerButton: () => null,
+vi.mock('@/features/ownership/components/ManagerActions', () => ({
+  ManagerActions: () => null,
 }))
 vi.mock('@/features/ownership/components/V1NameManagerRecord', () => ({
   V1NameManagerRecord: () => <div data-testid="manager-row" />,
