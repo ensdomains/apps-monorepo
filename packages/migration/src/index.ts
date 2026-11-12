@@ -4,6 +4,7 @@ export {
   isKnownPublicResolver,
   isLegacyContentPublicResolver,
   isSupportedRecordResolver,
+  LATEST_V1_PUBLIC_RESOLVERS,
 } from './contracts/knownResolvers'
 export {
   type ClassifiedName,

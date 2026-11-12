@@ -26,6 +26,12 @@ export const isAddressOnlyResolver = (
     isAddressEqual(known, address as Address),
   )
 
+// Newest V1 PublicResolver (default addresses); ensjs's `ensPublicResolver` is the one before it.
+export const LATEST_V1_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, Address> = {
+  [supportedL1Chains.mainnet]: '0xF29100983E058B709F3D539b0c765937B804AC15',
+  [supportedL1Chains.sepolia]: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+}
+
 /**
  * ENS public resolver deployments, including the historical generations in
  * ens-app-v3/src/constants/resolverAddressData.ts and our Sepolia fixtures.
@@ -37,7 +43,7 @@ export const isAddressOnlyResolver = (
  */
 const KNOWN_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, readonly Address[]> = {
   [supportedL1Chains.mainnet]: [
-    '0xF29100983E058B709F3D539b0c765937B804AC15',
+    LATEST_V1_PUBLIC_RESOLVERS[supportedL1Chains.mainnet],
     '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63',
     '0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41',
     '0xDaaF96c344f63131acadD0Ea35170E7892d3dfBA',
@@ -45,7 +51,7 @@ const KNOWN_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, readonly Address[]> = {
     ...LEGACY_CONTENT_RESOLVERS,
   ],
   [supportedL1Chains.sepolia]: [
-    '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+    LATEST_V1_PUBLIC_RESOLVERS[supportedL1Chains.sepolia],
     '0x8948458626811dd0c23EB25Cc74291247077cC51',
     '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
     '0x0CeEC524b2807841739D3B5E161F5bf1430FFA48',
