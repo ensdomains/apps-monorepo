@@ -425,6 +425,7 @@ describe('readRpcSubnameInventory', () => {
           name: 'child.parent.eth',
         },
         inventory.checkpoint,
+        1,
       ],
     ])
     expect(

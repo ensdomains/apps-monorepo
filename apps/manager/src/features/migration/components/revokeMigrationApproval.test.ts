@@ -1,8 +1,19 @@
-import { QueryClient } from '@tanstack/react-query'
-import { waitForTransactionReceipt, writeContract } from '@wagmi/core'
-import type { Address, Hex } from 'viem'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
+import {
+  getConnection,
+  getPublicClient,
+  waitForTransactionReceipt,
+  writeContract,
+} from '@wagmi/core'
+import {
+  type Address,
+  type Hex,
+  toEventSelector,
+  WaitForTransactionReceiptTimeoutError,
+  zeroHash,
+} from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Config as WagmiConfig } from 'wagmi'
+import type { Connector, Config as WagmiConfig } from 'wagmi'
 import {
   migrationHcaApprovalQueryKey,
   migrationOperatorApprovalsQueryKey,
@@ -13,6 +24,8 @@ import { revokeMigrationApproval } from './revokeMigrationApproval'
 
 vi.mock('@wagmi/core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@wagmi/core')>()),
+  getConnection: vi.fn(),
+  getPublicClient: vi.fn(),
   waitForTransactionReceipt: vi.fn(),
   writeContract: vi.fn(),
 }))
@@ -23,6 +36,8 @@ vi.mock('@/lib/wallet/ensureWalletChain', () => ({
 const ensureWalletChainMock = vi.mocked(ensureWalletChain)
 const writeContractMock = vi.mocked(writeContract)
 const waitForTransactionReceiptMock = vi.mocked(waitForTransactionReceipt)
+const getConnectionMock = vi.mocked(getConnection)
+const getPublicClientMock = vi.mocked(getPublicClient)
 const owner: Address = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 const hca: Address = '0x0000000000000000000000000000000000000003'
 const otherWallet: Address = '0x0000000000000000000000000000000000000004'
@@ -38,11 +53,52 @@ const approval: MigrationOperatorApproval = {
 
 const receipt = (status: 'success' | 'reverted') =>
   ({ status }) as Awaited<ReturnType<typeof waitForTransactionReceipt>>
+// checkIsSafeWallet reads only `type` and the WalletConnect session's peer.
+const SAFE_CONNECTOR = {
+  type: 'walletConnect',
+  getProvider: async () => ({
+    session: {
+      peer: {
+        metadata: { name: 'Safe{Wallet}', url: 'https://app.safe.global' },
+      },
+    },
+  }),
+} as unknown as Connector
+const executionHash: Hex = `0x${'c'.repeat(64)}`
+
+const connectSafe = (event: 'ExecutionSuccess' | 'ExecutionFailure') => {
+  getConnectionMock.mockReturnValue({
+    connector: SAFE_CONNECTOR,
+  } as ReturnType<typeof getConnection>)
+  // Only what the Safe execution watch reads: the latest block and the Safe's logs.
+  getPublicClientMock.mockReturnValue({
+    pollingInterval: 1,
+    getBlockNumber: async () => 100n,
+    getLogs: async () => [
+      {
+        topics: [toEventSelector(`${event}(bytes32,uint256)`), hash],
+        data: zeroHash,
+        transactionHash: executionHash,
+      },
+    ],
+  } as unknown as ReturnType<typeof getPublicClient>)
+  waitForTransactionReceiptMock.mockImplementation(
+    async (_config, { hash: waited }) => {
+      if (waited !== executionHash)
+        throw new WaitForTransactionReceiptTimeoutError({ hash: waited })
+      return receipt('success')
+    },
+  )
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
   writeContractMock.mockResolvedValue(hash)
   waitForTransactionReceiptMock.mockResolvedValue(receipt('success'))
+  getConnectionMock.mockReturnValue({ connector: undefined } as ReturnType<
+    typeof getConnection
+  >)
+  getPublicClientMock.mockReturnValue({} as ReturnType<typeof getPublicClient>)
 })
 
 describe('revokeMigrationApproval', () => {
@@ -65,7 +121,7 @@ describe('revokeMigrationApproval', () => {
     expect(queryClient.getQueryState(secondKey)?.isInvalidated).toBe(true)
   })
 
-  it('waits for success before refreshing both approval queries in the matching scope', async () => {
+  it('waits for success before refreshing the HCA approval query in the matching scope', async () => {
     const queryClient = new QueryClient()
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
 
@@ -94,15 +150,79 @@ describe('revokeMigrationApproval', () => {
       chainId,
     })
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
-    })
-    expect(invalidate).toHaveBeenCalledWith({
       queryKey: migrationHcaApprovalQueryKey({
         owner: owner.toLowerCase() as Address,
         hca,
         chainId,
       }),
     })
+  })
+
+  it('keeps a confirmed revocation off the list while a lagging node still reports it', async () => {
+    const queryClient = new QueryClient()
+    const queryKey = migrationOperatorApprovalsQueryKey({ owner, hca, chainId })
+    queryClient.setQueryData(queryKey, [approval])
+    // A node behind the revocation's block, read both before and after it lands.
+    const laggingRead = new Promise<readonly MigrationOperatorApproval[]>(
+      (resolve) => setTimeout(() => resolve([approval]), 20),
+    )
+    const unsubscribe = new QueryObserver(queryClient, {
+      queryKey,
+      queryFn: () => laggingRead,
+    }).subscribe(() => {})
+
+    await revokeMigrationApproval({
+      approval,
+      owner,
+      hca,
+      walletAddress: owner,
+      chainId,
+      wagmiConfig,
+      queryClient,
+    })
+    await vi.waitFor(() => expect(queryClient.isFetching({ queryKey })).toBe(0))
+    unsubscribe()
+
+    expect(queryClient.getQueryData(queryKey)).toEqual([])
+  })
+
+  it('settles a Safe{Wallet} revocation from its execution', async () => {
+    connectSafe('ExecutionSuccess')
+    const queryClient = new QueryClient()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await revokeMigrationApproval({
+      approval,
+      owner,
+      hca,
+      walletAddress: owner,
+      chainId,
+      wagmiConfig,
+      queryClient,
+    })
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
+    })
+  })
+
+  it('reports a failed Safe{Wallet} execution as a failed revocation', async () => {
+    connectSafe('ExecutionFailure')
+    const queryClient = new QueryClient()
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await expect(
+      revokeMigrationApproval({
+        approval,
+        owner,
+        hca,
+        walletAddress: owner,
+        chainId,
+        wagmiConfig,
+        queryClient,
+      }),
+    ).rejects.toThrow('The revocation failed')
+    expect(invalidate).not.toHaveBeenCalled()
   })
 
   it('refuses a different wallet before submitting', async () => {
