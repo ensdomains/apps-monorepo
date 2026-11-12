@@ -3,6 +3,7 @@ import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import {
   ArrowLeftRight,
@@ -63,6 +64,7 @@ import { ensChain } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { validateRecord } from '@/utils/records/validateRecord'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
+import { getNeedsLatestResolver } from './needsLatestResolver'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
 
@@ -346,6 +348,7 @@ const ResolutionDetails = ({
   canSetPrimaryName,
   isSettingPrimaryName,
   onSetPrimaryName,
+  v1ResolverAddress,
 }: {
   row: AddressResolutionRow
   name: string
@@ -362,6 +365,7 @@ const ResolutionDetails = ({
   canSetPrimaryName: boolean
   isSettingPrimaryName: boolean
   onSetPrimaryName: () => void
+  readonly v1ResolverAddress: Address | null | undefined
 }) => {
   const { label, icon, coinType, reverseMatch, reverseName } = row
   // `null`/`undefined` = nothing to check / still loading — no banner.
@@ -407,6 +411,30 @@ const ResolutionDetails = ({
           }
         />
       )}
+
+      {offerSetPrimary &&
+        getNeedsLatestResolver({
+          row,
+          v1ResolverAddress,
+          chainId: ensChain.id,
+        }) && (
+          <Alert variant="warning">
+            <AlertTitle>Update the resolver first</AlertTitle>
+            <AlertDescription>
+              <p>
+                <strong>{name}</strong> uses an older ENS public resolver, so L2
+                and default primary names won't work.{' '}
+                <Link
+                  to="/$name/change-resolver"
+                  params={{ name }}
+                  className="underline"
+                >
+                  Change resolver
+                </Link>
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
 
       {editLock && (
         <Alert variant="warning">
@@ -733,10 +761,19 @@ export const AddressResolutionSidebar: FC<
     row: Row<AddressResolutionRow> | null
     name: string
     resolverAddress: Address | undefined
+    readonly v1ResolverAddress?: Address | null
     open: boolean
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
   }>
-> = ({ children, row, name, resolverAddress, open, setOpen }) => {
+> = ({
+  children,
+  row,
+  name,
+  resolverAddress,
+  v1ResolverAddress,
+  open,
+  setOpen,
+}) => {
   const isMobile = useIsMobile()
   const data = row?.original ?? null
   const editor = useAddressRecordEditor(name, data, resolverAddress)
@@ -766,6 +803,7 @@ export const AddressResolutionSidebar: FC<
               canSetPrimaryName={editor.canSetPrimaryName}
               isSettingPrimaryName={editor.isSettingPrimaryName}
               onSetPrimaryName={editor.onSetPrimaryName}
+              v1ResolverAddress={v1ResolverAddress}
             />
           ) : (
             <div className="p-6 text-muted-foreground text-center py-12">

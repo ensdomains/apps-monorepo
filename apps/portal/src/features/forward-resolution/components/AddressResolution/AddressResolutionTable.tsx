@@ -22,10 +22,12 @@ export const AddressResolutionTable = ({
   table,
   name,
   resolverAddress,
+  v1ResolverAddress,
 }: {
   table: TableData<AddressResolutionRow>
   name: string
   resolverAddress: Address | undefined
+  readonly v1ResolverAddress: Address | null | undefined
 }) => {
   const [open, setOpen] = useState(false)
 
@@ -52,6 +54,7 @@ export const AddressResolutionTable = ({
       row={clickedRow}
       name={name}
       resolverAddress={resolverAddress}
+      v1ResolverAddress={v1ResolverAddress}
       open={open}
       setOpen={setOpen}
     >
