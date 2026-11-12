@@ -2,15 +2,15 @@
 # Fund accounts for the STANDALONE-HCA registration flow on the local Anvil
 # Sepolia fork.
 #
-# The standalone-HCA route is user-paid in Circle USDC (no gas sponsorship):
+# The standalone-HCA route is user-paid in MockUSDC (no gas sponsorship):
 #   - the WALLET (EOA) signs an EIP-2612 permit letting the HCA pull USDC, so
 #     the EOA must hold USDC;
 #   - the mockestrator impersonates the HCA to fill intents, so the HCA needs
 #     ETH for impersonated gas.
 #
-# Circle's Sepolia USDC (FiatTokenV2_2) has no open `mint`, so balances are set
-# directly via `anvil_setStorageAt` (balances mapping at slot 9). Addresses come
-# from `print-standalone-hca-addresses.mjs`, mirroring the app's manifest.
+# Balances are set directly via `anvil_setStorageAt` (MockUSDC is a plain OZ
+# ERC20: balances mapping at slot 0). Addresses come from
+# `print-standalone-hca-addresses.mjs`, mirroring the app's manifest.
 #
 # Usage:
 #   ./fund-rhinestone-account.sh [ADDRESS]
@@ -21,11 +21,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 
-# Standalone-HCA deployment addresses (Circle USDC etc.), from the app manifest.
+# Standalone-HCA deployment addresses (MockUSDC etc.), from the app manifest.
 eval "$(node "$SCRIPT_DIR/print-standalone-hca-addresses.mjs")"
 
-# Circle USDC FiatTokenV2_2 storage layout: balances mapping base slot = 9.
-USDC_BALANCE_SLOT=9
+# MockUSDC (OZ ERC20) storage layout: balances mapping base slot = 0.
+USDC_BALANCE_SLOT=0
 # 10,000 USDC (6 decimals) as a 32-byte hex value.
 USDC_AMOUNT_HEX=$(cast to-uint256 10000000000)
 # 10 ETH as a hex quantity (what `anvil_setBalance` expects).
@@ -68,9 +68,9 @@ fund_address() {
     --rpc-url "$RPC_URL" >/dev/null
   echo "  ✅ 10 ETH set (gas)"
 
-  # 10,000 Circle USDC via direct storage write (no open mint).
+  # 10,000 MockUSDC via direct storage write (idempotent, unlike `mint`).
   set_usdc_balance "$addr"
-  echo "  ✅ 10,000 USDC set (Circle USDC slot $USDC_BALANCE_SLOT)"
+  echo "  ✅ 10,000 USDC set (MockUSDC slot $USDC_BALANCE_SLOT)"
 }
 
 echo "=== Funding standalone-HCA accounts on fork at $RPC_URL ==="

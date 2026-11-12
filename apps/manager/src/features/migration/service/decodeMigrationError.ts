@@ -18,6 +18,7 @@ export type MigrationError =
   | { type: 'generic'; message: string }
   | { type: 'insufficient-eth' }
   | { type: 'plan-changed' }
+  | { type: 'copy-read-failed'; message: string }
   | { type: 'retry-blocked' }
   | { type: 'subregistry-conflict' }
   | { type: 'resolver-not-writable' }
@@ -327,9 +328,21 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
   return null
 }
 
+export const canRetryMigration = (error: MigrationError | undefined): boolean =>
+  error?.type !== 'plan-changed'
+
 export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
   if (isWalletOutOfEth(err)) return { type: 'insufficient-eth' }
+
+  const copyReadinessError = findNamedError(err, 'CopyMigrationReadinessError')
+  if (
+    copyReadinessError &&
+    'reason' in copyReadinessError &&
+    copyReadinessError.reason === 'read-failed'
+  ) {
+    return { type: 'copy-read-failed', message: extractErrorMessage(err) }
+  }
 
   if (
     hasNamedError(err, 'MigrationPlanChangedError') ||

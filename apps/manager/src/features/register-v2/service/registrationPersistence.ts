@@ -34,9 +34,9 @@ import type { RegistrationFailureReason } from './registrationFailure'
 
 /**
  * Bump when {@link StoredRegistrationEnvelope} changes shape, or when stored
- * runs can no longer complete (v2: the payment token moved to Circle USDC).
+ * runs can no longer complete (v3: the payment token moved to MockUSDC).
  */
-export const REGISTRATION_RESUME_VERSION = 2
+export const REGISTRATION_RESUME_VERSION = 3
 
 /** Exported so the disconnect-time storage sweep can leave the record alone. */
 export const REGISTRATION_RESUME_STORAGE_KEY = 'ens-apps:register-v2:resume:v1'

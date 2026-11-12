@@ -15,6 +15,8 @@ export async function expectAppOnLocalFork(
   appName: 'portal' | 'manager',
   baseUrl: string,
 ) {
+  const forkHost = new URL(process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545')
+    .host
   let source = ''
   for (const path of ['/src/lib/wagmi.ts', '/src/config.ts']) {
     const res = await fetch(`${baseUrl}${path}`)
@@ -27,5 +29,5 @@ export async function expectAppOnLocalFork(
   expect(
     source,
     `${appName} is not configured with the local Anvil RPC. It is serving, but against a different chain, so every fixture this suite creates is invisible to it and every "not found" it reports is a false negative. Check apps/${appName}/.env{,.local} and restart the dev server.`,
-  ).toContain('127.0.0.1:8545')
+  ).toContain(forkHost)
 }
