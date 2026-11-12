@@ -902,19 +902,15 @@ const getL2RowFee = (
   amountInRaw: bigint | undefined,
   estimatedAmountIn: bigint | undefined,
   isRegistrationFeeEstimated: boolean,
-): Readonly<{ networkFee: number | undefined; isEstimated: boolean }> => {
+): number | undefined => {
   const amountIn = amountInRaw ?? estimatedAmountIn
   if (amountIn !== undefined)
-    return {
-      networkFee:
-        funding &&
-        getPaymentBreakdownFigures(getL2FundingSummary(funding, amountIn))
-          .networkFee,
-      isEstimated: amountInRaw === undefined,
-    }
-  return isRegistrationFeeEstimated && funding
-    ? { networkFee: funding.networkFee, isEstimated: true }
-    : { networkFee: undefined, isEstimated: false }
+    return (
+      funding &&
+      getPaymentBreakdownFigures(getL2FundingSummary(funding, amountIn))
+        .networkFee
+    )
+  return isRegistrationFeeEstimated ? funding?.networkFee : undefined
 }
 
 /** A chosen L2 pays in place of the wallet, so only its own quote must cover it. */
@@ -1030,20 +1026,18 @@ export const getL2MethodItems = (
     )
     .sort(byBalanceDescending)
     .map((row) => {
-      const fee = getL2RowFee(
-        funding,
-        row.amountInRaw,
-        estimatedAmountIn,
-        isEveryHoldingListed,
-      )
       return {
         id: row.option.id,
         isSelected: row === selectedL2,
         content: (
           <L2SourceListItem
-            isFeeEstimated={fee.isEstimated}
             isSelected={row === selectedL2}
-            networkFee={fee.networkFee}
+            networkFee={getL2RowFee(
+              funding,
+              row.amountInRaw,
+              estimatedAmountIn,
+              isEveryHoldingListed,
+            )}
             onSelect={() => l2Payment.onSelect(row.option.source.chain.id)}
             row={row}
           />
@@ -1485,11 +1479,11 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     <fieldset className="contents" disabled={isBusy}>
       <div
         className={cn(
-          'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 pt-2 pb-6',
+          'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 max-sm:overflow-y-auto',
           showNetworkFeeDetails ? undefined : 'px-4',
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+        <div className="flex flex-1 flex-col gap-6 sm:min-h-0 sm:overflow-y-auto">
           {header ?? (
             <DomainHeading
               isInPriceCooldown={isInPriceCooldown}

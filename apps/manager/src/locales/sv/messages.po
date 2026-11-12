@@ -1433,11 +1433,6 @@ msgstr "Fel vid laddning av namn"
 msgid "Est. fee: {0}"
 msgstr ""
 
-#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Est. fee: ~{0}"
-msgstr ""
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 #: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
 msgid "Estimated network fee"

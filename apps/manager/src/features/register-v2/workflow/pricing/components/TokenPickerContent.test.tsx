@@ -1411,7 +1411,7 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(
       screen.getByText('You do not have enough USDC for this transaction.'),
     ).toBeVisible()
-    expect(screen.getByText('Est. fee: ~$0.20')).toBeVisible()
+    expect(screen.getByText('Est. fee: $0.20')).toBeVisible()
   })
 
   it('keeps a short L2 hidden in renewal', () => {
@@ -1605,7 +1605,8 @@ describe('TokenPickerContentBase L2 rows', () => {
       l2Payment: l2PaymentOf([quoted, op], optimismSepolia.id),
     })
 
-    expect(screen.getByText('Est. fee: ~$0.21')).toBeVisible()
+    // The unquoted OP row borrows Base's quote, so both rows show its fee.
+    expect(screen.getAllByText('Est. fee: $0.21')).toHaveLength(2)
     expect(
       screen.getByText('About $2.01 more needed on OP Sepolia.'),
     ).toBeVisible()
