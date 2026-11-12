@@ -1,3 +1,4 @@
+import { LATEST_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
@@ -29,6 +30,7 @@ import { generateResolverSalt } from '@/features/resolver/utils/permissionedReso
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ensChain } from '@/lib/wagmi'
 
 const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-permissioned-resolver'
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
@@ -271,11 +273,22 @@ export const ChangeResolverForm = ({
       <PageHeading parent={{ type: 'name', name }}>Change resolver</PageHeading>
 
       {isV1 ? (
-        <p className="text-p text-muted-foreground">
-          <strong>{name}</strong> is an ENSv1 name, so it takes any resolver
-          address. Deploying a permissioned resolver is a V2 feature and is not
-          offered here.
-        </p>
+        <>
+          <p className="text-p text-muted-foreground">
+            <strong>{name}</strong> is an ENSv1 name, so it takes any resolver
+            address. Deploying a permissioned resolver is a V2 feature and is
+            not offered here.
+          </p>
+          <Button
+            variant="outline"
+            className="w-fit"
+            onClick={() =>
+              setResolverAddress(LATEST_V1_PUBLIC_RESOLVERS[ensChain.id])
+            }
+          >
+            Use the latest resolver
+          </Button>
+        </>
       ) : (
         <div className="flex items-center gap-3">
           <Switch
