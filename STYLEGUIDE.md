@@ -1324,14 +1324,14 @@ export function prepareENSRenewal(
 export const RenewalButton = ({ name }: { name: string }) => {
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
-  const { writeContractAsync } = useWriteContract()
   const [isPending, setIsPending] = useState(false)
   
   const handleRenew = async () => {
     if (!walletClient) return
     
     setIsPending(true)
-    // The throwing wallet call becomes a Result at the call site: no try/catch
+    // The write starts through the transaction manager and its wait becomes a
+    // Result at the call site: no try/catch
     const result = await prepareENSRenewal({
       name,
       duration: YEAR_IN_SECONDS,
@@ -1339,7 +1339,19 @@ export const RenewalButton = ({ name }: { name: string }) => {
       walletClient,
     }).andThen((renewal) =>
       ResultAsync.fromPromise(
-        writeContractAsync(renewal),
+        waitForTransaction(
+          transactionManager.startTransaction(
+            toEoaCustomIntent({
+              from: walletClient.account.address,
+              to: renewal.to,
+              data: renewal.data,
+              value: renewal.price,
+              chainId: ensChain.id,
+            }),
+            createEOASigner(walletClient),
+            { id: `renew-${name}`, publicClient, description: `Renew ${name}` },
+          ),
+        ),
         (error) => new RenewalError({ cause: error }),
       ),
     )
@@ -1350,11 +1362,11 @@ export const RenewalButton = ({ name }: { name: string }) => {
       return
     }
 
-    console.log('Transaction sent:', result.value)
+    console.log('Renewed:', result.value.hash)
   }
   
   return (
-    <button onClick={handleRenew} disabled={isPending}>
+    <button type="button" onClick={handleRenew} disabled={isPending}>
       {isPending ? 'Renewing...' : 'Renew'}
     </button>
   )
@@ -2427,41 +2439,65 @@ export async function deploySubregistry<
 
 ### Using Contract Helpers in Components
 
-#### With wagmi's useWriteContract
+#### With the transaction manager
 
 ```typescript
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
+import { transactionManager } from '@ens-apps/transaction-manager'
+import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { encodeFunctionData } from 'viem'
+import { usePublicClient, useWalletClient } from 'wagmi'
+import { generateSubregistrySalt } from '@/features/registry/helpers/deploySubregistry'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ensChain } from '@/lib/wagmi'
 
 export const DeployButton = () => {
   const { data: walletClient } = useWalletClient()
-  const { writeContractAsync, data: txHash, isPending } = useWriteContract()
-  
-  const { data: receipt, isLoading: isConfirming } = 
-    useWaitForTransactionReceipt({ hash: txHash })
-  
-  const handleDeploy = async () => {
-    if (!walletClient) return
-    
+  const publicClient = usePublicClient()
+  const { openModal, closeModal } = useTransactionModal()
+
+  const handleDeploy = () => {
+    if (!walletClient || !publicClient) return
+
     // Get contract parameters
     const params = deploySubregistryWriteParameters(walletClient, {
       factoryAddress: FACTORY_ADDRESS,
       implAddress: IMPL_ADDRESS,
+      salt: generateSubregistrySalt(), // fresh per deploy
     })
-    
-    // Execute transaction
-    await writeContractAsync({
-      address: params.address,
-      abi: params.abi,
-      functionName: params.functionName,
-      args: params.args,
-    })
+
+    // Start the write as an intent; the modal tracks it to its receipt
+    transactionManager.startTransaction(
+      toEoaCustomIntent({
+        from: walletClient.account.address,
+        to: params.address,
+        data: encodeFunctionData(params),
+        chainId: ensChain.id,
+      }),
+      createEOASigner(walletClient),
+      { id: 'deploy-subregistry', publicClient, description: 'Deploy subregistry' },
+    )
   }
-  
+
   return (
-    <button onClick={handleDeploy} disabled={isPending || isConfirming}>
-      {isPending ? 'Confirm in wallet...' : isConfirming ? 'Confirming...' : 'Deploy'}
-    </button>
+    <>
+      <button type="button" onClick={openModal}>
+        Deploy
+      </button>
+      <TransactionModal
+        transactions={[
+          {
+            id: 'deploy-subregistry',
+            title: 'Deploy subregistry',
+            transactionName: 'Deploy subregistry',
+            onStart: handleDeploy,
+            onDone: closeModal,
+          },
+        ]}
+      />
+    </>
   )
 }
 ```
@@ -2470,32 +2506,62 @@ export const DeployButton = () => {
 
 ```typescript
 import { createSetReverseNameRequest } from '@ens-apps/l2-primary/utils'
-import { useWriteContract } from 'wagmi'
+import { transactionManager } from '@ens-apps/transaction-manager'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { envConfig } from '@/config'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { prepareSetReverseResolutionTransaction } from '@/features/reverse-resolution/helpers/setReverseResolution'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ensChain } from '@/lib/wagmi'
 
 export const SetPrimaryNameButton = ({ name }: { name: string }) => {
-  const { writeContractAsync } = useWriteContract()
-  
-  const handleSetPrimaryName = async () => {
-    try {
-      // Create request. The network is the one this build targets, never the
-      // wallet's chain: a wrong-network fallback produces valid calldata
-      // against the wrong contracts.
-      const request = createSetReverseNameRequest({
-        name,
-        reverseRegistrarChainId: 60, // ETH
-        network: envConfig.network,
-      })
-      
-      // Execute
-      const hash = await writeContractAsync(request)
-      console.log('Transaction hash:', hash)
-    } catch (error) {
-      console.error('Failed to set primary name:', error)
-    }
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
+  const { openModal, closeModal } = useTransactionModal()
+
+  const handleSetPrimaryName = () => {
+    if (!walletClient || !publicClient) return
+
+    // Create request. The network is the one this build targets, never the
+    // wallet's chain: a wrong-network fallback produces valid calldata
+    // against the wrong contracts.
+    const request = createSetReverseNameRequest({
+      name,
+      reverseRegistrarChainId: 60, // ETH
+      network: envConfig.network,
+    })
+
+    // Start the request as an intent through the transaction manager
+    transactionManager.startTransaction(
+      prepareSetReverseResolutionTransaction({
+        request,
+        from: walletClient.account.address,
+        chainId: ensChain.id,
+      }),
+      createEOASigner(walletClient),
+      { id: `set-primary-${name}`, publicClient, description: 'Set primary name' },
+    )
   }
-  
-  return <button onClick={handleSetPrimaryName}>Set Primary Name</button>
+
+  return (
+    <>
+      <button type="button" onClick={openModal}>
+        Set Primary Name
+      </button>
+      <TransactionModal
+        transactions={[
+          {
+            id: `set-primary-${name}`,
+            title: 'Set primary name',
+            transactionName: `Set primary name - ${name}`,
+            onStart: handleSetPrimaryName,
+            onDone: closeModal,
+          },
+        ]}
+      />
+    </>
+  )
 }
 ```
 
