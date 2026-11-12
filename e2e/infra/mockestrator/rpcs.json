@@ -1,5 +1,17 @@
 {
   "11155111": {
     "rpc": "http://anvil:8545"
+  },
+  "84532": {
+    "rpc": "http://anvil-base:8545",
+    "optional": true
+  },
+  "421614": {
+    "rpc": "http://anvil-arb:8545",
+    "optional": true
+  },
+  "11155420": {
+    "rpc": "http://anvil-op:8545",
+    "optional": true
   }
 }

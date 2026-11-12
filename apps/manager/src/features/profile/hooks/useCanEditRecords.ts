@@ -15,10 +15,19 @@ export const useCanEditRecords = ({
   name,
 }: UseCanEditRecordsParams) => {
   const { ownerAddress } = useSmartAccountContext()
-  const { data: canWriteResolver, isError } = useQuery({
+  const isProbeEnabled =
+    enabled && isOwner !== undefined && Boolean(ownerAddress)
+  const {
+    data: canWriteResolver,
+    isError,
+    isPending,
+  } = useQuery({
     ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
-    enabled: enabled && isOwner !== undefined && Boolean(ownerAddress),
+    enabled: isProbeEnabled,
   })
 
-  return enabled && !isError && canWriteResolver === true
+  return {
+    canEditRecords: enabled && !isError && canWriteResolver === true,
+    isPending: isProbeEnabled && isPending,
+  }
 }
