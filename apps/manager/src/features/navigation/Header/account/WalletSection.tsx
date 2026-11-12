@@ -18,6 +18,7 @@ import { useLeftoverFunds } from '@/features/wallet/hooks/useLeftoverFunds'
 import { formatLeftoverFunds } from '@/features/wallet/service/leftoverFunds'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { SESSION_SIGNER_MISMATCH_MESSAGE } from '@/lib/smart-account/sessionMessages'
 import { truncateAddress } from '@/lib/utils'
 import { useWalletDisconnect } from '@/lib/wallet'
 import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
@@ -100,6 +101,8 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     const outcome = await enableSession()
     if (outcome.status === 'enabled') onAction()
     if (outcome.status === 'failed') toast.error(outcome.message)
+    if (outcome.status === 'signer-mismatch')
+      toast.error(t(SESSION_SIGNER_MISMATCH_MESSAGE))
   }
 
   return (

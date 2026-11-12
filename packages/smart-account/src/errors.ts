@@ -15,6 +15,13 @@ export class SessionEnableError extends TaggedError('SessionEnableError')<{
   cause?: unknown
 }> {}
 
+/** The wallet's session authorization doesn't recover to the account owner, so the validator would reject it. */
+export class SessionAuthorizationSignerError extends TaggedError(
+  'SessionAuthorizationSignerError',
+)<{
+  cause: unknown
+}> {}
+
 /**
  * Why an owner-signed on-chain session revocation could not complete.
  *

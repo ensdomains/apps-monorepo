@@ -4722,6 +4722,10 @@ msgstr ""
 msgid "Your wallet shows the final fee before you approve."
 msgstr ""
 
+#: src/lib/smart-account/sessionMessages.ts
+msgid "Your wallet signed a different request than the one shown, so this authorization can't be used. Try again, or use another wallet app with the same account."
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/EthPaymentListItem.tsx
 msgid "Your wallet swaps ETH for the USDC this registration needs on Uniswap, and gets back any ETH the swap does not use."
 msgstr ""

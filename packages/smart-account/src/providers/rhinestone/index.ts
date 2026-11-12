@@ -159,6 +159,7 @@ export {
   getValidSession,
   getValidSessionByOwner,
   getValidSessionForAccount,
+  getVerifiedSessionForAccount,
   hasRegistrationHeadroom,
   isSessionExpired,
   removeSession,

@@ -43,7 +43,8 @@
 
 import { type Address, isAddress, isHex } from 'viem'
 import { DESTINATION_CONTRACTS } from './manifest'
-import type { RhinestoneStoredSession } from './types'
+import { isOwnerSessionAuthorization } from './session-authorization'
+import { deserializeChainDigests, type RhinestoneStoredSession } from './types'
 
 const SESSION_STORAGE_KEY = 'ens-sessions-v11'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
@@ -344,4 +345,20 @@ export function getValidSessionForAccount(
     return null
   }
   return session
+}
+
+/** `getValidSessionForAccount`, also evicting a session whose authorization the owner didn't sign. */
+export async function getVerifiedSessionForAccount(
+  scope: SessionScope,
+): Promise<RhinestoneStoredSession | null> {
+  const session = getValidSessionForAccount(scope)
+  if (!session) return null
+  const isOwner = await isOwnerSessionAuthorization({
+    owner: session.ownerAddress,
+    hashesAndChainIds: deserializeChainDigests(session.hashesAndChainIds),
+    userSignature: session.authorization,
+  })
+  if (isOwner) return session
+  removeStoredSession(session)
+  return null
 }

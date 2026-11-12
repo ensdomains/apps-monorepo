@@ -6,7 +6,7 @@ import {
   buildHcaDeploymentCall,
   buildHcaSessionEnablePayload,
   type Call,
-  getValidSessionForAccount,
+  getVerifiedSessionForAccount,
   HcaDeploymentCallValidationError,
   type HcaSessionEnablePayload,
   isRhinestoneSession,
@@ -15,6 +15,7 @@ import {
   removeSession,
   removeSessionsByOwner,
   revokeSessionsOnChain,
+  SessionAuthorizationSignerError,
   SessionRevokeError,
   type SessionRevokeReason,
   sizeRefundCaps,
@@ -92,10 +93,11 @@ export interface EnabledSession {
   readonly hcaSessionEnable: HcaSessionEnablePayload
 }
 
-/** `declined` is the owner refusing the ENABLE signature; `failed` is everything else. */
+/** `declined` is the owner refusing the ENABLE signature; `signer-mismatch` is the wallet signing something else; `failed` is everything else. */
 export type EnableSessionOutcome =
   | { readonly status: 'enabled'; readonly session: EnabledSession }
   | { readonly status: 'declined' }
+  | { readonly status: 'signer-mismatch' }
   | { readonly status: 'failed'; readonly message: string }
 
 export interface EnableSessionOptions {
@@ -689,12 +691,16 @@ export const SmartAccountContextProvider = ({
     // Scope reuse to THIS HCA (owner + chain verified) so a stored session for
     // a different account/chain is never attached — its ephemeral key is not an
     // owner of the current HCA. Mirrors resolveSessionActor's lookup.
-    const stored = getValidSessionForAccount({
+    setActiveSession(null)
+    void getVerifiedSessionForAccount({
       accountAddress,
       ownerAddress: sessionOwnerAddress,
       chainId: appChain.id,
+    }).then((stored) => {
+      // A newer scope may have hydrated while this one was being checked.
+      if (sessionScopeRef.current !== scopeKey) return
+      setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
     })
-    setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
 
   const isActiveSessionRevoked = useSessionRevocationWatch({
@@ -824,9 +830,10 @@ export const SmartAccountContextProvider = ({
     async (options?: EnableSessionOptions): Promise<EnableSessionOutcome> => {
       const result = await authorizeSession(undefined, options?.refundToken)
       if (result instanceof Error) {
-        return isWalletDeclineError(result)
-          ? { status: 'declined' }
-          : { status: 'failed', message: result.message }
+        if (isWalletDeclineError(result)) return { status: 'declined' }
+        if (result instanceof SessionAuthorizationSignerError)
+          return { status: 'signer-mismatch' }
+        return { status: 'failed', message: result.message }
       }
       return {
         status: 'enabled',

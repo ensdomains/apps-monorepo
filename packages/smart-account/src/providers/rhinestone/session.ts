@@ -23,7 +23,13 @@ import type {
   Session,
 } from '@rhinestone/sdk'
 import { getPermissionId } from '@rhinestone/sdk/smart-sessions'
-import { fromPromise, type ResultAsync } from 'neverthrow'
+import {
+  errAsync,
+  fromPromise,
+  fromSafePromise,
+  okAsync,
+  type ResultAsync,
+} from 'neverthrow'
 import {
   type Account,
   type Address,
@@ -35,9 +41,13 @@ import {
   parseAbi,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { SessionEnableError } from '../../errors'
+import {
+  SessionAuthorizationSignerError,
+  SessionEnableError,
+} from '../../errors'
 import { getDestinationContracts } from './manifest'
 import { LEGACY_REFUND_CAPS, type RefundCaps } from './refund-caps'
+import { isOwnerSessionAuthorization } from './session-authorization'
 
 const standaloneHcaAbi = parseAbi([
   'function ownerAndSessionNonce() view returns (address owner, uint96 sessionNonce)',
@@ -81,6 +91,8 @@ export interface DestinationSessionParams {
   readonly publicClient: PublicClient
   readonly chain: Chain
   readonly hca: Address
+  /** The HCA's owner, who must sign the authorization; a deployed HCA's on-chain owner takes precedence. */
+  readonly owner: Address
   /** The resolver this session is bound to (a PermissionedResolver proxy). */
   readonly resolver: Address
   /** Ephemeral session key (single ECDSA session owner). */
@@ -152,21 +164,22 @@ export function computeDestinationSessionSalt(params: {
 }
 
 /**
- * Read the HCA session nonce. Undeployed HCAs use nonce 0; deployed HCAs must
- * read `ownerAndSessionNonce()` before a new authorization.
+ * Read the HCA session nonce, and the owner the validator checks. Undeployed
+ * HCAs use nonce 0 and have no on-chain owner yet; deployed HCAs must read
+ * `ownerAndSessionNonce()` before a new authorization.
  */
 async function readSessionNonce(params: {
   publicClient: PublicClient
   hca: Address
   alreadyDeployed: boolean
-}): Promise<bigint> {
-  if (!params.alreadyDeployed) return 0n
-  const [, nonce] = await params.publicClient.readContract({
+}): Promise<{ readonly nonce: bigint; readonly owner: Address | undefined }> {
+  if (!params.alreadyDeployed) return { nonce: 0n, owner: undefined }
+  const [owner, nonce] = await params.publicClient.readContract({
     address: params.hca,
     abi: standaloneHcaAbi,
     functionName: 'ownerAndSessionNonce',
   })
-  return nonce
+  return { nonce, owner }
 }
 
 /**
@@ -178,13 +191,16 @@ async function readSessionNonce(params: {
  */
 export function createDestinationSession(
   params: DestinationSessionParams,
-): ResultAsync<DestinationSessionResult, SessionEnableError> {
+): ResultAsync<
+  DestinationSessionResult,
+  SessionEnableError | SessionAuthorizationSignerError
+> {
   return fromPromise(
     (async () => {
       const refundToken =
         params.refundToken ?? getDestinationContracts(params.chain.id).usdc
       const refundCaps = params.refundCaps ?? LEGACY_REFUND_CAPS
-      const hcaSessionNonce = await readSessionNonce({
+      const { nonce: hcaSessionNonce, owner } = await readSessionNonce({
         publicClient: params.publicClient,
         hca: params.hca,
         alreadyDeployed: params.alreadyDeployed,
@@ -229,13 +245,16 @@ export function createDestinationSession(
       }
 
       return {
-        session,
-        permissionId,
-        enableData,
-        hcaSessionNonce,
-        validUntil: params.validUntil,
-        refundCaps,
-        refundToken,
+        owner: owner ?? params.owner,
+        result: {
+          session,
+          permissionId,
+          enableData,
+          hcaSessionNonce,
+          validUntil: params.validUntil,
+          refundCaps,
+          refundToken,
+        },
       }
     })(),
     (error: unknown) =>
@@ -243,6 +262,24 @@ export function createDestinationSession(
         message: 'Failed to create destination HCA session authorization',
         cause: error,
       }),
+  ).andThen(({ owner, result }) =>
+    fromSafePromise(
+      isOwnerSessionAuthorization({
+        owner,
+        hashesAndChainIds: result.enableData.hashesAndChainIds,
+        userSignature: result.enableData.userSignature,
+      }),
+    ).andThen((isOwner) =>
+      isOwner
+        ? okAsync(result)
+        : errAsync(
+            new SessionAuthorizationSignerError({
+              cause: new Error(
+                `Session authorization does not recover to the HCA owner ${owner}`,
+              ),
+            }),
+          ),
+    ),
   )
 }
 

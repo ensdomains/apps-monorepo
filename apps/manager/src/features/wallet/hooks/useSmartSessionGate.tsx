@@ -23,7 +23,10 @@ import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
 import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
-import { EnableSessionModal } from '../components/EnableSessionModal'
+import {
+  type EnableSessionFailure,
+  EnableSessionModal,
+} from '../components/EnableSessionModal'
 
 export interface SmartSessionGate {
   /**
@@ -45,7 +48,7 @@ export function useSmartSessionGate(): SmartSessionGate {
   })
   const [isOpen, setIsOpen] = useState(false)
   // Only a failure during this prompt shows the error state, not one from an earlier visit.
-  const [hasFailed, setHasFailed] = useState(false)
+  const [failure, setFailure] = useState<EnableSessionFailure | null>(null)
   const pendingRef = useRef<(() => void) | null>(null)
   // Bumped on every open and dismiss, so a request from an earlier prompt cannot touch this one.
   const promptRef = useRef(0)
@@ -57,7 +60,7 @@ export function useSmartSessionGate(): SmartSessionGate {
       if (needsSessionBeforeRegistration(account)) {
         pendingRef.current = onProceed
         promptRef.current += 1
-        setHasFailed(false)
+        setFailure(null)
         setIsOpen(true)
         return
       }
@@ -79,8 +82,8 @@ export function useSmartSessionGate(): SmartSessionGate {
     // A success is good for whichever prompt is open now: the session is
     // active. A decline or failure belongs to the prompt that asked.
     if (promptRef.current !== prompt && outcome.status !== 'enabled') return
-    if (outcome.status === 'failed') {
-      setHasFailed(true)
+    if (outcome.status === 'failed' || outcome.status === 'signer-mismatch') {
+      setFailure(outcome.status)
       return
     }
     if (outcome.status === 'declined') {
@@ -97,7 +100,7 @@ export function useSmartSessionGate(): SmartSessionGate {
 
   const sessionModal = (
     <EnableSessionModal
-      hasError={hasFailed}
+      failure={failure}
       isEnabling={account.isEnablingSession}
       onDismiss={dismiss}
       onEnableSession={onEnableSession}
