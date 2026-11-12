@@ -1,6 +1,7 @@
-import { type ClassValue, clsx } from 'clsx'
+import type { ClassValue } from 'clsx'
 import type React from 'react'
 import { createElement } from 'react'
+import { cn } from '@/lib/utils'
 
 type RangeOrValue = `${number}..${number}` | `${number}`
 
@@ -164,7 +165,7 @@ export const MSymbol = ({
 }: MaterialSymbolProps) => {
   return createElement(
     'span',
-    { className: clsx('material-symbol', className), ...props },
+    { className: cn('material-symbol', className), ...props },
     symbol,
   )
 }
