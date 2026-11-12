@@ -1,7 +1,11 @@
 import { baseSepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import type { L2Source } from '@/l2Sources'
-import { getL2PaymentOptions, getSelectedL2ChainId } from './paymentOptions'
+import {
+  getL2PaymentOptions,
+  getSelectedL2ChainId,
+  isCirclePaymentMethod,
+} from './paymentOptions'
 
 const source = {
   chain: baseSepolia,
@@ -76,5 +80,40 @@ describe('getSelectedL2ChainId', () => {
     expect(
       getSelectedL2ChainId(optionsWith(1n), baseSepolia.id, amountRaw),
     ).toBe(expected)
+  })
+})
+
+describe('isCirclePaymentMethod', () => {
+  const holding = (usdc: bigint) => ({ [baseSepolia.id]: { usdc } })
+
+  // Unlike the bridge, the token does not drop a chosen L2 with nothing to send.
+  it.each([
+    ['ETH pays in it', true, undefined, undefined, true],
+    [
+      'a chosen L2 the wallet holds USDC on pays in it',
+      false,
+      baseSepolia.id,
+      holding(1n),
+      true,
+    ],
+    [
+      'a chosen L2 not read yet pays in it',
+      false,
+      baseSepolia.id,
+      undefined,
+      true,
+    ],
+    [
+      'an emptied L2 gives way to the wallet’s coin',
+      false,
+      baseSepolia.id,
+      holding(0n),
+      false,
+    ],
+    ['the wallet’s coin does not', false, undefined, holding(1n), false],
+  ] as const)('%s', (_, isPaidWithEth, l2ChainId, l2Wallets, expected) => {
+    expect(isCirclePaymentMethod({ isPaidWithEth, l2ChainId, l2Wallets })).toBe(
+      expected,
+    )
   })
 })
