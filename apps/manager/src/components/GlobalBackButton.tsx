@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { twm } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import {
   type GlobalBackButtonConfig,
   resolveGlobalBackButtonConfig,
@@ -119,7 +119,7 @@ export const GlobalBackButton = () => {
   return (
     <button
       aria-label="Back"
-      className={twm(
+      className={cn(
         'inline-flex items-center gap-2 py-2 font-medium text-ens-lapis-core text-sm uppercase leading-ens-none transition-colors hover:text-ens-lapis-core/80',
         config.className,
       )}

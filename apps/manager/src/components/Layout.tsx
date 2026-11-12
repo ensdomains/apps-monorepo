@@ -9,7 +9,7 @@ import { profileDisplayQueryOptions } from '@/features/profile/service/profileDi
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 interface LayoutProps {
   children: ReactNode
@@ -43,7 +43,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div
-      className={tw(
+      className={cn(
         'relative flex flex-col bg-[#FCFBFB]',
         isMigrationPage
           ? 'h-dvh overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200'
@@ -64,7 +64,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
       <GlobalBackButtonProvider>
         <main
-          className={tw(
+          className={cn(
             'relative isolate flex flex-1 flex-col',
             isMigrationPage && 'min-h-0',
           )}
