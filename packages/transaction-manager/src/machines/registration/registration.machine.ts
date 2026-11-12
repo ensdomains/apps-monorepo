@@ -43,6 +43,7 @@ import {
   hcaRegistrarAddress,
   L2_BRIDGE_CLAIMABLE_MS,
   type L2BridgePayment,
+  type PermitToken,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
   readHcaUsdcBalanceAtLeastActor,
@@ -113,11 +114,12 @@ export interface SessionReauthorization {
 
 /**
  * Authorize a new session whose gas-overhead cap allows at least
- * `minGasOverhead`. Costs the owner one wallet signature. Rejects when the
- * owner declines or no session can be authorized.
+ * `minGasOverhead`, refunding in `refundToken` (default the deployment's USDC).
+ * Costs one wallet signature; rejects when declined or unauthorizable.
  */
 export type ReauthorizeSession = (request: {
   readonly minGasOverhead: bigint
+  readonly refundToken?: Address
 }) => Promise<SessionReauthorization>
 
 /**
@@ -286,7 +288,7 @@ export type RegistrationContext = {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
-  /** Token the caller showed; unset, `selectedToken` resolves via the manifest (Circle USDC on Sepolia). */
+  /** Token the caller showed; unset, `selectedToken` resolves via the manifest (MockUSDC on Sepolia). */
   readonly paymentTokenAddress?: Address
   tokenPrice: bigint
   /**
@@ -622,6 +624,7 @@ export const registrationMachine = setup({
         sessionEnable?: HcaSessionEnableParams
         apiKey?: string
         primaryName?: string
+        paymentToken?: Address
       }) => {
         return estimateHcaBudgetActor(input)
       },
@@ -632,6 +635,7 @@ export const registrationMachine = setup({
           hca: Address
           publicClient: PublicClient
           chainId: number
+          token?: Address
           atLeast?: bigint
         },
         { signal }: { signal: AbortSignal },
@@ -651,6 +655,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         chainId: number
         bounds?: PermitValueBounds
+        token?: PermitToken
       }) => {
         return signFundingPermitActor(input)
       },
@@ -663,6 +668,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         id?: string
         onIntentSubmitted?: (intentId: bigint) => void
+        paymentToken?: Address
       }) => {
         return submitL2BridgeActor(input)
       },
@@ -713,6 +719,7 @@ export const registrationMachine = setup({
         primaryName?: string
         id?: string
         onIntentSubmitted?: (intentId: bigint) => void
+        paymentToken?: Address
       }) => {
         return submitRevealBatchActor(input)
       },
@@ -824,8 +831,13 @@ export const registrationMachine = setup({
         input: {
           readonly reauthorize: ReauthorizeSession
           readonly minGasOverhead: bigint
+          readonly refundToken?: Address
         }
-      }) => input.reauthorize({ minGasOverhead: input.minGasOverhead }),
+      }) =>
+        input.reauthorize({
+          minGasOverhead: input.minGasOverhead,
+          ...(input.refundToken ? { refundToken: input.refundToken } : {}),
+        }),
     ),
     waitAfterCommitment: fromPromise(
       async ({
@@ -1283,6 +1295,7 @@ export const registrationMachine = setup({
           // Sizes the permit for the batch that will actually be submitted:
           // the primary-name opt-in adds a call to the reveal leg.
           primaryName: context.primaryName,
+          paymentToken: context.paymentTokenAddress,
         }),
         onDone: {
           target: 'checkingHcaFunding',
@@ -1324,6 +1337,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
+          token: context.paymentTokenAddress,
           atLeast: context.hcaBalanceFloor,
         }),
         onDone: [
@@ -1445,6 +1459,15 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           chainId: context.chainId,
           bounds: fundingBounds(context),
+          ...(context.paymentTokenAddress
+            ? {
+                token: {
+                  address: context.paymentTokenAddress,
+                  symbol: 'USDC',
+                  decimals: 6,
+                },
+              }
+            : {}),
         }),
         onDone: {
           target: 'submittingSetupBundle',
@@ -1498,6 +1521,7 @@ export const registrationMachine = setup({
             id: REGISTRATION_TX_IDS.l2Bridge,
             onIntentSubmitted: (intentId: bigint) =>
               self.send({ type: 'L2_BRIDGE_SUBMITTED', intentId, fundsHcaTo }),
+            paymentToken: context.paymentTokenAddress,
           }
         },
         onDone: {
@@ -1703,6 +1727,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           id: REGISTRATION_TX_IDS.commit,
+          paymentToken: context.paymentTokenAddress,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -2302,6 +2327,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           primaryName: context.primaryName,
           id: REGISTRATION_TX_IDS.register,
+          paymentToken: context.paymentTokenAddress,
           // Fires from the transport once the orchestrator accepts the
           // intent — typically AFTER this invoke has already resolved (the
           // submit actor returns as soon as the tx is queued), so the id is
@@ -2411,6 +2437,8 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: guarded on entry
           reauthorize: context.reauthorizeSession!,
           minGasOverhead: context.requiredGasOverhead ?? 0n,
+          // The new session must refund in the token this run pays in.
+          refundToken: context.paymentTokenAddress,
         }),
         onDone: [
           {

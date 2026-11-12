@@ -74,6 +74,8 @@ vi.mock('viem/actions', async (importOriginal) => ({
 }))
 
 const C = getDestinationContracts(sepolia.id)
+// What an ETH payment buys and then pays in on Sepolia.
+const CIRCLE_USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
@@ -663,6 +665,24 @@ describe('submitFundingAndCommitActor', () => {
     })
   })
 
+  it('funds in the run’s payment token', async () => {
+    await submitFundingAndCommitActor({
+      ...input,
+      permit,
+      sessionEnable,
+      paymentToken: CIRCLE_USDC,
+    })
+
+    const { calls, auxiliaryFunds } = submittedRequest().rhinestoneParams
+    expect(calls.slice(0, 2).map((c) => c.to)).toEqual([
+      CIRCLE_USDC,
+      CIRCLE_USDC,
+    ])
+    expect(auxiliaryFunds).toEqual({
+      [sepolia.id]: { [CIRCLE_USDC]: permit.value },
+    })
+  })
+
   it('submits the commit alone once the HCA is funded', async () => {
     const result = await submitFundingAndCommitActor(input)
 
@@ -762,6 +782,20 @@ describe('submitL2BridgeActor', () => {
     })
     // A resend would ask the wallet to sign a second payment.
     expect(options.retryCount).toBe(0)
+  })
+
+  it('delivers the run’s payment token', async () => {
+    await submitL2BridgeActor({
+      hca: HCA,
+      payment: { source, amount: 15_000_000n },
+      signer: hcaSigner,
+      publicClient,
+      paymentToken: CIRCLE_USDC,
+    })
+
+    expect(submittedRequest().rhinestoneParams.tokenRequests).toEqual([
+      { address: CIRCLE_USDC, amount: 15_000_000n },
+    ])
   })
 
   it('refuses an amount above what checkout showed, before the wallet is asked', async () => {
@@ -935,6 +969,37 @@ describe('submitRevealBatchActor', () => {
       data: register.data,
     })
     expect(decoded.args[7]).toBe(`0x${'0'.repeat(60)}1234`)
+  })
+
+  it('prices, approves and registers in the run’s payment token', async () => {
+    const readContract = vi.fn().mockResolvedValue([5_000_000n, 0n])
+    // Partial: the reveal only reads the price and the resolver's code.
+    const revealClient = {
+      chain: sepolia,
+      readContract,
+      getCode: vi.fn().mockResolvedValue('0x'),
+    } as unknown as PublicClient
+
+    await submitRevealBatchActor({
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      duration: 31_536_000n,
+      secret: `0x${'dd'.repeat(32)}` as Hex,
+      sessionEnable,
+      signer: rhinestoneSigner,
+      publicClient: revealClient,
+      paymentToken: CIRCLE_USDC,
+    })
+
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'getRegisterPrice',
+        args: ['myname', 31_536_000n, CIRCLE_USDC],
+      }),
+    )
+    const { calls } = submittedRequest().rhinestoneParams
+    expect(calls.find((call) => call.to === CIRCLE_USDC)).toBeDefined()
   })
 
   // `addr.reverse` outranks the `default.reverse` claim, so a leftover entry

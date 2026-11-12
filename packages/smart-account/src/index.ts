@@ -157,6 +157,7 @@ export {
   setSkippedStatus,
   sizeRefundCaps,
   storedRefundCaps,
+  storedRefundToken,
   submitL2Bridge,
   USER_SALT,
   type VerifyStandaloneHcaParams,

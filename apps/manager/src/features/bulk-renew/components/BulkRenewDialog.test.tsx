@@ -125,6 +125,28 @@ beforeEach(() => {
   }))
 })
 
+describe('BulkRenewDialog payment', () => {
+  it('hands the run the token its method pays in, even with nothing to bridge', () => {
+    hooks.useBulkRenew.mockImplementation(() => {
+      const result = bulkRenewResult([
+        makeRow('2040-06-12T00:00:00.000Z', '2040-07-20T00:00:00.000Z'),
+      ])
+      return {
+        ...result,
+        payment: { ...result.payment, isCirclePayment: true },
+      }
+    })
+    render(<BulkRenewDialog names={[]} onOpenChange={() => {}} open />)
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }))
+
+    expect(submit).toHaveBeenCalledWith(
+      expect.objectContaining({ isCirclePayment: true }),
+    )
+  })
+})
+
 describe('BulkRenewDialog success receipt', () => {
   it('shows the confirm-time range on success, not the post-renewal recompute', () => {
     // At confirm time the name renews June 12 → July 20.

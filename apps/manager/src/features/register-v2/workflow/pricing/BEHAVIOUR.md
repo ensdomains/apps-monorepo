@@ -61,6 +61,7 @@ Paths are relative to this folder. "Sheet tests" means `components/TokenPickerCo
 
 ## Known limits, not bugs
 
+- On Sepolia the app pays in ensjs' MockUSDC, which only exists on L1. It has no Uniswap pool or bridge route, so ETH buys Circle's USDC and an L2 bridges Circle's USDC, which the registrar also accepts. A run paid with ETH or from an L2 pays in it throughout: its rows and budget are quoted in it against what the account holds of it, and it signs with a session of its own, one more signature the first time. The token follows the chosen method, not the bridge: a chosen L2 with nothing left to bridge (say, a retry once the bridge landed) still pays in Circle's USDC, from what the account holds.
 - On Sepolia, paying from an L2 fails above about 8 USDC: Across, the only bridge Rhinestone routes on testnets, caps transfers into Sepolia on chain. The sheet lists those L2s with "isn't available right now". To test the L2 path, keep the amount bridged under that cap (an existing balance covering most of the cost).
 - A row's "Est. fee" can differ from the receipt's fee by a cent: the receipt sets its fee to You pay minus Registration total so its lines add up exactly.
 - Tier prices are slightly above round numbers (for example $8.01 for one year): a year is charged as at least 365.25 days and multi-year terms include leap days. Changing that changes what users pay and needs protocol agreement.
