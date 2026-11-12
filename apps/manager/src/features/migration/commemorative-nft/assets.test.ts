@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { track } from '@/lib/posthog/events'
 import { downloadCommemorativeNftImage } from './assets'
 
-vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
+vi.mock('@/lib/posthog/events', () => {
+  const track = vi.fn()
+  return { track, startAnalyticsOperation: () => ({ capture: track }) }
+})
 const assetUrl = 'https://assets.example/card.webp'
 const filename = 'card.webp'
 

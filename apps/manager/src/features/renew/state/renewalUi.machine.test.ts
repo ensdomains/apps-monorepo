@@ -729,7 +729,11 @@ describe('renewal analytics operation lifetime', () => {
       await vi.waitFor(() =>
         expect(mocks.capture).toHaveBeenCalledWith(
           'renewal:flow_complete',
-          expect.objectContaining({ flow_id: flowId, item_count: 1 }),
+          expect.objectContaining({
+            flow_id: flowId,
+            item_count: 1,
+            ens_name: 'alice.eth',
+          }),
         ),
       )
       expect(

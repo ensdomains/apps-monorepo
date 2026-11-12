@@ -23,9 +23,14 @@ import {
 
 afterEach(resetTransactionManager)
 
-const makeRun = (flowId?: string) => {
+const makeRun = (flowId?: string, name?: string) => {
   const capture = vi.fn()
-  const analytics = createRegistrationAnalytics(11155111, { capture }, flowId)
+  const analytics = createRegistrationAnalytics(
+    11155111,
+    { capture },
+    flowId,
+    name,
+  )
   const observe = (value: string, retryTarget?: string) =>
     analytics.observe({ value, context: { retryTarget } })
   return { capture, analytics, observe }
@@ -190,4 +195,41 @@ describe('registration operation subscription', () => {
       vi.useRealTimers()
     }
   })
+})
+
+it('pins the normalized registration target through a later stage and completion', () => {
+  const { capture, analytics, observe } = makeRun('named-entry', 'ALICE.eth')
+  analytics.start(false)
+  observe('registeringDomain')
+  analytics.complete()
+  expect(capture.mock.calls).toEqual([
+    [
+      'registration:flow_start',
+      {
+        flow_id: 'named-entry',
+        ens_name: 'alice.eth',
+        execution_method: 'eoa',
+        chain_id: 11155111,
+      },
+    ],
+    [
+      'registration:stage_enter',
+      {
+        flow_id: 'named-entry',
+        ens_name: 'alice.eth',
+        execution_method: 'eoa',
+        chain_id: 11155111,
+        stage: 'registration',
+      },
+    ],
+    [
+      'registration:flow_complete',
+      {
+        flow_id: 'named-entry',
+        ens_name: 'alice.eth',
+        execution_method: 'eoa',
+        chain_id: 11155111,
+      },
+    ],
+  ])
 })

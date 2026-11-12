@@ -1,9 +1,14 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import {
+  getAnalyticsConsentRevision,
   hasAnalyticsConsent,
   useAnalyticsConsent,
 } from '@ens-apps/utils/posthog/analyticsConsent'
-import { getWalletIdentityAction } from '@ens-apps/utils/posthog/walletIdentity'
+import { createIntercomAnalyticsLink } from '@ens-apps/utils/posthog/intercomLink'
+import {
+  getWalletIdentityAction,
+  hasMatchingWalletIdentity,
+} from '@ens-apps/utils/posthog/walletIdentity'
 import {
   boot as bootIntercom,
   getVisitorId,
@@ -25,7 +30,11 @@ import {
   POSTHOG_KEY,
   resetKeepingConsent,
 } from './config'
-import { startAnalyticsOperation, track } from './events'
+import {
+  getConnectedWalletAddress,
+  startAnalyticsOperation,
+  track,
+} from './events'
 
 type ConnectedWallet = {
   readonly address: string
@@ -52,21 +61,29 @@ const identifyWallet = (wallet: ConnectedWallet | null) => {
       chain_id: wallet.chainId,
       wallet_connector: wallet.connector.name,
     })
-  linkIntercomToAnalytics()
+  intercomLink.sync()
 }
 
-// Links support chats to analytics, only for visitors who accepted.
-const linkIntercomToAnalytics = () => {
-  if (!hasAnalyticsConsent(posthog) || !IS_ANALYTICS_ENABLED) return
-  updateIntercom({
-    posthog_distinct_id: posthog.get_distinct_id(),
-  })
-  const intercomVisitorId = getVisitorId()
-  if (intercomVisitorId) {
+// Links support chats only once the current consenting identity and widget are ready.
+const intercomLink = createIntercomAnalyticsLink({
+  getContext: () => {
+    if (!hasAnalyticsConsent(posthog) || !IS_ANALYTICS_ENABLED) return
+    const distinctId = posthog.get_distinct_id()
+    const revision = getAnalyticsConsentRevision()
+    if (
+      revision === undefined ||
+      !hasMatchingWalletIdentity(getConnectedWalletAddress(), distinctId)
+    )
+      return
+    return { distinctId, key: `${distinctId}:${revision}` }
+  },
+  getVisitorId,
+  link: ({ distinctId }, intercomVisitorId) => {
+    updateIntercom({ posthog_distinct_id: distinctId })
     posthog.setPersonProperties({ intercom_visitor_id: intercomVisitorId })
     track('intercom:booted')
-  }
-}
+  },
+})
 
 // Applies PostHog's answer once it's known and whenever it changes: on load,
 // on Accept or Decline, and when another tab or app answers.
@@ -74,6 +91,7 @@ const useApplyAnalyticsConsent = (
   wallet: RefObject<ConnectedWallet | null>,
 ) => {
   const consent = useAnalyticsConsent(posthog)
+  useEffect(() => () => intercomLink.cancel(), [])
   useEffect(() => {
     if (!consent) return
     try {

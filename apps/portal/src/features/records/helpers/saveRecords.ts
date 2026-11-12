@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import type { ProfileSaveAttempt } from '@ens-apps/utils/posthog/profileEditing'
 /**
  * Pure async function to save ENS record changes.
@@ -171,6 +172,7 @@ export async function saveRecords(
   const { name, publicClient, signer, chainId, id } = params
 
   const operation = params.analyticsAttempt ?? startAnalyticsOperation()
+  const nameProperties = getAnalyticsNameProperties(name)
   let stage: 'preparation' | 'execution' = 'preparation'
   try {
     const intent = await prepareSaveRecordsTransaction(params)
@@ -185,6 +187,7 @@ export async function saveRecords(
 
     const result = await waitForTransaction(txId)
     operation.capture('profile:records_update', {
+      ...nameProperties,
       chain_id: chainId,
       ...(params.analyticsAttempt?.flow_id
         ? { flow_id: params.analyticsAttempt.flow_id }

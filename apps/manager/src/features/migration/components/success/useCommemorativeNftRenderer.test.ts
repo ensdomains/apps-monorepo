@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { track } from '@/lib/posthog/events'
 import { useCommemorativeNftRenderer } from './useCommemorativeNftRenderer'
 
-vi.mock('@/lib/posthog/events', () => ({
-  track: vi.fn(),
-}))
+vi.mock('@/lib/posthog/events', () => {
+  const track = vi.fn()
+  return { track, startAnalyticsOperation: () => ({ capture: track }) }
+})
 
 type RendererOptions = Parameters<typeof useCommemorativeNftRenderer>[0]
 

@@ -1,7 +1,10 @@
-/** Shared event names and payloads; QA sequences live in docs/analytics-*-matrix.md. */
+/** Shared event names and payloads; QA sequences live in docs/analytics/qa.md. */
 type FlowIdentity = { readonly flow_id: string }
 
-type RegistrationProperties = FlowIdentity & {
+type NameProperties = { readonly ens_name?: string }
+type NamedFlow = FlowIdentity & NameProperties
+
+type RegistrationProperties = NamedFlow & {
   readonly execution_method?: 'eoa' | 'hca'
   readonly chain_id?: number
 }
@@ -22,7 +25,7 @@ export type RenewalProtocolProperties = {
   readonly v2_item_count?: number
 }
 
-type RenewalProperties = FlowIdentity &
+type RenewalProperties = NamedFlow &
   RenewalProtocolProperties & {
     readonly is_bulk?: boolean
     readonly execution_method?: 'eoa' | 'hca'
@@ -40,7 +43,7 @@ type PaymentSelection = RegistrationProperties & {
 
 export type AnalyticsEvents = {
   /** Registration entry screen opens. */
-  readonly 'registration:flow_view': FlowIdentity
+  readonly 'registration:flow_view': NamedFlow
   /** The user starts registration execution. */
   readonly 'registration:flow_start': RegistrationProperties
   /** The user resumes a saved registration. */
@@ -48,9 +51,9 @@ export type AnalyticsEvents = {
   /** The user retries a failed registration stage. */
   readonly 'registration:flow_retry': RegistrationProperties
   /** The registration duration screen is observed; best effort, never an operation outcome. */
-  readonly 'registration:duration_view': FlowIdentity
+  readonly 'registration:duration_view': NamedFlow
   /** The registration payment screen is observed; best effort, never an operation outcome. */
-  readonly 'registration:payment_view': FlowIdentity
+  readonly 'registration:payment_view': NamedFlow
   /** The running workflow enters a meaningful execution stage, not a viewed screen or confirmation. */
   readonly 'registration:stage_enter': RegistrationProperties & {
     readonly stage: RegistrationStage
@@ -119,34 +122,36 @@ export type AnalyticsEvents = {
     readonly ineligible_count: number
   }
   /** The available records editor is observed after consent; a view does not imply an edit. */
-  readonly 'profile:edit_view': FlowIdentity
+  readonly 'profile:edit_view': NamedFlow
   /** The user makes the first actual change in this edit session. */
-  readonly 'profile:edit_start': FlowIdentity
+  readonly 'profile:edit_start': NamedFlow
   /** A save attempt begins, before asynchronous preparation or wallet requests. */
-  readonly 'profile:save_start': FlowIdentity & { readonly chain_id?: number }
+  readonly 'profile:save_start': NamedFlow & { readonly chain_id?: number }
   /** A save attempt fails; the editor may remain open for another attempt. */
-  readonly 'profile:save_fail': FlowIdentity & {
+  readonly 'profile:save_fail': NamedFlow & {
     readonly chain_id?: number
     readonly stage: 'preparation' | 'image_upload' | 'execution'
     readonly is_retryable: boolean
   }
   /** Requested records/images are saved, independently of closing or refreshing the editor. */
-  readonly 'profile:save_complete': FlowIdentity & {
+  readonly 'profile:save_complete': NamedFlow & {
     readonly chain_id?: number
     readonly save_type: 'records' | 'image' | 'records_and_image'
   }
   /** Profile record writes confirm onchain. */
-  readonly 'profile:records_update': {
+  readonly 'profile:records_update': NameProperties & {
     readonly flow_id?: string
     readonly chain_id: number
     readonly record_count?: number
   }
   /** A reverse primary-name write confirms onchain. */
-  readonly 'profile:primary_name_update': { readonly chain_id: number }
+  readonly 'profile:primary_name_update': NameProperties & {
+    readonly chain_id: number
+  }
   /** Subname creation confirms onchain. */
-  readonly 'subname:name_create': { readonly chain_id: number }
+  readonly 'subname:name_create': NameProperties & { readonly chain_id: number }
   /** A resolver configuration or role write confirms onchain. */
-  readonly 'resolver:configuration_update': {
+  readonly 'resolver:configuration_update': NameProperties & {
     readonly chain_id: number
     readonly action:
       | 'change'
@@ -156,18 +161,20 @@ export type AnalyticsEvents = {
       | 'roles_revoke'
   }
   /** A registry role grant or revocation confirms onchain. */
-  readonly 'roles:permissions_update': {
+  readonly 'roles:permissions_update': NameProperties & {
     readonly chain_id: number
     readonly action: 'grant' | 'revoke'
   }
   /** Notification preference changes are saved successfully. */
   readonly 'notifications:preferences_update': undefined
   /** The user follows Explorer's migration link to Manager. */
-  readonly 'migration:manager_open': { readonly is_wrapped: boolean }
+  readonly 'migration:manager_open': NameProperties & {
+    readonly is_wrapped: boolean
+  }
   /** DNS manager synchronization confirms onchain. */
-  readonly 'dns:manager_sync': { readonly chain_id: number }
+  readonly 'dns:manager_sync': NameProperties & { readonly chain_id: number }
   /** The user selects a search result and navigates to its destination. */
-  readonly 'name_search:result_select': {
+  readonly 'name_search:result_select': NameProperties & {
     readonly source: 'header_search' | 'search'
     readonly name_length?: number
     readonly result_type: 'name' | 'address' | 'resolver'

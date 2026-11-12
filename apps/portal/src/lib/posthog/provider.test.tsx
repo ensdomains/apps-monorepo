@@ -141,6 +141,27 @@ describe('PostHog provider', () => {
     )
   })
 
+  it('links the current person when the Intercom visitor becomes available after initial consent', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(getVisitorId).mockReturnValue(undefined)
+      setAnalyticsConsent(posthog, true)
+      const view = renderProvider()
+      expect(posthog.setPersonProperties).not.toHaveBeenCalled()
+      vi.mocked(getVisitorId).mockReturnValue('late-visitor')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000)
+      })
+      expect(posthog.setPersonProperties).toHaveBeenCalledExactlyOnceWith({
+        intercom_visitor_id: 'late-visitor',
+      })
+      view.unmount()
+    } finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+  })
+
   it('links Intercom to analytics only with consent, including after Accept', () => {
     vi.mocked(getVisitorId).mockReturnValue('intercom-visitor')
     renderProvider()
@@ -192,6 +213,8 @@ describe('PostHog provider', () => {
     vi.mocked(posthog.get_property).mockReturnValue('identified')
     walletState.identity = WALLET.address
     const nextAddress = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    walletState.address = nextAddress
+    walletState.status = 'connected'
     vi.mocked(useConnection, { partial: true }).mockReturnValue({
       chainId: WALLET.chainId,
       connector: WALLET.connector as NonNullable<

@@ -1,6 +1,6 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
-import { track } from '@/lib/posthog/events'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { withNftClaimSubmissionLock } from './claimSubmissionLock'
 import {
   CommemorativeNftClaimError,
@@ -42,6 +42,7 @@ const keepSubmittedClaim = (
 
 export const submitPendingNftClaim = async (params: {
   readonly wagmiConfig: WagmiConfig
+  readonly analytics?: ReturnType<typeof startAnalyticsOperation>
   readonly chainId: number
   readonly contractAddress: Address | undefined
   readonly ownerAddress: Address | undefined
@@ -50,6 +51,7 @@ export const submitPendingNftClaim = async (params: {
   readonly isCurrent: () => boolean
   readonly recheckMigration: () => Promise<boolean>
 }): Promise<PendingNftClaim> => {
+  const analytics = params.analytics ?? startAnalyticsOperation()
   const { ownerAddress, walletAddress, contractAddress, eligibility } = params
   if (
     !ownerAddress ||
@@ -121,7 +123,7 @@ export const submitPendingNftClaim = async (params: {
       submittedAt: Date.now(),
     }
     keepSubmittedClaim(claim)
-    track('nft:claim_outcome', { outcome: 'submitted' })
+    analytics.capture('nft:claim_outcome', { outcome: 'submitted' })
     return claim
   })
 }
@@ -151,9 +153,11 @@ export const requireScopedPendingNftClaim = (params: {
 
 export const reconcilePendingNftClaim = async (params: {
   readonly wagmiConfig: WagmiConfig
+  readonly analytics?: ReturnType<typeof startAnalyticsOperation>
   readonly claim: PendingNftClaim
   readonly onHash: (hash: Hex) => void
 }) => {
+  const analytics = params.analytics ?? startAnalyticsOperation()
   let claim = params.claim
   const outcome = await waitForCommemorativeNftClaimReceipt({
     wagmiConfig: params.wagmiConfig,
@@ -174,7 +178,7 @@ export const reconcilePendingNftClaim = async (params: {
       /* Safely reconcile a retained record again if removal fails. */
     }
   }
-  track('nft:claim_outcome', {
+  analytics.capture('nft:claim_outcome', {
     outcome: outcome.status === 'confirmed' ? 'minted' : outcome.status,
   })
   if (

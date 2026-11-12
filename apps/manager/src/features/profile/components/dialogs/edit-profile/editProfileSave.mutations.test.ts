@@ -132,7 +132,12 @@ describe('profile record mutation outcomes', () => {
       )
       expect(mocks.capture.mock.calls).toEqual(
         outcome === 'confirm'
-          ? [['profile:records_update', { chain_id: sepolia.id }]]
+          ? [
+              [
+                'profile:records_update',
+                { chain_id: sepolia.id, ens_name: 'alice.eth' },
+              ],
+            ]
           : [],
       )
       expect(laterCapture).not.toHaveBeenCalled()
@@ -148,6 +153,7 @@ describe('profile record mutation outcomes', () => {
       await save.outcome
       const properties = {
         flow_id: save.analyticsAttempt?.flow_id,
+        ens_name: 'alice.eth',
         chain_id: sepolia.id,
       }
       expect(mocks.capture.mock.calls).toEqual(

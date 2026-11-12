@@ -225,7 +225,7 @@ export const editProfileDialogMachine = setup({
       !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress),
   },
   actions: {
-    analyticsOpen: ({ context }) => context.analytics.open(),
+    analyticsOpen: ({ context }) => context.analytics.open(context.name),
     analyticsChange: ({ context }) => context.analytics.change(),
     openDialog: assign({
       ethAddressChanged: () => false,

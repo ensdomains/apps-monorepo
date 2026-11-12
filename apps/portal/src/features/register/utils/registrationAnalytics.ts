@@ -3,6 +3,7 @@ import { verifyRegistrationActor } from '@ens-apps/transaction-manager/machines/
 import type { RegistrationVerification } from '@ens-apps/transaction-manager/machines/registration/registration.verification'
 import type { RegistrationStage } from '@ens-apps/utils/posthog/eventContracts'
 import { createAnalyticsFlowId } from '@ens-apps/utils/posthog/flowId'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { match } from 'ts-pattern'
 import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { observeTransactionReceipt } from '@/utils/observeTransactionReceipt'
@@ -92,10 +93,12 @@ export const createRegistrationAnalytics = (
   chainId: number,
   operation = startAnalyticsOperation(),
   flowId = createAnalyticsFlowId(),
+  name?: string,
 ) => {
   const properties = flowId
     ? {
         flow_id: flowId,
+        ...getAnalyticsNameProperties(name),
         execution_method: 'eoa' as const,
         chain_id: chainId,
       }

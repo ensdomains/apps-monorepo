@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 /**
  * Pure async function to remove a user from an ENS V2 registry name.
  *
@@ -133,6 +134,7 @@ export async function revokeRoles(
 
   const result = await waitForTransaction(txId)
   operation.capture('roles:permissions_update', {
+    ...getAnalyticsNameProperties(name),
     chain_id: chainId,
     action: 'revoke',
   })

@@ -18,8 +18,14 @@ export const useRenewalFlowView = (
   const previous = useRef<{ readonly key: string; readonly step: string }>(
     undefined,
   )
-  const { flow_id, protocol_version, is_bulk, v1_item_count, v2_item_count } =
-    view ?? {}
+  const {
+    flow_id,
+    ens_name,
+    protocol_version,
+    is_bulk,
+    v1_item_count,
+    v2_item_count,
+  } = view ?? {}
   const observe = useCallback(
     (identityKey: string) => {
       if (!flow_id) return
@@ -28,6 +34,7 @@ export const useRenewalFlowView = (
       if (isSameFlow && previous.current?.step === step) return
       const properties = {
         flow_id,
+        ...(ens_name ? { ens_name } : {}),
         protocol_version,
         is_bulk,
         v1_item_count,
@@ -38,7 +45,15 @@ export const useRenewalFlowView = (
       if (event) track(event, properties)
       previous.current = { key, step }
     },
-    [step, flow_id, protocol_version, is_bulk, v1_item_count, v2_item_count],
+    [
+      step,
+      flow_id,
+      ens_name,
+      protocol_version,
+      is_bulk,
+      v1_item_count,
+      v2_item_count,
+    ],
   )
   useAnalyticsScreenView(isOpen, observe)
 }

@@ -467,6 +467,7 @@ export const useRegistrationTransactions = ({
       chainId,
       undefined,
       analyticsFlowId,
+      name,
     )
     const walletClient = await getWalletClient(config, {
       account: connection.address,
@@ -732,7 +733,12 @@ export const useRegistrationTransactions = ({
       setIsSetupBundled(canBatchAtomically)
 
       analyticsSubscription.current?.unsubscribe()
-      const resumedAnalytics = createRegistrationAnalytics(chainId)
+      const resumedAnalytics = createRegistrationAnalytics(
+        chainId,
+        undefined,
+        undefined,
+        record.context.name,
+      )
       analytics.current = resumedAnalytics
       analyticsSubscription.current = subscribeRegistrationAnalytics(
         actor,

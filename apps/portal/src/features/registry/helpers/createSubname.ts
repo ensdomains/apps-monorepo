@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 /**
  * Pure async function to create a subname.
  *
@@ -76,7 +77,10 @@ export async function createSubname(
   })
 
   const result = await waitForTransaction(txId)
-  operation.capture('subname:name_create', { chain_id: chainId })
+  operation.capture('subname:name_create', {
+    ...getAnalyticsNameProperties(`${label}.${parentName}`),
+    chain_id: chainId,
+  })
 
   return {
     txId,

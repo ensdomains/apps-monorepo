@@ -38,6 +38,7 @@ const getAnalyticsView = (
   return {
     flow: 'registration',
     flow_id: snapshot.context.analytics.flow_id,
+    ens_name: snapshot.context.analytics.ens_name,
     step: snapshot.matches({ pricing: 'duration' }) ? 'duration' : 'payment',
   }
 }
@@ -67,7 +68,7 @@ export const RegistrationV2UiProvider = ({
 }) => {
   const chainId = useChainId()
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
-    input: { chainId },
+    input: { chainId, analyticsName: `${label}.eth` },
   })
 
   useAnalyticsFlowView(registrationV2UiActor, getAnalyticsView)
@@ -158,7 +159,10 @@ export const RegistrationV2UiProvider = ({
     }
 
     previousLabel.current = label
-    registrationV2UiActor.send({ type: 'label.changed' })
+    registrationV2UiActor.send({
+      type: 'label.changed',
+      analyticsName: `${label}.eth`,
+    })
   }, [label, registrationV2UiActor])
 
   return (

@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import type { ProfileSaveAttempt } from '@ens-apps/utils/posthog/profileEditing'
 import { mutationOptions } from '@tanstack/react-query'
 import {
@@ -28,9 +29,11 @@ export const getSaveRecordsMutationOptions = () =>
       ...params
     }: SaveRecordsMutationVariables) => {
       const analytics = analyticsAttempt ?? startAnalyticsOperation()
+      const nameProperties = getAnalyticsNameProperties(params.name)
       try {
         const result = await saveRecords(params)
         analytics.capture('profile:records_update', {
+          ...nameProperties,
           chain_id: params.chainId,
           ...(analyticsAttempt?.flow_id
             ? { flow_id: analyticsAttempt.flow_id }
@@ -54,6 +57,7 @@ export const getSetupResolverMutationOptions = (
       analyticsAttempt,
     }: SetupResolverMutationVariables) => {
       const analytics = analyticsAttempt ?? startAnalyticsOperation()
+      const nameProperties = getAnalyticsNameProperties(pendingSave.name)
       if (!pendingSave.recordReview) {
         analyticsAttempt?.fail('preparation')
         throw new Error(
@@ -77,6 +81,7 @@ export const getSetupResolverMutationOptions = (
         })
 
         analytics.capture('profile:records_update', {
+          ...nameProperties,
           chain_id: pendingSave.chainId,
           ...(analyticsAttempt?.flow_id
             ? { flow_id: analyticsAttempt.flow_id }

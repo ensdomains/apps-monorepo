@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 /**
  * Pure async function to change the resolver for an ENS V2 name.
  *
@@ -214,6 +215,7 @@ export const changeResolver = async ({
 
   const result = await waitForTransaction(txId)
   operation.capture('resolver:configuration_update', {
+    ...getAnalyticsNameProperties(name),
     chain_id: chainId,
     action: 'change',
   })

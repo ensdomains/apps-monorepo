@@ -4,6 +4,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import {
   linkToNodeWriteParameters,
   linkToRecordWriteParameters,
@@ -90,6 +91,7 @@ export const linkToNode = async (
 
   const result = await waitForTransaction(txId)
   operation.capture('resolver:configuration_update', {
+    ...getAnalyticsNameProperties(sourceName),
     chain_id: chainId,
     action: 'link',
   })
@@ -155,6 +157,7 @@ export const unlink = async (
 
   const result = await waitForTransaction(txId)
   operation.capture('resolver:configuration_update', {
+    ...getAnalyticsNameProperties(sourceName),
     chain_id: chainId,
     action: 'unlink',
   })

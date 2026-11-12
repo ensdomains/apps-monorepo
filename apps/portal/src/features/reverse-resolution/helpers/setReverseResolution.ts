@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 /**
  * Pure async function to set reverse resolution (address → name) via transactionManager.
  *
@@ -94,7 +95,10 @@ export const setReverseResolution = async ({
   })
 
   const result = await waitForTransaction(txId)
-  operation.capture('profile:primary_name_update', { chain_id: chainId })
+  operation.capture('profile:primary_name_update', {
+    ...getAnalyticsNameProperties(name),
+    chain_id: chainId,
+  })
 
   return {
     txId,

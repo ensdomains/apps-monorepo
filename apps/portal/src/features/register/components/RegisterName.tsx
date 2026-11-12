@@ -93,6 +93,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     !isLoading && !isError && availability && !availability.isAvailable
 
   useRegistrationFlowView({
+    name,
     flowId: analyticsFlowId,
     isVisible:
       isNameValid &&

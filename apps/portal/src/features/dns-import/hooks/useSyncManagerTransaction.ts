@@ -3,6 +3,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import type { GetDnsImportDataReturnType } from '@ensdomains/ensjs/dns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -99,7 +100,10 @@ export const useSyncManagerTransaction = ({
         },
       )
       await waitForTransaction(id)
-      operation.capture('dns:manager_sync', { chain_id: CHAIN_ID })
+      operation.capture('dns:manager_sync', {
+        ...getAnalyticsNameProperties(name),
+        chain_id: CHAIN_ID,
+      })
     } catch (err) {
       console.error('Sync manager failed:', err)
       startedRef.current = false

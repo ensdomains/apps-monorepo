@@ -1,4 +1,5 @@
 import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
@@ -79,6 +80,7 @@ export const HomeSearchInput = ({
       track('name_search:result_select', {
         source: 'search',
         result_type: 'name',
+        ...getAnalyticsNameProperties(name),
       })
       navigate({ to: '/$name', params: { name } })
     },
@@ -98,12 +100,13 @@ export const HomeSearchInput = ({
 
   const navigateToRegister = useCallback(
     (name: string) => {
+      const nameWithEth = name.includes('.') ? name : `${name}.eth`
       track('name_search:result_select', {
         source: 'search',
         result_type: 'name',
+        ...getAnalyticsNameProperties(nameWithEth),
         is_available: true,
       })
-      const nameWithEth = name.includes('.') ? name : `${name}.eth`
       navigate({ to: '/register', search: { name: nameWithEth } })
     },
     [navigate],

@@ -241,7 +241,7 @@ const EditRecordsContent = ({
       track,
       startOperation: startAnalyticsOperation,
     })
-    editor.open()
+    editor.open(name)
     return { name, analytics: editor }
   }, [name])
   useAnalyticsScreenView(true, analytics.view)

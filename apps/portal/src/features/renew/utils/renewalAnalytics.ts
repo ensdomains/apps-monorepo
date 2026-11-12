@@ -1,18 +1,22 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import type { RenewalProtocolProperties } from '@ens-apps/utils/posthog/eventContracts'
 import { createAnalyticsFlowId } from '@ens-apps/utils/posthog/flowId'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { match, P } from 'ts-pattern'
 import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { observeTransactionReceipt } from '@/utils/observeTransactionReceipt'
 
 export const getRenewalProtocolProperties = (
-  names: readonly { readonly isV2: boolean }[],
+  names: readonly { readonly isV2: boolean; readonly name?: string }[],
   isBulk: boolean,
 ) => {
   const v2Count = names.filter(({ isV2 }) => isV2).length
   const v1Count = names.length - v2Count
   return {
     is_bulk: isBulk,
+    ...(!isBulk && names.length === 1
+      ? getAnalyticsNameProperties(names[0]?.name)
+      : {}),
     ...(names.length
       ? {
           protocol_version: match([v1Count, v2Count])
@@ -27,6 +31,7 @@ export const getRenewalProtocolProperties = (
 
 export type RenewalView = RenewalProtocolProperties & {
   readonly flow_id: string
+  readonly ens_name?: string
   readonly is_bulk: boolean
 }
 

@@ -56,16 +56,24 @@ describe('profile editing observations', () => {
     createFlowId
       .mockReturnValueOnce('editor')
       .mockReturnValueOnce('next-editor')
-    editor.open()
+    editor.open('Alice.ETH')
     const pending = editor.startSave(1, 'image')
-    editor.open()
+    editor.open('bob.eth')
     pending.complete()
     pending.fail('image_upload')
     expect(capture.mock.calls).toEqual([
-      ['profile:save_start', { flow_id: 'editor', chain_id: 1 }],
+      [
+        'profile:save_start',
+        { flow_id: 'editor', chain_id: 1, ens_name: 'alice.eth' },
+      ],
       [
         'profile:save_complete',
-        { flow_id: 'editor', chain_id: 1, save_type: 'image' },
+        {
+          flow_id: 'editor',
+          chain_id: 1,
+          ens_name: 'alice.eth',
+          save_type: 'image',
+        },
       ],
     ])
   })

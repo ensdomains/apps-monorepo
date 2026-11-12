@@ -24,16 +24,25 @@ it('retains the actual renewal protocol on entry and payment observations', () =
     flow_id: 'renewal-flow',
     step: 'payment',
     protocol_version: 'v1',
+    ens_name: 'Alice.ETH',
   } as const
   const result = getFlowViewEvents(undefined, view, 'anonymous')
   expect(result.events).toEqual([
     {
       name: 'renewal:flow_view',
-      properties: { flow_id: 'renewal-flow', protocol_version: 'v1' },
+      properties: {
+        flow_id: 'renewal-flow',
+        protocol_version: 'v1',
+        ens_name: 'alice.eth',
+      },
     },
     {
       name: 'renewal:payment_view',
-      properties: { flow_id: 'renewal-flow', protocol_version: 'v1' },
+      properties: {
+        flow_id: 'renewal-flow',
+        protocol_version: 'v1',
+        ens_name: 'alice.eth',
+      },
     },
   ])
 })

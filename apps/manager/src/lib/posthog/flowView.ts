@@ -1,5 +1,8 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
+
 export type AnalyticsView = {
   readonly flow_id: string
+  readonly ens_name?: string
 } & (
   | {
       readonly flow: 'registration'
@@ -52,6 +55,7 @@ export const getFlowViewEvents = (
     previous.flow_id === view.flow_id
   const isSameScreen = isSameFlow && previous.step === view.step
   const properties = {
+    ...getAnalyticsNameProperties(view.ens_name),
     flow_id: view.flow_id,
     ...(view.flow === 'renewal'
       ? { protocol_version: view.protocol_version }

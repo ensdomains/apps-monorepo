@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { ArrowUpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,7 +41,10 @@ export const UpgradeActions = ({
         target="_blank"
         rel="noopener noreferrer"
         onClick={() =>
-          track('migration:manager_open', { is_wrapped: isWrapped })
+          track('migration:manager_open', {
+            ...getAnalyticsNameProperties(name),
+            is_wrapped: isWrapped,
+          })
         }
       >
         <ArrowUpCircle className="size-4 shrink-0" />

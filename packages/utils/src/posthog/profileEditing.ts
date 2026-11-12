@@ -1,6 +1,7 @@
 import type { createAnalyticsTracker } from './createAnalyticsTracker'
 import type { AnalyticsEvents } from './eventContracts'
 import { createAnalyticsFlowId } from './flowId'
+import { getAnalyticsNameProperties } from './nameProperties'
 
 type Capture = ReturnType<typeof createAnalyticsTracker>['track']
 type SaveType = AnalyticsEvents['profile:save_complete']['save_type']
@@ -37,37 +38,54 @@ export const createProfileEditingAnalytics = ({
   let session:
     | {
         readonly flow_id: string
+        readonly ens_name?: string
         readonly hasEdited: boolean
         readonly observedIdentity?: string
       }
     | undefined
 
-  const open = (): void => {
+  const open = (name?: string): void => {
     try {
       const flowId = createFlowId()
-      session = flowId ? { flow_id: flowId, hasEdited: false } : undefined
+      session = flowId
+        ? {
+            flow_id: flowId,
+            hasEdited: false,
+            ...getAnalyticsNameProperties(name),
+          }
+        : undefined
     } catch {
       session = undefined
     }
   }
   const view = (identity = ''): void => {
     if (!session || session.observedIdentity === identity) return
-    if (session.observedIdentity !== undefined) open()
+    if (session.observedIdentity !== undefined) open(session.ens_name)
     if (!session) return
     session = { ...session, observedIdentity: identity, hasEdited: false }
-    send('profile:edit_view', { flow_id: session.flow_id })
+    send('profile:edit_view', {
+      flow_id: session.flow_id,
+      ...getAnalyticsNameProperties(session.ens_name),
+    })
   }
   const change = (): void => {
     if (!session || session.observedIdentity === undefined || session.hasEdited)
       return
     session = { ...session, hasEdited: true }
-    send('profile:edit_start', { flow_id: session.flow_id })
+    send('profile:edit_start', {
+      flow_id: session.flow_id,
+      ...getAnalyticsNameProperties(session.ens_name),
+    })
   }
   const startSave = (
     chainId: number,
     saveType: SaveType,
   ): ProfileSaveAttempt => {
-    const properties = { flow_id: session?.flow_id ?? '', chain_id: chainId }
+    const properties = {
+      flow_id: session?.flow_id ?? '',
+      chain_id: chainId,
+      ...getAnalyticsNameProperties(session?.ens_name),
+    }
     const bind = (): Capture => {
       try {
         return safeCapture(startOperation().capture)

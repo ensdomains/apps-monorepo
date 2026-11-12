@@ -15,6 +15,7 @@ import {
   type RegistrationVerification,
 } from '@ens-apps/transaction-manager/machines/registration/registration.verification'
 import type { RegistrationStage as AnalyticsRegistrationStage } from '@ens-apps/utils/posthog/eventContracts'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match, P } from 'ts-pattern'
@@ -196,6 +197,11 @@ type Context = {
 }
 
 const getAnalyticsProperties = (context: Context) => ({
+  ...getAnalyticsNameProperties(
+    context.postRegistrationData
+      ? `${context.postRegistrationData.label}.eth`
+      : context.analytics.ens_name,
+  ),
   flow_id: context.analytics.flow_id,
   chain_id: context.chainId,
   execution_method: getAnalyticsExecutionMethod(
@@ -305,11 +311,12 @@ type Events =
     }
   | { type: 'retry' }
   | { type: 'cancel' }
-  | { type: 'label.changed' }
+  | { type: 'label.changed'; readonly analyticsName?: string }
   | { type: '$error'; error: Error }
   | { type: '$walletBusy'; blockingName: string | null }
 
 type Input = {
+  readonly analyticsName?: string
   chainId: number
 }
 
@@ -503,7 +510,13 @@ const machineSetup = setup({
       })
     },
     resetAnalytics: assign({
-      analytics: () => createAnalyticsFlow(),
+      analytics: ({ context, event }) =>
+        createAnalyticsFlow(
+          undefined,
+          event.type === 'label.changed'
+            ? event.analyticsName
+            : context.analytics.ens_name,
+        ),
       lastAnalyticsStep: undefined,
     }),
     analyticsApprovalFailure: ({ context }) =>
@@ -1340,7 +1353,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   },
   initial: 'pricing',
   context: ({ input }) => ({
-    analytics: createAnalyticsFlow(),
+    analytics: createAnalyticsFlow(undefined, input.analyticsName),
     chainId: input.chainId,
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,

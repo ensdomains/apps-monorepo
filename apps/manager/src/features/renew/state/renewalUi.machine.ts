@@ -13,6 +13,7 @@ import {
   submitApprovalActor,
   submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, WalletClient } from 'viem'
@@ -138,6 +139,11 @@ const getAnalyticsProperties = (
   },
   chainId: number,
 ) => ({
+  ...getAnalyticsNameProperties(
+    context.submissionData
+      ? `${context.submissionData.label}.eth`
+      : context.analytics.ens_name,
+  ),
   flow_id: context.analytics.flow_id,
   protocol_version: context.protocol,
   chain_id: chainId,
@@ -217,6 +223,7 @@ export const renewalUiMachine = setup({
       paymentUpdate?: PaymentUpdateState
     },
     input: {} as {
+      readonly analyticsName?: string
       currentExpiry: bigint
       protocol: RenewalProtocol
       approvalFallback?: HcaFundingApprovalCapability
@@ -271,7 +278,7 @@ export const renewalUiMachine = setup({
       | { type: 'renewal.payment.accept' }
       | { type: 'retry' }
       | { type: 'cancel' }
-      | { type: 'label.changed' },
+      | { type: 'label.changed'; readonly analyticsName?: string },
     tags: '' as 'renewing',
   },
   actors: {
@@ -362,7 +369,15 @@ export const renewalUiMachine = setup({
       params.expiry !== null && params.expiry > context.currentExpiry,
   },
   actions: {
-    resetAnalytics: assign({ analytics: () => createAnalyticsFlow() }),
+    resetAnalytics: assign({
+      analytics: ({ context, event }) =>
+        createAnalyticsFlow(
+          undefined,
+          event.type === 'label.changed'
+            ? event.analyticsName
+            : context.analytics.ens_name,
+        ),
+    }),
     analyticsStart: ({ context }) =>
       context.analytics.capture('renewal:flow_start', {
         ...getAnalyticsProperties(context, envConfig.chain.id),
@@ -548,7 +563,7 @@ export const renewalUiMachine = setup({
 }).createMachine({
   id: 'renewalUi',
   context: ({ input }) => ({
-    analytics: createAnalyticsFlow(),
+    analytics: createAnalyticsFlow(undefined, input.analyticsName),
     currentExpiry: input.currentExpiry,
     protocol: input.protocol,
     renewerAddress: getRenewerAddress(input.protocol),

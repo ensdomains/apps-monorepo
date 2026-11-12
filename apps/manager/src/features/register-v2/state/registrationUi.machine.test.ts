@@ -740,6 +740,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toBe(true)
     expect(capture).toHaveBeenCalledWith('registration:flow_complete', {
       flow_id: analytics.flow_id,
+      ens_name: 'example.eth',
       chain_id: 11155111,
       execution_method: 'eoa',
     })
@@ -759,6 +760,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toHaveLength(1)
     expect(capture).toHaveBeenCalledWith('registration:stage_fail', {
       flow_id: analytics.flow_id,
+      ens_name: 'example.eth',
       chain_id: 11155111,
       execution_method: 'eoa',
       stage: 'post_registration',

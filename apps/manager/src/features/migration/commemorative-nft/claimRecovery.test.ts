@@ -1,19 +1,46 @@
 import { Storage } from 'happy-dom'
 import type { Address, Hex } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { submitPendingNftClaim } from './claimRecovery'
+import {
+  reconcilePendingNftClaim,
+  submitPendingNftClaim,
+} from './claimRecovery'
 import { getCommemorativeNftContractAddress } from './config'
-import { claimCommemorativeNft, readCommemorativeNftClaimed } from './contract'
+import {
+  type CommemorativeNftClaimReceiptResult,
+  claimCommemorativeNft,
+  readCommemorativeNftClaimed,
+  waitForCommemorativeNftClaimReceipt,
+} from './contract'
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import { readPendingNftClaim } from './pendingClaim'
 
 vi.mock('@/config', () => ({ envConfig: { network: 'sepolia' } }))
-vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
+const analyticsState = vi.hoisted(() => ({
+  consent: 'granted' as 'granted' | 'pending',
+  wallet: '0x1111111111111111111111111111111111111111',
+  capture: vi.fn(),
+}))
+vi.mock('@/lib/posthog/events', async () => {
+  const { createAnalyticsTracker } = await import(
+    '@ens-apps/utils/posthog/createAnalyticsTracker'
+  )
+  return createAnalyticsTracker({
+    getConnectedWalletAddress: () => analyticsState.wallet,
+    client: {
+      __loaded: true,
+      get_explicit_consent_status: () => analyticsState.consent,
+      get_distinct_id: () => analyticsState.wallet,
+      capture: analyticsState.capture,
+    },
+  })
+})
 
 vi.mock('./contract', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./contract')>()),
   claimCommemorativeNft: vi.fn(),
   readCommemorativeNftClaimed: vi.fn(),
+  waitForCommemorativeNftClaimReceipt: vi.fn(),
 }))
 const ownerAddress: Address = '0x1111111111111111111111111111111111111111'
 const contractAddress = getCommemorativeNftContractAddress()
@@ -44,6 +71,9 @@ const deferred = <T>() => {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubGlobal('localStorage', new Storage())
+  vi.stubGlobal('document', { cookie: '' })
+  analyticsState.wallet = ownerAddress
+  analyticsState.consent = 'granted'
   const held = new Set<string>()
   vi.stubGlobal('navigator', {
     locks: {
@@ -126,3 +156,34 @@ describe('commemorative NFT claim submission coordination', () => {
     expect(claimCommemorativeNft).toHaveBeenCalledTimes(2)
   })
 })
+
+it.each(['unchanged', 'wallet_changed', 'late_consent'] as const)(
+  'keeps NFT receipt analytics scoped to the initiating operation: %s',
+  async (change) => {
+    const claim = await submitPendingNftClaim(params)
+    analyticsState.capture.mockClear()
+    const receipt = deferred<CommemorativeNftClaimReceiptResult>()
+    vi.mocked(waitForCommemorativeNftClaimReceipt).mockReturnValueOnce(
+      receipt.promise,
+    )
+    if (change === 'late_consent') analyticsState.consent = 'pending'
+    const reconciliation = reconcilePendingNftClaim({
+      wagmiConfig: params.wagmiConfig,
+      claim,
+      onHash: vi.fn(),
+    })
+    if (change === 'wallet_changed')
+      analyticsState.wallet = '0x2222222222222222222222222222222222222222'
+    analyticsState.consent = 'granted'
+    receipt.resolve({ status: 'confirmed', hash })
+    await expect(reconciliation).resolves.toMatchObject({
+      outcome: { status: 'confirmed' },
+    })
+    expect(readPendingNftClaim(claim).status).toBe('empty')
+    expect(analyticsState.capture.mock.calls).toEqual(
+      change === 'unchanged'
+        ? [['nft:claim_outcome', { outcome: 'minted' }]]
+        : [],
+    )
+  },
+)

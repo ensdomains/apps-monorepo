@@ -273,9 +273,9 @@ describe('renewal analytics', () => {
 
 it.each([
   {
-    names: [{ isV2: false }],
+    names: [{ isV2: false, name: 'ALICE.eth' }],
     isBulk: false,
-    expected: { is_bulk: false, protocol_version: 'v1' },
+    expected: { is_bulk: false, protocol_version: 'v1', ens_name: 'alice.eth' },
   },
   {
     names: [{ isV2: true }],
@@ -283,7 +283,21 @@ it.each([
     expected: { is_bulk: false, protocol_version: 'v2' },
   },
   {
-    names: [{ isV2: false }, { isV2: true }, { isV2: true }],
+    names: [{ isV2: true, name: 'alice.eth' }],
+    isBulk: true,
+    expected: {
+      is_bulk: true,
+      protocol_version: 'v2',
+      v1_item_count: 0,
+      v2_item_count: 1,
+    },
+  },
+  {
+    names: [
+      { isV2: false, name: 'alice.eth' },
+      { isV2: true, name: 'bob.eth' },
+      { isV2: true, name: 'carol.eth' },
+    ],
     isBulk: true,
     expected: {
       is_bulk: true,
@@ -332,6 +346,50 @@ it('keeps the preview flow and mixed protocol counts through receipt-backed comp
     [
       'renewal:flow_complete',
       { ...properties, chain_id: sepolia.id, item_count: 2 },
+    ],
+  ])
+})
+
+it('pins the single renewal name while its receipt is pending', async () => {
+  const capture = vi.fn()
+  const signer = createCountingWallet(
+    '0x1111111111111111111111111111111111111111',
+  )
+  const properties = {
+    flow_id: 'single-name-flow',
+    ...getRenewalProtocolProperties([{ isV2: true, name: 'ALICE.eth' }], false),
+  }
+  const analytics = createRenewalAnalytics(
+    1,
+    sepolia.id,
+    { capture },
+    properties,
+  )
+  const pending = holdReceipt()
+  const id = analytics.startTransaction(
+    'execution',
+    1,
+    testIntent(signer.address),
+    signer.signer,
+    { id: 'pinned-name', publicClient: pending.publicClient },
+  )
+  await waitForPending(id)
+  properties.ens_name = 'bob.eth'
+  pending.finish()
+  await waitForTransaction(id)
+  expect(
+    capture.mock.calls.filter(([name]) => name === 'renewal:flow_complete'),
+  ).toEqual([
+    [
+      'renewal:flow_complete',
+      {
+        flow_id: 'single-name-flow',
+        is_bulk: false,
+        protocol_version: 'v2',
+        ens_name: 'alice.eth',
+        chain_id: sepolia.id,
+        item_count: 1,
+      },
     ],
   ])
 })
