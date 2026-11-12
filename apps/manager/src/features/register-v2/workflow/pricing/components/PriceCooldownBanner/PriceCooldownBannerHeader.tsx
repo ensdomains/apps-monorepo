@@ -44,8 +44,8 @@ export const PriceCooldownBannerHeader = ({
     <div className="flex min-w-0 flex-1 flex-col gap-1.5 md:gap-3">
       <h2
         className={cn(
-          'font-normal text-[#353535] leading-[1.1] tracking-tight',
-          'text-base md:text-xl',
+          'font-normal text-[#353535] tracking-tight',
+          'text-base leading-[1.1] md:text-xl',
         )}
       >
         <Trans>This name is in price cooldown</Trans>
