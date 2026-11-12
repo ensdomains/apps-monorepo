@@ -1393,11 +1393,11 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
     <fieldset className="contents" disabled={isBusy}>
       <div
         className={cn(
-          'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6',
+          'flex h-full min-h-0 min-w-0 flex-1 flex-col gap-6 max-sm:overflow-y-auto',
           showNetworkFeeDetails ? undefined : 'px-4',
         )}
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
+        <div className="flex flex-1 flex-col gap-6 sm:min-h-0 sm:overflow-y-auto">
           {header ?? (
             <DomainHeading
               isInPriceCooldown={isInPriceCooldown}
