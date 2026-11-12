@@ -1,4 +1,4 @@
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 export const FilterBadge = (props: {
   active: boolean
@@ -8,7 +8,7 @@ export const FilterBadge = (props: {
 }) => {
   return (
     <button
-      className={tw(
+      className={cn(
         'cursor-pointer rounded-sm font-normal font-semi-mono text-sm uppercase leading-[1.05] tracking-[0.28px] transition-colors',
         props.active
           ? 'bg-[#232222] text-white'
