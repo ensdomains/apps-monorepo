@@ -5,17 +5,26 @@ import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import { usePublicClient } from 'wagmi'
-import {
-  getV1NameStateQueryOptions,
-  type V1NameState,
-} from '@/features/transfer/v1/getV1NameState'
-import { createTestQueryClient, createTestWrapper } from '@/test-utils'
+import type { V1NameState } from '@/features/transfer/v1/getV1NameState'
+import { createTestWrapper } from '@/test-utils'
 import { ChangeManager } from './ChangeManager'
 
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   useNavigate: () => vi.fn(),
 }))
+
+// The page refetches on mount (`staleTime: 0`), so a seeded cache entry would be replaced by a real read.
+vi.mock('@/features/transfer/v1/getV1NameState', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/features/transfer/v1/getV1NameState')
+  >()),
+  getV1NameStateQueryOptions: vi.fn(),
+}))
+
+const { getV1NameStateQueryOptions } = await import(
+  '@/features/transfer/v1/getV1NameState'
+)
 
 const REGISTRANT: Address = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
 const MANAGER: Address = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'
@@ -37,11 +46,6 @@ const TransactionManagerScope = ({
 }
 
 const renderChangeManager = () => {
-  const queryClient = createTestQueryClient()
-  const { queryKey } = getV1NameStateQueryOptions({ name: 'alice.eth' })
-  queryClient.setQueryDefaults(queryKey, {
-    staleTime: Number.POSITIVE_INFINITY,
-  })
   const state: V1NameState = {
     subject: {
       kind: 'v1-registrar',
@@ -53,8 +57,11 @@ const renderChangeManager = () => {
     parent: null,
     ancestorRegistration: null,
   }
-  queryClient.setQueryData(queryKey, state)
-  const TestProviders = createTestWrapper(queryClient)
+  vi.mocked(getV1NameStateQueryOptions).mockReturnValue({
+    queryKey: ['v1-name-state-test'],
+    queryFn: () => state,
+  } as never)
+  const TestProviders = createTestWrapper()
   return render(<ChangeManager name="alice.eth" account={REGISTRANT} />, {
     wrapper: ({ children }: { readonly children: ReactNode }) => (
       <TestProviders>
