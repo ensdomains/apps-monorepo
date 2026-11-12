@@ -13,71 +13,63 @@ type Completion = {
   readonly properties: AnalyticsEvents['registration:flow_complete']
 }
 
-const completedFlows = new WeakSet<object>()
-const observedTransactions = new WeakMap<
-  object,
-  {
-    readonly receipts: WeakSet<object>
-    readonly verifications: WeakSet<object>
-  }
->()
-
-export const captureRegistrationCompletion = ({
-  analytics,
-  properties,
-}: Completion) => {
-  const scope = analytics.completionScope ?? analytics
-  if (completedFlows.has(scope)) return
-  completedFlows.add(scope)
-  analytics.capture('registration:flow_complete', properties)
+type RegistrationCompletion = {
+  readonly properties: Completion['properties']
+  readonly complete: () => void
+  readonly observe: (
+    txId: string,
+    verification?: RegistrationVerification,
+  ) => void
+  readonly withAttempt: (completion: Completion) => RegistrationCompletion
 }
 
-const claimRegistrationObservation = (
-  scope: object,
-  identity: object,
-  hasVerification: boolean,
-): boolean => {
-  const observed = observedTransactions.get(scope) ?? {
-    receipts: new WeakSet<object>(),
-    verifications: new WeakSet<object>(),
-  }
-  const observations = hasVerification
-    ? observed.verifications
-    : observed.receipts
-  if (observations.has(identity)) return false
-  observations.add(identity)
-  observedTransactions.set(scope, observed)
-  return true
-}
-
-export const observeRegistrationCompletion = (
-  completion: Completion,
+const waitForCompletion = async (
   txId: string,
-  verification?: RegistrationVerification,
-): void => {
-  const scope = completion.analytics.completionScope ?? completion.analytics
-  const observe = async () => {
-    const transaction = transactionManager.getTransaction(txId)
-    if (!transaction && !verification) return
-    if (
-      !claimRegistrationObservation(
-        scope,
-        transaction ?? scope,
-        verification !== undefined,
-      )
-    )
-      return
-    const receipt = await pollTransactionStatusActor({ txId })
-    if (receipt.isOk()) {
-      captureRegistrationCompletion(completion)
-      return
+  verification: RegistrationVerification | undefined,
+  complete: () => void,
+): Promise<void> => {
+  const receipt = await pollTransactionStatusActor({ txId })
+  if (receipt.isOk()) return complete()
+  if (!verification) return
+  const result = await (verification.mode === 'hca'
+    ? verifyHcaRegistrationActor(verification.input)
+    : verifyRegistrationActor(verification.input))
+  if (result.isOk() && result.value.verified) complete()
+}
+
+/** Rebound attempts share observation/once guards, never mutable event properties. */
+export const createRegistrationCompletion = (
+  completion: Completion,
+  previous?: RegistrationCompletion,
+): RegistrationCompletion => {
+  if (previous?.properties.flow_id === completion.properties.flow_id)
+    return previous.withAttempt(completion)
+  const receipts = new WeakSet<object>()
+  const verifications = new WeakSet<object>()
+  const bind = ({
+    analytics,
+    properties,
+  }: Completion): RegistrationCompletion => {
+    const complete = (): void => {
+      if (analytics.claimCompletion())
+        analytics.capture('registration:flow_complete', properties)
     }
-    if (!verification) return
-    const result = await (verification.mode === 'hca'
-      ? verifyHcaRegistrationActor(verification.input)
-      : verifyRegistrationActor(verification.input))
-    if (result.isOk() && result.value.verified)
-      captureRegistrationCompletion(completion)
+    const observe = (
+      txId: string,
+      verification?: RegistrationVerification,
+    ): void => {
+      const run = async () => {
+        const transaction = transactionManager.getTransaction(txId)
+        if (!transaction && !verification) return
+        const identity = transaction ?? analytics.claimCompletion
+        const observations = verification ? verifications : receipts
+        if (observations.has(identity)) return
+        observations.add(identity)
+        await waitForCompletion(txId, verification, complete)
+      }
+      void run().catch(() => {})
+    }
+    return { properties, complete, observe, withAttempt: bind }
   }
-  void observe().catch(() => {})
+  return bind(completion)
 }

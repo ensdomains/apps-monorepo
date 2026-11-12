@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { getRegistrationAnalyticsStep } from './registrationAnalyticsStep'
+import { getRegistrationAnalyticsStep } from './registrationStage'
 
 describe('getRegistrationAnalyticsStep', () => {
   it.each([
     ['deployingResolver', 'setup'],
     ['signingFundingPermit', 'approval'],
     ['submittingSetupBundle', 'commit'],
+    ['submittingEoaSetupBundle', 'commit'],
     ['commitmentCooldown', 'cooldown'],
     ['submittingRhinestoneBundle', 'registration'],
     ['verifyingRegistration', 'verification'],

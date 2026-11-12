@@ -1,14 +1,8 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import {
-  getAnalyticsConsentRevision,
-  hasAnalyticsConsent,
-  useAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConsent'
-import { createIntercomAnalyticsLink } from '@ens-apps/utils/posthog/intercomLink'
-import {
-  getWalletIdentityAction,
-  hasMatchingWalletIdentity,
-} from '@ens-apps/utils/posthog/walletIdentity'
+import { hasAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConsent'
+import { createAnalyticsSupportLink } from '@ens-apps/utils/posthog/analyticsSupport'
+import { synchronizeAnalyticsIdentity } from '@ens-apps/utils/posthog/identitySync'
+import { useAnalyticsIdentitySync } from '@ens-apps/utils/posthog/useAnalyticsIdentitySync'
 import {
   boot as bootIntercom,
   getVisitorId,
@@ -21,87 +15,23 @@ import { useHydrated } from '@tanstack/react-router'
 // approach as portal; see PostHog's CSP guide:
 // https://posthog.com/docs/advanced/content-security-policy
 import posthog from 'posthog-js/dist/module.full.no-external'
-import { type RefObject, useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useConnection, useConnectionEffect } from 'wagmi'
-import {
-  applyAnalyticsConsent,
-  IS_ANALYTICS_ENABLED,
-  POSTHOG_CONFIG,
-  POSTHOG_KEY,
-  resetKeepingConsent,
-} from './config'
+import { IS_ANALYTICS_ENABLED, POSTHOG_CONFIG, POSTHOG_KEY } from './config'
 import {
   getConnectedWalletAddress,
   startAnalyticsOperation,
   track,
 } from './events'
 
-type ConnectedWallet = {
-  readonly address: string
-  readonly chainId: number
-  readonly connector: { readonly name: string }
-}
-
-// With consent the wallet becomes the analytics identity. Without it nothing
-// is sent, so wallet-targeted flags match only after Accept.
-const identifyWallet = (wallet: ConnectedWallet | null) => {
-  if (!posthog.__loaded) return
-  const action = getWalletIdentityAction({
-    isGranted: hasAnalyticsConsent(posthog) && IS_ANALYTICS_ENABLED,
-    isIdentified: posthog.get_property('$user_state') === 'identified',
-    distinctId: posthog.get_distinct_id(),
-    address: wallet?.address,
-  })
-  if (action.type === 'reset' || action.type === 'replace')
-    resetKeepingConsent(posthog)
-  if (action.type === 'identify' || action.type === 'replace')
-    posthog.identify(action.address)
-  if (wallet && hasAnalyticsConsent(posthog))
-    posthog.register({
-      chain_id: wallet.chainId,
-      wallet_connector: wallet.connector.name,
-    })
-  intercomLink.sync()
-}
-
-// Links support chats only once the current consenting identity and widget are ready.
-const intercomLink = createIntercomAnalyticsLink({
-  getContext: () => {
-    if (!hasAnalyticsConsent(posthog) || !IS_ANALYTICS_ENABLED) return
-    const distinctId = posthog.get_distinct_id()
-    const revision = getAnalyticsConsentRevision()
-    if (
-      revision === undefined ||
-      !hasMatchingWalletIdentity(getConnectedWalletAddress(), distinctId)
-    )
-      return
-    return { distinctId, key: `${distinctId}:${revision}` }
-  },
+const intercomLink = createAnalyticsSupportLink({
+  client: posthog,
+  isEnabled: IS_ANALYTICS_ENABLED,
+  getWalletAddress: getConnectedWalletAddress,
   getVisitorId,
-  link: ({ distinctId }, intercomVisitorId) => {
-    updateIntercom({ posthog_distinct_id: distinctId })
-    posthog.setPersonProperties({ intercom_visitor_id: intercomVisitorId })
-    track('intercom:booted')
-  },
+  update: updateIntercom,
+  track,
 })
-
-// Applies PostHog's answer once it's known and whenever it changes: on load,
-// on Accept or Decline, and when another tab or app answers.
-const useApplyAnalyticsConsent = (
-  wallet: RefObject<ConnectedWallet | null>,
-) => {
-  const consent = useAnalyticsConsent(posthog)
-  useEffect(() => () => intercomLink.cancel(), [])
-  useEffect(() => {
-    if (!consent) return
-    try {
-      applyAnalyticsConsent(posthog)
-      identifyWallet(wallet.current)
-    } catch (error) {
-      console.warn('[posthog] consent synchronization failed', error)
-    }
-  }, [consent, wallet])
-}
 
 export const PHProvider = ({
   children,
@@ -109,35 +39,13 @@ export const PHProvider = ({
   children: React.ReactNode
 }): React.ReactNode => {
   const isHydrated = useHydrated()
-  const wallet = useRef<ConnectedWallet | null>(null)
   const connection = useConnection()
-
-  useEffect(() => {
-    if (
-      connection.status !== 'connected' &&
-      connection.status !== 'disconnected'
-    )
-      return
-    const connected =
-      connection.address && connection.chainId && connection.connector
-        ? {
-            address: connection.address,
-            chainId: connection.chainId,
-            connector: connection.connector,
-          }
-        : null
-    wallet.current = connected
-    try {
-      identifyWallet(connected)
-    } catch (error) {
-      console.warn('[posthog] wallet synchronization failed', error)
-    }
-  }, [
-    connection.address,
-    connection.chainId,
-    connection.connector,
-    connection.status,
-  ])
+  useAnalyticsIdentitySync({
+    client: posthog,
+    connection,
+    isEnabled: IS_ANALYTICS_ENABLED,
+    link: intercomLink,
+  })
 
   useEffect(() => {
     if (!isHydrated) return
@@ -239,13 +147,15 @@ export const PHProvider = ({
     }
   }, [isHydrated])
 
-  useApplyAnalyticsConsent(wallet)
-
   useConnectionEffect({
     onConnect(data) {
-      wallet.current = data
       try {
-        identifyWallet(data)
+        synchronizeAnalyticsIdentity(
+          posthog,
+          data.address,
+          IS_ANALYTICS_ENABLED,
+        )
+        intercomLink.sync()
         track('wallet:connect', {
           chain_id: data.chainId,
           wallet_connector: data.connector.name,
@@ -265,10 +175,6 @@ export const PHProvider = ({
       } catch (error) {
         console.warn('[intercom] wallet:connect failed', error)
       }
-    },
-    // WalletLifecycle resets PostHog itself.
-    onDisconnect() {
-      wallet.current = null
     },
   })
 

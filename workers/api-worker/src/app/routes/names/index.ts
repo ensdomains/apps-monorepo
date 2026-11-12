@@ -91,12 +91,13 @@ export default createApp()
         error: uniqueSearchesResult.error,
         name,
       })
-      return c.json({ error: 'Name search statistics unavailable' }, 503)
     }
 
     return c.json({
       name,
       favorites: favoriteCountResult.value[0]?.value ?? 0,
-      unique_searches_last_30d: uniqueSearchesResult.value,
+      unique_searches_last_30d: uniqueSearchesResult.isOk()
+        ? uniqueSearchesResult.value
+        : null,
     })
   })

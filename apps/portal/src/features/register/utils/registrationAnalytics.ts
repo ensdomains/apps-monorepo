@@ -4,27 +4,10 @@ import type { RegistrationVerification } from '@ens-apps/transaction-manager/mac
 import type { RegistrationStage } from '@ens-apps/utils/posthog/eventContracts'
 import { createAnalyticsFlowId } from '@ens-apps/utils/posthog/flowId'
 import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
+import { getRegistrationAnalyticsStep } from '@ens-apps/utils/posthog/registrationStage'
 import { match } from 'ts-pattern'
 import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { observeTransactionReceipt } from '@/utils/observeTransactionReceipt'
-
-const REGISTRATION_STAGES: Readonly<Record<string, RegistrationStage>> = {
-  checkingResolver: 'setup',
-  deployingResolver: 'setup',
-  waitingForResolverDeployment: 'setup',
-  preparingCommitment: 'commit',
-  committingTransaction: 'commit',
-  submittingEoaSetupBundle: 'setup',
-  waitingForCommitment: 'commit',
-  validatingCommitment: 'commit',
-  commitmentCooldown: 'cooldown',
-  checkingAllowance: 'approval',
-  approvingToken: 'approval',
-  waitingForApproval: 'approval',
-  registeringDomain: 'registration',
-  waitingForRegistration: 'registration',
-  verifyingRegistration: 'verification',
-}
 
 type Snapshot = {
   readonly value: unknown
@@ -73,9 +56,8 @@ const getRegistrationTransition = (
       },
     }
   const stage =
-    typeof snapshot.value === 'string' &&
-    Object.hasOwn(REGISTRATION_STAGES, snapshot.value)
-      ? REGISTRATION_STAGES[snapshot.value]
+    typeof snapshot.value === 'string'
+      ? getRegistrationAnalyticsStep(snapshot.value)
       : undefined
   if (
     !stage ||

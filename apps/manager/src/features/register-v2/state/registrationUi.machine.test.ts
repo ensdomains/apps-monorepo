@@ -4,8 +4,6 @@ import type { Address } from 'viem'
 import { baseSepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
-import { publicClient } from '@/lib/wagmi'
-import * as completionAnalytics from '../service/registrationCompletionAnalytics'
 
 /**
  * Events the stubbed registration child accepts. `FORCE_*` are test-only
@@ -668,34 +666,19 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     },
   )
 
-  it('forwards submission-time verification after the registration UI stops', () => {
-    const observe = vi
-      .spyOn(completionAnalytics, 'observeRegistrationCompletion')
-      .mockImplementation(() => undefined)
+  it('pins the submitted name on the detached completion owner after the UI stops', () => {
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount))
+    const completion = actor.getSnapshot().context.registrationAnalytics
     const queued = getChild(actor).getSnapshot().context.onRegistrationQueued
-    const verification: RegistrationVerification = {
-      mode: 'eoa',
-      input: {
-        name: 'example.eth',
-        owner: EOA_ADDRESS,
-        resolverAddress: HCA_ADDRESS,
-        publicClient: publicClient,
-        commitment: '0x1234',
-      },
-    }
     actor.stop()
-    if (!queued) throw new Error('Missing queued completion observer')
-    queued('queued-after-unmount', verification)
-    expect(observe).toHaveBeenCalledWith(
-      expect.objectContaining({
-        properties: expect.objectContaining({ execution_method: 'eoa' }),
-      }),
-      'queued-after-unmount',
-      verification,
-    )
-    observe.mockRestore()
+    expect(completion?.properties).toEqual({
+      flow_id: actor.getSnapshot().context.analytics.flow_id,
+      ens_name: 'example.eth',
+      chain_id: 11155111,
+      execution_method: 'eoa',
+    })
+    expect(queued).toBe(completion?.observe)
   })
 
   it('keeps the registered Unicode label in both EOA primary-name legs', async () => {

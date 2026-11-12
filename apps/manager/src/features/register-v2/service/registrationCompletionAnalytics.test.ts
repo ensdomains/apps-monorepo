@@ -5,10 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createActor, createMachine } from 'xstate'
 import { bindAnalyticsFlow, createAnalyticsFlow } from '@/lib/posthog/flow'
 import { publicClient } from '@/lib/wagmi'
-import {
-  captureRegistrationCompletion,
-  observeRegistrationCompletion,
-} from './registrationCompletionAnalytics'
+import { createRegistrationCompletion } from './registrationCompletionAnalytics'
 
 const getTransaction = vi.hoisted(() => vi.fn())
 const submit = vi.hoisted(() => vi.fn())
@@ -85,10 +82,10 @@ describe('registration completion observation', () => {
       )
       const capture = vi.fn()
       const analytics = { ...createAnalyticsFlow(), capture }
-      const completion = {
+      const completion = createRegistrationCompletion({
         analytics,
-        properties: { flow_id: analytics.flow_id },
-      }
+        properties: { flow_id: analytics.flow_id, ens_name: input.name },
+      })
       const implementation =
         registrationMachine.implementations.actors?.[
           mode === 'eoa' ? 'submitRegistration' : 'submitRevealBatch'
@@ -104,7 +101,7 @@ describe('registration completion observation', () => {
           onRegistrationQueued: (
             txId: string,
             pinned?: RegistrationVerification,
-          ) => observeRegistrationCompletion(completion, txId, pinned),
+          ) => completion.observe(txId, pinned),
         },
       }).start()
       actor.stop()
@@ -131,8 +128,11 @@ describe('registration completion observation', () => {
     getTransaction.mockReturnValue(failed)
     const analytics = createAnalyticsFlow('retry-flow')
     const capture = vi.spyOn(analytics, 'capture')
-    const completion = { analytics, properties: { flow_id: analytics.flow_id } }
-    observeRegistrationCompletion(completion, 'tx-reg-register')
+    const completion = createRegistrationCompletion({
+      analytics,
+      properties: { flow_id: analytics.flow_id },
+    })
+    completion.observe('tx-reg-register')
     failed.send({ type: 'FAILED' })
     await new Promise<void>((resolve) => setTimeout(resolve, 0))
     expect(capture).not.toHaveBeenCalled()
@@ -142,11 +142,15 @@ describe('registration completion observation', () => {
     getTransaction.mockReturnValue(replacement)
     const rebound = bindAnalyticsFlow(analytics)
     vi.spyOn(rebound, 'capture').mockImplementation(capture)
-    observeRegistrationCompletion(completion, 'tx-reg-register')
-    observeRegistrationCompletion(
-      { ...completion, analytics: rebound },
-      'tx-reg-register',
+    completion.observe('tx-reg-register')
+    const reboundCompletion = createRegistrationCompletion(
+      {
+        analytics: rebound,
+        properties: { ...completion.properties, execution_method: 'hca' },
+      },
+      completion,
     )
+    reboundCompletion.observe('tx-reg-register')
     replacement.send({ type: 'CONFIRMED' })
     await vi.waitFor(() =>
       expect(capture).toHaveBeenCalledWith(
@@ -154,7 +158,8 @@ describe('registration completion observation', () => {
         completion.properties,
       ),
     )
-    captureRegistrationCompletion({ ...completion, analytics: rebound })
+    reboundCompletion.complete()
+    expect(rebound.claimCompletion()).toBe(false)
     expect(capture).toHaveBeenCalledOnce()
     expect(subscribe).toHaveBeenCalledOnce()
     failed.stop()

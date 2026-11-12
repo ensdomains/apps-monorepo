@@ -1,7 +1,4 @@
-import {
-  getAnalyticsConsentRevision,
-  hasAnalyticsConsent,
-} from './analyticsConsent'
+import { hasAnalyticsConsent } from './analyticsConsent'
 import type { AnalyticsEvents } from './eventContracts'
 import { hasMatchingWalletIdentity } from './walletIdentity'
 
@@ -72,22 +69,19 @@ export const createAnalyticsTracker = ({
     }
   }
 
-  /** Use before an await to suppress outcomes after a wallet or consent change. */
+  /** Use before an await to bind outcomes to the initiating wallet and require consent at start and capture. */
   const startAnalyticsOperation = (): { readonly capture: Track } => {
     try {
       const connectedWallet = getConnectedWalletAddress()
       const wallet = connectedWallet?.toLowerCase()
       const identity = client.get_distinct_id()
-      const revision = getAnalyticsConsentRevision()
       const isAllowed =
-        revision !== undefined &&
         hasAnalyticsConsent(client) &&
         hasMatchingWalletIdentity(connectedWallet, identity)
       const capture: Track = (name, ...args) => {
         try {
           if (
             isAllowed &&
-            revision === getAnalyticsConsentRevision() &&
             wallet === getConnectedWalletAddress()?.toLowerCase() &&
             identity === client.get_distinct_id()
           )

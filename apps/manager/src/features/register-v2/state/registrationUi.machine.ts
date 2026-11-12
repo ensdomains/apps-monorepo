@@ -10,12 +10,10 @@ import {
 } from '@ens-apps/transaction-manager'
 import { isUserRejectionError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import { getResumeTarget } from '@ens-apps/transaction-manager/machines/registration/registration.persistence'
-import {
-  getRegistrationVerification,
-  type RegistrationVerification,
-} from '@ens-apps/transaction-manager/machines/registration/registration.verification'
+import { getRegistrationVerification } from '@ens-apps/transaction-manager/machines/registration/registration.verification'
 import type { RegistrationStage as AnalyticsRegistrationStage } from '@ens-apps/utils/posthog/eventContracts'
 import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
+import { getRegistrationAnalyticsStep } from '@ens-apps/utils/posthog/registrationStage'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match, P } from 'ts-pattern'
@@ -58,10 +56,7 @@ import {
 import { getL2FundingSource } from '../service/l2FundingSource'
 import { readPendingEthSwap } from '../service/pendingEthSwap'
 import { readPendingL2Bridge } from '../service/pendingL2Bridge'
-import {
-  captureRegistrationCompletion,
-  observeRegistrationCompletion,
-} from '../service/registrationCompletionAnalytics'
+import { createRegistrationCompletion } from '../service/registrationCompletionAnalytics'
 import {
   getRegistrationFailureMessage,
   getRegistrationFailureReason,
@@ -87,7 +82,6 @@ import {
   REGISTRATION_STAGE_PROGRESS,
   type RegistrationStage,
 } from './registration.stages'
-import { getRegistrationAnalyticsStep } from './registrationAnalyticsStep'
 import type { RegistrationPostRegistrationSetup } from './registrationAutoSetup'
 
 export const REGISTRATION_V2_ACTOR_ID = 'registrationActor'
@@ -137,6 +131,9 @@ export type PaymentAsset = 'stablecoin' | 'eth'
 
 type Context = {
   readonly analytics: AnalyticsFlow
+  readonly registrationAnalytics?: ReturnType<
+    typeof createRegistrationCompletion
+  >
   readonly lastAnalyticsStep?: AnalyticsRegistrationStage
   chainId: number
   duration: number
@@ -196,18 +193,19 @@ type Context = {
   maxProgressReached?: MaxProgressReached
 }
 
-const getAnalyticsProperties = (context: Context) => ({
-  ...getAnalyticsNameProperties(
-    context.postRegistrationData
-      ? `${context.postRegistrationData.label}.eth`
-      : context.analytics.ens_name,
-  ),
-  flow_id: context.analytics.flow_id,
-  chain_id: context.chainId,
-  execution_method: getAnalyticsExecutionMethod(
-    context.postRegistrationData?.signer.type,
-  ),
-})
+const getAnalyticsProperties = (context: Context) =>
+  context.registrationAnalytics?.properties ?? {
+    ...getAnalyticsNameProperties(
+      context.postRegistrationData
+        ? `${context.postRegistrationData.label}.eth`
+        : context.analytics.ens_name,
+    ),
+    flow_id: context.analytics.flow_id,
+    chain_id: context.chainId,
+    execution_method: getAnalyticsExecutionMethod(
+      context.postRegistrationData?.signer.type,
+    ),
+  }
 
 type Events =
   | { type: 'pricing.step.next' }
@@ -510,6 +508,7 @@ const machineSetup = setup({
       })
     },
     resetAnalytics: assign({
+      registrationAnalytics: undefined,
       analytics: ({ context, event }) =>
         createAnalyticsFlow(
           undefined,
@@ -749,12 +748,7 @@ const machineSetup = setup({
         return
       const child = event.snapshot.context
       if (!child.registrationTxId) return
-      const completion = {
-        analytics: context.analytics,
-        properties: getAnalyticsProperties(context),
-      }
-      observeRegistrationCompletion(
-        completion,
+      context.registrationAnalytics?.observe(
         child.registrationTxId,
         getRegistrationVerification(child),
       )
@@ -797,10 +791,7 @@ const machineSetup = setup({
       if (!isRegistrationSnapshotEvent(event)) return
 
       if (!context.registrationCompleted) {
-        captureRegistrationCompletion({
-          analytics: context.analytics,
-          properties: getAnalyticsProperties(context),
-        })
+        context.registrationAnalytics?.complete()
       }
 
       const confirmed = context.confirmedData
@@ -1008,9 +999,25 @@ const startRegistrationAction = machineSetup.createAction(
     const referrer = normalizeReferrer(event.referrer, ENS_LABS_REFERRER)
 
     const analytics = bindAnalyticsFlow(context.analytics)
+    const completion = {
+      analytics,
+      properties: {
+        flow_id: analytics.flow_id,
+        ...getAnalyticsNameProperties(asEthName(event.label)),
+        chain_id: context.chainId,
+        execution_method: getAnalyticsExecutionMethod(
+          event.account.signer?.type,
+        ),
+      },
+    }
+    const registrationAnalytics = createRegistrationCompletion(
+      completion,
+      context.registrationAnalytics,
+    )
 
     enqueue.assign({
       analytics,
+      registrationAnalytics,
       lastAnalyticsStep: undefined,
       confirmedData: {
         label: event.label,
@@ -1065,24 +1072,7 @@ const startRegistrationAction = machineSetup.createAction(
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
-        onRegistrationQueued: (
-          txId: string,
-          verification?: RegistrationVerification,
-        ) =>
-          observeRegistrationCompletion(
-            {
-              analytics,
-              properties: {
-                flow_id: analytics.flow_id,
-                chain_id: context.chainId,
-                execution_method: getAnalyticsExecutionMethod(
-                  event.account.signer?.type,
-                ),
-              },
-            },
-            txId,
-            verification,
-          ),
+        onRegistrationQueued: registrationAnalytics.observe,
         approveBeforeCommit: true,
         name: asEthName(event.label),
         duration: event.duration,
@@ -1169,9 +1159,25 @@ const resumeRegistrationAction = machineSetup.createAction(
     }
 
     const analytics = bindAnalyticsFlow(context.analytics)
+    const completion = {
+      analytics,
+      properties: {
+        flow_id: analytics.flow_id,
+        ...getAnalyticsNameProperties(asEthName(event.label)),
+        chain_id: context.chainId,
+        execution_method: getAnalyticsExecutionMethod(
+          event.account.signer?.type,
+        ),
+      },
+    }
+    const registrationAnalytics = createRegistrationCompletion(
+      completion,
+      context.registrationAnalytics,
+    )
 
     enqueue.assign({
       analytics,
+      registrationAnalytics,
       lastAnalyticsStep: undefined,
       confirmedData: event.confirmedData,
       duration: Number(event.confirmedData.duration),
@@ -1230,24 +1236,7 @@ const resumeRegistrationAction = machineSetup.createAction(
           tokenPrice: event.confirmedData.totalPrice,
         },
         deps: {
-          onRegistrationQueued: (
-            txId: string,
-            verification?: RegistrationVerification,
-          ) =>
-            observeRegistrationCompletion(
-              {
-                analytics,
-                properties: {
-                  flow_id: analytics.flow_id,
-                  chain_id: context.chainId,
-                  execution_method: getAnalyticsExecutionMethod(
-                    event.account.signer?.type,
-                  ),
-                },
-              },
-              txId,
-              verification,
-            ),
+          onRegistrationQueued: registrationAnalytics.observe,
           signer: event.account.signer,
           approveBeforeCommit: true,
           approvalSigner,

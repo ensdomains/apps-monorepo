@@ -1,15 +1,5 @@
-import {
-  applyAnalyticsConsent,
-  canCaptureAnalytics,
-  prepareAnalyticsEvent,
-  protectStoredAnalyticsCredentials,
-  SHARED_POSTHOG_CONFIG,
-  writeAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConfiguration'
-import {
-  ANALYTICS_CONSENT_COOKIE,
-  notifyAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConsent'
+import { canCaptureAnalytics } from '@ens-apps/utils/posthog/analyticsConfiguration'
+import { getAppPostHogConfig } from '@ens-apps/utils/posthog/appConfiguration'
 import type { PostHogConfig } from 'posthog-js/dist/module.full.no-external'
 import { getConnectedWalletAddress } from './events'
 
@@ -29,31 +19,8 @@ const ANALYTICS_ENVIRONMENT = {
 export const IS_ANALYTICS_ENABLED = canCaptureAnalytics(ANALYTICS_ENVIRONMENT)
 export const POSTHOG_KEY =
   import.meta.env.VITE_PUBLIC_POSTHOG_KEY?.trim() || undefined
-
-export const POSTHOG_CONFIG = {
-  ...SHARED_POSTHOG_CONFIG,
-  autocapture: {
-    ...SHARED_POSTHOG_CONFIG.autocapture,
-    dom_event_allowlist: ['click'],
-  },
-  consent_persistence_name: ANALYTICS_CONSENT_COOKIE,
-  before_send: (event) =>
-    prepareAnalyticsEvent(event, {
-      sourceApp: 'explorer',
-      environment: ANALYTICS_ENVIRONMENT,
-      walletAddress: getConnectedWalletAddress(),
-    }),
-  loaded: (
-    client: Parameters<typeof applyAnalyticsConsent>[0] &
-      Parameters<typeof protectStoredAnalyticsCredentials>[0],
-  ) => {
-    try {
-      protectStoredAnalyticsCredentials(client)
-      applyAnalyticsConsent(client)
-      writeAnalyticsConsent(client, client.get_explicit_consent_status())
-    } catch (error) {
-      console.warn('[posthog] loaded consent synchronization failed', error)
-    }
-    notifyAnalyticsConsent()
-  },
-} satisfies Partial<PostHogConfig>
+export const POSTHOG_CONFIG = getAppPostHogConfig({
+  sourceApp: 'explorer',
+  environment: ANALYTICS_ENVIRONMENT,
+  getWalletAddress: () => getConnectedWalletAddress(),
+}) satisfies Partial<PostHogConfig>

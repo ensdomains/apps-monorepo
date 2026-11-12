@@ -6,25 +6,21 @@ import {
 import type { MigrationJournalOperation } from '../service/migrationBatchJournal'
 import type { MigrationResult } from '../service/migrationService'
 
-const completedFlows = new WeakSet<object>()
-
 export const captureMigrationCompletion = (
   analytics: AnalyticsFlow,
   result: MigrationResult,
   existing: readonly MigrationJournalOperation[],
 ) => {
   try {
-    const scope = analytics.completionScope ?? analytics
     const operations = mergeCompletedMigrationOperations(
       existing,
       result.completedOperations,
     )
     if (
       !hasCompletedMigrationOutcome(result, operations) ||
-      completedFlows.has(scope)
+      !analytics.claimCompletion()
     )
       return
-    completedFlows.add(scope)
     analytics.capture('migration:flow_complete', {
       flow_id: analytics.flow_id,
       item_count: operations.length,

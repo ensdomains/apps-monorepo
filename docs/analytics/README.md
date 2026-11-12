@@ -4,12 +4,13 @@ Shared PostHog instrumentation for Manager and Explorer. Start with [QA](qa.md) 
 
 ## Adding an event
 
-Names and payloads live in [`eventContracts.ts`](../../packages/utils/src/posthog/eventContracts.ts), with trigger descriptions and autocomplete. Use the app's `track` for explicit actions. Before asynchronous work, bind `startAnalyticsOperation()` and capture through it afterward. The bound capture suppresses old outcomes after wallet/consent changes. Never await analytics or use its result to decide product behavior.
+Names and payloads live in [`eventContracts.ts`](../../../packages/utils/src/posthog/eventContracts.ts), with trigger descriptions and autocomplete. Use the app's `track` for explicit actions. Before asynchronous work, bind `startAnalyticsOperation()` and capture through it afterward. The bound capture requires consent at start and send, and the initiating wallet/identity at send; intermediate changes are not journaled. Never await analytics or use its result to decide product behavior.
 
 ```ts
 const operation = startAnalyticsOperation()
 const nameProperties = getAnalyticsNameProperties(name)
 const result = await saveRecords(params)
+if (result.isErr()) return result
 operation.capture('profile:records_update', {
   ...nameProperties,
   chain_id: chainId,
@@ -73,4 +74,4 @@ Paths are relative to each app's `src/`. Shared contracts, consent, identity, na
 - Migration: compare start/retry to completion, keeping migrated/copied/ineligible counts separate. Explorer's handoff click is not a migration completion.
 - Health: filter production/staging explicitly; inspect missing protocol/name/flow context where expected, duplicate completions and sudden drops by release/app. Search's canonical and legacy events represent one action.
 
-Views are best effort; services/actors own outcomes independently of Done/unmount. Reload recovery starts a new observed segment, not a manufactured start for historical work. No pre-consent milestones are replayed. A closed browser, expired verification window or blocked ingestion can omit outcomes; these events are not complete on-chain accounting. Initial native pageviews may be dropped while wallet restoration is unresolved; no manual replacement pageview is fabricated.
+Views are best effort; services/actors own outcomes independently of Done/unmount. Reload recovery starts a new observed segment, not a manufactured start for historical work. No work started without consent is replayed after grant; withdrawal blocks sending while denied, and regrant may permit an already-consented pending result. A closed browser, expired verification window or blocked ingestion can omit outcomes; these events are not complete on-chain accounting. Native initial pageview readiness is coordinated with identity synchronization; no manual replacement pageview is fabricated.

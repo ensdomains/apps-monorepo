@@ -8,18 +8,25 @@ export type AnalyticsFlow = {
   readonly flow_id: string
   readonly ens_name?: string
   readonly capture: typeof track
-  readonly completionScope?: object
+  readonly claimCompletion: () => boolean
 }
 
 export const createAnalyticsFlow = (
   flowId = createAnalyticsFlowId(),
   ensName?: string,
-) => ({
-  ...getAnalyticsNameProperties(ensName),
-  flow_id: flowId ?? '',
-  completionScope: {},
-  capture: flowId ? track : NO_CAPTURE,
-})
+) => {
+  let isComplete = false
+  return {
+    ...getAnalyticsNameProperties(ensName),
+    flow_id: flowId ?? '',
+    claimCompletion: () => {
+      if (isComplete) return false
+      isComplete = true
+      return true
+    },
+    capture: flowId ? track : NO_CAPTURE,
+  }
+}
 
 export const bindAnalyticsFlow = (flow: AnalyticsFlow | string) => {
   const flowId = typeof flow === 'string' ? flow : flow.flow_id
@@ -28,8 +35,10 @@ export const bindAnalyticsFlow = (flow: AnalyticsFlow | string) => {
     ...(typeof flow === 'string'
       ? {}
       : getAnalyticsNameProperties(flow.ens_name)),
-    completionScope:
-      typeof flow === 'string' ? {} : (flow.completionScope ?? flow),
+    claimCompletion:
+      typeof flow === 'string'
+        ? createAnalyticsFlow(flow).claimCompletion
+        : flow.claimCompletion,
     ...(flowId ? startAnalyticsOperation() : { capture: NO_CAPTURE }),
   }
 }

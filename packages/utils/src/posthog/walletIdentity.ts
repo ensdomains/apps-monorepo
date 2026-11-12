@@ -26,6 +26,8 @@ export const hasMatchingWalletIdentity = (
   identity: string,
   event?: string,
 ): boolean => {
+  // Native anonymous activity can precede wallet restoration and is merged by SDK identify.
+  if (event?.startsWith('$') && !/^0x[\da-f]{40}$/i.test(identity)) return true
   if (address === undefined) return false
   if (address === null)
     return event === 'wallet:disconnect' || !/^0x[\da-f]{40}$/i.test(identity)

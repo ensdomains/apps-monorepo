@@ -7,6 +7,7 @@ import {
 } from '@ens-apps/utils/posthog/analyticsConfiguration'
 import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConsent'
 import { createAnalyticsTracker } from '@ens-apps/utils/posthog/createAnalyticsTracker'
+import { synchronizeAnalyticsIdentity } from '@ens-apps/utils/posthog/identitySync'
 import { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getConnectedWalletAddress } from './events'
@@ -70,10 +71,6 @@ describe('PostHog consent', () => {
     vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', 'true')
     await loadConfig()
     await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
-    await cookieStore.delete({
-      name: `${ANALYTICS_CONSENT_COOKIE}_generation`,
-      path: '/',
-    })
     vi.useFakeTimers()
     localStorage.clear()
     sessionStorage.clear()
@@ -262,45 +259,25 @@ describe('PostHog consent', () => {
     })
   })
 
-  it.each([false, true])(
-    'suppresses pending outcomes after another tab withdraws and regrants between polls (generation exists: %s)',
-    async (hasGeneration) => {
-      const { client } = initClient()
-      if (hasGeneration) setAnalyticsConsent(client, true)
-      else client.opt_in_capturing({ captureEventName: false })
-      vi.mocked(getConnectedWalletAddress).mockReturnValue(WALLET)
-      client.identify(WALLET)
-      const otherClient = initClient().client
-      const tracker = createAnalyticsTracker({
-        client,
-        getConnectedWalletAddress: () => WALLET,
-      })
-      const operation = tracker.startAnalyticsOperation()
-      const capture = vi.spyOn(client, 'capture')
-      operation.capture('profile:records_update', { chain_id: 1 })
-      expect(capture).toHaveBeenCalledExactlyOnceWith(
-        'profile:records_update',
-        { chain_id: 1 },
-      )
-      capture.mockClear()
-      vi.resetModules()
-      const otherTab = await import(
-        '@ens-apps/utils/posthog/analyticsConfiguration'
-      )
-      otherTab.setAnalyticsConsent(otherClient, false)
-      otherTab.setAnalyticsConsent(otherClient, true)
-
-      operation.capture('profile:records_update', { chain_id: 1 })
-      expect(capture).not.toHaveBeenCalled()
-      tracker.track('profile:records_update', { chain_id: 1 })
-      expect(capture).toHaveBeenCalledExactlyOnceWith(
-        'profile:records_update',
-        {
-          chain_id: 1,
-        },
-      )
-    },
-  )
+  it('checks native shared consent at send time without a generation cookie', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    const tracker = createAnalyticsTracker({
+      client,
+      getConnectedWalletAddress: () => null,
+    })
+    const operation = tracker.startAnalyticsOperation()
+    const otherClient = initClient().client
+    setAnalyticsConsent(otherClient, false)
+    const capture = vi.spyOn(client, 'capture')
+    operation.capture('profile:records_update', { chain_id: 1 })
+    expect(capture).not.toHaveBeenCalled()
+    setAnalyticsConsent(otherClient, true)
+    operation.capture('profile:records_update', { chain_id: 1 })
+    expect(capture).toHaveBeenCalledExactlyOnceWith('profile:records_update', {
+      chain_id: 1,
+    })
+  })
 
   it('keeps feature flags working while local analytics is disabled despite consent', async () => {
     vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', '')
@@ -313,16 +290,84 @@ describe('PostHog consent', () => {
     expect(onlyFlagRequests(requests)).toBe(true)
   })
 
-  it('drops native events during the wallet identity synchronization gap', () => {
+  it('retains native initial opt-in pageview before wallet identification and merges its anonymous identity', async () => {
     const { client } = initClient()
-    setAnalyticsConsent(client, true)
+    const events: {
+      readonly event: string
+      readonly properties: Record<string, unknown>
+    }[] = []
+    client.on('eventCaptured', (event) => {
+      events.push(event)
+    })
+    const anonymousId = client.get_distinct_id()
     vi.mocked(getConnectedWalletAddress).mockReturnValue(WALLET)
-    expect(client.capture('$pageview')).toBeUndefined()
+    setAnalyticsConsent(client, true)
     client.identify(WALLET)
-    expect(client.capture('$pageview')?.properties.distinct_id).toBe(WALLET)
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(
+      events
+        .filter(({ event }) => event === '$pageview')
+        .map(({ properties }) => properties.distinct_id),
+    ).toEqual([anonymousId])
+    expect(
+      events.find(({ event }) => event === '$identify')?.properties
+        .$anon_distinct_id,
+    ).toBe(anonymousId)
     vi.mocked(getConnectedWalletAddress).mockReturnValue(undefined)
     expect(client.capture('$pageleave')).toBeUndefined()
   })
+
+  it.each([
+    {
+      restoredWallet: WALLET,
+      hasSameSession: true,
+      campaign: 'returning-visitor',
+    },
+    {
+      restoredWallet: '0x2222222222222222222222222222222222222222',
+      hasSameSession: false,
+      campaign: undefined,
+    },
+  ])(
+    'defers native initial pageview until persisted wallet restoration resolves to $restoredWallet',
+    async ({ restoredWallet, hasSameSession, campaign }) => {
+      const original = initClient().client
+      setAnalyticsConsent(original, true)
+      vi.mocked(getConnectedWalletAddress).mockReturnValue(WALLET)
+      original.identify(WALLET)
+      original.register({ utm_campaign: 'returning-visitor' })
+      const originalSession = original.get_session_id()
+      vi.mocked(getConnectedWalletAddress).mockReturnValue(undefined)
+      const { client, requests } = initClient()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(client.get_distinct_id()).toBe(WALLET)
+      const capturedEvents = () =>
+        requests.mock.calls.flatMap(([request]) =>
+          Array.isArray(request.data) ? request.data : [request.data],
+        )
+      expect(
+        capturedEvents().filter((event) => event?.event === '$pageview'),
+      ).toEqual([])
+      vi.mocked(getConnectedWalletAddress).mockReturnValue(restoredWallet)
+      synchronizeAnalyticsIdentity(client, restoredWallet, true)
+      synchronizeAnalyticsIdentity(client, restoredWallet, true)
+      await vi.advanceTimersByTimeAsync(3000)
+      const pageviews = capturedEvents().filter(
+        (event) => event?.event === '$pageview',
+      )
+      expect(pageviews.map((event) => event.properties.distinct_id)).toEqual([
+        restoredWallet,
+      ])
+      expect(client.get_session_id() === originalSession).toBe(hasSameSession)
+      expect(client.get_property('utm_campaign')).toBe(campaign)
+      history.pushState({}, '', `/restored-${restoredWallet.slice(-1)}`)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(
+        capturedEvents().filter((event) => event?.event === '$pageview'),
+      ).toHaveLength(2)
+    },
+  )
 
   it('contains errors in the SDK loaded callback', () => {
     const { client } = initClient()
@@ -360,11 +405,6 @@ describe('PostHog consent', () => {
     const { client, requests } = initClient()
 
     setAnalyticsConsent(client, true)
-    const generation = document.cookie
-      .split('; ')
-      .find((cookie) =>
-        cookie.startsWith(`${ANALYTICS_CONSENT_COOKIE}_generation=`),
-      )
     client.capture('wallet:connect', { wallet_address: WALLET })
     await vi.advanceTimersByTimeAsync(3000)
     expect(onlyFlagRequests(requests)).toBe(false)
@@ -372,7 +412,6 @@ describe('PostHog consent', () => {
     // A plain reset() deletes the answer, for every app sharing the cookie.
     resetKeepingConsent(client)
     initClient()
-    expect(document.cookie.split('; ')).toContain(generation)
     expect(client.get_explicit_consent_status()).toBe('granted')
     expect(client.has_opted_out_capturing()).toBe(false)
   })

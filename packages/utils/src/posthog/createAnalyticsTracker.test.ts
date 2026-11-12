@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { invalidateAnalyticsOperations } from './analyticsConsent'
+import { describe, expect, it, vi } from 'vitest'
 import { createAnalyticsTracker } from './createAnalyticsTracker'
 
 const setup = (captureOverride?: () => unknown) => {
@@ -28,18 +27,14 @@ const setup = (captureOverride?: () => unknown) => {
     identify: (address: string) => {
       identity = address
     },
+    deny: () => {
+      consent = 'denied'
+    },
     grant: () => {
       consent = 'granted'
     },
   }
 }
-
-beforeEach(() => {
-  vi.stubGlobal('document', {
-    cookie: 'ens_analytics_consent_generation=test-choice',
-  })
-})
-afterEach(() => vi.unstubAllGlobals())
 
 describe('analytics transport', () => {
   it('never captures or replays actions from before consent', () => {
@@ -80,23 +75,6 @@ describe('analytics transport', () => {
       await new Promise((resolve) => setTimeout(resolve, 0))
     },
   )
-  it('suppresses delayed outcomes when consent metadata becomes unreadable without blocking current actions', () => {
-    const tracker = setup()
-    tracker.grant()
-    const operation = tracker.startAnalyticsOperation()
-    vi.stubGlobal('document', {
-      get cookie() {
-        throw new Error('Cookie access unavailable')
-      },
-    })
-
-    operation.capture('profile:records_update', { chain_id: 1 })
-    tracker.track('profile:primary_name_update', { chain_id: 1 })
-    expect(tracker.capture).toHaveBeenCalledExactlyOnceWith(
-      'profile:primary_name_update',
-      { chain_id: 1 },
-    )
-  })
 })
 
 describe('synchronous wallet boundary', () => {
@@ -144,15 +122,21 @@ describe('synchronous wallet boundary', () => {
       { chain_id: 1 },
     )
   })
-  it('invalidates an old operation even when switching back returns the same wallet ID', () => {
+  it('allows an A-to-B-to-A operation once the initiating wallet is current again', () => {
     const tracker = setup()
     tracker.grant()
     tracker.setWallet(WALLET_A)
     tracker.identify(WALLET_A)
     const operation = tracker.startAnalyticsOperation()
-    invalidateAnalyticsOperations()
+    tracker.setWallet(WALLET_B)
+    tracker.identify(WALLET_B)
+    tracker.setWallet(WALLET_A)
+    tracker.identify(WALLET_A)
     operation.capture('profile:records_update', { chain_id: 1 })
-    expect(tracker.capture).not.toHaveBeenCalled()
+    expect(tracker.capture).toHaveBeenCalledExactlyOnceWith(
+      'profile:records_update',
+      { chain_id: 1 },
+    )
   })
 })
 
@@ -186,4 +170,19 @@ it('captures caught exceptions once across React/router callbacks, only with mat
     throw new Error('SDK unavailable')
   })
   expect(() => state.captureException(new Error('another crash'))).not.toThrow()
+})
+
+it('requires current consent but permits a new grant for an operation that started with consent', () => {
+  const tracker = setup()
+  tracker.grant()
+  const operation = tracker.startAnalyticsOperation()
+  tracker.deny()
+  operation.capture('profile:records_update', { chain_id: 1 })
+  expect(tracker.capture).not.toHaveBeenCalled()
+  tracker.grant()
+  operation.capture('profile:records_update', { chain_id: 1 })
+  expect(tracker.capture).toHaveBeenCalledExactlyOnceWith(
+    'profile:records_update',
+    { chain_id: 1 },
+  )
 })

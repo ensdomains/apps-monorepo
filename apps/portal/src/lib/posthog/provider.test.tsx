@@ -5,9 +5,12 @@ import {
   update,
 } from '@intercom/messenger-js-sdk'
 import { act, render } from '@testing-library/react'
+import { createConfig, http } from '@wagmi/core'
 import posthog from 'posthog-js/dist/module.full.no-external'
+import { mainnet } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection, useConnectionEffect } from 'wagmi'
+import { mock } from 'wagmi/connectors'
 
 let POSTHOG_CONFIG: typeof import('./config').POSTHOG_CONFIG
 let setAnalyticsConsent: typeof import('./config').setAnalyticsConsent
@@ -29,7 +32,7 @@ vi.mock('@intercom/messenger-js-sdk', () => ({
 const consent = vi.hoisted(() => ({ stored: 'pending' }))
 const walletState = vi.hoisted(() => ({
   identity: 'distinct-id',
-  address: undefined as string | undefined,
+  address: undefined as `0x${string}` | undefined,
   status: 'disconnected',
 }))
 vi.mock('@/lib/wagmi', () => ({ wagmiConfig: {} }))
@@ -71,11 +74,23 @@ vi.mock('wagmi', () => ({
   useConnection: vi.fn(() => ({ status: 'disconnected' })),
 }))
 
+const [connector] = createConfig({
+  chains: [mainnet],
+  connectors: [
+    mock({ accounts: ['0x1111111111111111111111111111111111111111'] }),
+  ],
+  transports: { [mainnet.id]: http() },
+}).connectors
+if (!connector) throw new Error('Missing test connector')
+
 const WALLET = {
   address: '0x1111111111111111111111111111111111111111',
+  addresses: ['0x1111111111111111111111111111111111111111'],
+  chain: undefined,
   chainId: 1,
-  connector: { name: 'test-wallet' },
-}
+  connector,
+  isReconnected: false,
+} as const
 
 const renderProvider = () =>
   render(
@@ -94,9 +109,7 @@ const connectWallet = () => {
   walletState.address = WALLET.address
   walletState.status = 'connected'
   const callbacks = connectionCallbacks()
-  callbacks.onConnect?.(
-    WALLET as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
-  )
+  callbacks.onConnect?.(WALLET)
   return callbacks
 }
 
@@ -107,9 +120,11 @@ describe('PostHog provider', () => {
     walletState.identity = 'distinct-id'
     walletState.address = undefined
     walletState.status = 'disconnected'
-    vi.mocked(useConnection).mockReturnValue({
-      status: 'disconnected',
-    } as ReturnType<typeof useConnection>)
+    vi.mocked(useConnection, { partial: true }).mockImplementation(() =>
+      walletState.status === 'connected'
+        ? { status: 'connected', address: walletState.address }
+        : { status: 'disconnected' },
+    )
     vi.mocked(posthog.get_property).mockReturnValue(undefined)
     vi.mocked(posthog.get_distinct_id).mockImplementation(
       () => walletState.identity,
@@ -186,12 +201,12 @@ describe('PostHog provider', () => {
     expect(posthog.identify).toHaveBeenCalledWith(WALLET.address)
     expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
       chain_id: 1,
-      wallet_connector: 'test-wallet',
+      wallet_connector: connector.name,
     })
     expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
       wallet_address: WALLET.address,
       chain_id: 1,
-      wallet_connector: 'test-wallet',
+      wallet_connector: connector.name,
     })
 
     vi.mocked(posthog.opt_in_capturing).mockClear()

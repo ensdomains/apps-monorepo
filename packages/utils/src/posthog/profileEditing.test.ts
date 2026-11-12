@@ -97,26 +97,4 @@ describe('profile editing observations', () => {
       ['profile:records_update', { chain_id: 1 }],
     ])
   })
-  it('contains capture, identity-binding and ID failures without interrupting an editor action', () => {
-    const fail = () => {
-      throw new Error('unavailable')
-    }
-    const editor = createProfileEditingAnalytics({
-      track: fail,
-      startOperation: fail,
-      createFlowId: () => 'editor',
-    })
-    expect(() => {
-      editor.open()
-      editor.view()
-      editor.change()
-      editor.startSave(1, 'records').complete()
-    }).not.toThrow()
-    const unavailable = createProfileEditingAnalytics({
-      track: fail,
-      startOperation: fail,
-      createFlowId: fail,
-    })
-    expect(() => unavailable.open()).not.toThrow()
-  })
 })

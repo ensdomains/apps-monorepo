@@ -48,11 +48,10 @@ describe('registration journey observation', () => {
       'registration:stage_enter',
       'registration:stage_enter',
       'registration:stage_enter',
-      'registration:stage_enter',
     ])
     expect(
       capture.mock.calls.map(([, properties]) => properties.stage),
-    ).toEqual(['setup', 'commit', 'approval', 'cooldown'])
+    ).toEqual(['commit', 'approval', 'cooldown'])
   })
 
   it('keeps one flow through a failed stage and retry, completing only after ownership verification', () => {

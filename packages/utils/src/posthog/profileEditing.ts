@@ -7,16 +7,6 @@ type Capture = ReturnType<typeof createAnalyticsTracker>['track']
 type SaveType = AnalyticsEvents['profile:save_complete']['save_type']
 type FailureStage = AnalyticsEvents['profile:save_fail']['stage']
 
-const safeCapture =
-  (capture: Capture): Capture =>
-  (name, ...args) => {
-    try {
-      void Promise.resolve(capture(name, ...args)).catch(() => {})
-    } catch {
-      // Optional telemetry cannot interrupt editing or saving.
-    }
-  }
-
 export type ProfileSaveAttempt = {
   readonly flow_id: string
   readonly capture: Capture
@@ -34,7 +24,6 @@ export const createProfileEditingAnalytics = ({
   readonly startOperation: () => { readonly capture: Capture }
   readonly createFlowId?: () => string | undefined
 }) => {
-  const send = safeCapture(track)
   let session:
     | {
         readonly flow_id: string
@@ -63,7 +52,7 @@ export const createProfileEditingAnalytics = ({
     if (session.observedIdentity !== undefined) open(session.ens_name)
     if (!session) return
     session = { ...session, observedIdentity: identity, hasEdited: false }
-    send('profile:edit_view', {
+    track('profile:edit_view', {
       flow_id: session.flow_id,
       ...getAnalyticsNameProperties(session.ens_name),
     })
@@ -72,7 +61,7 @@ export const createProfileEditingAnalytics = ({
     if (!session || session.observedIdentity === undefined || session.hasEdited)
       return
     session = { ...session, hasEdited: true }
-    send('profile:edit_start', {
+    track('profile:edit_start', {
       flow_id: session.flow_id,
       ...getAnalyticsNameProperties(session.ens_name),
     })
@@ -86,14 +75,7 @@ export const createProfileEditingAnalytics = ({
       chain_id: chainId,
       ...getAnalyticsNameProperties(session?.ens_name),
     }
-    const bind = (): Capture => {
-      try {
-        return safeCapture(startOperation().capture)
-      } catch {
-        return () => {}
-      }
-    }
-    const capture = bind()
+    const capture = startOperation().capture
     const emit: Capture = session ? capture : () => {}
     emit('profile:save_start', properties)
     let isSettled = false

@@ -82,16 +82,31 @@ describe('GET /names/:name/stats', () => {
     )
   })
 
-  it('reports unavailable analytics statistics instead of a genuine zero', async () => {
+  it('retains favorites and reports unavailable analytics statistics as null', async () => {
     selectResults.push([{ value: 425 }])
     mocks.getAvailable.mockResolvedValue(true)
     mocks.getUniqueSearchesLast30dFromPostHog.mockResolvedValue(
       err(new Error('offline')),
     )
     const res = await namesApp.request('/names/vitalik.eth/stats', {}, env)
-    expect(res.status).toBe(503)
+    expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
-      error: 'Name search statistics unavailable',
+      name: 'vitalik.eth',
+      favorites: 425,
+      unique_searches_last_30d: null,
+    })
+  })
+
+  it('preserves a measured zero search count', async () => {
+    selectResults.push([{ value: 0 }])
+    mocks.getAvailable.mockResolvedValue(true)
+    mocks.getUniqueSearchesLast30dFromPostHog.mockResolvedValue(ok(0))
+    const res = await namesApp.request('/names/vitalik.eth/stats', {}, env)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      name: 'vitalik.eth',
+      favorites: 0,
+      unique_searches_last_30d: 0,
     })
   })
 

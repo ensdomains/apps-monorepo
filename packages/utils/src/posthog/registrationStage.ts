@@ -1,4 +1,4 @@
-import type { RegistrationStage } from '@ens-apps/utils/posthog/eventContracts'
+import type { RegistrationStage } from './eventContracts'
 
 /** Groups only user-visible stages; other child snapshots add no milestone. */
 export const getRegistrationAnalyticsStep = (
@@ -17,6 +17,7 @@ export const getRegistrationAnalyticsStep = (
     committingTransaction: 'commit',
     submittingEoaSetupBundle: 'commit',
     submittingSetupBundle: 'commit',
+    validatingCommitment: 'commit',
     waitingForCommitment: 'commit',
     commitmentCooldown: 'cooldown',
     registeringDomain: 'registration',
@@ -25,5 +26,5 @@ export const getRegistrationAnalyticsStep = (
     waitingForRhinestoneBundle: 'registration',
     verifyingRegistration: 'verification',
   }
-  return stages[stage]
+  return Object.hasOwn(stages, stage) ? stages[stage] : undefined
 }

@@ -5,7 +5,6 @@ import { useSyncExternalStore } from 'react'
  * every ens.domains app that names it in its PostHog config shares one answer.
  */
 export const ANALYTICS_CONSENT_COOKIE = 'ens_analytics_consent'
-const ANALYTICS_CONSENT_GENERATION_COOKIE = 'ens_analytics_consent_generation'
 
 /** PostHog's answer to the analytics banner. */
 export type AnalyticsConsent = 'granted' | 'denied' | 'pending'
@@ -30,55 +29,28 @@ export const getAnalyticsConsent = (
 export const hasAnalyticsConsent = (client: ConsentClient): boolean =>
   getAnalyticsConsent(client) === 'granted'
 
-let consentRevision = 0
-export const getAnalyticsConsentRevision = (): string | undefined => {
-  try {
-    if (typeof document === 'undefined') return undefined
-    const generation = document.cookie
-      .split('; ')
-      .find((cookie) =>
-        cookie.startsWith(`${ANALYTICS_CONSENT_GENERATION_COOKIE}=`),
-      )
-    return `${consentRevision}:${generation ?? 'legacy'}`
-  } catch {
-    return undefined
-  }
-}
-
-/** Only explicit choices advance the shared generation; SDK loads and resets do not. */
-export const recordAnalyticsConsentChoice = (): void => {
-  if (typeof document === 'undefined') return
-  const { hostname, protocol } = window.location
-  const parentDomain = ['ens.domains', 'ens.dev'].find(
-    (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-  )
-  const domain = parentDomain ? `; Domain=${parentDomain}` : ''
-  // Update synchronously so captures in this tick cannot reuse an older consent generation.
-  document.cookie = `${ANALYTICS_CONSENT_GENERATION_COOKIE}=${crypto.randomUUID()}; Path=/; Max-Age=31536000; SameSite=Lax${domain}${protocol === 'https:' ? '; Secure' : ''}`
-}
-export const invalidateAnalyticsOperations = (): void => {
-  consentRevision += 1
-}
-
 const listeners = new Set<() => void>()
 
 /** Re-renders `useAnalyticsConsent` once PostHog loads or its answer changes. */
 export const notifyAnalyticsConsent = (): void => {
-  invalidateAnalyticsOperations()
   for (const listener of listeners) listener()
 }
 
+let poll: ReturnType<typeof setInterval> | undefined
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
-  // Another tab or ens.domains app can answer, and cookies fire no event, so
-  // look again on focus and every few seconds, well before PostHog's 5-minute
-  // flag refresh could send an identity the visitor has since declined.
-  window.addEventListener('focus', listener)
-  const poll = setInterval(listener, 5000)
+  if (listeners.size === 1) {
+    window.addEventListener('focus', notifyAnalyticsConsent)
+    poll = setInterval(notifyAnalyticsConsent, 5000)
+  }
   return () => {
     listeners.delete(listener)
-    window.removeEventListener('focus', listener)
-    clearInterval(poll)
+    if (listeners.size === 0) {
+      window.removeEventListener('focus', notifyAnalyticsConsent)
+      clearInterval(poll)
+      poll = undefined
+    }
   }
 }
 

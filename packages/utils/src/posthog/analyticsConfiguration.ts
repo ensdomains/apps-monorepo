@@ -1,9 +1,7 @@
 import {
   type AnalyticsConsent,
   hasAnalyticsConsent,
-  invalidateAnalyticsOperations,
   notifyAnalyticsConsent,
-  recordAnalyticsConsentChoice,
 } from './analyticsConsent'
 import { hasMatchingWalletIdentity } from './walletIdentity'
 
@@ -33,12 +31,6 @@ export const setAnalyticsConsent = (
   client: ConsentTarget,
   granted: boolean,
 ): void => {
-  invalidateAnalyticsOperations()
-  try {
-    recordAnalyticsConsentChoice()
-  } catch (error) {
-    console.warn('[posthog] consent generation update failed', error)
-  }
   if (!granted) {
     try {
       client.reset()
@@ -57,7 +49,6 @@ export const setAnalyticsConsent = (
 export const resetKeepingConsent = (client: ConsentTarget): void => {
   if (!client.__loaded) return
   const consent = client.get_explicit_consent_status()
-  invalidateAnalyticsOperations()
   client.reset()
   writeAnalyticsConsent(client, consent)
 }

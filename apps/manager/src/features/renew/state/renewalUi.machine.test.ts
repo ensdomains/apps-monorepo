@@ -755,7 +755,7 @@ describe('renewal analytics operation lifetime', () => {
     await waitForState(actor, 'success')
     const fresh = actor.getSnapshot().context.analytics
     expect(fresh.flow_id).not.toBe(abandoned.flow_id)
-    expect(fresh.completionScope).not.toBe(abandoned.completionScope)
+    expect(fresh.claimCompletion).not.toBe(abandoned.claimCompletion)
     expect(mocks.capture).toHaveBeenCalledWith(
       'renewal:flow_complete',
       expect.objectContaining({ flow_id: fresh.flow_id }),
@@ -799,3 +799,14 @@ it.each(['v1', 'v2'] as const)(
     actor.stop()
   },
 )
+
+it('enters approval before execution on an EOA renewal', async () => {
+  const actor = startRenewal('v2')
+  await waitForState(actor, 'success')
+  expect(
+    mocks.capture.mock.calls
+      .filter(([event]) => event === 'renewal:stage_enter')
+      .map(([, properties]) => properties.stage),
+  ).toEqual(['approval', 'execution', 'verification'])
+  actor.stop()
+})

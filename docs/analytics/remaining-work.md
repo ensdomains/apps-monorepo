@@ -12,13 +12,13 @@ Keep the first review focused on correctness and the [QA checklist](qa.md), not 
 
 | Area | Follow-up |
 | --- | --- |
-| Search | Query intent, empty/error results and abandonment before selection are not measured. Migrate the popularity API query before consolidating canonical/legacy selection events; failures must not become genuine zero demand |
+| Search | Query intent, empty/error results and abandonment before selection are not measured. Migrate the popularity API query before consolidating canonical/legacy selection events; unavailable demand is `null` while favorites remain available, and genuine zero stays `0` |
 | Wallet | Connection request/rejection/connector failures need an intent/result funnel; connect/disconnect alone measures established identity |
 | Manager bulk | Pre-submit selection/payment abandonment remains uninstrumented; Explorer has modal observations |
 | Advanced operations | Primary-name/subname/resolver/role/DNS outcomes show adoption, not complete entry funnels. DNS import, registry deployment/parent configuration and transfer/fuse steps remain incomplete |
 | Decisions | Selected duration, stablecoin identity and detailed bridge/swap/funding/recovery decisions need deliberate properties/events if product questions require them |
 | Bulk partials | Explorer receipt confirmations do not provide per-name verified-expiry counts; selection counts are not partial success counts |
-| Delivery | Native initial pageviews may drop during wallet restoration. Reloads create new observed segments; blockers and closed browsers leave gaps. Revisit only with a concrete requirement, preserving native capture and identity safety |
+| Delivery | Verify native initial pageview and attribution retention after wallet restoration. Reloads create new observed segments shared by current-page views and resumed execution; blockers and closed browsers leave gaps. Revisit only with a concrete requirement, preserving native capture and identity safety |
 
 ## Revenue proposal — not implemented
 

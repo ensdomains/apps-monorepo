@@ -152,14 +152,10 @@ const getAnalyticsProperties = (
   ),
 })
 
-const completedAnalytics = new WeakSet<object>()
-
 const captureRenewalComplete = (
   context: Parameters<typeof getAnalyticsProperties>[0],
 ) => {
-  const scope = context.analytics.completionScope ?? context.analytics
-  if (completedAnalytics.has(scope)) return
-  completedAnalytics.add(scope)
+  if (!context.analytics.claimCompletion()) return
   context.analytics.capture('renewal:flow_complete', {
     ...getAnalyticsProperties(context, envConfig.chain.id),
     item_count: 1,
@@ -632,11 +628,7 @@ export const renewalUiMachine = setup({
                   event.l2Funding === undefined &&
                   event.ethFunding === undefined,
                 target: '#renewalUi.checkingAllowance',
-                actions: [
-                  'startRenewal',
-                  'analyticsStart',
-                  'analyticsExecution',
-                ],
+                actions: ['startRenewal', 'analyticsStart'],
               },
             ],
           },

@@ -736,7 +736,7 @@ export const useRegistrationTransactions = ({
       const resumedAnalytics = createRegistrationAnalytics(
         chainId,
         undefined,
-        undefined,
+        analyticsFlowId,
         record.context.name,
       )
       analytics.current = resumedAnalytics
@@ -777,7 +777,7 @@ export const useRegistrationTransactions = ({
       })
       return true
     },
-    [actor, publicClient, canBatchAtomically],
+    [actor, publicClient, canBatchAtomically, analyticsFlowId],
   )
 
   const paid = savedParams

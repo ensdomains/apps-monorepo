@@ -383,7 +383,11 @@ describe('registration queued outcome after actual hook cleanup', () => {
         transactionManager.cancelTransaction(REGISTRATION_TX_IDS.register)
       }
       const { result, unmount } = renderHook(() =>
-        useRegistrationTransactions({ name: 'leon.eth', duration: 31_536_000 }),
+        useRegistrationTransactions({
+          name: 'leon.eth',
+          duration: 31_536_000,
+          analyticsFlowId: 'visible-flow',
+        }),
       )
       const record = buildRegistrationRecord(
         'waitingForRegistration',
@@ -414,6 +418,13 @@ describe('registration queued outcome after actual hook cleanup', () => {
           approvalNeeded: false,
         })
       })
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'registration:flow_resume',
+        expect.objectContaining({
+          flow_id: 'visible-flow',
+          ens_name: 'leon.eth',
+        }),
+      )
       const onQueued =
         result.current.actor.getSnapshot().context.onRegistrationQueued
       if (!onQueued)

@@ -104,3 +104,32 @@ it('observes registration payment only when the connected payment picker becomes
   })
   expect(mocks.track.mock.calls).toHaveLength(3)
 })
+
+it('shares one consent poll across mounted views and stops it after the last unmount', () => {
+  vi.useFakeTimers()
+  try {
+    mocks.loaded = true
+    mocks.consent = 'granted'
+    const first = renderHook(() =>
+      useRegistrationFlowView({
+        flowId: 'first',
+        isVisible: true,
+        isPaymentVisible: false,
+      }),
+    )
+    const second = renderHook(() =>
+      useRenewalFlowView(
+        { flow_id: 'second', is_bulk: false },
+        true,
+        'settings',
+      ),
+    )
+    expect(vi.getTimerCount()).toBe(1)
+    first.unmount()
+    expect(vi.getTimerCount()).toBe(1)
+    second.unmount()
+    expect(vi.getTimerCount()).toBe(0)
+  } finally {
+    vi.useRealTimers()
+  }
+})
