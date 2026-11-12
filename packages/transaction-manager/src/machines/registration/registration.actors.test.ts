@@ -267,8 +267,8 @@ describe('verifyRegistrationActor', () => {
     contract: 'ensEthRegistrar',
   })
   const registry = getChainContractAddress({ chain, contract: 'ensRegistry' })
-  const owner = '0x1111111111111111111111111111111111111111' as Address
-  const resolverAddress =
+  const OWNER = '0x1111111111111111111111111111111111111111' as Address
+  const RESOLVER_ADDRESS =
     '0x3333333333333333333333333333333333333333' as Address
   const registryAbi = [
     ...permissionedRegistryGetResolverSnippet,
@@ -294,9 +294,9 @@ describe('verifyRegistrationActor', () => {
       data,
     })
     const results = {
-      getResolver: resolverAddress,
+      getResolver: RESOLVER_ADDRESS,
       getSubregistry: zeroAddress,
-      getOwner: args[0] === BigInt(labelhash('myname')) ? owner : zeroAddress,
+      getOwner: args[0] === BigInt(labelhash('myname')) ? OWNER : zeroAddress,
     }
     return encodeFunctionResult({
       abi: registryAbi,
@@ -313,8 +313,10 @@ describe('verifyRegistrationActor', () => {
           method,
           params: [{ to, data }],
         }: {
-          method: string
-          params: readonly [{ to: Address; data: Hex }]
+          readonly method: string
+          readonly params: readonly [
+            { readonly to: Address; readonly data: Hex },
+          ]
         }) => {
           if (method !== 'eth_call') throw new Error(`Unexpected ${method}`)
           if (!isAddressEqual(to, chain.contracts.multicall3.address)) {
@@ -340,8 +342,8 @@ describe('verifyRegistrationActor', () => {
   it('confirms a registration our reveal made on the deployed registry', async () => {
     const result = await verifyRegistrationActor({
       name: 'myname.eth',
-      owner,
-      resolverAddress,
+      owner: OWNER,
+      resolverAddress: RESOLVER_ADDRESS,
       publicClient,
       commitment: `0x${'cc'.repeat(32)}`,
       graceWindowMs: 0,
