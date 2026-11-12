@@ -4227,6 +4227,10 @@ msgid "We couldn't safely retry. A transaction may already be pending or confirm
 msgstr "We couldn't safely retry. A transaction may already be pending or confirmed, so check your wallet activity before trying again."
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "We couldn't set up this payment. Please try again."
+msgstr "We couldn't set up this payment. Please try again."
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't start your registration. Please try again."
 msgstr "We couldn't start your registration. Please try again."
 
