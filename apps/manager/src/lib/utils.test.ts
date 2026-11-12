@@ -12,4 +12,10 @@ describe('cn', () => {
       'shadow-none md:shadow-temp-card',
     )
   })
+
+  it('keeps a custom font size next to a text colour', () => {
+    expect(
+      cn('text-ens-blue-midnight text-temp-32px', 'text-transparent'),
+    ).toBe('text-temp-32px text-transparent')
+  })
 })
