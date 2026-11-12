@@ -716,6 +716,43 @@ beforeEach(() => {
 })
 
 describe('executeMigration HCA orchestration', () => {
+  it('counts live split batches before their prompts and emits completion after both verify', async () => {
+    const preview = planFor(['alice', 'bob'])
+    const plan = {
+      ...preview,
+      stepDescriptors: buildStepDescriptors({
+        hcaDeploymentRequired: false,
+        approvals: [],
+        atomicBatches: preview.atomicBatches,
+        registrationApprovalTargets: [],
+      }),
+    }
+    mocks.buildAtomicMigrationBatches.mockImplementation(
+      async ({ classified }: BuildAtomicMigrationBatchesParams) => ({
+        resolver: RESOLVER,
+        batches: planFromClassified(classified.slice(0, 1)).atomicBatches,
+      }),
+    )
+
+    const { result, progressEvents } = await runExecute({ plan })
+
+    expect(result.completed).toBe(2)
+    expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
+    expect(
+      progressEvents
+        .filter(({ isAwaitingConfirmation }) => isAwaitingConfirmation)
+        .map(({ currentStep, totalSteps }) => [currentStep, totalSteps]),
+    ).toEqual([
+      [0, 2],
+      [1, 2],
+    ])
+    expect(progressEvents.at(-1)).toMatchObject({
+      currentStep: 2,
+      totalSteps: 2,
+      description: 'Upgrade complete',
+    })
+  })
+
   it('revalidates each batch using the inventory confirmed by the previous batch', async () => {
     const controller = new AbortController()
     const parent = classifiedFor('alice')
@@ -1896,7 +1933,7 @@ describe('executeMigration HCA orchestration', () => {
     expect(progressEvents.at(-1)).toMatchObject({
       currentStep: 2,
       totalSteps: 2,
-      description: 'Batch confirmed',
+      description: 'Upgrade complete',
     })
   })
 

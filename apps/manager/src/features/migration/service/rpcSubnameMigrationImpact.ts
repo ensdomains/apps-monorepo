@@ -31,15 +31,60 @@ type Facts = { readonly isLive: boolean; readonly isIndependent: boolean }
 const isDotEthRoot = (name: string | null): boolean =>
   name !== null && name.split('.').length === 2 && name.endsWith('.eth')
 
-/** Only a fully scanned, resource-free leaf proves a historical node is harmless. */
+export const isResourceFreeRpcSubname = (source: RpcSubnameSource): boolean =>
+  source.registryOwner.toLowerCase() === zeroAddress &&
+  source.resolver.toLowerCase() === zeroAddress
+
+type TombstoneInventory = Pick<
+  RpcSubnameInventory,
+  'nodes' | 'scannedParentNodes'
+>
+type TombstoneIndex = {
+  readonly scanned: ReadonlySet<Hex>
+  readonly children: ReadonlyMap<Hex, readonly Hex[]>
+  readonly tombstones: ReadonlySet<Hex>
+}
+
+const isEmptyNode = (
+  source: RpcSubnameSource,
+  index: Omit<TombstoneIndex, 'tombstones'>,
+  tombstones: ReadonlySet<Hex>,
+): boolean =>
+  isResourceFreeRpcSubname(source) &&
+  index.scanned.has(source.node) &&
+  (index.children.get(source.node) ?? []).every((child) =>
+    tombstones.has(child),
+  )
+
+/** Deepest first, so each node's children are decided before the node itself. */
+const buildTombstoneIndex = (inventory: TombstoneInventory): TombstoneIndex => {
+  const scanned = new Set(inventory.scannedParentNodes)
+  const children = new Map<Hex, Hex[]>()
+  for (const { node, parentNode } of inventory.nodes) {
+    const siblings = children.get(parentNode)
+    if (siblings) siblings.push(node)
+    else children.set(parentNode, [node])
+  }
+  const tombstones = new Set<Hex>()
+  for (const node of [...inventory.nodes].sort((a, b) => b.depth - a.depth))
+    if (isEmptyNode(node, { scanned, children }, tombstones))
+      tombstones.add(node.node)
+  return { scanned, children, tombstones }
+}
+
+const tombstoneIndexes = new WeakMap<TombstoneInventory, TombstoneIndex>()
+
+/** Only a fully scanned, resource-free subtree proves a historical node is harmless. */
 export const isEmptyRpcSubnameTombstone = (
   source: RpcSubnameSource,
-  inventory: Pick<RpcSubnameInventory, 'nodes' | 'scannedParentNodes'>,
-): boolean =>
-  source.registryOwner.toLowerCase() === zeroAddress &&
-  source.resolver.toLowerCase() === zeroAddress &&
-  inventory.scannedParentNodes.includes(source.node) &&
-  !inventory.nodes.some(({ parentNode }) => parentNode === source.node)
+  inventory: TombstoneInventory,
+): boolean => {
+  if (!isResourceFreeRpcSubname(source)) return false
+  const index =
+    tombstoneIndexes.get(inventory) ?? buildTombstoneIndex(inventory)
+  tombstoneIndexes.set(inventory, index)
+  return isEmptyNode(source, index, index.tombstones)
+}
 const ancestors = (name: string): readonly string[] => {
   const labels = name.split('.')
   return labels.slice(1).map((_, index) => labels.slice(index + 1).join('.'))

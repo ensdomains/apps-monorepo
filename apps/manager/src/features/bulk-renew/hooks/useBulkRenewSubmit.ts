@@ -39,7 +39,7 @@ import {
   useHcaFundingPrompt,
   useSmartAccountContext,
 } from '@/lib/smart-account'
-import type { RENEWAL_TOKEN } from '@/lib/tokens'
+import { getRunPaymentToken, type RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
@@ -163,6 +163,8 @@ type BulkIntentFunding =
       readonly status: 'ready'
       readonly shownDebit: HcaDisplayedDebit
       readonly fundingSource: BulkFundingSource | undefined
+      /** The USDC every chunk pays in, when not the deployment's. */
+      readonly paymentToken: Address | undefined
     }
 
 /** What an intent run is checked against and paid from; refused rather than left unchecked or paid from the wallet instead. */
@@ -171,11 +173,13 @@ const getBulkIntentFunding = ({
   l2Source,
   ethPayment,
   displayedDebit,
+  isCirclePayment,
 }: {
   readonly l2Payment: SubmitArgs['l2Payment']
   readonly l2Source: HcaRenewalL2Funding['source'] | undefined
   readonly ethPayment: SubmitArgs['ethPayment']
   readonly displayedDebit: SubmitArgs['displayedDebit']
+  readonly isCirclePayment: SubmitArgs['isCirclePayment']
 }): BulkIntentFunding => {
   if (l2Payment && !l2Source) {
     return {
@@ -195,6 +199,8 @@ const getBulkIntentFunding = ({
           displayedCharge: l2Payment?.displayedCharge,
         },
       },
+      // The bridge delivers Circle's USDC.
+      paymentToken: getRunPaymentToken(true),
     }
   }
   if (!displayedDebit) {
@@ -209,6 +215,10 @@ const getBulkIntentFunding = ({
     fundingSource: ethPayment
       ? { kind: 'eth', ethFunding: ethPayment }
       : undefined,
+    // ETH buys Circle's USDC; a chosen L2 with nothing to bridge pays in it too.
+    paymentToken: getRunPaymentToken(
+      ethPayment !== undefined || !!isCirclePayment,
+    ),
   }
 }
 
@@ -217,6 +227,8 @@ type HcaContext = {
   readonly ownerAddress: Address
   readonly walletClient: WalletClient
   readonly token: RENEWAL_TOKEN
+  /** The USDC every chunk pays in, when not the deployment's. */
+  readonly paymentToken?: Address
 }
 
 /** What pays every chunk's shortfall, once, before the chunks renew. */
@@ -247,6 +259,7 @@ const runHcaRenewals = ResultFn(async function* (
     ownerAddress: ctx.ownerAddress,
     publicClient,
     chainId: envConfig.chain.id,
+    paymentToken: ctx.paymentToken,
   } as const
 
   if (fundingSource) {
@@ -408,6 +421,8 @@ type SubmitArgs = {
   readonly ethPayment?: BulkEthFunding
   /** Intent route: the wallet debit the sheet showed, which bounds every batch. */
   readonly displayedDebit?: HcaDisplayedDebit
+  /** Intent route: ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+  readonly isCirclePayment?: boolean
 }
 
 /** Only the account can be paid from an L2 or with ETH: never the wallet in its place. */
@@ -560,6 +575,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     l2Payment: SubmitArgs['l2Payment'],
     ethPayment: SubmitArgs['ethPayment'],
     displayedDebit: SubmitArgs['displayedDebit'],
+    isCirclePayment: SubmitArgs['isCirclePayment'],
   ) => {
     const funding = getBulkIntentFunding({
       l2Payment,
@@ -567,12 +583,13 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
         l2Payment && getL2FundingSource(hca.ownerAddress, l2Payment.chainId),
       ethPayment,
       displayedDebit,
+      isCirclePayment,
     })
     if (funding.status === 'refused')
       return failWith(new Error(funding.message))
     setPhase('renewing')
     const renewed = await runHcaRenewals(
-      hca,
+      { ...hca, paymentToken: funding.paymentToken },
       remaining,
       rowReporters(isCurrent, markStatus, completedRef.current),
       funding.shownDebit,
@@ -628,6 +645,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     l2Payment,
     ethPayment,
     displayedDebit,
+    isCirclePayment,
   }: SubmitArgs) => {
     const items = inputItems.map((item) => ({
       ...item,
@@ -681,6 +699,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
         l2Payment,
         ethPayment,
         displayedDebit,
+        isCirclePayment,
       )
     if (isPaidFromAccount({ l2Payment, ethPayment }))
       return failWith(new Error(ACCOUNT_LOADING_MESSAGE))

@@ -46,6 +46,37 @@ are debug-only and must never reach a production deploy:
 
 ## Environments
 
+### Rendering test profiles
+
+Open these paths directly in `pnpm dev`, or in a preview built with
+`VITE_ENABLE_DEBUG_FEATURES=true` (`pnpm build:dqa` also enables it).
+
+| Path | Rendering coverage |
+| --- | --- |
+| `/debug.example` | Original sample profile |
+| `/debug-addresses.example` | All known coin types, shared and separate EVM addresses, unknown coins |
+| `/debug-records.example` | Every supported text key, images, theme, featured contacts, links, agent registrations, content hash and ABI |
+| `/debug-long.example` | Long unbroken values, multiline and Unicode text, long agent ID, twelve links (view limit versus stored records) |
+| `/debug-empty.example` | Owned profile without records, images or addresses |
+| `/debug-unsupported.example` | Custom and legacy keys, unknown coins and EVM networks, unrecognised agent registry encoding |
+| `/debug-malformed.example` | Broken images, invalid theme/timezone/address/ABI, malformed contact JSON, mixed valid and invalid links |
+
+These are synthetic display fixtures, not payment destinations. The original
+profiles are unchanged. The fixtures are loaded from `src/features/profile/MOCK.ts`
+only in debug builds; ordinary production builds omit the module entirely.
+These URLs exercise the public profile; they do not simulate resolver write
+permissions, transactions, registration or renewal states.
+
+Custom text records and ABI data are included in the fixtures but are not
+rendered on the public profile.
+
+Check the profile and record cards at desktop and mobile widths and check that
+the malformed profile keeps its valid link. The long profile currently exposes
+an existing mobile overflow in the agent card: its 78-digit agent ID expands a
+390px page to 875px. Keep this case when addressing that layout issue.
+
+### Network configuration
+
 `pnpm dev` / `pnpm build` use Sepolia; `pnpm dev:mainnet` / `pnpm build:mainnet`
 select mainnet. See [app environment configuration](../../README.md#app-environments)
 for env-file layering, local overrides and deployment behavior.
