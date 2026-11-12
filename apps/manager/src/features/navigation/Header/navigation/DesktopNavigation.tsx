@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from '@/components/base-ui/popover'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { NavigationContent } from './NavigationContent'
 
 type DesktopNavigationProps = {
@@ -84,7 +84,7 @@ export const DesktopNavigation = ({
           type="button"
         >
           <MSymbol
-            className={tw(
+            className={cn(
               'ms-font-rounded shrink-0 transition-transform duration-200 group-data-popup-open:-rotate-180',
               profileHeader && 'text-ens-blue-midnight',
             )}

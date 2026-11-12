@@ -17,7 +17,7 @@ import {
 import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { useNameClassification } from '@/features/search/useNameClassification'
 import { getNamePricingQueryOptions } from '@/features/shared/service/checkNameAvailabilityService'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { recordNameSearch } from './recordNameSearch'
 import { searchHistoryStore } from './useSearchHistory'
 
@@ -104,7 +104,7 @@ export const NameSuggestionItem = ({
     typeof pricingQuery.data?.usdc?.premium === 'bigint' &&
     pricingQuery.data.usdc.premium > 0n
 
-  const className = tw(
+  const className = cn(
     'flex w-full items-center gap-3 p-3 text-left transition-colors',
     isDisabled ? 'cursor-default opacity-50' : 'hover:bg-slate-50',
   )
@@ -222,7 +222,7 @@ export const AddressSuggestionItem = ({
 }: AddressSuggestionItemProps) => {
   return (
     <Link
-      className={tw(
+      className={cn(
         'flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-slate-50',
       )}
       onClick={() => {

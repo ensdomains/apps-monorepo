@@ -8,7 +8,7 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 type SearchInputProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -37,7 +37,7 @@ export const SearchInput = ({
 
   return (
     <InputGroup
-      className={tw(
+      className={cn(
         'h-full rounded-md border-ens-gray-two bg-white md:rounded-sm',
         className,
       )}

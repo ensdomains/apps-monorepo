@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { DesktopAccountSection } from '../account/DesktopAccountSection'
 import { DesktopNavigation } from '../navigation/DesktopNavigation'
 import { DesktopSearch } from '../search/DesktopSearch'
@@ -26,7 +26,7 @@ export const DesktopHeader = ({
 
   return (
     <nav
-      className={tw(
+      className={cn(
         'sticky top-0 z-10 flex h-[54px] min-w-0 items-center justify-between gap-2 px-4 py-2 md:h-20 md:px-8 md:py-1.5',
         transparentBackground && 'md:px-[30px]',
       )}
