@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
+import { useLocation } from '@tanstack/react-router'
 import { motion, useReducedMotion } from 'motion/react'
 import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -75,6 +76,7 @@ const PrimaryNameCardWithRecords = ({
 }
 
 export const DashboardPage = () => {
+  const hash = useLocation({ select: (location) => location.hash })
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
   const commemorativeNftEnabled = useMigrationNftEnabled()
@@ -158,7 +160,7 @@ export const DashboardPage = () => {
           </motion.div>
         </Card>
         <motion.div {...stagger(6, shouldReduceMotion)}>
-          <FaqSection />
+          <FaqSection linkedQuestionId={hash} />
         </motion.div>
       </div>
     </div>

@@ -849,6 +849,36 @@ describe('migrationUiMachine', () => {
   })
 
   describe('migrate.running state', () => {
+    it('replaces preview descriptors with the live split steps received from the service', () => {
+      executeMigrationMock.mockImplementation(() => new Promise(() => {}))
+      const actor = start()
+      const liveSteps: MigrationPlan['stepDescriptors'] = [0, 1].map(
+        (index) => ({
+          type: 'atomic-batch' as const,
+          index,
+          total: 2,
+          count: 1,
+          migrateCount: 1,
+          copyCount: 0,
+          roleGrants: [],
+        }),
+      )
+      try {
+        actor.send({
+          type: 'migration.progress',
+          progress: {
+            currentStep: 1,
+            totalSteps: 2,
+            description: 'Upgrading bob.eth',
+            stepDescriptors: liveSteps,
+          },
+        })
+        expect(actor.getSnapshot().context.stepDescriptors).toEqual(liveSteps)
+      } finally {
+        actor.stop()
+      }
+    })
+
     it('aborts the migration submission gate when the actor stops', () => {
       let submissionSignal: AbortSignal | undefined
       executeMigrationMock.mockImplementation(({ submissionGate }) => {
@@ -1037,6 +1067,27 @@ describe('migrationUiMachine', () => {
   })
 
   describe('failure.retry → resetForRetry', () => {
+    it('requires a fresh preview after an approval-plan change', async () => {
+      executeMigrationMock.mockRejectedValueOnce(
+        Object.assign(new Error('Permissions changed'), {
+          name: 'MigrationPlanChangedError',
+        }),
+      )
+      const actor = start()
+      try {
+        await vi.advanceTimersByTimeAsync(1500)
+        expect(actor.getSnapshot().value).toBe('failure')
+        expect(actor.getSnapshot().context.lastError).toEqual({
+          type: 'plan-changed',
+        })
+        expect(actor.getSnapshot().can({ type: 'retry' })).toBe(false)
+        actor.send({ type: 'retry' })
+        expect(executeMigrationMock).toHaveBeenCalledTimes(1)
+      } finally {
+        actor.stop()
+      }
+    })
+
     it('resetForRetry: filters migrated names from plan and clears error/progress', async () => {
       const actor = createActor(migrationUiMachine, {
         input: { wagmiConfig: WAGMI },

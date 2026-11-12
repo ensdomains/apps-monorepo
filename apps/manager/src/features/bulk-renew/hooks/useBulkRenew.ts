@@ -9,11 +9,15 @@ import type { FundingSourceOrigin } from '@/features/register-v2/state/registrat
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import { useIsCirclePayment } from '@/features/register-v2/workflow/pricing/hooks/useIsCirclePayment'
 import type {
   L2PaymentProps,
   L2PaymentRow,
 } from '@/features/register-v2/workflow/pricing/hooks/useL2Payment'
-import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
+import {
+  getPaymentBalances,
+  useRenewalBalances,
+} from '@/features/renew/data/queries/renewalBalances.query'
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import {
   getRenewalCheckoutTotalRaw,
@@ -84,6 +88,8 @@ type BulkRenewPayment = {
   readonly selectedL2: L2PaymentRow | undefined
   /** The row that swaps the wallet's ETH into USDC; intent route only. */
   readonly ethPayment: RenewalEthPayment | undefined
+  /** ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+  readonly isCirclePayment: boolean
 }
 
 export type UseBulkRenewResult = {
@@ -135,12 +141,18 @@ export const useBulkRenew = ({
   // `null` while the signer initializes: nothing is confirmable until the
   // route is known, so a smart account never falls back to the wallet route.
   const route = getRenewalPaymentRoute(signer)
-  const {
-    wallet: stablecoinBalances,
-    accountCredit,
-    accountCreditRaw,
-    isLoading: isLoadingBalances,
-  } = useRenewalBalances({ enabled: open })
+  const balances = useRenewalBalances({ enabled: open })
+  const { wallet: stablecoinBalances, isLoading: isLoadingBalances } = balances
+  // ETH or the chosen L2 pays in Circle's USDC, even with nothing left to bridge.
+  const isCirclePayment = useIsCirclePayment({
+    owner: ownerAddress,
+    isPaidWithEth: isEthSelected,
+    l2ChainId: fundingSourceChainId,
+  })
+  const { accountCredit, accountCreditRaw } = getPaymentBalances(
+    balances,
+    isCirclePayment,
+  )
 
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(
@@ -309,7 +321,7 @@ export const useBulkRenew = ({
   const l2Payment = useRenewalL2Payment({
     rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
     feeRaw: intentFunding.feeRaw,
-    hcaBalanceRaw: accountCreditRaw.USDC,
+    hcaBalanceRaw: balances.circleCreditRaw,
     isEnabled: isUsdcMethodQuotable,
     selectedChainId: fundingSourceChainId,
     selectedOrigin: fundingSourceOrigin,
@@ -322,7 +334,7 @@ export const useBulkRenew = ({
   const ethPayment = useRenewalEthPayment({
     rentTotalRaw: pricesReady ? sumPriceRaw : undefined,
     feeRaw: intentFunding.feeRaw,
-    hcaBalanceRaw: accountCreditRaw.USDC,
+    hcaBalanceRaw: balances.circleCreditRaw,
     isEnabled: isUsdcMethodQuotable,
     isSelected: isEthSelected,
     onSelect: () => onSelectEth(),
@@ -371,6 +383,7 @@ export const useBulkRenew = ({
       l2Payment,
       selectedL2,
       ethPayment,
+      isCirclePayment,
     },
   }
 }

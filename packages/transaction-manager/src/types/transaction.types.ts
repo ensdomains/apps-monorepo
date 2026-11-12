@@ -1,3 +1,4 @@
+import type { RefundCaps } from '@ens-apps/smart-account'
 import type { ChainSessionConfig, TokenRequest } from '@rhinestone/sdk'
 
 /**
@@ -85,6 +86,15 @@ export interface RhinestoneIntentParams {
    * Requires a signer with a `session` — the transport rejects it otherwise.
    */
   readonly sessionEnableData?: SessionEnableData
+  /**
+   * An owner-signed setup must retain the session's fee ceilings and may only
+   * authorize these exact calls on this chain, without other asset movements.
+   * Independent of session enable data: the SDK must use the owner validator.
+   */
+  readonly ownerIntentLimits?: {
+    readonly refundToken: Address
+    readonly refundCaps: RefundCaps
+  }
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
   readonly tokenRequests?: readonly TokenRequest[]
   /**
