@@ -42,10 +42,10 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
 const ETH_REGISTRY =
   ensL1Contracts[supportedL1Chains.sepolia].ensRegistry.address
-// The USDC the app pays with (Circle's on Sepolia since #1395), not ensjs's
-// MockUSDC. Circle's FiatToken keeps balances at slot 9.
+// The USDC the app pays with: ensjs's MockUSDC on Sepolia, an OZ ERC20 that
+// keeps balances at slot 0.
 const USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
-const USDC_BALANCE_SLOT = 9n
+const USDC_BALANCE_SLOT = 0n
 const ERC20_ABI = parseAbi([
   'function balanceOf(address) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',

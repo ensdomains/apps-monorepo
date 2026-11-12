@@ -8,7 +8,7 @@
  * than imported) because that package ships as un-built `.ts` source and is not
  * an e2e dependency; when the deployment changes, update BOTH files together.
  *
- * NOTE: this is the STANDALONE deployment (Circle USDC, new registrar/registry),
+ * NOTE: this is the STANDALONE deployment (MockUSDC, new registrar/registry),
  * distinct from `print-token-addresses.mjs` which reads the older ensjs Sepolia
  * set used by the pure-EOA / portal flows.
  *
@@ -27,10 +27,10 @@
 // registers, renews and reads on the canonical deployment, not the superseded
 // standalone-HCA one.
 //
-// `usdc` is Circle's Sepolia USDC, not ensjs' MockUSDC: the route pays in the
-// token bridges can deliver from L2s.
+// `usdc` is ensjs' MockUSDC: the orchestrator accepts it as payment token and
+// the faucet can mint it, so the whole route runs on one token.
 const STANDALONE = {
-  usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+  usdc: '0x240b0316Df57887DBBE58b586508b19e633a14aa',
   ethRegistrar: '0xf633e7FC17e2bbE0D0965D18ec1821dcB754a3d3',
   ethRegistry: '0xD4eBcbBdF463C9c45784603Db0dDD499BC44A8B4',
 }
