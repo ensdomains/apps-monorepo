@@ -11,8 +11,7 @@ B1	B1_BatchUsesFreshSource	hold
 B2	B2_NoStaleAuthorityRestored	hold
 B3	B3_LiveSubregistryIsPreserved	hold
 B4	B4_LockedNameKeepsRecordControl	hold
-B5	B5_ExactlyPlannedRoles	violate
-B6	B6_VerificationUsesCertifiedRegistryPath	violate
+B5	B5_PlannedWorkHasRequiredRoles	hold
 C1	C1_CompletionRequiresReceiptProof	hold
 C2	C2_EvidenceDeletedOnlyAfterCheckpoint	hold
 C3	C3_NameActionIsImmutable	hold
@@ -26,10 +25,11 @@ D4	D4_CleanupOnlyRecoveryCanFinish	hold
 D5	D5_UncertaintyKeepsEvidenceAndBlocksPrompt	hold
 E1	E1_NameAndTreeAreAtomic	hold
 E2	E2_RecordReplayRunsAtMostOnce	hold
-E3	E3_EveryNameHasOneBucket	violate
+E3	E3_EveryNonNullClassificationHasOneBucket	hold
 E4	E4_CopyRequiresRoute	hold
 E5	E5_UnknownLabelsNeedConsentAndCap	hold
 E6	E6_ExpiryUsesChainTimeOrFailsClosed	violate
+E7	E7_AllCallsSimulateBeforeFirstPrompt	violate
 F1	F1_RenewalIsFundedAndSingle	hold
 G1	G1_RunTerminatesUnderFairResponses	hold
 G2	G2_PendingAttemptEventuallyResolves	hold

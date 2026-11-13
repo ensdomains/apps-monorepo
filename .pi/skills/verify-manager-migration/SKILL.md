@@ -21,9 +21,9 @@ that may already be pending.
 Last synchronized production commit:
 `6977db2d7d14a8d6c48436d97d4fee6ed703285b`.
 
-The model covers the 37 promises A1 through G5 recorded in
-`formal/migration-context/behaviors-draft.md`. The seven user-selected defaults
-are recorded in `formal/migration-context/RESULTS.md`.
+The model covers 37 promises from A1 through G5. E7 requires one ordered,
+chained simulation of setup and every batch before the first wallet prompt. The
+selected defaults are recorded in `formal/migration-context/RESULTS.md`.
 
 Covered production paths are enumerated and enforced by
 `apps/manager/verification/migration/verify-source-map.mjs`. They include:
@@ -38,8 +38,9 @@ Covered production paths are enumerated and enforced by
 Executable witnesses outside the synchronized production baseline are:
 
 - `apps/manager/verification/migration/real-code-matrix.test.ts`;
-- four intentionally failing regressions in
-  `migrationService.test.ts` and `useMigrationRecoverySnapshot.test.ts`.
+- seven intentionally failing regressions in `migrationService.test.ts`,
+  `migrationUi.machine.test.ts`, `useMigrationRecoverySnapshot.test.ts`, and
+  `partial-success-refresh.test.tsx`.
 
 Verification artifacts are under
 `apps/manager/verification/migration/`. The full entry point is
@@ -95,9 +96,12 @@ because TLC stops at its first invariant violation.
 ## Current expected findings
 
 At the synchronized commit, the current model reports violations for A1, A5,
-A8, B5, B6, C4, C5, D1, D2, D3, E3, E6, and G5. The other 24 promises hold in
-the abstraction. See `formal/migration-context/RESULTS.md` for traces, source
-locations, and judgments.
+A8, C4, C5, D1, D2, D3, E6, E7, and G5. The other 26 promises hold in the
+abstraction. B5 now checks only roles required by later frontend work. Exact
+fuse-derived roles and certified registry traversal are contract assumptions,
+and the latter requires contracts-level formal verification. See
+`formal/migration-context/RESULTS.md` for traces, source locations, and
+judgments.
 
 Keep these as findings. Do not weaken a user promise or change a current-model
 constant only to make TLC pass.
@@ -124,7 +128,7 @@ changed without this process.
 ## Scope limits
 
 The finite model checks abstract orchestration and state, not Solidity internals,
-gas estimation, indexer correctness, Safe settlement, NFT rendering,
-accessibility, layout, or end-to-end browser behavior. Its 37 selected scenarios
+RPC simulation internals, gas estimation, indexer correctness, Safe settlement,
+NFT rendering, accessibility, layout, or end-to-end browser behavior. Its 37 selected scenarios
 are attributable and exhaustive within each abstraction, but they are not the
 full cross-product of all names, tabs, crashes, and chain states.

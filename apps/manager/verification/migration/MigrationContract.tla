@@ -3,6 +3,8 @@ EXTENDS FiniteSets, Naturals
 
 CONSTANTS Tabs, Names, HonestJournal, HonestChain, HonestWallet, FairResponses
 
+Roles == {"owner", "wrapper-root", "manager", "registrar", "extra"}
+
 ASSUME /\ Tabs # {}
        /\ Names # {}
        /\ HonestJournal \in BOOLEAN
@@ -31,12 +33,23 @@ TypeOK ==
   /\ contractState.temporaryGrantLive \in BOOLEAN
   /\ contractState.cleanupRequired \in BOOLEAN
   /\ contractState.completionClaimed \in BOOLEAN
+  /\ contractState.fuseDerivedRoles \subseteq Roles
+  /\ contractState.actualRoles \subseteq Roles
+  /\ contractState.registryPathCertified \in BOOLEAN
+
+ExactFuseDerivedRolesAssumption ==
+  contractState.actualRoles = contractState.fuseDerivedRoles
+
+\* Requires contracts-level FV proof before callers may rely on this assumption.
+CertifiedRegistryPathAssumption == contractState.registryPathCertified
 
 EnvironmentAssumptions ==
   /\ HonestJournal
   /\ HonestChain
   /\ HonestWallet
   /\ FairResponses
+  /\ ExactFuseDerivedRolesAssumption
+  /\ CertifiedRegistryPathAssumption
   /\ TypeOK
 
 Init ==

@@ -2,6 +2,7 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   makeDomain,
+  OTHER,
   OWNER,
 } from '../../src/features/migration/service/_fixtures'
 import {
@@ -129,6 +130,88 @@ describe('migration classification matrix', () => {
       expect(result.classified.length + result.ineligible.length).toBe(
         domains.length,
       )
+    },
+  )
+
+  it.each([
+    { case: 'classified root', domain: makeDomain(), bucket: 'classified' },
+    {
+      case: 'missing label',
+      domain: makeDomain({ labelName: null }),
+      bucket: 'ineligible',
+    },
+    {
+      case: 'unknown label',
+      domain: makeDomain({
+        labelName: `[${'0'.repeat(64)}]`,
+        name: `[${'0'.repeat(64)}].eth`,
+      }),
+      bucket: 'ineligible',
+    },
+    {
+      case: 'invalid label',
+      domain: makeDomain({ labelName: 'bad.label' }),
+      bucket: 'ineligible',
+    },
+    {
+      case: 'copy without a selected route',
+      domain: makeDomain({
+        name: 'sub.alice.eth',
+        labelName: 'sub',
+        parentName: 'alice.eth',
+        registrantId: null,
+        resolverAddress: null,
+      }),
+      bucket: 'ineligible',
+    },
+  ] as const)(
+    '$case lands in exactly the $bucket bucket',
+    ({ domain, bucket }) => {
+      const result = classifyName(domain, OWNER, sepolia.id, {
+        nowSeconds: NOW_SECONDS,
+      })
+      expect(result).not.toBeNull()
+
+      const classified = classifyNames([domain], OWNER, sepolia.id, {
+        nowSeconds: NOW_SECONDS,
+      })
+      expect({
+        classified: classified.classified.length,
+        ineligible: classified.ineligible.length,
+      }).toEqual({
+        classified: bucket === 'classified' ? 1 : 0,
+        ineligible: bucket === 'ineligible' ? 1 : 0,
+      })
+    },
+  )
+
+  it.each([
+    ['not registrant', { registrantId: OTHER }],
+    ['wrapped by another account', { isWrapped: true, wrappedOwnerId: OTHER }],
+    ['non-.eth name', { name: 'alice.xyz', parentName: 'xyz' }],
+    [
+      'subname registry owner mismatch',
+      {
+        name: 'sub.alice.eth',
+        labelName: 'sub',
+        parentName: 'alice.eth',
+        registrantId: null,
+        ownerId: OTHER,
+      },
+    ],
+  ] as const)(
+    'intentionally excludes %s null classifications',
+    (_, overrides) => {
+      const domain = makeDomain(overrides)
+      expect(
+        classifyName(domain, OWNER, sepolia.id, { nowSeconds: NOW_SECONDS }),
+      ).toBeNull()
+
+      expect(
+        classifyNames([domain], OWNER, sepolia.id, {
+          nowSeconds: NOW_SECONDS,
+        }),
+      ).toEqual({ classified: [], ineligible: [] })
     },
   )
 })

@@ -156,6 +156,8 @@ const APPROVAL_CONTRACT: Address = '0x0000000000000000000000000000000000000006'
 
 const DEPLOY_DATA: Hex = '0xd3ad'
 const OUTER_DATA: Hex = '0xcafe'
+const FIRST_BATCH_DATA: Hex = '0xaa'
+const SECOND_BATCH_DATA: Hex = '0xbb'
 const GRANT_DATA: Hex = '0x01'
 const DIRECT_PERMISSION_ERROR_ABI = parseAbi([
   'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
@@ -174,6 +176,7 @@ const HCA_CLIENT = {
 const getCodeMock = vi.fn()
 const getBlockNumberMock = vi.fn()
 const estimateGasMock = vi.fn()
+const simulateCallsMock = vi.fn()
 const readContractMock = vi.fn()
 const getTransactionReceiptMock = vi.fn()
 const getTransactionMock = vi.fn()
@@ -185,6 +188,7 @@ const PUBLIC_CLIENT = {
   getCode: getCodeMock,
   getBlockNumber: getBlockNumberMock,
   estimateGas: estimateGasMock,
+  simulateCalls: simulateCallsMock,
   readContract: readContractMock,
   getTransactionReceipt: getTransactionReceiptMock,
   getTransaction: getTransactionMock,
@@ -697,6 +701,7 @@ beforeEach(() => {
   getCodeMock.mockResolvedValue('0x6000')
   getBlockNumberMock.mockResolvedValue(123n)
   estimateGasMock.mockResolvedValue(500_000n)
+  simulateCallsMock.mockResolvedValue({ results: [] })
   readContractMock.mockImplementation(
     ({ functionName }: { functionName: string }) => {
       if (functionName === 'ownerOf') return Promise.resolve(OWNER)
@@ -771,6 +776,53 @@ describe('executeMigration HCA orchestration', () => {
     })
     expect(mocks.startTransaction).not.toHaveBeenCalled()
     expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(1)
+  })
+
+  it('simulates setup and every planned batch in one chain before the first wallet prompt', async () => {
+    const alice = classifiedFor('alice')
+    const bob = classifiedFor('bob')
+    const aliceBatch = planFromClassified([alice]).atomicBatches[0]
+    const bobBatch = planFromClassified([bob]).atomicBatches[0]
+    if (!aliceBatch || !bobBatch) throw new Error('Expected migration batches')
+    const plan = {
+      ...planFromClassified([alice, bob]),
+      hcaDeploymentRequired: true,
+      atomicBatches: [
+        {
+          ...aliceBatch,
+          index: 0,
+          outerCall: { to: HCA, data: FIRST_BATCH_DATA, value: 0n },
+        },
+        {
+          ...bobBatch,
+          index: 1,
+          outerCall: { to: HCA, data: SECOND_BATCH_DATA, value: 0n },
+        },
+      ],
+    }
+    getCodeMock.mockResolvedValueOnce('0x').mockResolvedValue('0x6000')
+    simulateCallsMock.mockResolvedValue({
+      results: [
+        { status: 'success', gasUsed: 100_000n },
+        { status: 'success', gasUsed: 500_000n },
+        { status: 'success', gasUsed: 500_000n },
+      ],
+    })
+
+    await runExecute({ plan })
+
+    expect(simulateCallsMock).toHaveBeenCalledWith({
+      account: OWNER,
+      calls: [
+        { to: FACTORY, data: DEPLOY_DATA, value: 0n },
+        { to: HCA, data: FIRST_BATCH_DATA, value: 0n },
+        { to: HCA, data: SECOND_BATCH_DATA, value: 0n },
+      ],
+      validation: false,
+    })
+    expect(simulateCallsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.startTransaction.mock.invocationCallOrder[0] ?? Number.MAX_VALUE,
+    )
   })
 
   it('counts live split batches before their prompts and emits completion after both verify', async () => {

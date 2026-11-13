@@ -3,8 +3,8 @@
 This trial checks the ENS manager v1 to v2 migration promises at source commit
 `6977db2d7d14a8d6c48436d97d4fee6ed703285b`.
 
-The model states 37 user-facing properties from A1 through G5. It does not copy
-the current implementation as the desired result. `Current.cfg` records the
+The model states 37 user-facing properties from A1 through G5, including E7.
+It does not copy the current implementation as the desired result. `Current.cfg` records the
 observed implementation choices, while `Hardened.cfg` enables every required
 guard.
 
@@ -14,7 +14,8 @@ guard.
 property attributable to one product flow and makes every guard independently
 sensitive. The scenarios include two tabs, two names, crash and reload points,
 wallet rejection, unavailable receipts, concurrent journal writers, stale
-recovery cleanup, retry rehydration, partial completion, and pending work.
+recovery cleanup, retry rehydration, distinct terminal outcomes, chained
+pre-prompt simulation, and pending work.
 
 The shared `CORE` scenario executes an integrated lifecycle:
 
@@ -45,8 +46,11 @@ to reviewed code.
 - `current-expectations.tsv` records whether each current-code property holds or
   has a counterexample.
 - `sensitivity.tsv` maps every mutation config to its guard and invariant.
-- `real-code-matrix.test.ts` checks classification, routing, and journal
-  reconciliation matrices against real TypeScript.
+- `real-code-matrix.test.ts` checks the non-null classification partition,
+  intentional null exclusions, routing, and journal reconciliation against real
+  TypeScript.
+- `partial-success-refresh.test.tsx` witnesses missing refresh side effects after
+  a partially completed run reaches failure.
 - `verify-source-map.mjs` refuses to validate a source revision that was not
   reviewed.
 - `verify-sensitivity.sh` checks the current, hardened, contract, and all
@@ -69,7 +73,7 @@ The runner uses mise-provided Temurin Java 25 and `tla2tools` 1.7.4. It:
 - proves the hardened and contract configurations;
 - proves all 37 mutation configurations fail for the intended reason;
 - runs the green real-code matrices;
-- runs four real-code regression witnesses and requires each one to remain red.
+- runs seven real-code regression witnesses and requires each one to remain red.
 
 Set `FORMAL_OUT_DIR` to retain logs in a chosen directory. Otherwise the runner
 uses the system temporary directory.
@@ -82,9 +86,11 @@ scratch directory outside the repository.
 
 `MigrationContract.tla` exports one record variable, `contractState`, lifecycle
 actions, `EnvironmentAssumptions`, and `Guarantees`. The environment promises an
-honest but racy journal, chain, and wallet, valid contract state, and fair
-responses. The migration guarantees one prompt per scope, cancellation safety,
-durable intent before prompting, pending-submission tracking, verified and
+honest but racy journal, chain, and wallet, valid contract state, fair
+responses, exact fuse-derived roles, and certified registry traversal. Certified
+registry traversal remains a contracts-level formal-proof obligation. The
+migration guarantees one prompt per scope, cancellation safety, durable intent
+before prompting, pending-submission tracking, verified and
 checkpointed completion, temporary-grant cleanup, and recovery coverage.
 
 `Model.tla` maps the integrated implementation state to `contractState` and

@@ -140,5 +140,17 @@ expect_regression_failure \
   src/features/migration/hooks/useMigrationRecoverySnapshot.test.ts \
   'does not delete a newer snapshot while discarding an unused snapshot' \
   stale-recovery-cleanup
+expect_regression_failure \
+  src/features/migration/state/migrationUi.machine.test.ts \
+  'reports completed and remaining names as partial-success without the success animation' \
+  partial-success-outcome
+expect_regression_failure \
+  verification/migration/partial-success-refresh.test.tsx \
+  'refreshes every successful side effect when completed names remain after failure' \
+  partial-success-refresh
+expect_regression_failure \
+  src/features/migration/service/migrationService.test.ts \
+  'simulates setup and every planned batch in one chain before the first wallet prompt' \
+  chained-plan-simulation
 
 echo "Migration verification passed. Logs: $OUT_DIR"

@@ -1,5 +1,5 @@
 ------------------------------ MODULE Model ------------------------------
-EXTENDS FiniteSets, Naturals
+EXTENDS FiniteSets, Naturals, Sequences
 
 CONSTANTS ModelMode, DisabledGuard, EnabledScenarios
 
@@ -7,21 +7,34 @@ Tabs == {"tab-1", "tab-2"}
 Names == {"root.eth", "child.root.eth"}
 Root == "root.eth"
 Child == "child.root.eth"
+NullClassificationName == "ignored.other"
+ClassificationInputs == Names \cup {NullClassificationName}
 Actions == {"migrate", "copy", "none"}
-Roles == {"owner", "wrapper-root", "manager", "extra"}
+Roles == {"owner", "wrapper-root", "manager", "registrar", "extra"}
 Approvals == {"registration", "wrapper", "manager"}
 Work == {"migration", "grace", "wrapper", "cleanup"}
-Outcomes == {"none", "success", "failure", "partial", "blocked"}
+Outcomes == {
+  "none",
+  "success",
+  "partial-success",
+  "failed-nothing-landed",
+  "cancelled",
+  "blocked"
+}
 ReceiptOutcomes == {"none", "success", "reverted", "unavailable", "absent"}
 Lifecycle == {"idle", "running", "blocked", "success", "failure"}
 Authorities == {"old-manager", "current-manager", "owner", "none"}
+SimulationCalls == {"setup", "batch-root", "batch-child"}
+PlannedSimulation == <<"setup", "batch-root", "batch-child">>
+AllowedSubmissionFailures == {"rejection", "state-race", "drop"}
+SubmissionFailureCauses == AllowedSubmissionFailures \cup {"none", "simulation"}
 
 Behaviours == {
   "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
-  "B1", "B2", "B3", "B4", "B5", "B6",
+  "B1", "B2", "B3", "B4", "B5",
   "C1", "C2", "C3", "C4", "C5", "C6",
   "D1", "D2", "D3", "D4", "D5",
-  "E1", "E2", "E3", "E4", "E5", "E6",
+  "E1", "E2", "E3", "E4", "E5", "E6", "E7",
   "F1", "G1", "G2", "G3", "G4", "G5"
 }
 
@@ -40,8 +53,7 @@ Guards == {
   "CurrentAuthorityOnly",
   "LiveSubregistryGuard",
   "LockedResolverControl",
-  "ExactRoleVerification",
-  "CertifiedRegistryTraversal",
+  "RequiredRoleDependency",
   "ReceiptAndPostStateProof",
   "CheckpointBeforeJournalDelete",
   "ImmutableOperationIdentity",
@@ -55,10 +67,11 @@ Guards == {
   "UncertaintyRetainsEvidence",
   "AtomicNameTree",
   "ReplayDeduplication",
-  "TotalClassification",
+  "NonNullClassificationPartition",
   "CopyRouteGuard",
   "UnknownLabelConsentCap",
   "ChainTimeExpiry",
+  "ChainedPlanSimulation",
   "RenewalFundingAndLock",
   "FailureRouting",
   "FairPendingResolution",
@@ -71,15 +84,13 @@ CurrentMissingGuards == {
   "ScopeExecutionLock",
   "ReceiptAbsenceProof",
   "ApprovalPlanAndCleanup",
-  "ExactRoleVerification",
-  "CertifiedRegistryTraversal",
   "CompleteWorkAccounting",
   "TruthfulOutcomeAndRefresh",
   "SemanticRetryIdentity",
   "SnapshotCleanupCompare",
   "JournalAtomicWrite",
-  "TotalClassification",
   "ChainTimeExpiry",
+  "ChainedPlanSimulation",
   "Recoverability"
 }
 
@@ -134,6 +145,8 @@ DefaultState == [
   recordControl |-> TRUE,
   plannedRoles |-> {},
   actualRoles |-> {},
+  requiredRoles |-> {},
+  roleDependentWorkPlanned |-> FALSE,
   registryPathCertified |-> TRUE,
   receiptSuccessful |-> FALSE,
   verifiedAtReceipt |-> FALSE,
@@ -141,23 +154,33 @@ DefaultState == [
   wrapperSyncDone |-> FALSE,
   cleanupDone |-> FALSE,
   outcome |-> "none",
-  cacheFresh |-> TRUE,
+  migrationQueriesInvalidated |-> FALSE,
+  recentlyMigratedNamesRecorded |-> FALSE,
+  nftEvidenceRecorded |-> FALSE,
+  successAnimationPlayed |-> FALSE,
   historicalEvidence |-> FALSE,
   planWork |-> Work,
   remainingWork |-> Work,
   completedWork |-> {},
   treeSubmittedParts |-> 0,
   replayCount |-> 0,
-  inputNames |-> Names,
+  inputNames |-> ClassificationInputs,
+  nullClassificationNames |-> {},
   classifiedNames |-> {},
   ineligibleNames |-> {},
-  skippedNames |-> {},
   copyRouteExists |-> TRUE,
   copied |-> FALSE,
   unknownDropCount |-> 0,
   unknownConsent |-> FALSE,
   expiryFromChain |-> TRUE,
   expiredOnChain |-> FALSE,
+  plannedSimulation |-> PlannedSimulation,
+  simulatedCalls |-> <<>>,
+  simulationPassed |-> FALSE,
+  liveEstimatePassed |-> FALSE,
+  submissionFailureCause |-> "none",
+  failureRecoverable |-> FALSE,
+  failureTruthful |-> FALSE,
   renewalCount |-> 0,
   balanceSufficient |-> TRUE,
   otherRenewalActive |-> FALSE,
@@ -415,35 +438,23 @@ B4LockedResolver ==
            !.recordControl = FALSE,
            !.completionClaimed = TRUE])
 
-B5VerifyRoles ==
+B5PlanRequiredRoles ==
   /\ scenario = "B5"
   /\ state.phase = 0
   /\ SetState(
-       IF GuardEnabled("ExactRoleVerification")
+       IF GuardEnabled("RequiredRoleDependency")
          THEN [state EXCEPT
            !.phase = 99,
-           !.plannedRoles = {"owner", "wrapper-root"},
-           !.actualRoles = {"owner", "wrapper-root"},
-           !.completionClaimed = TRUE]
+           !.roleDependentWorkPlanned = TRUE,
+           !.requiredRoles = {"registrar"},
+           !.plannedRoles = {"wrapper-root", "registrar"},
+           !.actualRoles = {"wrapper-root", "registrar", "extra"}]
          ELSE [state EXCEPT
            !.phase = 99,
-           !.plannedRoles = {"owner", "wrapper-root"},
-           !.actualRoles = {"owner", "wrapper-root", "extra"},
-           !.completionClaimed = TRUE])
-
-B6TraverseRegistry ==
-  /\ scenario = "B6"
-  /\ state.phase = 0
-  /\ SetState(
-       IF GuardEnabled("CertifiedRegistryTraversal")
-         THEN [state EXCEPT
-           !.phase = 99,
-           !.registryPathCertified = TRUE,
-           !.verifiedAtReceipt = TRUE]
-         ELSE [state EXCEPT
-           !.phase = 99,
-           !.registryPathCertified = FALSE,
-           !.verifiedAtReceipt = TRUE])
+           !.roleDependentWorkPlanned = TRUE,
+           !.requiredRoles = {"registrar"},
+           !.plannedRoles = {"wrapper-root"},
+           !.actualRoles = {"wrapper-root", "extra"}])
 
 C1ConfirmName ==
   /\ scenario = "C1"
@@ -524,7 +535,20 @@ C4ClaimDashboardComplete ==
            !.cleanupDone = FALSE,
            !.completionClaimed = TRUE])
 
-C5ReportPartial ==
+C5ReportSuccess ==
+  /\ scenario = "C5"
+  /\ state.phase = 0
+  /\ SetState([state EXCEPT
+       !.phase = 99,
+       !.completedNames = Names,
+       !.remainingNames = {},
+       !.outcome = "success",
+       !.migrationQueriesInvalidated = TRUE,
+       !.recentlyMigratedNamesRecorded = TRUE,
+       !.nftEvidenceRecorded = TRUE,
+       !.successAnimationPlayed = TRUE])
+
+C5ReportPartialThroughComplete ==
   /\ scenario = "C5"
   /\ state.phase = 0
   /\ SetState(
@@ -533,14 +557,56 @@ C5ReportPartial ==
            !.phase = 99,
            !.completedNames = {Root},
            !.remainingNames = {Child},
-           !.outcome = "partial",
-           !.cacheFresh = TRUE]
+           !.outcome = "partial-success",
+           !.migrationQueriesInvalidated = TRUE,
+           !.recentlyMigratedNamesRecorded = TRUE,
+           !.nftEvidenceRecorded = TRUE,
+           !.successAnimationPlayed = FALSE]
          ELSE [state EXCEPT
            !.phase = 99,
            !.completedNames = {Root},
            !.remainingNames = {Child},
-           !.outcome = "failure",
-           !.cacheFresh = FALSE])
+           !.outcome = "success",
+           !.migrationQueriesInvalidated = TRUE,
+           !.recentlyMigratedNamesRecorded = TRUE,
+           !.nftEvidenceRecorded = TRUE,
+           !.successAnimationPlayed = TRUE])
+
+C5ReportPartialThroughFailure ==
+  /\ scenario = "C5"
+  /\ state.phase = 0
+  /\ SetState(
+       IF GuardEnabled("TruthfulOutcomeAndRefresh")
+         THEN [state EXCEPT
+           !.phase = 99,
+           !.completedNames = {Root},
+           !.remainingNames = {Child},
+           !.outcome = "partial-success",
+           !.migrationQueriesInvalidated = TRUE,
+           !.recentlyMigratedNamesRecorded = TRUE,
+           !.nftEvidenceRecorded = TRUE]
+         ELSE [state EXCEPT
+           !.phase = 99,
+           !.completedNames = {Root},
+           !.remainingNames = {Child},
+           !.outcome = "failed-nothing-landed"])
+
+C5ReportFailedNothingLanded ==
+  /\ scenario = "C5"
+  /\ state.phase = 0
+  /\ SetState([state EXCEPT
+       !.phase = 99,
+       !.completedNames = {},
+       !.remainingNames = Names,
+       !.outcome = "failed-nothing-landed"])
+
+C5ReportCancelled ==
+  /\ scenario = "C5"
+  /\ state.phase = 0
+  /\ SetState([state EXCEPT
+       !.phase = 99,
+       !.cancelled = TRUE,
+       !.outcome = "cancelled"])
 
 C6HistoricalEvidence ==
   /\ scenario = "C6"
@@ -656,7 +722,7 @@ E1SubmitTree ==
          ELSE [state EXCEPT
            !.phase = 99,
            !.treeSubmittedParts = 2,
-           !.outcome = "partial"])
+           !.outcome = "partial-success"])
 
 E2RetryReplay ==
   /\ scenario = "E2"
@@ -666,22 +732,23 @@ E2RetryReplay ==
          THEN [state EXCEPT !.phase = 99, !.replayCount = 1]
          ELSE [state EXCEPT !.phase = 99, !.replayCount = 2])
 
-E3ClassifyAll ==
+E3ClassifyNonNull ==
   /\ scenario = "E3"
   /\ state.phase = 0
   /\ SetState(
-       IF GuardEnabled("TotalClassification")
+       IF GuardEnabled("NonNullClassificationPartition")
          THEN [state EXCEPT
            !.phase = 99,
-           !.inputNames = Names,
+           !.inputNames = ClassificationInputs,
+           !.nullClassificationNames = {NullClassificationName},
            !.classifiedNames = {Root},
            !.ineligibleNames = {Child}]
          ELSE [state EXCEPT
            !.phase = 99,
-           !.inputNames = Names,
+           !.inputNames = ClassificationInputs,
+           !.nullClassificationNames = {NullClassificationName},
            !.classifiedNames = {Root},
-           !.ineligibleNames = {},
-           !.skippedNames = {}])
+           !.ineligibleNames = {}])
 
 E4CopyRoute ==
   /\ scenario = "E4"
@@ -730,7 +797,34 @@ E6ExpiryDecision ==
            !.expiredOnChain = TRUE,
            !.expiryFromChain = FALSE,
            !.promptCount = 1,
-           !.outcome = "failure"])
+           !.outcome = "failed-nothing-landed"])
+
+E7SimulatePlanBeforePrompt ==
+  /\ scenario = "E7"
+  /\ state.phase = 0
+  /\ \E cause \in AllowedSubmissionFailures:
+       SetState(
+         IF GuardEnabled("ChainedPlanSimulation")
+           THEN [state EXCEPT
+             !.phase = 99,
+             !.plannedSimulation = PlannedSimulation,
+             !.simulatedCalls = PlannedSimulation,
+             !.simulationPassed = TRUE,
+             !.liveEstimatePassed = TRUE,
+             !.promptCount = 1,
+             !.submissionFailureCause = cause,
+             !.failureRecoverable = TRUE,
+             !.failureTruthful = TRUE]
+           ELSE [state EXCEPT
+             !.phase = 99,
+             !.plannedSimulation = PlannedSimulation,
+             !.simulatedCalls = <<"batch-root">>,
+             !.simulationPassed = TRUE,
+             !.liveEstimatePassed = TRUE,
+             !.promptCount = 1,
+             !.submissionFailureCause = cause,
+             !.failureRecoverable = TRUE,
+             !.failureTruthful = TRUE])
 
 F1StartRenewal ==
   /\ scenario = "F1"
@@ -975,14 +1069,17 @@ Next ==
   \/ A3OpenPrompt \/ A4RecordHash \/ A5MissingReceipt
   \/ A6RevertedAttempt \/ A7RejectWithoutHash \/ A8RejectAfterGrant
   \/ B1SourceChanges \/ B2AuthorityChanges \/ B3LiveSubregistry
-  \/ B4LockedResolver \/ B5VerifyRoles \/ B6TraverseRegistry
+  \/ B4LockedResolver \/ B5PlanRequiredRoles
   \/ C1ConfirmName \/ C2CrashAfterReceipt \/ C3OperationIdentity
-  \/ C4ClaimDashboardComplete \/ C5ReportPartial \/ C6HistoricalEvidence
+  \/ C4ClaimDashboardComplete \/ C5ReportSuccess
+  \/ C5ReportPartialThroughComplete \/ C5ReportPartialThroughFailure
+  \/ C5ReportFailedNothingLanded \/ C5ReportCancelled \/ C6HistoricalEvidence
   \/ D1RehydrateRetry \/ D2StaleCleanup \/ D3ConcurrentWrites
   \/ D4CleanupOnly \/ D5UncertainRead
-  \/ E1SubmitTree \/ E2RetryReplay \/ E3ClassifyAll
+  \/ E1SubmitTree \/ E2RetryReplay \/ E3ClassifyNonNull
   \/ E4CopyRoute \/ E5DropUnknownLabels \/ E6ExpiryDecision
-  \/ F1StartRenewal \/ G1RouteFailure \/ G2ResolvePending
+  \/ E7SimulatePlanBeforePrompt \/ F1StartRenewal
+  \/ G1RouteFailure \/ G2ResolvePending
   \/ G3DeterministicFailure \/ G4FinishProgress \/ G5Recover
   \/ CoreStart \/ CorePersistRoot \/ CorePromptRoot \/ CoreRecordRoot
   \/ CoreBlockRoot \/ CoreResolveRoot \/ CoreVerifyRoot
@@ -1038,6 +1135,8 @@ TypeOK ==
   /\ state.recordControl \in BOOLEAN
   /\ state.plannedRoles \subseteq Roles
   /\ state.actualRoles \subseteq Roles
+  /\ state.requiredRoles \subseteq Roles
+  /\ state.roleDependentWorkPlanned \in BOOLEAN
   /\ state.registryPathCertified \in BOOLEAN
   /\ state.receiptSuccessful \in BOOLEAN
   /\ state.verifiedAtReceipt \in BOOLEAN
@@ -1045,23 +1144,33 @@ TypeOK ==
   /\ state.wrapperSyncDone \in BOOLEAN
   /\ state.cleanupDone \in BOOLEAN
   /\ state.outcome \in Outcomes
-  /\ state.cacheFresh \in BOOLEAN
+  /\ state.migrationQueriesInvalidated \in BOOLEAN
+  /\ state.recentlyMigratedNamesRecorded \in BOOLEAN
+  /\ state.nftEvidenceRecorded \in BOOLEAN
+  /\ state.successAnimationPlayed \in BOOLEAN
   /\ state.historicalEvidence \in BOOLEAN
   /\ state.planWork \subseteq Work
   /\ state.remainingWork \subseteq Work
   /\ state.completedWork \subseteq Work
   /\ state.treeSubmittedParts \in 0..2
   /\ state.replayCount \in 0..2
-  /\ state.inputNames \subseteq Names
-  /\ state.classifiedNames \subseteq Names
-  /\ state.ineligibleNames \subseteq Names
-  /\ state.skippedNames \subseteq Names
+  /\ state.inputNames \subseteq ClassificationInputs
+  /\ state.nullClassificationNames \subseteq ClassificationInputs
+  /\ state.classifiedNames \subseteq ClassificationInputs
+  /\ state.ineligibleNames \subseteq ClassificationInputs
   /\ state.copyRouteExists \in BOOLEAN
   /\ state.copied \in BOOLEAN
   /\ state.unknownDropCount \in 0..6
   /\ state.unknownConsent \in BOOLEAN
   /\ state.expiryFromChain \in BOOLEAN
   /\ state.expiredOnChain \in BOOLEAN
+  /\ state.plannedSimulation \in Seq(SimulationCalls)
+  /\ state.simulatedCalls \in Seq(SimulationCalls)
+  /\ state.simulationPassed \in BOOLEAN
+  /\ state.liveEstimatePassed \in BOOLEAN
+  /\ state.submissionFailureCause \in SubmissionFailureCauses
+  /\ state.failureRecoverable \in BOOLEAN
+  /\ state.failureTruthful \in BOOLEAN
   /\ state.renewalCount \in 0..2
   /\ state.balanceSufficient \in BOOLEAN
   /\ state.otherRenewalActive \in BOOLEAN
@@ -1129,12 +1238,10 @@ B4_LockedNameKeepsRecordControl ==
   scenario = "B4" /\ state.completionClaimed =>
     state.lockedResolverCertified \/ state.recordControl
 
-B5_ExactlyPlannedRoles ==
-  scenario = "B5" /\ state.completionClaimed =>
-    state.actualRoles = state.plannedRoles
-
-B6_VerificationUsesCertifiedRegistryPath ==
-  scenario = "B6" /\ state.verifiedAtReceipt => state.registryPathCertified
+B5_PlannedWorkHasRequiredRoles ==
+  scenario = "B5" /\ state.roleDependentWorkPlanned =>
+    /\ state.requiredRoles \subseteq state.plannedRoles
+    /\ state.requiredRoles \subseteq state.actualRoles
 
 C1_CompletionRequiresReceiptProof ==
   scenario = "C1" /\ state.completionClaimed =>
@@ -1157,9 +1264,29 @@ C4_CompleteMeansAllRequiredWorkDone ==
     /\ state.cleanupDone
 
 C5_OutcomeAndViewsAreTruthful ==
-  scenario = "C5" =>
-    /\ (state.completedNames # {} /\ state.remainingNames # {} => state.outcome = "partial")
-    /\ state.cacheFresh
+  scenario = "C5" /\ state.phase = 99 =>
+    /\ CASE state.outcome = "success" ->
+              /\ state.completedNames = Names
+              /\ state.remainingNames = {}
+              /\ state.successAnimationPlayed
+           [] state.outcome = "partial-success" ->
+              /\ state.completedNames # {}
+              /\ state.remainingNames # {}
+              /\ state.completedNames \cup state.remainingNames = Names
+              /\ state.completedNames \cap state.remainingNames = {}
+              /\ ~state.successAnimationPlayed
+           [] state.outcome = "failed-nothing-landed" ->
+              /\ state.completedNames = {}
+              /\ state.remainingNames = Names
+              /\ ~state.successAnimationPlayed
+           [] state.outcome = "cancelled" ->
+              /\ state.cancelled
+              /\ ~state.successAnimationPlayed
+           [] OTHER -> FALSE
+    /\ (state.outcome \in {"success", "partial-success"} =>
+          /\ state.migrationQueriesInvalidated
+          /\ state.recentlyMigratedNamesRecorded
+          /\ state.nftEvidenceRecorded)
 
 C6_HistoricalEvidenceNeverResubmits ==
   scenario = "C6" /\ state.historicalEvidence =>
@@ -1194,12 +1321,11 @@ E1_NameAndTreeAreAtomic ==
 E2_RecordReplayRunsAtMostOnce ==
   scenario = "E2" => state.replayCount <= 1
 
-E3_EveryNameHasOneBucket ==
+E3_EveryNonNullClassificationHasOneBucket ==
   scenario = "E3" /\ state.phase = 99 =>
     /\ state.classifiedNames \cap state.ineligibleNames = {}
-    /\ state.classifiedNames \cap state.skippedNames = {}
-    /\ state.ineligibleNames \cap state.skippedNames = {}
-    /\ state.classifiedNames \cup state.ineligibleNames \cup state.skippedNames = state.inputNames
+    /\ state.classifiedNames \cup state.ineligibleNames =
+         state.inputNames \ state.nullClassificationNames
 
 E4_CopyRequiresRoute ==
   scenario = "E4" /\ state.copied => state.copyRouteExists
@@ -1211,6 +1337,15 @@ E5_UnknownLabelsNeedConsentAndCap ==
 E6_ExpiryUsesChainTimeOrFailsClosed ==
   scenario = "E6" /\ state.expiredOnChain =>
     state.expiryFromChain /\ state.promptCount = 0
+
+E7_AllCallsSimulateBeforeFirstPrompt ==
+  scenario = "E7" /\ state.promptCount > 0 =>
+    /\ state.simulationPassed
+    /\ state.simulatedCalls = state.plannedSimulation
+    /\ state.liveEstimatePassed
+    /\ state.submissionFailureCause \in AllowedSubmissionFailures
+    /\ state.failureRecoverable
+    /\ state.failureTruthful
 
 F1_RenewalIsFundedAndSingle ==
   scenario = "F1" /\ state.renewalCount > 0 =>
@@ -1252,7 +1387,10 @@ ContractState == [
   unresolvedNames |-> state.unresolvedNames,
   temporaryGrantLive |-> state.temporaryGrantLive,
   cleanupRequired |-> state.cleanupRequired,
-  completionClaimed |-> state.completionClaimed
+  completionClaimed |-> state.completionClaimed,
+  fuseDerivedRoles |-> state.plannedRoles,
+  actualRoles |-> state.actualRoles,
+  registryPathCertified |-> state.registryPathCertified
 ]
 
 Contract == INSTANCE MigrationContract WITH
