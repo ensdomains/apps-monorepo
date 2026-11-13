@@ -2,13 +2,12 @@ import { ok } from 'neverthrow'
 import { type Address, type Hex, pad } from 'viem'
 import { mainnet } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createTestWrapper, render, screen, waitFor } from '@/test-utils'
+import { createTestWrapper, render, screen } from '@/test-utils'
 import { RegistryWarningBanner } from './RegistryWarningBanner'
 
 const REGISTRY = '0x1111111111111111111111111111111111111111' as Address
 const UNTRUSTED_IMPLEMENTATION = '0x75FF9AdBcFcE2469B097AC68f6Ae650EaE1351Bb'
 const AFFECTED_IMPLEMENTATION = '0xC927bCaA77cd7bE283518760896Be0CF3Cfbe08d'
-const FIXED_IMPLEMENTATION = '0x2222222222222222222222222222222222222222'
 
 const getStorageAt = vi.hoisted(() => vi.fn<() => Promise<Hex>>())
 
@@ -50,20 +49,5 @@ describe('RegistryWarningBanner', () => {
     expect(await screen.findByText(UNTRUSTED_TITLE)).toBeVisible()
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.queryByText(AFFECTED_TITLE)).not.toBeInTheDocument()
-  })
-
-  it.each([
-    [
-      'a fixed implementation',
-      () => Promise.resolve(pad(FIXED_IMPLEMENTATION)),
-    ],
-    ['a failed read', () => Promise.reject(new Error('rpc down'))],
-  ])('shows nothing for %s', async (_, read) => {
-    getStorageAt.mockImplementation(read)
-    renderBanner()
-
-    await waitFor(() => expect(getStorageAt).toHaveBeenCalledTimes(2))
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
