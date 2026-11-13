@@ -79,6 +79,24 @@ describe('NameRow', () => {
     expect(managerBadge).toHaveClass(ownerBadge?.className ?? '')
   })
 
+  it('shows when a name in grace expired, and under it when grace ends', () => {
+    const { getByText } = render(
+      <NameRow
+        expiryLabel="August 29, 2026"
+        graceEndLabel="November 27, 2026"
+        isInGrace
+        label="banana.eth"
+      />,
+    )
+
+    expect(getByText('Expires on').nextElementSibling).toHaveTextContent(
+      'August 29, 2026',
+    )
+    expect(getByText('Grace period ends').nextElementSibling).toHaveTextContent(
+      'November 27, 2026',
+    )
+  })
+
   it('shows non-expiring names without the expires-on prefix', () => {
     const { getByText, queryByText } = render(
       <NameRow expiryLabel="Does not expire" label="pokemon.fgeorgescu.eth" />,

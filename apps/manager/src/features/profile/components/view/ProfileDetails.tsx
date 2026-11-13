@@ -8,7 +8,7 @@ import { cn, truncateAddress } from '@/lib/utils'
 import { formatProfileDetailDate } from './ProfileView.helpers'
 
 /**
- * Owner, registration, and expiry under the profile name.
+ * Owner, registration, expiry and grace end under the profile name.
  *
  * Each item stacks a 13px quartz-500 label over a 13px quartz-700 value.
  * Dates stay short sentence case ("Oct 23, 2026") at every width.
@@ -19,7 +19,8 @@ import { formatProfileDetailDate } from './ProfileView.helpers'
  */
 
 type ProfileDetailsProps = {
-  readonly displayExpiryDate?: Date | null
+  readonly expiryDate?: Date | null
+  readonly graceEndDate?: Date | null
   readonly owner?: Address
   readonly ownerReverseName?: string | null
   readonly registrationDate?: number | null
@@ -114,7 +115,8 @@ const ProfileDetail = ({
 )
 
 export const ProfileDetails = ({
-  displayExpiryDate,
+  expiryDate,
+  graceEndDate,
   owner,
   ownerReverseName,
   registrationDate,
@@ -127,10 +129,8 @@ export const ProfileDetails = ({
     registrationDetailDate,
     timeZone,
   )
-  const formattedExpiryDate = formatProfileDetailDate(
-    displayExpiryDate,
-    timeZone,
-  )
+  const formattedExpiryDate = formatProfileDetailDate(expiryDate, timeZone)
+  const formattedGraceEndDate = formatProfileDetailDate(graceEndDate, timeZone)
 
   return (
     <div className="flex min-w-0 flex-1 flex-row flex-wrap items-start justify-between gap-5 xl:flex-nowrap xl:justify-start">
@@ -162,11 +162,25 @@ export const ProfileDetails = ({
         />
       ) : null}
       {formattedExpiryDate ? (
-        <ProfileDetail
-          icon={<MSymbol className={detailIconClassName} symbol="history" />}
-          label={<Trans>Expires</Trans>}
-          value={formattedExpiryDate}
-        />
+        <div className="flex shrink-0 items-start gap-5">
+          <ProfileDetail
+            icon={<MSymbol className={detailIconClassName} symbol="history" />}
+            label={<Trans>Expires</Trans>}
+            value={formattedExpiryDate}
+          />
+          {formattedGraceEndDate ? (
+            <ProfileDetail
+              icon={
+                <MSymbol
+                  className={detailIconClassName}
+                  symbol="calendar_month"
+                />
+              }
+              label={<Trans>Grace period ends</Trans>}
+              value={formattedGraceEndDate}
+            />
+          ) : null}
+        </div>
       ) : null}
     </div>
   )

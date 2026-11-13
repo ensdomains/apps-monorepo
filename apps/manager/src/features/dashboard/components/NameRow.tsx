@@ -4,7 +4,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
-import { Check, Heart, History } from 'lucide-react'
+import { CalendarDays, Check, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -62,6 +62,7 @@ interface NameRowProps {
   readonly status?: NameStatus | null
   readonly expiringInDays?: number | null
   readonly expiryLabel?: string | null
+  readonly graceEndLabel?: string | null
   readonly cta?: NameRowCta | null
   readonly isFavorite?: boolean
   readonly showFavoriteButton?: boolean
@@ -449,10 +450,14 @@ const NameOptionsMenu = ({
 
 const ExpiryDetails = ({
   expiryLabel,
+  graceEndLabel,
   cta,
   label,
   renewalProtocol,
-}: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label' | 'renewalProtocol'>) => {
+}: Pick<
+  NameRowProps,
+  'expiryLabel' | 'graceEndLabel' | 'cta' | 'label' | 'renewalProtocol'
+>) => {
   if (!expiryLabel && !cta) return null
 
   const isNonExpiring = expiryLabel === NON_EXPIRING_DATE_LABEL
@@ -460,20 +465,33 @@ const ExpiryDetails = ({
   return (
     <div className="flex items-center justify-between gap-3">
       {expiryLabel ? (
-        <div className="flex items-center gap-2">
-          <History className="size-4 shrink-0 text-ens-quartz-360" />
-          <span className="font-sans text-ens-quartz-380 text-sm">
-            {isNonExpiring ? (
-              <Trans>Does not expire</Trans>
-            ) : (
-              <Trans>Expires on</Trans>
-            )}
-          </span>
-          {!isNonExpiring && (
-            <span className="font-sans text-ens-quartz-550 text-sm">
-              {expiryLabel}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-2">
+            <History className="size-4 shrink-0 text-ens-quartz-360" />
+            <span className="font-sans text-ens-quartz-380 text-sm">
+              {isNonExpiring ? (
+                <Trans>Does not expire</Trans>
+              ) : (
+                <Trans>Expires on</Trans>
+              )}
             </span>
-          )}
+            {!isNonExpiring && (
+              <span className="font-sans text-ens-quartz-550 text-sm">
+                {expiryLabel}
+              </span>
+            )}
+          </div>
+          {graceEndLabel ? (
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-4 shrink-0 text-ens-quartz-360" />
+              <span className="font-sans text-ens-quartz-380 text-sm">
+                <Trans>Grace period ends</Trans>
+              </span>
+              <span className="font-sans text-ens-quartz-550 text-sm">
+                {graceEndLabel}
+              </span>
+            </div>
+          ) : null}
         </div>
       ) : (
         <span />
@@ -501,6 +519,7 @@ export const NameRow = ({
   status = null,
   expiringInDays = null,
   expiryLabel = null,
+  graceEndLabel = null,
   cta = null,
   isFavorite = false,
   showFavoriteButton = false,
@@ -563,6 +582,7 @@ export const NameRow = ({
       <ExpiryDetails
         cta={cta}
         expiryLabel={expiryLabel}
+        graceEndLabel={graceEndLabel}
         label={label}
         renewalProtocol={renewalProtocol}
       />

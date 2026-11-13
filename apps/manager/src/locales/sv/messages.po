@@ -1655,6 +1655,12 @@ msgstr ""
 msgid "Grace period"
 msgstr ""
 
+#: src/features/dashboard/components/NameRow.tsx
+#: src/features/dashboard/components/PrimaryNameCard.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Grace period ends"
+msgstr ""
+
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Growing your corner of the decentralized web"
 msgstr ""
