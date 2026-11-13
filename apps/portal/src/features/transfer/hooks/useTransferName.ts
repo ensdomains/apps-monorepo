@@ -72,6 +72,10 @@ import {
   type NameNotNormalizableError,
 } from '../v1/getV1NameState'
 import {
+  type getV1WrapperAccess,
+  getV1WrapperAccessQueryOptions,
+} from '../v1/getV1WrapperAccess'
+import {
   getV1Holder,
   getV1TransferGate,
   type V1TransferGate,
@@ -363,6 +367,9 @@ export const useTransferName = ({
           queryKey: getV1NameStateQueryOptions({ name }).queryKey,
         }),
         queryClient.invalidateQueries({
+          queryKey: getV1WrapperAccessQueryOptions({ name, account }).queryKey,
+        }),
+        queryClient.invalidateQueries({
           queryKey: getPrimaryNameQueryOptions(account).queryKey,
         }),
         queryClient.invalidateQueries({
@@ -397,17 +404,26 @@ export const useTransferName = ({
     })
   }
 
-  // The V1 read that gates the write. `staleTime: 0` bypasses the cache the
+  // The V1 reads that gate the write. `staleTime: 0` bypasses the cache the
   // ownership page primed: a name that lapsed into grace since would pass, and
   // the config steps would land before `reclaim` reverts on `live(id)`.
   const readV1 = (params: StartTransferParams) =>
-    fromPromise(
-      queryClient.fetchQuery({
-        ...getV1NameStateQueryOptions({ name }),
-        staleTime: 0,
-      }),
-      (e) => e as GetV1NameStateError | NameNotNormalizableError,
-    ).andThen((state) => {
+    ResultAsync.combine([
+      fromPromise(
+        queryClient.fetchQuery({
+          ...getV1NameStateQueryOptions({ name }),
+          staleTime: 0,
+        }),
+        (e) => e as GetV1NameStateError | NameNotNormalizableError,
+      ),
+      fromPromise(
+        queryClient.fetchQuery({
+          ...getV1WrapperAccessQueryOptions({ name, account }),
+          staleTime: 0,
+        }),
+        (e) => e as ErrorOf<ReturnType<typeof getV1WrapperAccess>>,
+      ),
+    ]).andThen(([state, wrapperAccess]) => {
       const refuse = (reason: V1TransferRefusedError['reason']) =>
         err(
           new V1TransferRefusedError({
@@ -417,7 +433,7 @@ export const useTransferName = ({
         )
       // No state means no registrant and no live wrapper owner: gone.
       if (!state) return refuse('expired')
-      const gate = getV1TransferGate(state, account)
+      const gate = getV1TransferGate(state, account, wrapperAccess)
       if (gate.reason !== 'ok') return refuse(gate.reason)
       // The plan and the options the form offered were built for `actor`; a
       // wallet that has since become the parent instead of the holder (or the
@@ -676,6 +692,9 @@ export const useTransferName = ({
       }),
       queryClient.invalidateQueries({
         queryKey: getV1NameStateQueryOptions({ name }).queryKey,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: getV1WrapperAccessQueryOptions({ name, account }).queryKey,
       }),
       queryClient.invalidateQueries({
         queryKey: getV1NameManagerQueryOptions({ name }).queryKey,
