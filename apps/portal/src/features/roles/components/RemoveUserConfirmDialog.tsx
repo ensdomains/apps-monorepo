@@ -75,8 +75,9 @@ export const RemoveUserConfirmDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
+      {/* Height follows the viewport so long warnings and enlarged text remain scrollable. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-1 overflow-y-auto p-4 wrap-anywhere sm:p-6 [&>*]:min-w-0">
+        <DialogHeader className="pt-4">
           <DialogTitle>Remove user</DialogTitle>
           <DialogDescription>
             This revokes {formatRoleList(rolesToRevoke)} from{' '}
@@ -121,9 +122,18 @@ export const RemoveUserConfirmDialog = ({
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button
+              variant="outline"
+              className="h-auto min-h-9 min-w-0 whitespace-normal"
+            >
+              Cancel
+            </Button>
           </DialogClose>
-          <Button variant="danger" onClick={onConfirm}>
+          <Button
+            variant="danger"
+            className="h-auto min-h-9 min-w-0 whitespace-normal"
+            onClick={onConfirm}
+          >
             Remove
           </Button>
         </DialogFooter>
