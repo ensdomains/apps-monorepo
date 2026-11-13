@@ -1,6 +1,6 @@
+import { PREVIOUS_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration/known-resolvers'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type Address, isAddressEqual } from 'viem'
-import { PREVIOUS_V1_PUBLIC_RESOLVERS } from '@/lib/constants/publicResolvers'
 import { ensChain } from '@/lib/wagmi'
 
 export const universalResolverAddress = getChainContractAddress({
