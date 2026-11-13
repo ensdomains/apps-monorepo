@@ -15,7 +15,7 @@ pre-commit:
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
       stage_fixed: true
       priority: 2
-    # Feedback only. A missing test does not block the commit; Stop may block.
+    # Feedback only. A missing test does not block the commit or Stop.
     agent-checks:
       run: node scripts/agent-checks/run.mjs check-diff --report-only --agent lefthook --event pre-commit >/dev/null; true
       priority: 3

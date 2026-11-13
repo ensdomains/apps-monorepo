@@ -18,11 +18,12 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import {
+  agentOwnedFiles,
   applyMissingTests,
   formatLogRecord,
   guardCommand,
   missingRelatedTests,
-  missingTestsReason,
+  missingTestVerdict,
   packagesFor,
   pathsInDiff,
   readCachedVerdict,
@@ -144,7 +145,11 @@ function checkDiff(options) {
     if (stat.length > 200_000) continue
     diff += syntheticAddedDiff(file, stat.toString('utf8'))
   }
-  return applyMissingTests(reviewDiff(diff), pathsInDiff(diff).concat(untrackedSource()))
+  const reviewed = reviewDiff(diff)
+  const missingPaths = choice.agentOwned
+    ? filesForMissingTests(choice)
+    : pathsInDiff(diff).concat(untrackedSource())
+  return applyMissingTests(reviewed, missingPaths)
 }
 
 function prBody(options) {
@@ -196,15 +201,10 @@ function verify(options) {
     if (repeated) return repeated
   }
 
-  const missing = missingRelatedTests(files)
-  if (missing.length > 0) {
-    const blocked = { decision: 'block', reason: missingTestsReason(missing) }
-    if (cacheDir) writeCachedVerdict(cacheDir, key, blocked)
-    return blocked
-  }
-
+  const missing = missingRelatedTests(choice.agentOwned ? filesForMissingTests(choice) : files)
   const sourceFiles = files.filter((file) => /\.tsx?$/.test(file))
-  const verdict = verifyTypecheck(choice.base, sourceFiles)
+  const checked = verifyTypecheck(choice.base, sourceFiles)
+  const verdict = missingTestVerdict(checked, missing)
   if (cacheDir) writeCachedVerdict(cacheDir, key, verdict)
   return verdict
 }
@@ -298,6 +298,25 @@ function allChangedFiles(choice) {
 }
 
 /**
+ * Commits the agent created after the session started, plus the working tree.
+ * @param {{ base: string }} choice
+ * @returns {readonly string[]}
+ */
+function filesForMissingTests(choice) {
+  const reflog = git(['reflog', '--format=%H%x09%gs']).split('\n').filter(Boolean)
+  const worktree = [
+    ...git(['diff', '--name-only', 'HEAD']).split('\n').filter(Boolean),
+    ...untrackedSource(),
+  ]
+  return agentOwnedFiles(
+    reflog,
+    choice.base,
+    (sha) => git(['diff-tree', '--no-commit-id', '--name-only', '-r', sha]).split('\n').filter(Boolean),
+    worktree,
+  )
+}
+
+/**
  * Record HEAD the first time a session is seen, except on Stop.
  * @param {Record<string, string | boolean | undefined>} options
  * @param {boolean} force
@@ -320,7 +339,7 @@ function noteSession(options, force) {
 
 /**
  * @param {Record<string, string | boolean | undefined>} options
- * @returns {{ base: string, range: string[] }}
+ * @returns {{ base: string, range: string[], agentOwned: boolean }}
  */
 function resolveBase(options) {
   const explicit = typeof options.base === 'string' ? options.base : ''
@@ -335,7 +354,11 @@ function resolveBase(options) {
     originMain: originMain(),
   })
   const twoDot = Boolean(sessionStart) && base === sessionStart
-  return { base, range: base ? (twoDot ? [base, 'HEAD'] : [`${base}...HEAD`]) : [] }
+  return {
+    base,
+    range: base ? (twoDot ? [base, 'HEAD'] : [`${base}...HEAD`]) : [],
+    agentOwned: twoDot,
+  }
 }
 
 function absGitDir() {

@@ -623,15 +623,89 @@ export function missingRelatedTests(files) {
 export function missingTestsReason(files) {
   const listed = files.slice(0, 20).map((file) => `- ${file}`).join('\n')
   return [
-    'Runtime source changed with no related *.test.* or *.spec.* file in the diff.',
-    'Add or update the focused test next to the code, read skill writing-tests first, and run it before committing.',
+    'Feedback only: a runtime source is in the diff with no related *.test.* or *.spec.* file.',
+    'A config, route, or helper covered through its caller does not need a same-name test. Do not add a filler test.',
+    'When the behaviour changed, add or update the focused test next to the code, read skill writing-tests first, and run it before committing.',
     'Keep existing cases; do not replace them.',
     listed,
   ].join('\n')
 }
 
 /**
- * Diff-time verdict stays feedback. Stop uses missingRelatedTests and may block.
+ * Missing related tests are feedback. A failed typecheck or test still blocks.
+ * @param {{ decision: string, reason: string }} checked
+ * @param {readonly string[]} missing
+ */
+export function missingTestVerdict(checked, missing) {
+  if (missing.length === 0 || checked.decision === 'block') return checked
+  const extra = missingTestsReason(missing)
+  return {
+    decision: 'feedback',
+    reason: [checked.reason, extra].filter((part) => part.length > 0).join('\n\n'),
+  }
+}
+
+/**
+ * A reflog action that moved HEAD onto commits this session did not create.
+ * @param {string} subject
+ */
+export function isIncomingReflog(subject) {
+  return /^(?:pull|checkout|merge|rebase|reset)(?::|\s|\(|$)/.test(subject)
+}
+
+/**
+ * `commit` and `commit (amend)` are the agent's. A merge commit is not.
+ * @param {string} subject
+ */
+export function isAgentCommitSubject(subject) {
+  if (!subject.startsWith('commit')) return false
+  if (subject.startsWith('commit (merge)')) return false
+  return subject === 'commit' || subject.startsWith('commit:') || subject.startsWith('commit (')
+}
+
+/**
+ * Commit SHAs the agent created after `sessionStart`.
+ * Reflog lines are newest first, `sha<TAB>subject`. Walk stops at the session SHA.
+ * @param {readonly string[]} reflogNewestFirst
+ * @param {string} sessionStart
+ * @returns {readonly string[]}
+ */
+export function agentCommitShas(reflogNewestFirst, sessionStart) {
+  if (!sessionStart) return []
+  const shas = []
+  for (const line of reflogNewestFirst) {
+    const tab = line.indexOf('\t')
+    if (tab < 0) continue
+    const sha = line.slice(0, tab).trim()
+    const subject = line.slice(tab + 1).trim()
+    if (sha === sessionStart) break
+    if (isIncomingReflog(subject)) continue
+    if (isAgentCommitSubject(subject)) shas.push(sha)
+  }
+  return shas
+}
+
+/**
+ * Working tree plus the agent's own commits. Pull, checkout, merge, and rebase
+ * commits are left out even when they sit between the session start and HEAD.
+ * @param {readonly string[]} reflogNewestFirst
+ * @param {string} sessionStart
+ * @param {(sha: string) => readonly string[]} filesInCommit
+ * @param {readonly string[]} worktreeFiles
+ * @returns {readonly string[]}
+ */
+export function agentOwnedFiles(reflogNewestFirst, sessionStart, filesInCommit, worktreeFiles) {
+  const names = new Set(worktreeFiles)
+  for (const sha of agentCommitShas(reflogNewestFirst, sessionStart)) {
+    for (const file of filesInCommit(sha)) {
+      if (file) names.add(file)
+    }
+  }
+  return [...names]
+}
+
+/**
+ * Missing-test verdict stays feedback, including at Stop.
  * @param {{ decision: string, reason: string, context?: string, findings?: readonly { path: string, line: number, rule: string, message: string }[] }} review
  * @param {readonly string[]} files
  */

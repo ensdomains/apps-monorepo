@@ -9,7 +9,10 @@ import {
   applyMissingTests,
   formatLogRecord,
   guardCommand,
+  agentCommitShas,
+  agentOwnedFiles,
   missingRelatedTests,
+  missingTestVerdict,
   packagesFor,
   readCachedVerdict,
   repeatedStopVerdict,
@@ -359,6 +362,92 @@ test('session base reviews only changes made after the session started', () => {
   const mainFiles = git(['diff', '--name-only', main, head]).split('\n').filter(Boolean)
   assert.ok(missingRelatedTests(mainFiles).includes('apps/manager/src/pre.ts'))
   assert.equal(missingRelatedTests(sessionFiles).includes('apps/manager/src/pre.ts'), false)
+})
+
+test('a missing related test is feedback, and a pull or checkout is not the agent diff', () => {
+  const route = 'apps/manager/src/route.ts'
+  const feedback = missingTestVerdict({ decision: 'allow', reason: '' }, [route])
+  assert.equal(feedback.decision, 'feedback')
+  assert.match(feedback.reason, /filler test/)
+  assert.equal(missingTestVerdict({ decision: 'block', reason: 'typecheck failed' }, [route]).decision, 'block')
+  assert.equal(missingTestVerdict({ decision: 'allow', reason: '' }, []).decision, 'allow')
+
+  const dir = mkdtempSync(path.join(tmpdir(), 'agent-checks-owned-'))
+  const bare = mkdtempSync(path.join(tmpdir(), 'agent-checks-bare-'))
+  const other = mkdtempSync(path.join(tmpdir(), 'agent-checks-other-'))
+  const gitEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'Test',
+    GIT_AUTHOR_EMAIL: 'test@example.com',
+    GIT_COMMITTER_NAME: 'Test',
+    GIT_COMMITTER_EMAIL: 'test@example.com',
+  }
+  const git = (cwd, args) =>
+    execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      env: gitEnv,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  git(bare, ['init', '--bare', '-b', 'main'])
+  git(dir, ['init', '-b', 'main'])
+  git(dir, ['remote', 'add', 'origin', bare])
+  const source = path.join(dir, 'apps/manager/src/old.ts')
+  mkdirSync(path.dirname(source), { recursive: true })
+  writeFileSync(source, 'export const old = 1\n')
+  git(dir, ['add', '.'])
+  git(dir, ['commit', '-m', 'base'])
+  git(dir, ['push', '-u', 'origin', 'main'])
+  const session = git(dir, ['rev-parse', 'HEAD'])
+
+  git(other, ['clone', bare, '.'])
+  git(other, ['config', 'user.email', 'other@example.com'])
+  git(other, ['config', 'user.name', 'Other'])
+  writeFileSync(path.join(other, 'apps/manager/src/pulled.ts'), 'export const pulled = 1\n')
+  git(other, ['add', '.'])
+  git(other, ['commit', '-m', 'upstream'])
+  git(other, ['push', 'origin', 'main'])
+  git(dir, ['pull', '--ff-only'])
+  const pulledRange = git(dir, ['diff', '--name-only', session, 'HEAD']).split('\n')
+  assert.ok(pulledRange.includes('apps/manager/src/pulled.ts'))
+  const afterPull = agentOwnedFiles(
+    git(dir, ['reflog', '--format=%H%x09%gs']).split('\n'),
+    session,
+    (sha) => git(dir, ['diff-tree', '--no-commit-id', '--name-only', '-r', sha]).split('\n'),
+    [],
+  )
+  assert.equal(afterPull.includes('apps/manager/src/pulled.ts'), false)
+
+  writeFileSync(path.join(dir, 'apps/manager/src/own.ts'), 'export const own = 1\n')
+  git(dir, ['add', '.'])
+  git(dir, ['commit', '-m', 'agent edit'])
+  const owned = agentOwnedFiles(
+    git(dir, ['reflog', '--format=%H%x09%gs']).split('\n'),
+    session,
+    (sha) => git(dir, ['diff-tree', '--no-commit-id', '--name-only', '-r', sha]).split('\n'),
+    [],
+  )
+  assert.ok(owned.includes('apps/manager/src/own.ts'))
+  assert.equal(owned.includes('apps/manager/src/pulled.ts'), false)
+
+  git(other, ['checkout', '-b', 'review'])
+  writeFileSync(path.join(other, 'apps/manager/src/route.ts'), 'export const route = 1\n')
+  git(other, ['add', '.'])
+  git(other, ['commit', '-m', 'route'])
+  git(other, ['push', '-u', 'origin', 'review'])
+  git(dir, ['fetch', 'origin'])
+  git(dir, ['checkout', 'review'])
+  const afterCheckout = agentOwnedFiles(
+    git(dir, ['reflog', '--format=%H%x09%gs']).split('\n'),
+    session,
+    (sha) => git(dir, ['diff-tree', '--no-commit-id', '--name-only', '-r', sha]).split('\n'),
+    git(dir, ['diff', '--name-only', 'HEAD']).split('\n').filter(Boolean),
+  )
+  const switched = git(dir, ['diff', '--name-only', session, 'HEAD']).split('\n')
+  assert.ok(switched.includes('apps/manager/src/route.ts'))
+  assert.equal(afterCheckout.includes('apps/manager/src/route.ts'), false)
+  assert.equal(afterCheckout.includes('apps/manager/src/pulled.ts'), false)
+  assert.ok(agentCommitShas(git(dir, ['reflog', '--format=%H%x09%gs']).split('\n'), session).length > 0)
 })
 
 test('a missing hook script is reported once', () => {

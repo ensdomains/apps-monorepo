@@ -25,6 +25,7 @@ No `any` (use `unknown`), no `!`, no mutation, `bigint` for on-chain values, no 
 - Before changing an export, default, query key, error shape or global CSS, `git grep -n <name>` every caller. Add an option instead of changing a default.
 - Read `git blame` before removing a guard, fallback or odd branch. Keep invariant comments or explain in the PR.
 - Keep the diff to the task: no drive-by refactors, renames, moves or reformatting. Report other bugs instead of fixing them.
+- For UI changes, check the screen in the running app at desktop and mobile width. Green tests don't prove a working screen.
 - Never rebase, reset, or rebuild the branch onto a different base to satisfy a hook. If a hook flags files you did not touch, say so and continue.
 
 ## More context, load when relevant
