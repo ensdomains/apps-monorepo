@@ -111,7 +111,7 @@ test.describe('Portal subnames', () => {
       ).toHaveCount(0)
       await createAction.hover()
       await expect(page.getByRole('tooltip')).toHaveText(
-        'Subname creation temporarily disabled.',
+        'This registry must be updated before new subnames can be created.',
       )
       await createAction.click({ force: true })
       await expect(page).toHaveURL(`${PORTAL_APP_URL}/${name}/subnames`)
