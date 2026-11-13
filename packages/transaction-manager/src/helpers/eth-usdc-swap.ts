@@ -11,7 +11,6 @@
  * Adapted from #1679.
  */
 
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, fromPromise, ok, type Result } from 'neverthrow'
 import {
@@ -24,7 +23,7 @@ import {
 } from 'viem'
 import { readContract, simulateContract } from 'viem/actions'
 
-/** Uniswap v3 QuoterV2, SwapRouter02 and the WETH they route, by chain id. */
+/** Uniswap v3 QuoterV2, SwapRouter02, and the WETH and Circle USDC they route, by chain id. */
 const UNISWAP_V3: Readonly<
   Record<
     number,
@@ -32,6 +31,7 @@ const UNISWAP_V3: Readonly<
       readonly quoter: Address
       readonly router: Address
       readonly weth: Address
+      readonly usdc: Address
     }
   >
 > = {
@@ -39,13 +39,19 @@ const UNISWAP_V3: Readonly<
     quoter: '0x61fFE014bA17989E743c5F6cB21bF9697530B21e',
     router: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',
     weth: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    usdc: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
   },
   11155111: {
     quoter: '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3',
     router: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E',
     weth: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14',
+    usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
   },
 }
+
+/** The USDC an ETH payment buys and then pays in, or `undefined` where ETH can't pay. */
+export const getEthSwapUsdc = (chainId: number): Address | undefined =>
+  UNISWAP_V3[chainId]?.usdc
 
 /** Chainlink ETH/USD aggregators, 8 decimals, by chain id. */
 const ETH_USD_FEEDS: Readonly<
@@ -256,7 +262,7 @@ export const quoteEthSwap = ResultFn(async function* (params: {
   }
   const ethUsd = yield* readEthUsdPrice(params)
 
-  const usdc = getDestinationContracts(params.chainId).usdc
+  const { usdc } = uniswap
   // A pool that does not exist or cannot fill reverts; that pool is skipped.
   const settled = await Promise.allSettled(
     POOL_FEES.map(async (fee) => {
@@ -313,7 +319,7 @@ export function buildEthSwapCall(params: {
     args: [
       {
         tokenIn: uniswap.weth,
-        tokenOut: getDestinationContracts(chainId).usdc,
+        tokenOut: uniswap.usdc,
         fee: quote.fee,
         recipient,
         amountOut: quote.amountOut,

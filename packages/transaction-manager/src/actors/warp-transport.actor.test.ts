@@ -22,6 +22,7 @@ import type {
 } from '@rhinestone/sdk'
 import { errAsync, okAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
+import { zeroHash } from 'viem'
 import { baseSepolia, mainnet, sepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -493,6 +494,105 @@ describe('submitWarpTransaction — session refund caps', () => {
     })
 
     expect(result.isOk()).toBe(true)
+  })
+})
+
+describe('submitWarpTransaction — constrained owner setup', () => {
+  const HCA = '0x1111111111111111111111111111111111111111' as const
+  const USDC = getDestinationContracts(mainnet.id).usdc
+  const calls = [
+    { to: USDC, data: '0xdeadbeef', value: 0n },
+    {
+      to: '0x2222222222222222222222222222222222222222',
+      data: '0xabcdef01',
+      value: 0n,
+    },
+  ] as const
+  const request = {
+    type: 'rhinestone-intent',
+    from: HCA,
+    chainId: 1,
+    rhinestoneParams: {
+      calls,
+      ownerIntentLimits: {
+        refundToken: USDC,
+        refundCaps: {
+          maxRefundExchangeRate: 3_000_000_000n,
+          maxRefundGasOverhead: 500_000n,
+          maxRefundAmount: 1_000_000n,
+        },
+      },
+    },
+  } as const
+  const setup = (
+    ops: readonly (typeof calls)[number][] = calls,
+    overhead = 100_000n,
+  ) => {
+    const signer = { ...createMockSigner(), config: { chain: mainnet } }
+    const prepared = {
+      intentRoute: {
+        intentOp: {
+          sponsor: HCA,
+          elements: [
+            {
+              chainId: '1',
+              idsAndAmounts: [],
+              spendTokens: [],
+              mandate: {
+                recipient: HCA,
+                destinationChainId: '1',
+                tokenOut: [],
+                preClaimOps: { vt: zeroHash, ops: [] },
+                destinationOps: { vt: `0x0201${'00'.repeat(30)}`, ops },
+                qualifier: {
+                  settlementContext: {
+                    settlementLayer: 'INTENT_EXECUTOR',
+                    fundingMethod: 'NO_FUNDING',
+                    using7579: true,
+                    gasRefund: {
+                      token: USDC,
+                      exchangeRate: '2568073614',
+                      overhead: ((20_660n << 128n) | overhead).toString(),
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    }
+    vi.mocked(signer.account.prepareTransaction).mockResolvedValue(
+      prepared as never,
+    )
+    return { signer, prepared }
+  }
+
+  it('rejects an owner setup fee above its independent cap before signing', async () => {
+    const { signer } = setup(calls, 500_001n)
+    const result = await submitWarpTransaction({ request, signer })
+    expect(result._unsafeUnwrapErr().message).toContain('refund')
+    expect(signer.account.signTransaction).not.toHaveBeenCalled()
+    expect(signer.account.submitTransaction).not.toHaveBeenCalled()
+  })
+
+  it('rejects substituted owner operations before signing', async () => {
+    const { signer } = setup([calls[1], calls[0]])
+    const result = await submitWarpTransaction({ request, signer })
+    expect(result._unsafeUnwrapErr().message).toContain('calls')
+    expect(signer.account.signTransaction).not.toHaveBeenCalled()
+    expect(signer.account.submitTransaction).not.toHaveBeenCalled()
+  })
+
+  it('signs the exact owner calls below the retained caps without an unsupported planner filter', async () => {
+    const { signer, prepared } = setup()
+    expect(
+      (await submitWarpTransaction({ request, signer }))._unsafeUnwrap(),
+    ).toBe(MOCK_TX_HASH)
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalledWith(
+      expect.objectContaining({ settlementLayers: expect.anything() }),
+    )
+    expect(signer.account.signTransaction).toHaveBeenCalledWith(prepared)
   })
 })
 

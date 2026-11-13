@@ -4,19 +4,17 @@ import {
   type BignameClient,
   MAX_PAGE_SIZE,
   readAllCollectionPages,
-  toExactSeconds,
+  toExpirySeconds,
 } from '@ens-apps/indexer/bigname'
-import {
-  SECONDS_PER_DAY,
-  V1_GRACE_PERIOD_DAYS,
-} from '@ens-apps/utils/gracePeriod'
-import { PREMIUM_PERIOD_DAYS } from '@/features/renew/utils/nameExtension'
+import { SECONDS_PER_DAY } from '@ens-apps/utils/gracePeriod'
 import { isNormalizedLabel } from '@/utils/token/isNormalized'
 
-const PREMIUM_SECONDS = BigInt(PREMIUM_PERIOD_DAYS * SECONDS_PER_DAY)
-/** The longest an expired name stays listed: ENSv1 grace plus the cooldown. */
-const LAPSED_WINDOW_SECONDS =
-  BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY) + PREMIUM_SECONDS
+/**
+ * How long a name the address let expire stays listed, counted from its expiry
+ * (for an ENSv1 name, its registrar lease rather than its ENSv2 reservation).
+ */
+const LAPSED_LISTED_DAYS = 30
+const LAPSED_WINDOW_SECONDS = BigInt(LAPSED_LISTED_DAYS * SECONDS_PER_DAY)
 
 const isEth2ld = (name: string): boolean => {
   const [label, tld, ...rest] = name.split('.')
@@ -26,24 +24,23 @@ const isEth2ld = (name: string): boolean => {
 }
 
 /**
- * A `.eth` name the address held until it expired, through its grace and price
- * cooldown. bigname serves it `expired` in grace and `released` after.
+ * A `.eth` name the address held until it expired, for 30 days after expiry.
+ * bigname serves it `expired` in grace and `released` after; once registered
+ * again it is neither.
  */
 export const isLapsedName = (
   row: AddressName,
   address: Address,
   nowSeconds: bigint,
 ): boolean => {
-  const expiry = toExactSeconds(row.expires_at)
-  const graceEnd = toExactSeconds(row.grace_ends_at)
+  const expiry = toExpirySeconds(row)
   return (
     (row.status === 'expired' || row.status === 'released') &&
     row.lapsed_registration?.release_kind === 'expired' &&
     row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
     expiry !== null &&
-    graceEnd !== null &&
     expiry <= nowSeconds &&
-    nowSeconds < graceEnd + PREMIUM_SECONDS &&
+    nowSeconds < expiry + LAPSED_WINDOW_SECONDS &&
     isEth2ld(row.name)
   )
 }

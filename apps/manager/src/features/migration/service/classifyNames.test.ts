@@ -642,7 +642,7 @@ describe('classifyNames', () => {
       'raffy.eth',
     ])
     expect(result.ineligible.map((name) => name.reason)).toEqual([
-      'missing-parent',
+      'locked-parent',
     ])
   })
 
