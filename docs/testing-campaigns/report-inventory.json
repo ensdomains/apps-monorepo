@@ -1,0 +1,222 @@
+{
+  "capturedAt": "2026-10-26T08:08:19.769403+00:00",
+  "notice": "Snapshots preserve historical results. Active reports continue updating outside Git. Relative evidence links in snapshots require the original evidence directory. They are not results for the combined branch.",
+  "entries": [
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/export-validation.json",
+      "archive": "evidence/export-validation.json",
+      "sha256": "7b5b0de7bb41cf29bc00cb318f064b10f3d6f1d629129454c2735d6f0f5721dd",
+      "bytes": 2049279
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/graphify-detect.json",
+      "archive": "evidence/graphify-detect.json",
+      "sha256": "2198630780b6ec4b0cce9f55c1f1e3b45760ffed720d2c3521748ea0a19ed9ea",
+      "bytes": 1654
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/legacy-flat.json",
+      "archive": "evidence/legacy-flat.json",
+      "sha256": "57df59d729e17f6f5e4d93f3826835d7d6415851001d396d0ab06231f64a2736",
+      "bytes": 140655
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/legacy-playwright-list.json",
+      "archive": "evidence/legacy-playwright-list.json",
+      "sha256": "292ce58e1363c94e7273e0c347bbf8058a4e59b47f13465dd165169f8c82c8ac",
+      "bytes": 238423
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/legacy-test-graph.json",
+      "archive": "evidence/legacy-test-graph.json",
+      "sha256": "fc4acdc0b1356723c3e8ed00db7b93eb2cc1f159b6e622ef09fe2be2283b8c61",
+      "bytes": 15954
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/new-flat.json",
+      "archive": "evidence/new-flat.json",
+      "sha256": "9897daf41c0e179d3e48e4877a1d26db39dfe92d8e35cd6ed6123e07db43af81",
+      "bytes": 1361232
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/new-list-0.json",
+      "archive": "evidence/new-list-0.json",
+      "sha256": "3cc3bd7d99d8700834f4e7fc870567b52a4cad0813bb7809bcb091919190ad71",
+      "bytes": 56120
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/new-list-1.json",
+      "archive": "evidence/new-list-1.json",
+      "sha256": "fd8c4a25875d836c0694115fa7834501b759720ca44d5a3c1c2101858d1db921",
+      "bytes": 80020
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/new-list-2.json",
+      "archive": "evidence/new-list-2.json",
+      "sha256": "5bc1ce9304115d2d7be472450f15ccf8bd6eba693e97a8191053a6644f5f1526",
+      "bytes": 6052
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/new-list-3.json",
+      "archive": "evidence/new-list-3.json",
+      "sha256": "77fbe0fb7e315efb62a91f2a14e1404fa7d803e0db8ef9438e3c6436359f9f5c",
+      "bytes": 406766
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/new-list-4.json",
+      "archive": "evidence/new-list-4.json",
+      "sha256": "8e940bca08b274e5987ef4e16deee306f58024780a9c336154bd4d114544b805",
+      "bytes": 9022
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/new-list-5.json",
+      "archive": "evidence/new-list-5.json",
+      "sha256": "47ec4829342e3b93c73de72bc84b58abe7841abc958b89eea0b58501bffbede0",
+      "bytes": 17445
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/evidence/source-tests.json",
+      "archive": "evidence/source-tests.json",
+      "sha256": "4b585070489439a56c5bc03d68ba50e623f8e92203551f67582894be10b7a08c",
+      "bytes": 1598222
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/output/pdf/ENS ownership and migration test report.pdf",
+      "archive": "output/pdf/ENS ownership and migration test report.pdf",
+      "sha256": "ddba2c23d97c5902abbc85161edf52c815d8ee1eaa147fba6c4683d750994d6b",
+      "bytes": 143987
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/ENS replacement test plan.html",
+      "archive": "replacement-readiness/ENS replacement test plan.html",
+      "sha256": "024dc955eb75f72d06ff13c6d18c73f8698f704f1456aa6e17d59d443b9f3879",
+      "bytes": 5426359
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/execution/Execution results.html",
+      "archive": "replacement-readiness/execution/Execution results.html",
+      "sha256": "f1eea9e0fd43b3cef00a22b05a33797c35a86e9e6dc76f7d3ce7d1ec8d843eee",
+      "bytes": 752262
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/execution/V1 ownership test report.html",
+      "archive": "replacement-readiness/execution/V1 ownership test report.html",
+      "sha256": "7a7da4c97dcaa834947aea850a04c9f6fd56c4b26f1c301acf1bc673a7a9ff81",
+      "bytes": 405532
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/execution/after-migration/After migration action results.html",
+      "archive": "replacement-readiness/execution/after-migration/After migration action results.html",
+      "sha256": "3091202feef51c06e040442a0364d5371c2c25a9a5917856aca36be1b4a273a0",
+      "bytes": 224093
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/execution/record-preservation/Record preservation results.html",
+      "archive": "replacement-readiness/execution/record-preservation/Record preservation results.html",
+      "sha256": "da227047f2e71e1e945ba7509ba602c961035ccbc3885265562f91cff87c206b",
+      "bytes": 139768
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/execution/record-preservation/results-summary.json",
+      "archive": "replacement-readiness/execution/record-preservation/results-summary.json",
+      "sha256": "5afb090ae9c12f4489180b0dcedbedabba89d63f09a9d8daa3f01512c709dec7",
+      "bytes": 147268
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/execution/roles-audit/Roles and migration audit.html",
+      "archive": "replacement-readiness/execution/roles-audit/Roles and migration audit.html",
+      "sha256": "c130a42f6aedc9ddfb7eef7d0faa76154add2812a7136b798dc488e7425be4f2",
+      "bytes": 20014
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/2ld-3ld-priority/2LD and 3LD priority results.html",
+      "archive": "replacement-readiness/migration-retest/2ld-3ld-priority/2LD and 3LD priority results.html",
+      "sha256": "86a87f2c4bde86c1364010b6aeedeb2dcaf9a3ba4ccf273a134090cab72e1f76",
+      "bytes": 57895
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/2ld-3ld-priority/manifest.json",
+      "archive": "replacement-readiness/migration-retest/2ld-3ld-priority/manifest.json",
+      "sha256": "2f83f08176e98b9f7c49cdb7860a9d5ae929f9151a48078dc4e59ec9c31a513f",
+      "bytes": 12301
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/2ld-3ld-priority/results.json",
+      "archive": "replacement-readiness/migration-retest/2ld-3ld-priority/results.json",
+      "sha256": "42062920a00e866fadaa27dce241ae0a2ff49791a42035c945bbe203fc0c09d7",
+      "bytes": 161388
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/Flattened migration matrix.html",
+      "archive": "replacement-readiness/migration-retest/Flattened migration matrix.html",
+      "sha256": "5414ca4370cef2bc5a74b40fa3b51d460d24ff7b182d1d63488314ac708bd48a",
+      "bytes": 6005783
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/Migration retention retest plan.html",
+      "archive": "replacement-readiness/migration-retest/Migration retention retest plan.html",
+      "sha256": "8cdc8afc695a0ae15cf0cc394d7549aec8a8eae5de8580d28e8aa2f961f04277",
+      "bytes": 58263
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/execution-plan.json",
+      "archive": "replacement-readiness/migration-retest/execution-plan.json",
+      "sha256": "4663227bfd602f8a1ae81ae20142117f8baa665d4764cee4c1a46652cb17ec25",
+      "bytes": 37400
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/flattened-matrix.json",
+      "archive": "replacement-readiness/migration-retest/flattened-matrix.json",
+      "sha256": "aea1c8a82f66bff73a4920a7c40d38a66e8d66971c3dfd30b8f0b249fbce809c",
+      "bytes": 46894709
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/pr-approval-36/PR approval results.html",
+      "archive": "replacement-readiness/migration-retest/pr-approval-36/PR approval results.html",
+      "sha256": "3d98c96ad3bd8541dd3d5590c59ee1b80da9ac1b13999e7399146dda86e5111b",
+      "bytes": 44530
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/pr-approval-36/Unlocked parent recreation results.html",
+      "archive": "replacement-readiness/migration-retest/pr-approval-36/Unlocked parent recreation results.html",
+      "sha256": "b5be57eb76d8d97644f9a2a01c5f2e54d8e5b3a8a11ec2b3744819a013fba52a",
+      "bytes": 9927
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/pr-approval-36/accepted-findings.json",
+      "archive": "replacement-readiness/migration-retest/pr-approval-36/accepted-findings.json",
+      "sha256": "01186ef01ccecf8635ba46c17d5e4efad19063bbc10f05ccdc396cf8a58b4238",
+      "bytes": 129866
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/pr-approval-36/candidate.json",
+      "archive": "replacement-readiness/migration-retest/pr-approval-36/candidate.json",
+      "sha256": "3dac8ccbfce798c7147d351ba23a6a1102acc873859af503104d511b81ee89c7",
+      "bytes": 397
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/pr-approval-36/scenarios.json",
+      "archive": "replacement-readiness/migration-retest/pr-approval-36/scenarios.json",
+      "sha256": "99e6a2283f365a2f68f60439aba278478f800d799094f4aea1518035b701f0a4",
+      "bytes": 79971
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/pr-approval-36/unlocked-parent-results.json",
+      "archive": "replacement-readiness/migration-retest/pr-approval-36/unlocked-parent-results.json",
+      "sha256": "33a556e62d590194e8006420eaaa624b7e532cc4d4e63ee9f2a7d9bc3988c87c",
+      "bytes": 8429
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/migration-retest/retention-continuation-20261026/Retention continuation results.html",
+      "archive": "replacement-readiness/migration-retest/retention-continuation-20261026/Retention continuation results.html",
+      "sha256": "4933947b5db0da6a38904d52084a4d16e7f3fe0a07f56339ff97ba9eb20bdb49",
+      "bytes": 21230888
+    },
+    {
+      "source": "/Users/sg/Documents/ChatGPT/ENS/replacement-readiness/parity-ledger.json",
+      "archive": "replacement-readiness/parity-ledger.json",
+      "sha256": "d1ad8e4c6b0b45d3c0c6864230856a734cfed1e00f9bb5cb924a8a26c0ff42f7",
+      "bytes": 5995042
+    }
+  ]
+}

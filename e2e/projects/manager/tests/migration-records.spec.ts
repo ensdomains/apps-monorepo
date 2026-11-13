@@ -15,7 +15,7 @@
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import type { Page } from '@playwright/test'
-import { type Address, type Hex, parseAbi, toHex } from 'viem'
+import { type Address, type Hex, keccak256, parseAbi, toHex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
   createMakeV1Name,
@@ -303,6 +303,10 @@ test.describe('ENS V1 → V2 migration — records', () => {
     // The stale state is served by the bigname mock; a live local bigname
     // catches up in about a second and cannot be held there.
     test.skip(isRealBigname, 'needs the bigname route mock to serve stale keys')
+    test.fail(
+      true,
+      'E2E-024: an empty key inventory is read as "no records" and the name migrates without them',
+    )
     const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
     const records: V1Records = {
       texts: [
@@ -320,6 +324,35 @@ test.describe('ENS V1 → V2 migration — records', () => {
       'gr13-stale-keys',
       records,
       { servedKeys: { texts: [], addresses: [] } },
+    )
+    await expectRecordsResolve(name, records)
+  })
+
+  test('a pubkey and an interface implementer survive migration', {
+    tag: ['@scenario:GR6', '@scenario:GR7', '@scenario:GU9'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts }) => {
+    test.fail(
+      true,
+      'E2E-023: pubkey and interfaceImplementer are neither read nor replayed, and nothing warns the owner',
+    )
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const records: V1Records = {
+      pubkey: { x: keccak256(toHex('gr6-x')), y: keccak256(toHex('gr6-y')) },
+      interfaces: [
+        {
+          interfaceId: '0x12345678',
+          implementer: accounts.getAddress('user2') as Address,
+        },
+      ],
+      // A replayed record beside them, so the name does take the replay path.
+      texts: [{ key: 'description', value: 'GR6/GR7 control' }],
+    }
+    const { name } = await migrateWithRecords(
+      page,
+      wallet,
+      owner,
+      'gr6-pubkey',
+      records,
     )
     await expectRecordsResolve(name, records)
   })

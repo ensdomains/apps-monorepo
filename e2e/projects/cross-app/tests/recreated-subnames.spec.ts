@@ -19,7 +19,13 @@
  * are chain reads.
  */
 import type { Page } from '@playwright/test'
-import { type Address, encodeFunctionData, namehash, parseAbi } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  namehash,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import { makeGraceV1Name } from '../../../fixtures/makeGraceV1Name.js'
 import {
   createMakeV1Name,
@@ -46,7 +52,11 @@ import {
 } from '../../../helpers/recreation.js'
 import { dnsEncode } from '../../../helpers/resolve-records.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
-import { ethRegistryState } from '../../../helpers/v2-reads.js'
+import {
+  ethRegistryState,
+  labelId,
+  V2_ETH_REGISTRY,
+} from '../../../helpers/v2-reads.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 
@@ -70,6 +80,20 @@ const readV1Text = (resolver: Address, name: string, key: string) =>
 async function resetIndexRoutes(page: Page) {
   await page.unrouteAll({ behavior: 'ignoreErrors' })
   await createBignameMock().install(page)
+}
+
+/**
+ * The Records page can render "No records set" first (server render, or the
+ * UniversalResolver read) and only then fall back to another resolver on the
+ * client. Settle before asserting, or an early empty frame passes vacuously.
+ */
+async function settledRecords(page: Page, name: string) {
+  await page.goto(`${PORTAL_APP_URL}/${name}/records`)
+  await expect(
+    page.getByText('No records set').or(page.getByRole('table')),
+  ).toBeVisible({ timeout: 60_000 })
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(10_000)
 }
 
 async function addTextRecord(page: Page, key: string, value: string) {
@@ -170,6 +194,85 @@ test.describe('#1494 explorer on recreated subnames (#1506, #1496, b0480bcc8)', 
     await expect(page.getByText('bob on v1').first()).toBeVisible({
       timeout: 60_000,
     })
+  })
+
+  /**
+   * b0480bcc8 gated the legacy-registry fallback in `getNameResolverAddress`
+   * (the edit page), but `getProfile` (the Records page) has its own fallback
+   * from #1502 without that gate. With a resolver anywhere above it the walk
+   * answers and nothing falls back (stage 1). With none (stage 2) the Records
+   * page falls back to the V1 registry and shows zoe's stale V1 record:
+   * FAILS on b0480bcc8 — see the test plan's findings.
+   */
+  test('a recreated child with no V2 resolver shows no stale V1 records (b0480bcc8)', async ({
+    page,
+    wallet,
+    wallets,
+  }) => {
+    const owner = wallets.account('owner')
+    const bob = wallets.account('manager')
+    await asPlainEoas(bob)
+    const parent = await createMakeV1Name({ userAccount: owner })({
+      label: 'xpl-stale',
+    })
+    const zoeName = await registryChild({
+      parent,
+      label: 'zoe',
+      parentOwner: owner,
+      holder: bob,
+      records: { texts: [{ key: 'description', value: 'zoe stale v1' }] },
+    })
+
+    await recreateTree({ page, wallet, owner, parent, children: [zoeName] })
+    const registry = await assertUserRegistryAttached(parent)
+    await resetIndexRoutes(page)
+    await page.goto(PORTAL_APP_URL)
+    const connect = page.getByRole('button', { name: /^Connect( wallet)?$/ })
+    if (await connect.isVisible({ timeout: 10_000 }).catch(() => false))
+      await connectWithHeadlessWallet(page, wallet)
+
+    // Stage 1: only zoe's own V2 resolver is cleared; the parent's answers.
+    await send(
+      bob,
+      registry,
+      encodeFunctionData({
+        abi: parseAbi([
+          'function setResolver(uint256 anyId, address resolver)',
+        ]),
+        functionName: 'setResolver',
+        args: [labelId('zoe'), zeroAddress],
+      }),
+      'zoe setResolver(0)',
+    )
+    await assertCopyResolver(zoeName, zeroAddress)
+    expect(
+      await readV1Text(V1_PUBLIC_RESOLVER, zoeName, 'description'),
+      'the stale V1 record still exists on chain',
+    ).toBe('zoe stale v1')
+    await settledRecords(page, zoeName)
+    await expect(page.getByText('zoe stale v1')).toHaveCount(0)
+    await expect(page.getByText('No records set')).toBeVisible()
+
+    // Stage 2: the parent's owner clears the parent's resolver too, so the
+    // walk finds no resolver at all and the fallback condition is reached.
+    await send(
+      owner,
+      V2_ETH_REGISTRY,
+      encodeFunctionData({
+        abi: parseAbi([
+          'function setResolver(uint256 anyId, address resolver)',
+        ]),
+        functionName: 'setResolver',
+        args: [labelId(parent.replace(/\.eth$/, '')), zeroAddress],
+      }),
+      'parent setResolver(0)',
+    )
+    await settledRecords(page, zoeName)
+    await expect(
+      page.getByText('zoe stale v1'),
+      'the Records page must not fall back to the V1 registry for a V2 name',
+    ).toHaveCount(0)
+    await expect(page.getByText('No records set')).toBeVisible()
   })
 
   test('a V1 name whose V2 reservation lapsed in V1 grace keeps its records and its editor (#1502)', async ({

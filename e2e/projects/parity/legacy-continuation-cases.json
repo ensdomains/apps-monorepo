@@ -1,0 +1,1596 @@
+{
+  "legacy_repository": "ensdomains/ens-app-v3",
+  "legacy_checkout_commit": "6d87a2be9475a548a098e39e7d312f055f183efa",
+  "scope": "227 remaining legacy cases requested for this continuation. Stateful and DNS excluded. IDs map to the saved full legacy parity ledger. A passing related test never substitutes for an exact legacy-ID port.",
+  "cases": [
+    {
+      "id": "L022",
+      "title": "Address page error handling > should load address page without crashing when getName throws ContractFunctionExecutionError",
+      "file": "e2e/specs/stateless/addressPage.spec.ts",
+      "line": 119,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L023",
+      "title": "Address page error handling > should retry on non-ContractFunctionExecutionError and not return null early",
+      "file": "e2e/specs/stateless/addressPage.spec.ts",
+      "line": 148,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L024",
+      "title": "Address page error handling > should display no-profile-snippet when no primary name set with invalid resolver",
+      "file": "e2e/specs/stateless/addressPage.spec.ts",
+      "line": 179,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L025",
+      "title": "should be able to maintain state when returning from transaction modal when deleting records",
+      "file": "e2e/specs/stateless/advancedEditor.spec.ts",
+      "line": 7,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L026",
+      "title": "should maintain state and when returning from transaction modal when adding/updating records",
+      "file": "e2e/specs/stateless/advancedEditor.spec.ts",
+      "line": 130,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L034",
+      "title": "should allow creating an expired wrapped subname",
+      "file": "e2e/specs/stateless/createSubname.spec.ts",
+      "line": 227,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L035",
+      "title": "should allow creating an expired wrapped subname from the profile page",
+      "file": "e2e/specs/stateless/createSubname.spec.ts",
+      "line": 276,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L037",
+      "title": "should persist referrer parameter after creating a subname and redirecting to subname profile",
+      "file": "e2e/specs/stateless/createSubname.spec.ts",
+      "line": 354,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L048",
+      "title": "subgraph errors > should disable delete button for unwrapped subname",
+      "file": "e2e/specs/stateless/deleteSubname.spec.ts",
+      "line": 389,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L049",
+      "title": "subgraph errors > should disable delete button for wrapped subname",
+      "file": "e2e/specs/stateless/deleteSubname.spec.ts",
+      "line": 424,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L050",
+      "title": "Desynced Name Repair > should repair wrapped desynced name with referrer support",
+      "file": "e2e/specs/stateless/desyncedName.spec.ts",
+      "line": 17,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L051",
+      "title": "Desynced Name Repair > Regular Desynced Name > should repair desynced-wrapped.eth successfully",
+      "file": "e2e/specs/stateless/desyncedName.spec.ts",
+      "line": 65,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L052",
+      "title": "Desynced Name Repair > Grace Period Desynced Name > should repair desynced-wrapped-grace-period.eth via extend dialog",
+      "file": "e2e/specs/stateless/desyncedName.spec.ts",
+      "line": 151,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L053",
+      "title": "Desynced Name Repair > Regular Desynced Name Extend Button > should repair desynced-normal-test.eth using the extend modal",
+      "file": "e2e/specs/stateless/desyncedName.spec.ts",
+      "line": 234,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L054",
+      "title": "Desynced Name Repair > Grace Period Desynced Name Extend Button > should repair desynced-normal-test.eth using the extend modal",
+      "file": "e2e/specs/stateless/desyncedName.spec.ts",
+      "line": 333,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L055",
+      "title": "Desynced Name Repair > Regular Desynced Name Extend Button 1 day > should repair desynced-normal-1-day-test.eth using the extend modal",
+      "file": "e2e/specs/stateless/desyncedName.spec.ts",
+      "line": 432,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L056",
+      "title": "should be able to extend multiple names (including names in grace preiod) on the address page",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 23,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L057",
+      "title": "should be able to extend a single unwrapped name from profile",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 122,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L058",
+      "title": "should be able to extend a single unwrapped name in grace period from profile",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 189,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L059",
+      "title": "should be able to extend a single unwrapped name in grace period from profile 2",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 252,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L060",
+      "title": "should not show extend button on unwrapped subnames",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 316,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L061",
+      "title": "should be able to extend a name by a month",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 341,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L062",
+      "title": "should be able to extend a name by a day",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 409,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L063",
+      "title": "should be able to extend a name in grace period by a month",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 475,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L064",
+      "title": "should be able to extend a name in grace period by 1 day",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 555,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L065",
+      "title": "should be able to extend a single wrapped name using deep link",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 633,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L066",
+      "title": "should not be able to extend a name which is not registered",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 690,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L067",
+      "title": "renew deep link should redirect to registration when not logged in",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 703,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L068",
+      "title": "should handle URL-based renew parameter",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 714,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L069",
+      "title": "should handle URL-based renew for names in grace period",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 734,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L070",
+      "title": "should handle URL-based renew for disconnected users",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 762,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L071",
+      "title": "Legacy/Unwrapped Name Extension with Referrer > should extend unwrapped name with referrer",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 777,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L072",
+      "title": "Legacy/Unwrapped Name Extension with Referrer > should extend unwrapped name without referrer",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 820,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L073",
+      "title": "Legacy/Unwrapped Name Extension with Referrer > should extend unwrapped name in grace period with referrer",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 857,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L074",
+      "title": "Wrapped Name Renewal with Referrer > should renew wrapped name with referrer parameter from URL",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 906,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L075",
+      "title": "Wrapped Name Renewal with Referrer > should persist referrer across navigation to renewal flow",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 951,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L076",
+      "title": "Wrapped Name Renewal with Referrer > should handle wrapped name renewal without referrer",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 1013,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L077",
+      "title": "Wrapped Name Renewal with Referrer > should use correct contract for wrapped vs unwrapped names",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 1046,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L078",
+      "title": "Wrapped Name Renewal with Referrer > should handle bulk renewal with mixed wrapped and unwrapped names",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 1096,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L079",
+      "title": "Wrapped Name Renewal with Referrer > should extend wrapped name in grace period with referrer",
+      "file": "e2e/specs/stateless/extendNames.spec.ts",
+      "line": 1165,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L080",
+      "title": "myNames",
+      "file": "e2e/specs/stateless/myNames.spec.ts",
+      "line": 14,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L081",
+      "title": "myNames > should display all names for expiry date ASC",
+      "file": "e2e/specs/stateless/myNames.spec.ts",
+      "line": 89,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L082",
+      "title": "myNames > should display all names for expiry date DESC",
+      "file": "e2e/specs/stateless/myNames.spec.ts",
+      "line": 159,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L083",
+      "title": "myNames > should display all names for createdAt ASC",
+      "file": "e2e/specs/stateless/myNames.spec.ts",
+      "line": 194,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L084",
+      "title": "myNames > should display all names for createdAt DESC",
+      "file": "e2e/specs/stateless/myNames.spec.ts",
+      "line": 230,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L085",
+      "title": "Unwrapped 2LD - Owner and Manager > Send feature",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 6,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L087",
+      "title": "Unwrapped 2LD - Owner and Manager > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 80,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L088",
+      "title": "Unwrapped 2LD - Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 115,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L089",
+      "title": "Unwrapped 2LD - Owner Only > Send feature",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 145,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L091",
+      "title": "Unwrapped 2LD - Owner Only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 221,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L092",
+      "title": "Unwrapped 2LD - Owner Only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 256,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L094",
+      "title": "Unwrapped 2LD - Manager Only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 313,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L095",
+      "title": "Unwrapped 2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 351,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L096",
+      "title": "Wrapped and Emancipated 2LD - Owner > Send Feature",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 384,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L097",
+      "title": "Wrapped and Emancipated 2LD - Owner > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 437,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L098",
+      "title": "Wrapped and Emancipated 2LD - Owner > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 480,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L101",
+      "title": "Grace Period Unwrapped 2LD > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 567,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L102",
+      "title": "Grace Period Unwrapped 2LD > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 599,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L105",
+      "title": "Grace Period Wrapped 2LD > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 677,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L106",
+      "title": "Grace Period Wrapped 2LD > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.2LD.spec.ts",
+      "line": 709,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L107",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 7,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L108",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 72,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L109",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 103,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L110",
+      "title": "Unwrapped 3LD, Unwrapped 2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 157,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L111",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 197,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L112",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 262,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L113",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 293,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L114",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Manager only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 347,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L115",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 387,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L116",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 455,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L117",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 486,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L118",
+      "title": "Unwrapped 3LD - Unwrapped 2LD - Parent Owner only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 541,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L119",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 581,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L120",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 650,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L121",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 681,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L122",
+      "title": "Wrapped 3LD, Wrapped 2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 735,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L123",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 775,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L124",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 844,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L125",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 875,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L126",
+      "title": "Wrapped 3LD, Wrapped 2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 929,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L127",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 969,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L128",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1037,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L129",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1068,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L130",
+      "title": "Wrapped 3LD - Wrapped 2LD - Parent Owner only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1123,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L131",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1163,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L132",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1229,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L133",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1260,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L134",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Manager only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1316,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L135",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Parent only > Send, Edit Roles & Sync Manager feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1357,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L136",
+      "title": "Wrapped 3LD, Unwrapped 2LD - Parent only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1397,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L137",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Send feature",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1438,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L138",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1506,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L139",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1536,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L140",
+      "title": "Wrapped & Emancipated 3LD, Wrapped 2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.3LD.spec.ts",
+      "line": 1589,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L141",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Send feature",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 7,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L142",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 78,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L143",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 115,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L144",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 175,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L145",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Send feature",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 221,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L146",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 292,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L147",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 329,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L148",
+      "title": "Unwrapped 4LD, Unwrapped 3LD,2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 389,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L149",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Send feature",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 435,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L150",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 509,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L151",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 546,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L152",
+      "title": "Unwrapped 4LD - Unwrapped 3LD,2LD - Parent only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 607,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L153",
+      "title": "Unwrapped 4LD - Wrapped 3LD,2LD - Parent Owner only > Send feature",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 653,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L154",
+      "title": "Unwrapped 4LD - Wrapped 3LD,2LD - Parent Owner only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 686,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L155",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Send feature",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 734,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L156",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 808,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L157",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 845,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L158",
+      "title": "Unwrapped 4LD, Wrapped 3LD,2LD - Manager Only > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 905,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L159",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Send feature",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 951,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L160",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Sync Manager",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 1033,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L161",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Edit Roles",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 1077,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L162",
+      "title": "Wrapped & Emancipated 4LD, Wrapped 3LD,2LD - Parent Owner and Manager > Expiry Section, Extend & Set Reminder",
+      "file": "e2e/specs/stateless/ownership.4LD.spec.ts",
+      "line": 1144,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L163",
+      "title": "Send name > should be able to send owner, manager and eth-record of unwrapped 2ld name if you are the owner and manager on old resolver",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 6,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L164",
+      "title": "Send name > should be able to send owner and manager of an unwrapped 2ld name if you are the owner but not manager",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 54,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L165",
+      "title": "Send name > should not be able to send name if user is manager but not owner",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 106,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L166",
+      "title": "Send name > should be able to send owner, eth-record and reset profile of a wrapped 2ld name if you are the owner",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 136,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L167",
+      "title": "Send name > should be able to send manager, eth-record of a unwrapped subname name if you are the manager",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 198,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L168",
+      "title": "Send name > should be able to send manager if user is parent owner and not manager of unwrapped subname",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 261,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L169",
+      "title": "Send name > should be able to send manager and eth-record if user is manager and not parent owner of unwrapped subname",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 330,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L170",
+      "title": "Send name > should be able to send manager if user is parent owner and not manager of wrapped subname",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 396,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L171",
+      "title": "Send name > should be able to send manager and eth-record if user is manager and not parent owner of wrapped subname",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 472,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L172",
+      "title": "Send name > should be able to send owner and eth-record if user is owner and not parent owner of emancipated subname",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 545,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L173",
+      "title": "Edit roles: Happy  > Should allow owner to change manager",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 628,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L174",
+      "title": "Edit roles: Happy  > Should allow manager to change manager when they are not the owner",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 656,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L175",
+      "title": "Edit roles: Happy  > Should allow owner to change owner",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 691,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L176",
+      "title": "Edit roles: Happy  > Should allow owner to change manager if they are not the manager",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 722,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L177",
+      "title": "Edit roles: Happy  > Should allow owner to change owner and manager",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 752,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L178",
+      "title": "Edit roles: Unwrapped subnames > Should allow unwrapped subname to be sent by owner (setOwner)",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 790,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L179",
+      "title": "Edit roles: Unwrapped subnames > Should allow unwrapped subname to be sent by unwrapped parent owner (setSubnodeOwner)",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 828,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L180",
+      "title": "Edit roles: Unwrapped subnames > should NOT show send button when subname is wrapped and parent is unwrapped",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 864,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L181",
+      "title": "Edit roles: Unwrapped name > should NOT show send button when parent is owner and not manager",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 896,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L182",
+      "title": "Edit roles: Wrapped subnames > should allow namewrapper subname owner to send name",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 929,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L183",
+      "title": "Edit roles: Wrapped subnames > should allow parent owner to send name",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 967,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L184",
+      "title": "Edit roles: Wrapped subname with PCC burned > should NOT allow parent owner to transfer",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 1006,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L185",
+      "title": "Edit roles: Wrapped subname with PCC burned > should allow name owner to transfer",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 1044,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L186",
+      "title": "Edit roles: Wrapped name > Should allow namewrapper owner to send name",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 1091,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L187",
+      "title": "Extend name > should be able to extend unwrapped name",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 1121,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L188",
+      "title": "Sync manager > should be able to sync manager as owner of unwrapped 2ld",
+      "file": "e2e/specs/stateless/ownership.spec.ts",
+      "line": 1185,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L189",
+      "title": "Permissions > should show parent not locked warning",
+      "file": "e2e/specs/stateless/permissions.spec.ts",
+      "line": 6,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L193",
+      "title": "Permissions > should allow parent owner to extend expiry",
+      "file": "e2e/specs/stateless/permissions.spec.ts",
+      "line": 184,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L194",
+      "title": "Permissions > should allow parent owner to burn pcc",
+      "file": "e2e/specs/stateless/permissions.spec.ts",
+      "line": 221,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L199",
+      "title": "profile > should display profile records",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 102,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L200",
+      "title": "profile > should redirect to profile tab if tab specified in query string does not exist",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 122,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L201",
+      "title": "timezone > should add, save, display and clear a timezone record via the picker",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 158,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L202",
+      "title": "legacy resolver > should be able to add/update profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 215,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L203",
+      "title": "legacy resolver > should be able to delete profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 306,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L204",
+      "title": "custom legacy resolver > should be able to add/update profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 384,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L205",
+      "title": "custom legacy resolver > should be able to delete profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 475,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L206",
+      "title": "namewrapper aware resolver > should be able to add/update profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 553,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L207",
+      "title": "namewrapper aware resolver > should be able to delete profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 607,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L208",
+      "title": "custom namewrapper aware resolver > should be able to add/update profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 674,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L209",
+      "title": "custom namewrapper aware resolver > should be able to delete profile records without migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 733,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L210",
+      "title": "outdated resolver > should force a name with an outdated resolver to upgrade",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 805,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L211",
+      "title": "outdated resolver > should be able to choose latest resolver if there is a profile on the latest resolver",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 836,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L212",
+      "title": "outdated resolver > should be able to reset latest resolver on migration",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 902,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L213",
+      "title": "custom outdated resolver > should force a name with an outdated resolver to upgrade",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 967,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L214",
+      "title": "legacy registryy > should force a name on the old registry to go to update registry",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1000,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L216",
+      "title": "unauthorised resolver > should force a name with an unauthorised resolver to update their resolver",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1062,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L217",
+      "title": "invalid resolver > should force a name with an invalid resolver to update their resolver",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1097,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L218",
+      "title": "wrapped name with legacy resolver > should force a wrapped name (with no profile) with a resolver that is not name wrapper aware to migrate update their resolver",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1132,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L219",
+      "title": "wrapped name with legacy resolver > should force a wrapped name (with a profile on latest resolver) with a resolver that is not name wrapper aware to migrate update their resolver",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1164,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L220",
+      "title": "wrapped name with legacy resolver > should be able to reset their profile during migration for a wrapped name with a profile on latest resolver",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1232,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L221",
+      "title": "wrapped name with legacy resolver > should be able to transfer profile when only current resolver has a profile",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1295,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L222",
+      "title": "wrapped name with legacy resolver > should be able to update resolver when only current resolver has a profile",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1371,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L223",
+      "title": "wrapped name with legacy resolver > should be able to only update resolver if records on current and latest resolver are equal",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1439,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L224",
+      "title": "wrapped name with legacy resolver > should be able to reset resolver if records on current and latest resolver are equal",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1522,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L225",
+      "title": "wrapped name with legacy resolver > should be able to migrate current profile if records on current and latest resolver are NOT equal",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1597,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L226",
+      "title": "wrapped name with legacy resolver > should be able to update resolver if records on current and latest resolver are NOT equal",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1687,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L227",
+      "title": "wrapped name with legacy resolver > should be able to reset profile if records on current and latest resolver are NOT equal",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1775,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L228",
+      "title": "subgraph errors > should disable edit profile button when there is a subgraph error",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1859,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L229",
+      "title": "edit profile button states > Should show edit profile button if user is manager",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1889,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L230",
+      "title": "edit profile button states > Should show disabled edit profile button if user is owner but not manager",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1909,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L231",
+      "title": "edit profile button states > Should show disabled edit profile button if name is wrapped but use for edit resolver is burned and resolver is unauthorised",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1930,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L232",
+      "title": "manual image url validation > avatar: shows an inline error and disables Confirm for a non-image URL, then accepts a valid image URL",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 1998,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L233",
+      "title": "manual image url validation > header: shows an inline error and disables Save for a non-image URL, then accepts a valid image URL",
+      "file": "e2e/specs/stateless/profileEditor.spec.ts",
+      "line": 2058,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L264",
+      "title": "profile > should allow setting unmanaged name that has eth record set to address",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 25,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L265",
+      "title": "profile > should allow setting unwrapped name that user is manager of but whose resolved address is not the same as the user",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 105,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L266",
+      "title": "profile > should allow setting wrapped name that user is manager of but whose resolved address is not the same as the user with an owned resolver",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 152,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L267",
+      "title": "profile > should skip setting eth record if user is manager of name and resolver is not authorized if eth record is set on latest resolver",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 210,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L268",
+      "title": "profile > should skip setting primary name step if reverse registry name is already set to that name",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 288,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L269",
+      "title": "profile > should not show set primary name button for a wrapped name that has CSR burned, is not a resolved address, and an unauthorized resolver",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 337,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L270",
+      "title": "profile > should allow setting primary name from name with encrypted label",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 391,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L271",
+      "title": "profile > should not allow owner but not manager to set primary name for unwrapped name",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 449,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L272",
+      "title": "profile > should not show primary name when ETH address record points to different address",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 492,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L273",
+      "title": "profile > name-wrapper - should not show primary name when ETH address record points to different address",
+      "file": "e2e/specs/stateless/setPrimary.spec.ts",
+      "line": 555,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L274",
+      "title": "Transactions > should show the correct transaction details for a transaction modal",
+      "file": "e2e/specs/stateless/settings.spec.ts",
+      "line": 6,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L275",
+      "title": "Transactions > should add a successful transaction to the transaction list, and show the corresponding notification",
+      "file": "e2e/specs/stateless/settings.spec.ts",
+      "line": 33,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L276",
+      "title": "Transactions > should add a failed transaction to the transaction list, and show the corresponding notification",
+      "file": "e2e/specs/stateless/settings.spec.ts",
+      "line": 58,
+      "declared_status": "skipped"
+    },
+    {
+      "id": "L277",
+      "title": "Transactions > should add a pending transaction to the transaction list, and show the corresponding notification once confirmed",
+      "file": "e2e/specs/stateless/settings.spec.ts",
+      "line": 82,
+      "declared_status": "skipped"
+    },
+    {
+      "id": "L278",
+      "title": "Transactions > should clear transactions when clear is pressed",
+      "file": "e2e/specs/stateless/settings.spec.ts",
+      "line": 107,
+      "declared_status": "skipped"
+    },
+    {
+      "id": "L279",
+      "title": "Select Primary Name > should allow setting unmanaged name that has eth record set to address",
+      "file": "e2e/specs/stateless/settings.spec.ts",
+      "line": 124,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L280",
+      "title": "Custom RPC endpoint > validates, probes, persists and resets a custom RPC endpoint",
+      "file": "e2e/specs/stateless/settings.spec.ts",
+      "line": 165,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L281",
+      "title": "Happy > When profile is updated to latest resolver > should disable the latest resolver button, have custom resolver checked, and allow user to change resolver address",
+      "file": "e2e/specs/stateless/updateResolver.spec.ts",
+      "line": 14,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L282",
+      "title": "Happy > When profile is not updated to latest resolver > should allow user to update if they have chosen to use the latest resolver",
+      "file": "e2e/specs/stateless/updateResolver.spec.ts",
+      "line": 49,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L284",
+      "title": "subgraph errors > should disable edit resolver button for wrapped name if there is a subgraph indexing error",
+      "file": "e2e/specs/stateless/updateResolver.spec.ts",
+      "line": 102,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L285",
+      "title": "subgraph errors > should disable edit resolver button for unwrapped name if there is a subgraph indexing error",
+      "file": "e2e/specs/stateless/updateResolver.spec.ts",
+      "line": 125,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L286",
+      "title": "should not show wrap button if the connected wallet is not the registrant",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 14,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L287",
+      "title": "should not show wrap notification if the name is already wrapped",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 33,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L288",
+      "title": "should show wrap button on unwrapped name",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 56,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L289",
+      "title": "should show resume state if wrap steps are incomplete",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 70,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L290",
+      "title": "should wrap name",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 114,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L291",
+      "title": "should allow wrapping a subdomain",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 134,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L292",
+      "title": "should allow wrapping a name with an unknown label",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 170,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L293",
+      "title": "should calculate needed steps without localstorage",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 219,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L294",
+      "title": "Wrapped, emancipated, 2LD",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 302,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L295",
+      "title": "Wrapped, locked, 2LD",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 322,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L296",
+      "title": "Wrapped, not-emancipated (PCC), 3LD",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 345,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L297",
+      "title": "Wrapped, emancipated(NPC), 3LD",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 372,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L298",
+      "title": "Wrapped, emancipated(NPC), Locked, 3LD",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 406,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L299",
+      "title": "Wrapped, emancipated(NPC), 3LD Manager",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 442,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L300",
+      "title": "Should not show wrap button on unwrapped name in Grace period",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 481,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L301",
+      "title": "should show wrap button on unwrapped subname in Grace period",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 501,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L302",
+      "title": "should not show unwrap button on wrapped name in Grace period",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 533,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L303",
+      "title": "should show unwrap button on wrapped subname in Grace period",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 552,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L304",
+      "title": "Wrapped, emancipated(NPC), 3LD Manager should be able to unwrap when parent is in Grace period",
+      "file": "e2e/specs/stateless/wrapName.spec.ts",
+      "line": 586,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L305",
+      "title": "ENS Sepolia Extend Name > Connect MetaMask to ENS localhost app",
+      "file": "e2e/specs/wallets/extendName-metamask.spec.ts",
+      "line": 225,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L306",
+      "title": "ENS Sepolia Extend Name > Extend user owned ENS name",
+      "file": "e2e/specs/wallets/extendName-metamask.spec.ts",
+      "line": 233,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L307",
+      "title": "ENS Sepolia Extend Name > Extend not user owned ENS name",
+      "file": "e2e/specs/wallets/extendName-metamask.spec.ts",
+      "line": 237,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L308",
+      "title": "ENS Name Registration > Connect MetaMask to ENS localhost",
+      "file": "e2e/specs/wallets/registerName-metamask.spec.ts",
+      "line": 132,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L311",
+      "title": "Safe + ENS with Dappwright MetaMask > should demonstrate MetaMask + Safe integration setup",
+      "file": "e2e/specs/wallets/safe-ens-with-metamask.spec.ts",
+      "line": 748,
+      "declared_status": "skipped"
+    },
+    {
+      "id": "L313",
+      "title": "ENS Subname Checks > Connect MetaMask to ENS localhost",
+      "file": "e2e/specs/wallets/subName-metamask.spec.ts",
+      "line": 159,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L314",
+      "title": "ENS Subname Checks > Create new ENS subname",
+      "file": "e2e/specs/wallets/subName-metamask.spec.ts",
+      "line": 167,
+      "declared_status": "passed"
+    },
+    {
+      "id": "L315",
+      "title": "ENS Subname Checks > Delete created ENS subname",
+      "file": "e2e/specs/wallets/subName-metamask.spec.ts",
+      "line": 171,
+      "declared_status": "passed"
+    }
+  ]
+}
