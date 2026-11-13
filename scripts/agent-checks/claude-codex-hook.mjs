@@ -6,8 +6,8 @@
  * Stop blocks once on a failed typecheck or test run, and on a PR body that
  * is present but missing its sections. stop_hook_active skips the second pass.
  */
-import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,6 +27,17 @@ try {
 const event = stringField(input, 'hook_event_name')
 const tool = stringField(input, 'tool_name')
 const toolInput = objectField(input, 'tool_input')
+const sessionId = stringField(input, 'session_id') || 'default'
+
+if (!existsSync(runner)) {
+  missingScript(runner)
+  process.exit(process.exitCode ?? 0)
+}
+
+if (event === 'SessionStart') {
+  call(agentName(input), 'SessionStart', ['session-start'])
+  process.exit(0)
+}
 
 if (event === 'PreToolUse' && (tool === 'Bash' || tool === 'bash')) {
   const verdict = call(agentName(input), event, [
@@ -88,10 +99,10 @@ process.exit(0)
  * @param {readonly string[]} args
  * @returns {{ decision?: string, reason?: string, context?: string }}
  */
-function call(agent, event, args) {
+function call(agent, eventName, args) {
   const result = spawnSync(
     process.execPath,
-    [runner, ...args, '--agent', agent, '--event', event],
+    [runner, ...args, '--agent', agent, '--event', eventName, '--session', sessionId],
     { encoding: 'utf8' },
   )
   const stdout = result.stdout ?? ''
@@ -120,6 +131,35 @@ function note(verdict) {
 function agentName(payload) {
   if (typeof payload.turn_id === 'string' && payload.turn_id.length > 0) return 'codex'
   return 'claude'
+}
+
+/**
+ * @param {string} script
+ */
+function missingScript(script) {
+  const message =
+    `agent-checks: hook script missing at ${script}. Do not rebase, reset, or rebuild the branch onto another base to satisfy a hook. If a hook flags files you did not touch, say so and continue.`
+  let gitDir = ''
+  try {
+    gitDir = execFileSync('git', ['rev-parse', '--git-dir'], { encoding: 'utf8' }).trim()
+  } catch {
+    gitDir = ''
+  }
+  const stamp = gitDir ? path.resolve(gitDir, 'agent-checks', 'missing-script') : ''
+  if (stamp && existsSync(stamp)) {
+    process.exitCode = 0
+    return
+  }
+  process.stderr.write(`${message}\n`)
+  if (gitDir) {
+    mkdirSync(path.dirname(stamp), { recursive: true })
+    writeFileSync(stamp, '1')
+    appendFileSync(
+      path.resolve(gitDir, 'agent-checks.log'),
+      `${JSON.stringify({ agent: 'hook', event: 'missing-script', check: 'hook', verdict: 'block', durationMs: 0 })}\n`,
+    )
+  }
+  process.exitCode = 2
 }
 
 /**

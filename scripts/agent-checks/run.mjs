@@ -26,13 +26,17 @@ import {
   packagesFor,
   pathsInDiff,
   readCachedVerdict,
+  readSessionStart,
+  repeatedStopVerdict,
   reviewBranch,
   reviewDiff,
   reviewPrBody,
+  selectBase,
   syntheticAddedDiff,
   verificationKey,
   vitestTargets,
   writeCachedVerdict,
+  writeSessionStart,
 } from './lib.mjs'
 
 const { positionals, values } = parseArgs({
@@ -47,6 +51,7 @@ const { positionals, values } = parseArgs({
     strict: { type: 'boolean', default: false },
     agent: { type: 'string', default: 'cli' },
     event: { type: 'string', default: 'cli' },
+    session: { type: 'string', default: '' },
   },
 })
 
@@ -86,22 +91,32 @@ process.exit(verdict.decision === 'block' && !reportOnly ? 2 : 0)
  */
 function run(name, options) {
   if (name === 'guard-command') return guardCommand(String(options.command ?? ''))
-  if (name === 'check-diff') return checkDiff(options.base)
+  if (name === 'session-start') return sessionStart(options)
+  if (name === 'check-diff') return checkDiff(options)
   if (name === 'pr-body') return prBody(options)
   if (name === 'branch-name') return branchName(Boolean(options.strict))
-  if (name === 'verify') return verify()
+  if (name === 'verify') return verify(options)
   if (name === 'dead-exports') return deadExports()
   return { decision: 'block', reason: `Unknown agent check \`${name}\`.` }
 }
 
 /**
- * @param {string | undefined} base
+ * @param {Record<string, string | boolean | undefined>} options
  */
-function checkDiff(base) {
-  const ref = base ?? defaultBase()
+function sessionStart(options) {
+  noteSession(options, true)
+  return { decision: 'allow', reason: '' }
+}
+
+/**
+ * @param {Record<string, string | boolean | undefined>} options
+ */
+function checkDiff(options) {
+  noteSession(options, false)
+  const choice = resolveBase(options)
   let diff = ''
-  if (ref) {
-    diff += git(['diff', `${ref}...HEAD`])
+  if (choice.base) {
+    diff += git(['diff', ...choice.range])
     diff += git(['diff', 'HEAD'])
   } else {
     diff += git(['diff', 'HEAD'])
@@ -125,8 +140,9 @@ function prBody(options) {
   if (typeof body !== 'string' && existsSync('PR_BODY.md')) {
     body = readFileSync('PR_BODY.md', 'utf8')
   }
-  const ref = defaultBase()
-  const diff = ref ? git(['diff', `${ref}...HEAD`]) : ''
+  noteSession(options, false)
+  const choice = resolveBase(options)
+  const diff = choice.base ? git(['diff', ...choice.range]) : ''
   return reviewPrBody(typeof body === 'string' ? body : undefined, diff)
 }
 
@@ -143,25 +159,26 @@ function branchName(strict) {
   )
 }
 
-function verify() {
+function verify(options) {
   if (process.env.AGENT_CHECKS_SKIP_VERIFY === '1') {
     return { decision: 'allow', reason: '' }
   }
-  const ref = defaultBase()
-  const files = allChangedFiles(ref)
+  noteSession(options, false)
+  const choice = resolveBase(options)
+  const files = allChangedFiles(choice)
   if (files.length === 0) return { decision: 'allow', reason: '' }
 
   const cacheDir = verificationCacheDir()
   const key = verificationKey([
     git(['rev-parse', 'HEAD']).trim(),
-    ref ? git(['diff', '--numstat', `${ref}...HEAD`]) : '',
+    choice.base ? git(['diff', '--numstat', ...choice.range]) : '',
     git(['diff', '--numstat', 'HEAD']),
     git(['diff', '--numstat', '--cached']),
     untrackedFingerprint(),
   ])
   if (cacheDir) {
-    const cached = readCachedVerdict(cacheDir, key)
-    if (cached) return cached
+    const repeated = repeatedStopVerdict(readCachedVerdict(cacheDir, key))
+    if (repeated) return repeated
   }
 
   const missing = missingRelatedTests(files)
@@ -172,7 +189,7 @@ function verify() {
   }
 
   const sourceFiles = files.filter((file) => /\.tsx?$/.test(file))
-  const verdict = verifyTypecheck(ref, sourceFiles)
+  const verdict = verifyTypecheck(choice.base, sourceFiles)
   if (cacheDir) writeCachedVerdict(cacheDir, key, verdict)
   return verdict
 }
@@ -252,14 +269,74 @@ function deadExports() {
   }
 }
 
-function allChangedFiles(ref) {
+function allChangedFiles(choice) {
   const names = new Set()
-  const args = ref ? ['diff', '--name-only', `${ref}...HEAD`] : ['diff', '--name-only', 'HEAD']
-  for (const line of git(args).split('\n')) if (line) names.add(line)
+  if (choice.base) {
+    for (const line of git(['diff', '--name-only', ...choice.range]).split('\n')) {
+      if (line) names.add(line)
+    }
+  }
   for (const line of git(['diff', '--name-only', 'HEAD']).split('\n')) if (line) names.add(line)
   for (const line of git(['diff', '--name-only', '--cached']).split('\n')) if (line) names.add(line)
   for (const line of untrackedSource()) names.add(line)
   return [...names]
+}
+
+/**
+ * Record HEAD the first time a session is seen, except on Stop.
+ * @param {Record<string, string | boolean | undefined>} options
+ * @param {boolean} force
+ */
+function noteSession(options, force) {
+  const sessionId = String(options.session ?? '')
+  if (!sessionId) return ''
+  const dir = agentStateDir()
+  if (!dir) return ''
+  const existing = readSessionStart(dir, sessionId)
+  if (existing) return existing
+  const event = String(options.event ?? '')
+  const stop = event === 'Stop' || event === 'agent_before_settle'
+  if (stop && !force) return ''
+  const head = git(['rev-parse', 'HEAD']).trim()
+  if (!head) return ''
+  writeSessionStart(dir, sessionId, head)
+  return head
+}
+
+/**
+ * @param {Record<string, string | boolean | undefined>} options
+ * @returns {{ base: string, range: string[] }}
+ */
+function resolveBase(options) {
+  const explicit = typeof options.base === 'string' ? options.base : ''
+  const sessionId = String(options.session ?? '')
+  const dir = agentStateDir()
+  const sessionStart = sessionId && dir ? readSessionStart(dir, sessionId) : ''
+  const base = selectBase({
+    explicit,
+    sessionStart,
+    envBase: process.env.AGENT_CHECKS_BASE ?? '',
+    upstreamMergeBase: upstreamMergeBase(),
+    originMain: originMain(),
+  })
+  const twoDot = Boolean(sessionStart) && base === sessionStart
+  return { base, range: base ? (twoDot ? [base, 'HEAD'] : [`${base}...HEAD`]) : [] }
+}
+
+function agentStateDir() {
+  const gitDir = git(['rev-parse', '--git-dir']).trim()
+  if (!gitDir) return ''
+  return path.resolve(gitDir, 'agent-checks')
+}
+
+function upstreamMergeBase() {
+  const upstream = git(['rev-parse', '--abbrev-ref', '@{upstream}']).trim()
+  if (!upstream) return ''
+  return git(['merge-base', 'HEAD', '@{upstream}']).trim()
+}
+
+function originMain() {
+  return git(['rev-parse', '--verify', '--quiet', 'origin/main']).trim()
 }
 
 /**
@@ -307,12 +384,6 @@ function untrackedFingerprint() {
       }
     })
     .join('\n')
-}
-
-function defaultBase() {
-  if (process.env.AGENT_CHECKS_BASE) return process.env.AGENT_CHECKS_BASE
-  const origin = git(['rev-parse', '--verify', '--quiet', 'origin/main'])
-  return origin.trim() ? 'origin/main' : ''
 }
 
 /**

@@ -11,7 +11,7 @@ Only modify files in that app unless the change genuinely needs shared code (`pa
 
 ## Branch
 
-When the work starts from a Linear ticket, name the branch `linear/<ticket-id>`.
+When the work starts from a Linear ticket, name the branch `linear/<ticket-id>`. Never rebase, reset, or rebuild the branch onto a different base to satisfy a hook. If a hook flags files you did not touch, say so and continue.
 
 ## Tests
 
@@ -27,11 +27,11 @@ Callers, existing tests, and behaviour all go inside `## Regression check`. Do n
 ## Regression check
 
 Callers checked: `mergedRowMetadata` in apps/manager. No other callers.
-Existing tests changed: none. The 10-day case is unchanged; 45-day and 90-day cases were added.
-Behaviour: names are flagged as expiring soon 60 days ahead, for every caller of this helper.
+Tests: none changed. The 10-day case is unchanged; 45-day and 90-day cases were added.
+Behaviour verified: names are flagged as expiring soon 60 days ahead, for every caller of this helper.
 ```
 
-If an existing assertion did change, name that test under `Existing tests changed` in this same section.
+Those three labels are required, on their own lines, inside this section. A behaviour sentence that appears only in the summary does not count.
 
 ## A module that is outgrowing its structure
 

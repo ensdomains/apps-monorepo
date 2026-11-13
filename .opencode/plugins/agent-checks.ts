@@ -1,5 +1,17 @@
 import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
 import { Plugin } from "@opencode/plugin"
+
+const sessionId = `opencode-${process.pid}`
+let missingAnnounced = false
+
+function announceMissing(script: string) {
+  if (missingAnnounced) return
+  missingAnnounced = true
+  process.stderr.write(
+    `agent-checks: hook script missing at ${script}. Do not rebase, reset, or rebuild the branch onto another base to satisfy a hook. If a hook flags files you did not touch, say so and continue.\n`,
+  )
+}
 
 type Verdict = {
   readonly decision?: string
@@ -22,10 +34,23 @@ function repoRoot(): string {
 
 function verdict(eventName: string, args: readonly string[]): Verdict {
   const root = repoRoot()
-  if (!root) return { decision: "allow" }
+  const script = root ? `${root}/scripts/agent-checks/run.mjs` : "scripts/agent-checks/run.mjs"
+  if (!root || !existsSync(script)) {
+    announceMissing(script)
+    return { decision: "allow" }
+  }
   const result = spawnSync(
     process.execPath,
-    [`${root}/scripts/agent-checks/run.mjs`, ...args, "--agent", "opencode", "--event", eventName],
+    [
+      script,
+      ...args,
+      "--agent",
+      "opencode",
+      "--event",
+      eventName,
+      "--session",
+      sessionId,
+    ],
     { cwd: root, encoding: "utf8" },
   )
   const line = (result.stdout ?? "").split("\n").find((entry) => entry.startsWith("{"))
@@ -44,6 +69,7 @@ function verdict(eventName: string, args: readonly string[]): Verdict {
 export default Plugin.define({
   id: "ens.agent-checks",
   async setup(ctx) {
+    verdict("session_start", ["session-start"])
     await ctx.tool.hook("execute.before", (event: ToolEvent) => {
       const tool = event.tool ?? ""
       if (tool !== "bash" && tool !== "shell") return

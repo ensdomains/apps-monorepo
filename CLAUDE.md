@@ -25,6 +25,7 @@ No `any` (use `unknown`), no `!`, no mutation, `bigint` for on-chain values, no 
 - Before changing an export, default, query key, error shape or global CSS, `git grep -n <name>` every caller. Add an option instead of changing a default.
 - Read `git blame` before removing a guard, fallback or odd branch. Keep invariant comments or explain in the PR.
 - Keep the diff to the task: no drive-by refactors, renames, moves or reformatting. Report other bugs instead of fixing them.
+- Never rebase, reset, or rebuild the branch onto a different base to satisfy a hook. If a hook flags files you did not touch, say so and continue.
 
 ## More context, load when relevant
 - Style rules: `STYLEGUIDE.md` (long; open only the section you need). Logic and hooks: Core Principles, Business Logic Extraction. Growing module: Managing Growing Complexity. Components: React Patterns, Component Composition. Errors: Error Handling with neverthrow. Queries: Data Fetching with TanStack Query. Transactions: State Management, Web3 & Blockchain Patterns. Styling: Styling with Tailwind CSS, Accessibility. Tests: Testing Strategy.

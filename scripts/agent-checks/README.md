@@ -2,7 +2,11 @@
 
 `run.mjs` is the check. Claude Code, Codex, pi, and OpenCode only translate its JSON verdict. A one-line record is appended to `.git/agent-checks.log` (timestamp, agent, event, check, verdict, durationMs). That file is gitignored with the rest of `.git`. When a check finds something, the process also prints `agent-checks: feedback <check>` or `agent-checks: block <check>` on stderr.
 
-Diff findings, including a runtime source file under `apps/` or `packages/` with no related `*.test.*` or `*.spec.*` file in the same diff, are feedback. Lefthook runs that on pre-commit and pre-push and does not fail the git command. Stop may block: once for a missing related test, and once for a failed typecheck or focused vitest. A repeated Stop with the same git tree reads `.git/agent-checks-cache` and returns immediately. No changed files means Stop skips verification.
+The session base is the commit recorded at SessionStart (or the first non-Stop hook) in `.git/agent-checks/sessions/`. Review uses that commit, then `AGENT_CHECKS_BASE`, then the branch upstream merge-base, and `origin/main` only after those. Commits already on the branch when the session started are not the agent's changes. `--base` still forces a base for CI.
+
+Diff findings, including a runtime source file under `apps/` or `packages/` with no related `*.test.*` or `*.spec.*` file in the same diff, are feedback. Lefthook runs that on pre-commit and pre-push and does not fail the git command. Stop may block once for a missing related test or a failed typecheck. A second Stop on the same HEAD and diff returns feedback `already reported` instead of blocking again. A tree change can block again. No changed files means Stop skips verification.
+
+If `hook.sh` or the checker it runs is gone, the hook prints one message and logs it. Do not rebase or rebuild the branch to bring the script back.
 
 ## Codex: trust the hooks before the first prompt
 

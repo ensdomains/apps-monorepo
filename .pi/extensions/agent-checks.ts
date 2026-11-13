@@ -1,4 +1,16 @@
 import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
+
+const sessionId = `pi-${process.pid}`
+let missingAnnounced = false
+
+function announceMissing(script: string) {
+  if (missingAnnounced) return
+  missingAnnounced = true
+  process.stderr.write(
+    `agent-checks: hook script missing at ${script}. Do not rebase, reset, or rebuild the branch onto another base to satisfy a hook. If a hook flags files you did not touch, say so and continue.\n`,
+  )
+}
 
 type Verdict = {
   readonly decision?: string
@@ -44,10 +56,23 @@ function repoRoot(): string {
 
 function verdict(eventName: string, args: readonly string[]): Verdict {
   const root = repoRoot()
-  if (!root) return { decision: "allow" }
+  const script = root ? `${root}/scripts/agent-checks/run.mjs` : "scripts/agent-checks/run.mjs"
+  if (!root || !existsSync(script)) {
+    announceMissing(script)
+    return { decision: "allow" }
+  }
   const result = spawnSync(
     process.execPath,
-    [`${root}/scripts/agent-checks/run.mjs`, ...args, "--agent", "pi", "--event", eventName],
+    [
+      script,
+      ...args,
+      "--agent",
+      "pi",
+      "--event",
+      eventName,
+      "--session",
+      sessionId,
+    ],
     { cwd: root, encoding: "utf8" },
   )
   const line = (result.stdout ?? "").split("\n").find((entry) => entry.startsWith("{"))
@@ -70,6 +95,7 @@ function withNote(content: unknown, note: string): unknown {
 }
 
 export default function agentChecks(pi: Extension) {
+  verdict("session_start", ["session-start"])
   pi.on("tool_call", (event) => {
     if (event.toolName !== "bash") return undefined
     const checked = verdict("tool_call", [

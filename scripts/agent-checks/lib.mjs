@@ -373,8 +373,10 @@ export function pathsInDiff(diff) {
   return parseDiff(diff).map((file) => file.path)
 }
 
+const REGRESSION_LABELS = ['Callers checked:', 'Tests:', 'Behaviour verified:']
+
 const REGRESSION_SECTION_REASON =
-  'Put callers (or consumers), existing tests, and behaviour inside "## Regression check". Do not add a separate "Behaviour changes" heading.'
+  'Inside "## Regression check", include the lines "Callers checked:", "Tests:", and "Behaviour verified:". Do not put behaviour only in the summary or under a separate heading.'
 
 /**
  * Text under the Regression check heading, up to the next heading.
@@ -400,31 +402,13 @@ export function reviewPrBody(body, diff) {
       reason: `PR body is missing a "## Regression check" section. ${REGRESSION_SECTION_REASON}`,
     }
   }
-  if (!/(callers|consumers)/i.test(section) || !/behaviour/i.test(section)) {
+  const missing = REGRESSION_LABELS.filter(
+    (label) => !new RegExp(`^${label.replace(/[.]/g, '\\$&')}`, 'im').test(section),
+  )
+  if (missing.length > 0) {
     return { decision: 'block', reason: REGRESSION_SECTION_REASON }
   }
-  if (assertionsChanged(diff) && !/existing tests/i.test(section)) {
-    return {
-      decision: 'block',
-      reason:
-        'Existing assertions changed. Name them under "Existing tests changed" inside "## Regression check".',
-    }
-  }
   return { decision: 'allow', reason: '' }
-}
-
-/**
- * @param {string} diff
- */
-function assertionsChanged(diff) {
-  for (const file of parseDiff(diff)) {
-    if (!/\.test\.tsx?$/.test(file.path)) continue
-    const added = new Set(file.added.map((line) => line.text.trim()))
-    for (const line of file.removed) {
-      if (/expect\(/.test(line) && !added.has(line.trim())) return true
-    }
-  }
-  return false
 }
 
 /**
@@ -635,4 +619,66 @@ export function formatLogRecord(record) {
     verdict: record.verdict,
     durationMs: record.durationMs,
   })
+}
+
+/**
+ * Session start wins. Then an explicit env base, the branch upstream
+ * merge-base, and origin/main last. An explicit --base (CI) still wins.
+ * @param {{ explicit?: string, sessionStart?: string, envBase?: string, upstreamMergeBase?: string, originMain?: string }} input
+ */
+export function selectBase(input) {
+  const candidates = [
+    input.explicit,
+    input.sessionStart,
+    input.envBase,
+    input.upstreamMergeBase,
+    input.originMain,
+  ]
+  for (const candidate of candidates) {
+    if (candidate && candidate.trim()) return candidate.trim()
+  }
+  return ''
+}
+
+/**
+ * A second Stop on the same tree must not block again.
+ * @param {{ decision?: string, reason?: string } | null} cached
+ * @returns {{ decision: string, reason: string } | null}
+ */
+export function repeatedStopVerdict(cached) {
+  if (!cached) return null
+  if (cached.decision === 'block') return { decision: 'feedback', reason: 'already reported' }
+  return { decision: cached.decision ?? 'allow', reason: cached.reason ?? '' }
+}
+
+/**
+ * @param {string} dir
+ * @param {string} sessionId
+ */
+export function sessionBasePath(dir, sessionId) {
+  const safe = sessionId.replace(/[^A-Za-z0-9._-]/g, '_')
+  return path.join(dir, 'sessions', safe)
+}
+
+/**
+ * @param {string} dir
+ * @param {string} sessionId
+ */
+export function readSessionStart(dir, sessionId) {
+  try {
+    return readFileSync(sessionBasePath(dir, sessionId), 'utf8').trim()
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * @param {string} dir
+ * @param {string} sessionId
+ * @param {string} sha
+ */
+export function writeSessionStart(dir, sessionId, sha) {
+  const file = sessionBasePath(dir, sessionId)
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, `${sha}\n`)
 }

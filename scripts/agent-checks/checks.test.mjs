@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,9 +12,11 @@ import {
   missingRelatedTests,
   packagesFor,
   readCachedVerdict,
+  repeatedStopVerdict,
   reviewBranch,
   reviewDiff,
   reviewPrBody,
+  selectBase,
   verificationKey,
   vitestTargets,
   writeCachedVerdict,
@@ -148,11 +150,20 @@ test('pr body keeps behaviour inside Regression check', () => {
   const inside = [
     '## Regression check',
     'Callers checked: price helpers.',
-    'Existing tests changed: price.test.ts now expects 2.',
-    'Behaviour: the displayed price is 2.',
+    'Tests: price.test.ts now expects 2.',
+    'Behaviour verified: the displayed price is 2.',
     '',
   ].join('\n')
   assert.equal(reviewPrBody(inside, diff).decision, 'allow')
+  const summaryOnly = [
+    '## Summary',
+    'Behaviour verified: the price is 2.',
+    '',
+    '## Regression check',
+    'Callers checked: price helpers.',
+    '',
+  ].join('\n')
+  assert.equal(reviewPrBody(summaryOnly, diff).decision, 'block')
 })
 
 test('branch name stays quiet unless a ticket id is known', () => {
@@ -255,6 +266,92 @@ test('verification cache and log records round-trip', () => {
     verdict: 'allow',
     durationMs: 4,
   })
+})
+
+test('stop blocks once per tree', () => {
+  assert.equal(repeatedStopVerdict(null), null)
+  assert.deepEqual(repeatedStopVerdict({ decision: 'block', reason: 'missing tests' }), {
+    decision: 'feedback',
+    reason: 'already reported',
+  })
+  assert.equal(repeatedStopVerdict({ decision: 'allow', reason: '' }).decision, 'allow')
+  const tree = verificationKey(['sha-a', 'diff-a'])
+  assert.equal(tree, verificationKey(['sha-a', 'diff-a']))
+  assert.notEqual(tree, verificationKey(['sha-b', 'diff-a']))
+})
+
+test('session base reviews only changes made after the session started', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'agent-checks-repo-'))
+  const gitEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'Test',
+    GIT_AUTHOR_EMAIL: 'test@example.com',
+    GIT_COMMITTER_NAME: 'Test',
+    GIT_COMMITTER_EMAIL: 'test@example.com',
+  }
+  const git = (args) =>
+    execFileSync('git', args, {
+      cwd: dir,
+      encoding: 'utf8',
+      env: gitEnv,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  git(['init', '-b', 'main'])
+  const oldFile = path.join(dir, 'apps/manager/src/old.ts')
+  mkdirSync(path.dirname(oldFile), { recursive: true })
+  writeFileSync(oldFile, 'export const old = 1\n')
+  git(['add', '.'])
+  git(['commit', '-m', 'main'])
+  const main = git(['rev-parse', 'HEAD'])
+  const preFile = path.join(dir, 'apps/manager/src/pre.ts')
+  writeFileSync(preFile, 'export const pre = 1\n')
+  git(['add', '.'])
+  git(['commit', '-m', 'before session'])
+  const session = git(['rev-parse', 'HEAD'])
+  const source = 'apps/manager/src/names/mergedNames.ts'
+  const testFile = 'apps/manager/src/names/mergedNames.test.ts'
+  mkdirSync(path.join(dir, 'apps/manager/src/names'), { recursive: true })
+  writeFileSync(path.join(dir, source), 'export const days = 60\n')
+  writeFileSync(path.join(dir, testFile), 'export const covered = true\n')
+  git(['add', '.'])
+  git(['commit', '-m', 'session work'])
+  const head = git(['rev-parse', 'HEAD'])
+  assert.equal(
+    selectBase({
+      explicit: '',
+      sessionStart: session,
+      envBase: '',
+      upstreamMergeBase: main,
+      originMain: main,
+    }),
+    session,
+  )
+  assert.equal(selectBase({ explicit: '', sessionStart: '', envBase: 'env', upstreamMergeBase: main, originMain: main }), 'env')
+  assert.equal(selectBase({ explicit: '', sessionStart: '', envBase: '', upstreamMergeBase: main, originMain: 'origin/main' }), main)
+  const sessionFiles = git(['diff', '--name-only', session, head]).split('\n').filter(Boolean).sort()
+  assert.deepEqual(sessionFiles, [testFile, source].sort())
+  assert.deepEqual(missingRelatedTests(sessionFiles), [])
+  const mainFiles = git(['diff', '--name-only', main, head]).split('\n').filter(Boolean)
+  assert.ok(missingRelatedTests(mainFiles).includes('apps/manager/src/pre.ts'))
+  assert.equal(missingRelatedTests(sessionFiles).includes('apps/manager/src/pre.ts'), false)
+})
+
+test('a missing hook script is reported once', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'agent-checks-hook-'))
+  execFileSync('git', ['init', '-b', 'main'], { cwd: dir, stdio: 'ignore' })
+  const hook = path.join(root, 'scripts/agent-checks/hook.sh')
+  const env = {
+    ...process.env,
+    AGENT_CHECKS_ROOT: dir,
+    AGENT_CHECKS_SCRIPT: path.join(dir, 'missing.mjs'),
+  }
+  const first = spawnSync('sh', [hook], { env, encoding: 'utf8' })
+  assert.equal(first.status, 2)
+  assert.match(first.stderr, /hook script missing/)
+  assert.match(first.stderr, /Do not rebase/)
+  const second = spawnSync('sh', [hook], { env, encoding: 'utf8' })
+  assert.equal(second.status, 0)
+  assert.equal(second.stderr, '')
 })
 
 test('skill files are linked where each agent looks', () => {
