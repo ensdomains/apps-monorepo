@@ -485,7 +485,10 @@ const EditRecordsContent = ({
               </label>
               <CoinSelect
                 value={keyInput}
-                onChange={setKeyInput}
+                onChange={(value) => {
+                  setKeyInput(value)
+                  setAddRecordError(null)
+                }}
                 placeholder="Select coin..."
                 coinTypes={
                   editableTypes.address === 'all'
