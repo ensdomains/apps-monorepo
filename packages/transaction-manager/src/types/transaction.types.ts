@@ -80,6 +80,8 @@ export interface RhinestoneIntentParams {
   readonly calls: readonly Call[]
   /** Fee asset the HCA pays from. Defaults to USDC in the transport. */
   readonly feeAsset?: 'USDC'
+  /** The only USDC the orchestrator may spend; without it, it picks whichever USDC the account holds. */
+  readonly paymentToken?: Address
   /**
    * Per-request session enable payload, overriding the signer session's own
    * `enableData`. The validator needs one on every session-signed intent.

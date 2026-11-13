@@ -295,6 +295,7 @@ export async function quoteSessionRefundCaps(params: {
       calls: [call],
       sponsored: { gas: false, bridging: false, swaps: false },
       feeAsset: 'USDC',
+      sourceAssets: [refundToken],
       tokenRequests: [],
       gasLimit: HCA_LEG_GAS_LIMITS.commit,
       auxiliaryFunds: {
