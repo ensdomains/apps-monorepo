@@ -4,9 +4,10 @@ This trial checks the ENS manager v1 to v2 migration promises at source commit
 `6977db2d7d14a8d6c48436d97d4fee6ed703285b`.
 
 The model states 37 user-facing properties from A1 through G5, including E7.
-It does not copy the current implementation as the desired result. `Current.cfg` records the
-observed implementation choices, while `Hardened.cfg` enables every required
-guard.
+[`BEHAVIORS.md`](./BEHAVIORS.md) is the human-editable source of truth; the
+model follows it. It does not copy the current implementation as the desired
+result. `Current.cfg` records the observed implementation choices, while
+`Hardened.cfg` enables every required guard.
 
 ## Model shape
 
@@ -35,6 +36,8 @@ to reviewed code.
 
 ## Files
 
+- [`BEHAVIORS.md`](./BEHAVIORS.md) documents all 37 frontend behaviors and the
+  contract assumptions in user-facing language.
 - `Model.tla` defines the current and hardened migration scenarios and all 37
   invariants.
 - `MigrationContract.tla` defines the composable assume and guarantee boundary.
@@ -117,6 +120,9 @@ wallet or chain progress, it must also discharge the fair-response assumption.
 against the full model's `CORE` behavior.
 
 ## Updating the verification
+
+For an intended behavior change, edit `BEHAVIORS.md` first, then update the
+model, mutation, real-code witness, and decision log to match.
 
 When a covered source file changes:
 

@@ -1,3 +1,5 @@
+> Superseded by [`BEHAVIORS.md`](../../apps/manager/verification/migration/BEHAVIORS.md); do not edit this draft.
+
 # ENS manager v1→v2 migration: candidate behaviours for a formal model (DRAFT for David)
 
 Baseline: `origin/main` 6977db2d7 (2026-11-12 00:28 UTC+8), worktree `apps-monorepo-formal-verification`, branch `formal/migration-model`.
