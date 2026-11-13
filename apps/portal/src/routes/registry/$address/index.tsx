@@ -189,7 +189,14 @@ const UsedByValue = ({ registry }: { readonly registry: RegistryInfo }) => {
   return (
     <div className="flex flex-wrap gap-2 sm:py-2">
       {names.map((name) => (
-        <EntityBadge key={name} variant="name" name={name} showAvatar compact>
+        <EntityBadge
+          key={name}
+          variant="name"
+          name={name}
+          showAvatar
+          compact
+          format="truncate"
+        >
           {name}
         </EntityBadge>
       ))}

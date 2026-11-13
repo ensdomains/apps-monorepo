@@ -216,6 +216,7 @@ export async function setPrimaryNameWithHca(
       calls: funding.calls,
       // User-paid in USDC, like every intent on this route.
       feeAsset: 'USDC',
+      paymentToken: funding.paymentToken,
       ...(funding.auxiliaryFunds
         ? { auxiliaryFunds: funding.auxiliaryFunds }
         : {}),

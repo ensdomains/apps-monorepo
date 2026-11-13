@@ -347,6 +347,7 @@ async function quoteIntentUsdc(input: {
     calls: [...calls],
     sponsored: { gas: false, bridging: false, swaps: false },
     feeAsset: 'USDC',
+    sourceAssets: [usdc],
     tokenRequests: [],
     gasLimit,
     ...(declaredInflow > 0n
@@ -390,6 +391,8 @@ export interface HcaIntentFunding {
   >
   /** The fee funded for, with any margin, for logging/telemetry. */
   readonly quotedFeeUsdc: bigint
+  /** The USDC the intent funds and pays its fee in, for `rhinestoneParams.paymentToken`. */
+  readonly paymentToken: Address
 }
 
 export interface PlanHcaIntentFundingParams {
@@ -851,7 +854,7 @@ export async function planHcaIntentFunding(
     // The HCA already covers it — submit the bare action. The quote was taken
     // over a larger batch, so it only over-estimated, which is safe here
     // because nothing is being permitted.
-    return { calls: [...calls], quotedFeeUsdc }
+    return { calls: [...calls], quotedFeeUsdc, paymentToken: usdc }
   }
 
   return fundShortfalls(params, {
@@ -1153,5 +1156,6 @@ async function buildFundingCalls(
         }
       : {}),
     quotedFeeUsdc: quoted.quotedFeeUsdc,
+    paymentToken: usdc,
   }
 }

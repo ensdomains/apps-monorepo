@@ -47,6 +47,9 @@ export const preflightOwnerIntentQuote = (input: {
       calls: [...input.request.rhinestoneParams.calls],
       sponsored: { gas: false, bridging: false, swaps: false },
       feeAsset: input.request.rhinestoneParams.feeAsset ?? 'USDC',
+      ...(input.request.rhinestoneParams.paymentToken
+        ? { sourceAssets: [input.request.rhinestoneParams.paymentToken] }
+        : {}),
       tokenRequests: [],
       auxiliaryFunds: input.request.rhinestoneParams.auxiliaryFunds,
     }),
