@@ -4,9 +4,27 @@ import {
   extendChainWithEns,
   supportedL1Chains,
 } from '@ensdomains/ensjs/chain'
-import { ethRegistrarRegisterSnippet } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import {
+  ethRegistrarCommitmentsSnippet,
+  ethRegistrarRegisterSnippet,
+} from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import {
+  permissionedRegistryGetResolverSnippet,
+  permissionedRegistryGetSubregistrySnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Address, Hash, Hex, PublicClient, WalletClient } from 'viem'
-import { decodeFunctionData, getChainContractAddress } from 'viem'
+import {
+  createPublicClient,
+  custom,
+  decodeFunctionData,
+  encodeFunctionResult,
+  getChainContractAddress,
+  isAddressEqual,
+  labelhash,
+  multicall3Abi,
+  parseAbi,
+  zeroAddress,
+} from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { SignerAddressMismatchError } from '../../errors/transaction.errors'
@@ -21,6 +39,7 @@ import {
   getSignerAddress,
   resolvePaymentTokenAddress,
   submitRegistrationActor,
+  verifyRegistrationActor,
 } from './registration.actors'
 
 const mocks = vi.hoisted(() => ({
@@ -238,5 +257,102 @@ describe('submitRegistrationActor', () => {
       data: intent?.request.data ?? '0x',
     })
     expect(args?.[6]).toBe(mockUsdc)
+  })
+})
+
+describe('verifyRegistrationActor', () => {
+  const chain = extendChainWithEns(sepolia)
+  const registrar = getChainContractAddress({
+    chain,
+    contract: 'ensEthRegistrar',
+  })
+  const registry = getChainContractAddress({ chain, contract: 'ensRegistry' })
+  const OWNER = '0x1111111111111111111111111111111111111111' as Address
+  const RESOLVER_ADDRESS =
+    '0x3333333333333333333333333333333333333333' as Address
+  const registryAbi = [
+    ...permissionedRegistryGetResolverSnippet,
+    ...permissionedRegistryGetSubregistrySnippet,
+    ...parseAbi(['function getOwner(uint256 anyId) view returns (address)']),
+  ]
+
+  // The deployed registry and registrar: a call they don't define reverts, as on chain.
+  const answer = (to: Address, data: Hex): Hex => {
+    if (isAddressEqual(to, registrar)) {
+      decodeFunctionData({ abi: ethRegistrarCommitmentsSnippet, data })
+      return encodeFunctionResult({
+        abi: ethRegistrarCommitmentsSnippet,
+        functionName: 'commitmentAt',
+        result: 0n,
+      })
+    }
+    if (!isAddressEqual(to, registry)) {
+      throw new Error(`execution reverted: no contract at ${to}`)
+    }
+    const { functionName, args } = decodeFunctionData({
+      abi: registryAbi,
+      data,
+    })
+    const results = {
+      getResolver: RESOLVER_ADDRESS,
+      getSubregistry: zeroAddress,
+      getOwner: args[0] === BigInt(labelhash('myname')) ? OWNER : zeroAddress,
+    }
+    return encodeFunctionResult({
+      abi: registryAbi,
+      functionName,
+      result: results[functionName],
+    })
+  }
+
+  const publicClient = createPublicClient({
+    chain,
+    transport: custom(
+      {
+        request: async ({
+          method,
+          params: [{ to, data }],
+        }: {
+          readonly method: string
+          readonly params: readonly [
+            { readonly to: Address; readonly data: Hex },
+          ]
+        }) => {
+          if (method !== 'eth_call') throw new Error(`Unexpected ${method}`)
+          if (!isAddressEqual(to, chain.contracts.multicall3.address)) {
+            return answer(to, data)
+          }
+          const {
+            args: [calls],
+          } = decodeFunctionData({ abi: multicall3Abi, data })
+          return encodeFunctionResult({
+            abi: multicall3Abi,
+            functionName: 'aggregate3',
+            result: calls.map(({ target, callData }) => ({
+              success: true,
+              returnData: answer(target, callData),
+            })),
+          })
+        },
+      },
+      { retryCount: 0 },
+    ),
+  })
+
+  it('confirms a registration our reveal made on the deployed registry', async () => {
+    const result = await verifyRegistrationActor({
+      name: 'myname.eth',
+      owner: OWNER,
+      resolverAddress: RESOLVER_ADDRESS,
+      publicClient,
+      commitment: `0x${'cc'.repeat(32)}`,
+      graceWindowMs: 0,
+    })
+
+    expect(result._unsafeUnwrap()).toEqual({
+      verified: true,
+      registeredToOther: false,
+      isUnregistered: false,
+    })
   })
 })

@@ -100,10 +100,10 @@ export const NameProfileCard = ({
       }
     >
       <NameAvatar name={name} />
-      <div className="flex flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         <div className="flex flex-col gap-0.5">
           {!stacked && (
-            <h2 className="text-h2 w-max">
+            <h2 className="text-h2 max-w-full wrap-anywhere">
               {linked ? (
                 <Link to="/$name" params={{ name }} className="hover:underline">
                   {labels.join('.')}.
