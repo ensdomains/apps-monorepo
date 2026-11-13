@@ -48,6 +48,24 @@ describe('editRecordsReducer', () => {
       expect(result.newRecords[0]._uid).toBeDefined()
     })
 
+    it.each(['UNKNOWN', ''])(
+      'refuses coin %j without scheduling an ETH write or deletion',
+      (key) => {
+        for (const value of [
+          '',
+          '0x1234567890123456789012345678901234567890',
+        ]) {
+          const state = editRecordsReducer(initialEditRecordsState, {
+            type: 'ADD_RECORD',
+            recordType: 'address',
+            key,
+            value,
+          })
+          expect(state).toEqual(initialEditRecordsState)
+        }
+      },
+    )
+
     it('adds a contentHash record', () => {
       const action: EditRecordsAction = {
         type: 'ADD_RECORD',
@@ -124,6 +142,16 @@ describe('editRecordsReducer', () => {
       const result = editRecordsReducer(initialEditRecordsState, action)
 
       expect(result.deletedIds.has('text-name')).toBe(true)
+    })
+
+    it('preserves intentional deletion of an existing supported address record', () => {
+      const state = editRecordsReducer(initialEditRecordsState, {
+        type: 'DELETE_RECORD',
+        record: { type: 'address', key: 'BTC', value: 'bc1...', id: 0 },
+      })
+      expect(state.deletedIds).toEqual(new Set(['address-0']))
+      expect(state.newRecords).toEqual([])
+      expect(state.editedValues).toEqual(new Map())
     })
 
     it('removes pending edits when deleting', () => {

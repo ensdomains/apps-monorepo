@@ -10,7 +10,11 @@ import {
 import { fromThrowable } from 'neverthrow'
 import { getAddress } from 'viem'
 import { isOutOfRangeEvmCoinType } from '@/lib/utils'
-import { type EditableRecord, getRecordId } from './editRecordUtils'
+import {
+  type EditableRecord,
+  getAddressRecordCoinType,
+  getRecordId,
+} from './editRecordUtils'
 
 export interface ValidationError {
   recordId: string
@@ -112,18 +116,23 @@ function validateCryptoAddress(
  * aliases the chain it wraps (WEB-1447).
  */
 function validateAddressRecord(
-  coinType: number,
-  key: string,
-  value: string,
+  record: Extract<EditableRecord, { type: 'address' }>,
 ): string | null {
+  const { id: coinType, key, value } = record
+  if (record.isNew || !key.trim()) {
+    const selectedCoinType = getAddressRecordCoinType(key)
+    if (selectedCoinType.isErr()) return selectedCoinType.error.message
+    if (selectedCoinType.value !== coinType)
+      return 'Coin does not match record coin type.'
+  }
+  if (!value.trim()) return null
+
   if (isOutOfRangeEvmCoinType(coinType)) {
     return `Invalid coin type ${coinType}`
   }
 
   const error = validateCryptoAddress(coinType, value)
-  return error
-    ? `Invalid ${(key || 'eth').toUpperCase()} address: ${error}`
-    : null
+  return error ? `Invalid ${key.toUpperCase()} address: ${error}` : null
 }
 
 /**
@@ -183,6 +192,8 @@ export function validateRecord(record: EditableRecord): string | null {
   // Skip validation for deleted records
   if (record.isDeleted) return null
 
+  if (type === 'address') return validateAddressRecord(record)
+
   // Empty values are always valid (they represent deletion)
   if (!value || value.trim() === '') return null
 
@@ -202,11 +213,6 @@ export function validateRecord(record: EditableRecord): string | null {
         return 'Invalid email address format'
       }
     }
-  }
-
-  if (type === 'address') {
-    const error = validateAddressRecord(record.id, record.key, value)
-    if (error) return error
   }
 
   if (type === 'contentHash') {
