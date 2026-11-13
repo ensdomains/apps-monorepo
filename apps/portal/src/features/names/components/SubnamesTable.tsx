@@ -124,6 +124,8 @@ interface SubnamesTableProps {
   readonly canCreateSubname?: boolean
   /** Shows the create action disabled instead of linking to the form. */
   readonly isCreationPaused?: boolean
+  /** The pause is because the registry runs on an older version. */
+  readonly isRegistryUpdateRequired?: boolean
   /** Called when user confirms delete on a single subname. */
   readonly onDeleteSubname?: (subname: SubnameRow) => void
   /** Called when user clicks Clear with selection. */
@@ -225,9 +227,11 @@ function buildColumns(
 const CreateSubnameAction = ({
   name,
   isPaused,
+  isUpdateRequired,
 }: {
   readonly name: string
   readonly isPaused: boolean
+  readonly isUpdateRequired: boolean
 }) =>
   isPaused ? (
     <Tooltip>
@@ -237,7 +241,11 @@ const CreateSubnameAction = ({
           Create subname
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Subname creation temporarily disabled.</TooltipContent>
+      <TooltipContent>
+        {isUpdateRequired
+          ? 'This registry must be updated before new subnames can be created.'
+          : 'Subname creation temporarily disabled.'}
+      </TooltipContent>
     </Tooltip>
   ) : (
     <Button variant="default" asChild>
@@ -257,6 +265,7 @@ export const SubnamesTable = ({
   name,
   canCreateSubname,
   isCreationPaused = true,
+  isRegistryUpdateRequired = false,
   onDeleteSubname,
   onClearSelected,
   isDeleting,
@@ -332,7 +341,11 @@ export const SubnamesTable = ({
             {totalCount ? `Subnames (${totalCount})` : 'Subnames'}
           </PageHeading>
           {canCreateSubname && (
-            <CreateSubnameAction name={name} isPaused={isCreationPaused} />
+            <CreateSubnameAction
+              name={name}
+              isPaused={isCreationPaused}
+              isUpdateRequired={isRegistryUpdateRequired}
+            />
           )}
         </div>
         {selectedCount > 0 && (

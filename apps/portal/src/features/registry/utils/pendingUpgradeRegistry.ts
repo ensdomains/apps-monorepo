@@ -10,6 +10,7 @@ const PENDING_UPGRADE_IMPLEMENTATIONS: Readonly<
     '0xFAA23592ACA10A6d8875b18eA86954e8EB6d8d72',
     '0xC927bCaA77cd7bE283518760896Be0CF3Cfbe08d',
     '0x664814F5bD5E6E617742029fA781bbee6c230Dc0',
+    '0x43d937F91eC7597c096A1e2e6B7cbd2ddcAEb23D',
   ],
   [sepolia.id]: [
     '0x9BD8a88719068D09ecee662f36C0E3856708366a',
@@ -42,3 +43,8 @@ export const isPastedRegistryBlocked = ({
   readonly isPasted: boolean
   readonly isPendingUpgrade: boolean | undefined
 }): boolean => isPasted && isPendingUpgrade !== false
+
+/** Subnames can't be created in a registry until it is confirmed not to be pending an upgrade. */
+export const isSubnameCreationPaused = (
+  isPendingUpgrade: boolean | undefined,
+): boolean => isPendingUpgrade !== false

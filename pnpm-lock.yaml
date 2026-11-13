@@ -171,8 +171,8 @@ catalogs:
       specifier: ^3.0.0
       version: 3.0.0
     '@ensdomains/ensjs':
-      specifier: ^5.2.12
-      version: 5.2.12
+      specifier: ^5.3.1
+      version: 5.3.1
     '@ensdomains/ensjs-abi':
       specifier: ^5.0.5
       version: 5.0.5
@@ -333,7 +333,7 @@ importers:
         version: 3.0.0
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -649,7 +649,7 @@ importers:
         version: 1.0.1
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -884,7 +884,7 @@ importers:
         version: link:../packages/v1-name-shapes
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -912,7 +912,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       viem:
         specifier: 'catalog:'
         version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
@@ -949,7 +949,7 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -1068,7 +1068,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       viem:
         specifier: 'catalog:'
         version: 2.57.7(typescript@7.0.2)(zod@4.6.7)
@@ -1092,7 +1092,7 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -1149,7 +1149,7 @@ importers:
         version: link:../utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -1205,7 +1205,7 @@ importers:
         version: 3.0.0
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: 5.0.5
@@ -1248,7 +1248,7 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@tanstack/react-query':
         specifier: ^5.104.4
         version: 5.104.4(@types/react@19.3.0)(react@19.3.1)
@@ -1334,7 +1334,7 @@ importers:
         version: link:../../packages/utils
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: 5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
+        version: 5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))
       '@hono/valibot-validator':
         specifier: ^0.5.3
         version: 0.5.3(hono@4.13.13)(valibot@1.5.0(typescript@7.0.2))
@@ -1727,17 +1727,15 @@ packages:
   '@emnapi/wasi-threads@1.2.2':
     resolution: {integrity: sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==}
 
-  '@ensdomains/address-encoder@1.0.0-rc.3':
-    resolution: {integrity: sha512-8o6zH69rObIqDY4PusEWuN9jvVOct+9jj9AOPO7ifc3ev8nmsly0e8TE1sHkhk0iKFbd3DlSsUnJ+yuRWmdLCQ==}
-
   '@ensdomains/address-encoder@2.0.1':
     resolution: {integrity: sha512-7aXfYgUfc3odGY9N6A3wvVZhEtv3gAwNfLzUdXX2TSkkuXZyZnpzAjKSijStnt0yhjzKyVNL7guhUg1ZX54bQw==}
 
   '@ensdomains/address-encoder@3.0.0':
     resolution: {integrity: sha512-dmIsxuByf7B6cqiyMKbui57li12X+ZZehqB2yi7QoTg7pxbP/MfSNytGZJpA077K6kLfZWzJEuwpSFWWeTHucw==}
 
-  '@ensdomains/content-hash@3.1.0-rc.1':
-    resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
+  '@ensdomains/content-hash@3.2.0':
+    resolution: {integrity: sha512-xEdNeqVJ2TUbWAkvYfz9DKGPt5P1bLe/gshsokhezY7Dc21/p3lg4JCEboMrgbPFRmxRGrmCcpuYpn5R/e7fwQ==}
+    engines: {node: '>=18'}
 
   '@ensdomains/dnsprovejs@1.0.1':
     resolution: {integrity: sha512-Nnre2OaYLJD9vxjg8QWWjpwuzah4ORIpZkEYm7nxBaGtmtgJgXpPENprIVlzAGCSZgeG5TnM6LwyXEE1lDv4Cg==}
@@ -1747,8 +1745,8 @@ packages:
     resolution: {integrity: sha512-vGRrWLVsrbA1Gi8aZejzZ2uz2KIdKva0bsICXjgklPg1NCSs7s3nD80hEc7TRux/qBqTSYhhS0vtrPu6eTQBvA==}
     engines: {node: '>=22'}
 
-  '@ensdomains/ensjs@5.2.12':
-    resolution: {integrity: sha512-/s+pG8RYQFGvJYEWIQA6BVNB5/j1fyMqbuVdbB5qvU0VsbwCe8OnFItLfKgXHHUgX0i4m5ijxfDHrVI7xUt1kg==}
+  '@ensdomains/ensjs@5.3.1':
+    resolution: {integrity: sha512-nT52r/6uSeHsum61Mxy4/rRoFuxUrQ8D/hCTWk5KjREpFR5P3eZ4Vp0/QOjDsc5s5qxT3aZ0fG762meB+1cPuQ==}
     engines: {node: '>=22'}
     peerDependencies:
       '@ensdomains/dnsprovejs': ^0.5.4 || ^1.0.0
@@ -2851,6 +2849,9 @@ packages:
   '@msgpack/msgpack@3.1.2':
     resolution: {integrity: sha512-JEW4DEtBzfe8HvUYecLU9e6+XJnKDlUAIve8FvPzF3Kzs6Xo/KuZkZJsDH0wJXl/qEZbeeE7edxDNY3kMs39hQ==}
     engines: {node: '>= 18'}
+
+  '@multiformats/sha3@4.0.0':
+    resolution: {integrity: sha512-y/tB2RWyeIhUToaUIYkwZUtGqfGIa3kaTvAMVekvxWJUYaD7YLa7L6O8QYaOblxxc1MMobGwh63kS1NhocRQPw==}
 
   '@napi-rs/wasm-runtime@1.2.5':
     resolution: {integrity: sha512-HshSvXzmBxNzqejd3k/KemgQ3hdREUYFRRrgxOZ+gPljDIsO2SDZrVZMd4Z/HsxudQbE62OVyVFE8z9BCurfjA==}
@@ -5627,10 +5628,6 @@ packages:
   caniuse-lite@1.0.30001816:
     resolution: {integrity: sha512-+8Yx7BXCoqk6IF8yTicjfUR6D/ldJzdlsodlEOiOSPmhK844WIgk67/zIQaGAOxNkZyyvBlrRFnLvqKIoqbAFw==}
 
-  cborg@6.1.4:
-    resolution: {integrity: sha512-JqjDDfTuED2qUvy570NGQUXqfzC34H++AHJIZnLAmiAdHNqHJKbtzox5yViRz5rc0gM9OPSX7n7Sh+BNU263Xw==}
-    hasBin: true
-
   cborg@6.2.1:
     resolution: {integrity: sha512-DwiF3Jd5RW6kJuTQMzQb/sdZD03utp15EcQNOMTvE/ZYCdDPzETsGOY5lj8imKxbsEuYvOzcMSiKLiT4C2/2Lw==}
     hasBin: true
@@ -6424,6 +6421,9 @@ packages:
   js-sha256@0.10.1:
     resolution: {integrity: sha512-5obBtsz9301ULlsgggLg542s/jqtddfOpV5KJc4hajc9JV8GeY2gZHSVpYBn4nWqAUTJ9v+xwtbJ1mIBgIH5Vw==}
 
+  js-sha3@0.9.3:
+    resolution: {integrity: sha512-BcJPCQeLg6WjEx3FE591wVAevlli8lxsxm9/FzV4HXkV49TmBH38Yvrpce6fjbADGMKFrBMGTqrVz3qPIZ88Gg==}
+
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
 
@@ -6830,6 +6830,12 @@ packages:
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+
+  multiformats@13.4.2:
+    resolution: {integrity: sha512-eh6eHCrRi1+POZ3dA+Dq1C6jhP1GNtr9CRINMb67OKzqW9I5DUuZM/3jLPlzhgpGeiNUlEGEbkCYChXMCc/8DQ==}
+
+  multiformats@14.0.5:
+    resolution: {integrity: sha512-vbIm83F2yZ1pWJGS0yl0ysracIvv56LtbrIyiIQHoLdYDJOMoLfVFsXhh9DUH4SFdkdkFhucyWniihsNzVEjkQ==}
 
   multiformats@9.9.0:
     resolution: {integrity: sha512-HoMUjhH9T8DDBNT+6xzkrd9ga/XiBI4xLr58LJACwK6G3HTOPeMz4nB4KJs33L2BelrIJa7P0VuNaVF3hMYfjg==}
@@ -8613,18 +8619,12 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@ensdomains/address-encoder@1.0.0-rc.3':
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@noble/hashes': 1.8.0
-      '@scure/base': 1.2.6
-
   '@ensdomains/address-encoder@2.0.1':
     dependencies:
       '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
-      cborg: 6.1.4
+      cborg: 6.2.1
 
   '@ensdomains/address-encoder@3.0.0':
     dependencies:
@@ -8633,11 +8633,10 @@ snapshots:
       '@scure/base': 1.2.6
       cborg: 6.2.1
 
-  '@ensdomains/content-hash@3.1.0-rc.1':
+  '@ensdomains/content-hash@3.2.0':
     dependencies:
-      '@ensdomains/address-encoder': 1.0.0-rc.3
-      '@noble/curves': 1.9.7
-      '@scure/base': 1.2.6
+      '@multiformats/sha3': 4.0.0
+      multiformats: 13.4.2
 
   '@ensdomains/dnsprovejs@1.0.1':
     dependencies:
@@ -8650,11 +8649,11 @@ snapshots:
 
   '@ensdomains/ensjs-abi@5.0.5': {}
 
-  '@ensdomains/ensjs@5.2.12(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
+  '@ensdomains/ensjs@5.3.1(@ensdomains/dnsprovejs@1.0.1)(graphql@17.0.2)(viem@2.57.7(typescript@7.0.2)(zod@4.6.7))':
     dependencies:
       '@adraffy/ens-normalize': 1.10.1
       '@ensdomains/address-encoder': 2.0.1
-      '@ensdomains/content-hash': 3.1.0-rc.1
+      '@ensdomains/content-hash': 3.2.0
       '@ensdomains/ensjs-abi': 5.0.5
       cborg: 6.2.1
       dns-packet: 5.6.1
@@ -9448,6 +9447,11 @@ snapshots:
       - supports-color
 
   '@msgpack/msgpack@3.1.2': {}
+
+  '@multiformats/sha3@4.0.0':
+    dependencies:
+      js-sha3: 0.9.3
+      multiformats: 14.0.5
 
   '@napi-rs/wasm-runtime@1.2.5(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)':
     dependencies:
@@ -12624,8 +12628,6 @@ snapshots:
 
   caniuse-lite@1.0.30001816: {}
 
-  cborg@6.1.4: {}
-
   cborg@6.2.1: {}
 
   chai@5.3.3:
@@ -13339,6 +13341,8 @@ snapshots:
 
   js-sha256@0.10.1: {}
 
+  js-sha3@0.9.3: {}
+
   js-tokens@10.0.0: {}
 
   js-tokens@4.0.0: {}
@@ -13680,6 +13684,10 @@ snapshots:
       react-dom: 19.3.1(react@19.3.1)
 
   ms@2.1.3: {}
+
+  multiformats@13.4.2: {}
+
+  multiformats@14.0.5: {}
 
   multiformats@9.9.0: {}
 
