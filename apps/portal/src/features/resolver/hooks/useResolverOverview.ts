@@ -430,7 +430,10 @@ const toOverview = (
 ): ResolverOverview => {
   const boundNames = overview?.data.bound_names
   const resolverLinks = toLinks(links.rows.flatMap(toLinkedName))
-  const resolverRoles = roles.rows.map(toResolverRole)
+  // bigname keeps serving a revoked grant with no powers; it is no longer held.
+  const resolverRoles = roles.rows
+    .map(toResolverRole)
+    .filter(({ roleBitmap }) => BigInt(roleBitmap) !== 0n)
   return {
     address: resolver.address,
     nodeCount: boundNames
