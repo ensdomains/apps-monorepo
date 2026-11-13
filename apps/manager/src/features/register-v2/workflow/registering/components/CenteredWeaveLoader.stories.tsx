@@ -9,7 +9,7 @@ const meta = {
     name: 'blaze.eth',
     progress: 35,
     description: 'Waiting for commitment cooldown — register unlocks in 52s',
-    notice: 'Keep this browser open while your name is registered',
+    notice: 'Keep this browser open while your name is being registered',
   },
 } satisfies Meta<typeof CenteredWeaveLoader>
 
