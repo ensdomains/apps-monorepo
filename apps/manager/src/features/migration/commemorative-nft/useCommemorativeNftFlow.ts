@@ -7,6 +7,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
@@ -28,7 +29,6 @@ import {
   CommemorativeNftClaimError,
   decodeCommemorativeNftClaimError,
 } from './contract'
-import { trackNftEvent } from './diagnostics'
 import {
   type CommemorativeNftAdmission,
   type CommemorativeNftFlowStatus,
@@ -54,9 +54,12 @@ type UseCommemorativeNftFlowOptions = {
   readonly walletAddress: Address | undefined
 }
 
-type ClaimAction =
+type ClaimAction = {
+  readonly analytics: ReturnType<typeof startAnalyticsOperation>
+} & (
   | { readonly kind: 'submit' }
   | { readonly kind: 'check'; readonly claim: PendingNftClaim }
+)
 
 type NftOffer = ReturnType<typeof useCommemorativeNftOffer>
 
@@ -271,6 +274,7 @@ export const useCommemorativeNftFlow = ({
         action.kind === 'submit'
           ? await submitPendingNftClaim({
               wagmiConfig,
+              analytics: action.analytics,
               chainId,
               ownerAddress,
               walletAddress,
@@ -293,7 +297,12 @@ export const useCommemorativeNftFlow = ({
         setTxHash(hash)
       }
       onHash(claim.hash)
-      return reconcilePendingNftClaim({ wagmiConfig, claim, onHash })
+      return reconcilePendingNftClaim({
+        wagmiConfig,
+        claim,
+        onHash,
+        analytics: action.analytics,
+      })
     },
     onSuccess: async ({ claim, outcome }) => {
       if (outcome.status !== 'confirmed') return
@@ -307,8 +316,8 @@ export const useCommemorativeNftFlow = ({
       await queryClient.cancelQueries({ queryKey, exact: true })
       queryClient.setQueryData(queryKey, true)
     },
-    onError: async (error) => {
-      trackNftEvent('nft:claim_outcome', { outcome: 'error' })
+    onError: async (error, action) => {
+      action.analytics.capture('nft:claim_outcome', { outcome: 'error' })
       if (
         decodeCommemorativeNftClaimError(error).reason === 'already-claimed' &&
         ownerAddress
@@ -344,7 +353,11 @@ export const useCommemorativeNftFlow = ({
       return
     attemptedRecovery.current = pending.claim.hash
     claimInFlight.current = true
-    claimMutation.mutate({ kind: 'check', claim: pending.claim })
+    claimMutation.mutate({
+      kind: 'check',
+      claim: pending.claim,
+      analytics: startAnalyticsOperation(),
+    })
   }, [
     open,
     availability.featureEnabled,
@@ -416,7 +429,11 @@ export const useCommemorativeNftFlow = ({
     )
       return
     claimInFlight.current = true
-    claimMutation.mutate({ kind: 'check', claim: pending.claim })
+    claimMutation.mutate({
+      kind: 'check',
+      claim: pending.claim,
+      analytics: startAnalyticsOperation(),
+    })
   }, [scopeKey, pending.claim, queryClient, mutationKey, claimMutation])
   useEffect(() => {
     if (!canCheckStatus) return
@@ -485,7 +502,10 @@ export const useCommemorativeNftFlow = ({
     )
       return
     claimInFlight.current = true
-    claimMutation.mutate({ kind: 'submit' })
+    claimMutation.mutate({
+      kind: 'submit',
+      analytics: startAnalyticsOperation(),
+    })
   }, [scopeKey, canMint, claimMutation, mutationKey, queryClient])
   return {
     admission,

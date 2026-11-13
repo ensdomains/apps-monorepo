@@ -141,7 +141,10 @@ export function editRecordsReducer(
 // Custom Hook
 // ============================================================================
 
-export function useEditRecordsState(originalRecords: NameRecord[]) {
+export function useEditRecordsState(
+  originalRecords: NameRecord[],
+  onChange?: () => void,
+) {
   const [state, dispatch] = useReducer(
     editRecordsReducer,
     initialEditRecordsState,
@@ -166,19 +169,22 @@ export function useEditRecordsState(originalRecords: NameRecord[]) {
 
   // Action dispatchers
   const addRecord = (recordType: RecordType, key: string, value: string) => {
+    onChange?.()
     dispatch({ type: 'ADD_RECORD', recordType, key, value })
   }
 
   const deleteRecord = (record: EditableRecord) => {
+    onChange?.()
     dispatch({ type: 'DELETE_RECORD', record })
   }
 
   // useCallback needed because this is passed to EditRecordsTable's memoized columns
   const updateRecord = useCallback(
     (record: EditableRecord, newValue: string) => {
+      if (newValue !== record.value) onChange?.()
       dispatch({ type: 'UPDATE_RECORD', record, newValue, originalRecords })
     },
-    [originalRecords],
+    [originalRecords, onChange],
   )
 
   const discardAll = () => {

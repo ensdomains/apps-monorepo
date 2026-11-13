@@ -1,3 +1,4 @@
+import { createAnalyticsFlowId } from '@ens-apps/utils/posthog/flowId'
 import { useQuery } from '@tanstack/react-query'
 import { useBlocker } from '@tanstack/react-router'
 import { AlertCircle, UserCheck, Wallet } from 'lucide-react'
@@ -9,6 +10,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { useRegistrationFlowView } from '@/features/register/hooks/useRegistrationFlowView'
 import { useRegistrationResume } from '@/features/register/hooks/useRegistrationResume'
 import { useRegistrationSuccessRedirect } from '@/features/register/hooks/useRegistrationSuccessRedirect'
 import { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
@@ -31,6 +33,7 @@ type RegisterNameProps = {
 }
 
 export const RegisterName = ({ name }: RegisterNameProps) => {
+  const [analyticsFlowId] = useState(createAnalyticsFlowId)
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
@@ -49,7 +52,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     paid,
     startFlow,
     resumeFlow,
-  } = useRegistrationTransactions({ name, duration })
+  } = useRegistrationTransactions({ name, duration, analyticsFlowId })
 
   const resume = useRegistrationResume({
     name,
@@ -88,6 +91,20 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
 
   const isNameTaken =
     !isLoading && !isError && availability && !availability.isAvailable
+
+  useRegistrationFlowView({
+    name,
+    flowId: analyticsFlowId,
+    isVisible:
+      isNameValid &&
+      !isLoading &&
+      !isError &&
+      !isNameTaken &&
+      !isRegistering &&
+      !hasActiveRun &&
+      !isSuccess,
+    isPaymentVisible: isConnected,
+  })
 
   // Prevent navigation during registration
   useBlocker({

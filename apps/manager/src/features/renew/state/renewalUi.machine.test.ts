@@ -2,7 +2,7 @@ import {
   type HcaDisplayedDebit,
   HcaFundingDeclinedError,
 } from '@ens-apps/transaction-manager/helpers/hca-intent-funding'
-import { errAsync, okAsync } from 'neverthrow'
+import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createActor, waitFor } from 'xstate'
 import type { HcaRenewalL2Funding } from '@/features/renew/service/hcaRenewal'
@@ -10,6 +10,7 @@ import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSw
 import { renewalUiMachine } from './renewalUi.machine'
 
 const mocks = vi.hoisted(() => ({
+  capture: vi.fn(),
   getQueryClient: vi.fn(),
   invalidateQueries: vi.fn(),
   pollTransactionStatusActor: vi.fn(),
@@ -18,6 +19,11 @@ const mocks = vi.hoisted(() => ({
   submitRenewActor: vi.fn(),
   submitHcaRenewal: vi.fn(),
   getExpiry: vi.fn(),
+}))
+
+vi.mock('@/lib/posthog/events', () => ({
+  track: mocks.capture,
+  startAnalyticsOperation: () => ({ capture: mocks.capture }),
 }))
 
 vi.mock('@/features/profile/service/profileExpiry', () => ({
@@ -672,4 +678,160 @@ describe('renewal paid with ETH', () => {
     expect(mocks.readPaymentTokenAllowanceActor).not.toHaveBeenCalled()
     actor.stop()
   })
+})
+
+describe('renewal analytics operation lifetime', () => {
+  it.each(['approval', 'execution', 'verification'] as const)(
+    'attributes a renewal failure to %s',
+    async (stage) => {
+      const failure = errAsync(new Error('rejected'))
+      if (stage === 'approval') {
+        mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(0n))
+        mocks.pollTransactionStatusActor.mockReturnValue(failure)
+      } else if (stage === 'execution') {
+        mocks.submitRenewActor.mockReturnValue(failure)
+      } else {
+        mocks.pollTransactionStatusActor.mockReturnValue(failure)
+      }
+      const actor = startRenewal()
+      await waitForState(actor, 'failure')
+      expect(mocks.capture).toHaveBeenCalledWith(
+        'renewal:stage_fail',
+        expect.objectContaining({ stage }),
+      )
+      expect(
+        mocks.capture.mock.calls.filter(
+          ([event]) => event === 'renewal:stage_fail',
+        ),
+      ).toHaveLength(1)
+      actor.stop()
+    },
+  )
+
+  it.each(['eoa', 'smart-account'] as const)(
+    'captures a detached %s renewal even when stopped before submission returns',
+    async (route) => {
+      let queued = (_txId: string) => {}
+      const submission = new Promise<string>((resolve) => {
+        queued = resolve
+      })
+      let confirm = () => {}
+      const receipt = new Promise<void>((resolve) => {
+        confirm = resolve
+      })
+      mocks.submitRenewActor.mockReturnValue(
+        ResultAsync.fromSafePromise(submission),
+      )
+      mocks.pollTransactionStatusActor.mockReturnValue(
+        ResultAsync.fromSafePromise(receipt),
+      )
+      mocks.submitHcaRenewal.mockImplementation(async () => {
+        await submission
+        await receipt
+        return { txId: 'confirmed-intent', quotedFeeUsdc: 1n }
+      })
+      const actor = startRenewal('v2', route)
+      await waitFor(actor, (snapshot) =>
+        route === 'eoa'
+          ? snapshot.matches('submittingPlainRenewal')
+          : snapshot.matches('submittingHcaRenewal'),
+      )
+      const flowId = actor.getSnapshot().context.analytics.flow_id
+      actor.stop()
+      queued('queued-after-unmount')
+      if (route === 'eoa')
+        await vi.waitFor(() =>
+          expect(mocks.pollTransactionStatusActor).toHaveBeenCalledWith(
+            expect.objectContaining({ txId: 'queued-after-unmount' }),
+          ),
+        )
+      expect(
+        mocks.capture.mock.calls.filter(
+          ([event]) => event === 'renewal:flow_complete',
+        ),
+      ).toEqual([])
+      confirm()
+      await vi.waitFor(() =>
+        expect(mocks.capture).toHaveBeenCalledWith(
+          'renewal:flow_complete',
+          expect.objectContaining({
+            flow_id: flowId,
+            item_count: 1,
+            ens_name: 'alice.eth',
+          }),
+        ),
+      )
+      expect(
+        mocks.capture.mock.calls.filter(
+          ([event]) => event === 'renewal:flow_complete',
+        ),
+      ).toHaveLength(1)
+    },
+  )
+
+  it('starts a fresh flow after an abandoned attempt rather than sharing its completion scope', async () => {
+    mocks.submitHcaRenewal.mockRejectedValueOnce(new Error('attempt failed'))
+    const actor = startRenewal('v2', 'smart-account')
+    await waitForState(actor, 'failure')
+    const abandoned = actor.getSnapshot().context.analytics
+    actor.send({ type: 'cancel' })
+    actor.send({ type: 'pricing.step.next' })
+    actor.send(renewalStartEvent('smart-account', {}))
+    await waitForState(actor, 'success')
+    const fresh = actor.getSnapshot().context.analytics
+    expect(fresh.flow_id).not.toBe(abandoned.flow_id)
+    expect(fresh.claimCompletion).not.toBe(abandoned.claimCompletion)
+    expect(mocks.capture).toHaveBeenCalledWith(
+      'renewal:flow_complete',
+      expect.objectContaining({ flow_id: fresh.flow_id }),
+    )
+    actor.stop()
+  })
+
+  it.each(['eoa', 'smart-account'] as const)(
+    'deduplicates the %s operation outcome and UI success',
+    async (route) => {
+      const actor = startRenewal('v2', route)
+      await waitForState(actor, 'success')
+      expect(
+        mocks.capture.mock.calls.filter(
+          ([event]) => event === 'renewal:flow_complete',
+        ),
+      ).toHaveLength(1)
+      actor.stop()
+    },
+  )
+})
+
+it.each(['v1', 'v2'] as const)(
+  'attributes the %s renewal start and confirmed completion to its actual protocol',
+  async (protocol) => {
+    const actor = startRenewal(protocol)
+    await waitForState(actor, 'success')
+    const flowId = actor.getSnapshot().context.analytics.flow_id
+    expect(mocks.capture).toHaveBeenCalledWith(
+      'renewal:flow_start',
+      expect.objectContaining({ flow_id: flowId, protocol_version: protocol }),
+    )
+    expect(mocks.capture).toHaveBeenCalledWith(
+      'renewal:flow_complete',
+      expect.objectContaining({
+        flow_id: flowId,
+        protocol_version: protocol,
+        item_count: 1,
+      }),
+    )
+    actor.stop()
+  },
+)
+
+it('enters approval before execution on an EOA renewal', async () => {
+  const actor = startRenewal('v2')
+  await waitForState(actor, 'success')
+  expect(
+    mocks.capture.mock.calls
+      .filter(([event]) => event === 'renewal:stage_enter')
+      .map(([, properties]) => properties.stage),
+  ).toEqual(['approval', 'execution', 'verification'])
+  actor.stop()
 })

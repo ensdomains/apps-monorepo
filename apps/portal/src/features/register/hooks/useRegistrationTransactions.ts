@@ -11,6 +11,7 @@ import {
   transactionManager,
   useAtomicBatchSupport,
 } from '@ens-apps/transaction-manager'
+import { getRegistrationVerification } from '@ens-apps/transaction-manager/machines/registration/registration.verification'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useSearch } from '@tanstack/react-router'
@@ -39,6 +40,11 @@ import type { Transaction } from '@/features/transaction-manager/types'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { ensChain } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
+import {
+  createRegistrationAnalytics,
+  observeQueuedRegistrationReceipt,
+  subscribeRegistrationAnalytics,
+} from '../utils/registrationAnalytics'
 import { createRegistrationPersistenceAdapter } from '../utils/registrationPersistence'
 import type { ResumableRun } from './useRegistrationResume'
 
@@ -50,6 +56,7 @@ const ethRegistrar = getChainContractAddress({
 type UseRegistrationTransactionsParams = {
   readonly name: string
   readonly duration: number
+  readonly analyticsFlowId?: string
 }
 
 type SavedRegistrationParams = {
@@ -230,6 +237,7 @@ function buildSetupBundleStep({
 export const useRegistrationTransactions = ({
   name,
   duration,
+  analyticsFlowId,
 }: UseRegistrationTransactionsParams) => {
   const { referrer } = useSearch({ strict: false })
   const chainId = ensChain.id
@@ -267,6 +275,13 @@ export const useRegistrationTransactions = ({
   const actor: RegistrationMachineActor = useActorRef(registrationMachine, {
     input: { chainId },
   })
+  const analytics = useRef<ReturnType<
+    typeof createRegistrationAnalytics
+  > | null>(null)
+  const analyticsSubscription = useRef<ReturnType<
+    typeof subscribeRegistrationAnalytics
+  > | null>(null)
+
   // The machine stops bundling once the user declines the account upgrade; the
   // steps follow it.
   const isMachineBundling = useSelector(
@@ -416,6 +431,7 @@ export const useRegistrationTransactions = ({
       )
         transactionManager.cancelTransaction(id)
     }
+    analytics.current?.retry()
     actor.send({ type: 'RETRY' })
   }, [actor])
 
@@ -447,6 +463,12 @@ export const useRegistrationTransactions = ({
     }
     setResumed(null)
 
+    const pendingAnalytics = createRegistrationAnalytics(
+      chainId,
+      undefined,
+      analyticsFlowId,
+      name,
+    )
     const walletClient = await getWalletClient(config, {
       account: connection.address,
     })
@@ -477,8 +499,23 @@ export const useRegistrationTransactions = ({
 
     const signer = createEOASigner(walletClient)
 
+    analyticsSubscription.current?.unsubscribe()
+    analytics.current = pendingAnalytics
+    analyticsSubscription.current = subscribeRegistrationAnalytics(
+      actor,
+      pendingAnalytics,
+    )
+    analytics.current.start(false)
     actor.send({
       type: 'START_REGISTRATION',
+      onRegistrationQueued: (txId, verification) => {
+        observeQueuedRegistrationReceipt(
+          txId,
+          pendingAnalytics,
+          verification ??
+            getRegistrationVerification(actor.getSnapshot().context),
+        )
+      },
       referrer: normalizeReferrer(referrer, ENS_LABS_REFERRER),
       name,
       duration: BigInt(duration),
@@ -504,6 +541,7 @@ export const useRegistrationTransactions = ({
     refetchWalletResolver,
     canBatchAtomically,
     handleProceed,
+    analyticsFlowId,
   ])
 
   const handleDone = useCallback(() => {
@@ -694,15 +732,52 @@ export const useRegistrationTransactions = ({
       setApprovalPlanned(approvalNeeded)
       setIsSetupBundled(canBatchAtomically)
 
+      analyticsSubscription.current?.unsubscribe()
+      const resumedAnalytics = createRegistrationAnalytics(
+        chainId,
+        undefined,
+        analyticsFlowId,
+        record.context.name,
+      )
+      analytics.current = resumedAnalytics
+      analyticsSubscription.current = subscribeRegistrationAnalytics(
+        actor,
+        resumedAnalytics,
+      )
+      resumedAnalytics.start(true)
+      if (record.context.registrationTxId) {
+        observeQueuedRegistrationReceipt(
+          record.context.registrationTxId,
+          resumedAnalytics,
+          getRegistrationVerification({
+            ...actor.getSnapshot().context,
+            ...record.context,
+            signer,
+            publicClient,
+          }),
+        )
+      }
       actor.send({
         type: 'RESUME',
         stage: record.stage,
         context: record.context,
-        deps: { signer, publicClient, canBatchAtomically },
+        deps: {
+          signer,
+          publicClient,
+          canBatchAtomically,
+          onRegistrationQueued: (txId, verification) => {
+            observeQueuedRegistrationReceipt(
+              txId,
+              resumedAnalytics,
+              verification ??
+                getRegistrationVerification(actor.getSnapshot().context),
+            )
+          },
+        },
       })
       return true
     },
-    [actor, publicClient, canBatchAtomically],
+    [actor, publicClient, canBatchAtomically, analyticsFlowId],
   )
 
   const paid = savedParams

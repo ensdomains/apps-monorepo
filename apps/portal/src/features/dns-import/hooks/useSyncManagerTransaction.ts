@@ -3,6 +3,7 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import type { GetDnsImportDataReturnType } from '@ensdomains/ensjs/dns'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -14,6 +15,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { ensChain } from '@/lib/wagmi'
 import { prepareSyncManagerTransaction } from '../helpers/syncManager'
 import { getDnsImportDataResult } from '../queries/getDnsImportData'
@@ -73,6 +75,7 @@ export const useSyncManagerTransaction = ({
   const runSync = async () => {
     if (startedRef.current) return
     startedRef.current = true
+    const operation = startAnalyticsOperation()
     try {
       if (!proof) throw new Error('DNS proof not ready')
       const walletClient = await getWalletClient(config, {
@@ -97,6 +100,10 @@ export const useSyncManagerTransaction = ({
         },
       )
       await waitForTransaction(id)
+      operation.capture('dns:manager_sync', {
+        ...getAnalyticsNameProperties(name),
+        chain_id: CHAIN_ID,
+      })
     } catch (err) {
       console.error('Sync manager failed:', err)
       startedRef.current = false

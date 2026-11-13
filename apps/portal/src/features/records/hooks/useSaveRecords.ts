@@ -78,33 +78,38 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
 
   const mutation = useMutation({
     mutationFn: async (params: UseSaveRecordsParameters) => {
-      if (!isConnected) {
-        throw new Error('No account connected')
-      }
-
-      if (!walletClient || !publicClient) {
-        if (isWrongChain) {
-          throw new Error(
-            `Wrong network. Switch to ${ensChain.name} to save records.`,
-          )
+      try {
+        if (!isConnected) {
+          throw new Error('No account connected')
         }
 
-        throw new Error('Wallet not connected')
+        if (!walletClient || !publicClient) {
+          if (isWrongChain) {
+            throw new Error(
+              `Wrong network. Switch to ${ensChain.name} to save records.`,
+            )
+          }
+
+          throw new Error('Wallet not connected')
+        }
+
+        if (!walletClient.account) {
+          throw new Error('No account connected')
+        }
+
+        const signer = createEOASigner(walletClient)
+
+        return await saveRecords({
+          ...params,
+          walletClient,
+          publicClient,
+          signer,
+          chainId,
+        })
+      } catch (error) {
+        params.analyticsAttempt?.fail('preparation')
+        throw error
       }
-
-      if (!walletClient.account) {
-        throw new Error('No account connected')
-      }
-
-      const signer = createEOASigner(walletClient)
-
-      return saveRecords({
-        ...params,
-        walletClient,
-        publicClient,
-        signer,
-        chainId,
-      })
     },
     onSuccess: (_data, variables) => {
       // Start refetching with retry logic (don't await - let it run in background)

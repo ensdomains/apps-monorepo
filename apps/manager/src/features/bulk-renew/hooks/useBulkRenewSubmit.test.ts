@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   useRenewalSigner: vi.fn(),
   useHcaFundingPrompt: vi.fn(),
   invalidateQueries: vi.fn(),
+  capture: vi.fn(),
 }))
 
 // The hook imports the decline error from the package root, whose barrel pulls
@@ -57,6 +58,10 @@ vi.mock('@/features/profile/service/profileExpiry', () => ({
   getExpiry: mocks.getExpiry,
 }))
 vi.mock('@/lib/wagmi', () => ({ publicClient: {} }))
+vi.mock('@/lib/posthog/events', () => ({
+  track: mocks.capture,
+  startAnalyticsOperation: () => ({ capture: mocks.capture }),
+}))
 vi.mock('@/utils/router/root-context', () => ({
   getQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }))
@@ -172,6 +177,7 @@ describe('useBulkRenewSubmit (smart account)', () => {
 
     expect(result.current.phase).toBe('error')
     expect(result.current.errorMessage).toBe(WALLET_REQUIRED_MESSAGE)
+    expect(mocks.capture).not.toHaveBeenCalled()
     expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
     expect(mocks.submitRenewBatchActor).not.toHaveBeenCalled()
   })
@@ -190,6 +196,7 @@ describe('useBulkRenewSubmit (smart account)', () => {
 
     expect(result.current.phase).toBe('error')
     expect(result.current.errorMessage).toBe(ACCOUNT_LOADING_MESSAGE)
+    expect(mocks.capture).not.toHaveBeenCalled()
     expect(mocks.submitHcaRenewal).not.toHaveBeenCalled()
     expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
     expect(mocks.submitRenewBatchActor).not.toHaveBeenCalled()
@@ -790,4 +797,54 @@ it('cancels a detached bulk funding run before another chunk can submit', async 
   release({ txId: 'finished-first-chunk', quotedFeeUsdc: 1n })
   await act(async () => await running)
   expect(mocks.submitHcaRenewal).toHaveBeenCalledOnce()
+  expect(
+    mocks.capture.mock.calls.filter(
+      ([event]) => event === 'renewal:flow_complete',
+    ),
+  ).toEqual([])
 })
+
+it.each(['eoa', 'hca'] as const)(
+  'captures a completed %s bulk run after dashboard unmount without paying another chunk',
+  async (mode) => {
+    mocks.useSmartAccountContext.mockReturnValue(
+      mode === 'eoa' ? eoaAccount : hcaAccount,
+    )
+    mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(9_999_999n))
+    let confirm: () => void = () => undefined
+    const pending = new Promise<void>((resolve) => {
+      confirm = resolve
+    })
+    mocks.pollTransactionStatusActor.mockReturnValue(
+      ResultAsync.fromSafePromise(pending),
+    )
+    mocks.submitHcaRenewal.mockImplementation(() =>
+      pending.then(() => ({ txId: 'confirmed', quotedFeeUsdc: 1n })),
+    )
+    const { result, unmount } = renderHook(() => useBulkRenewSubmit())
+    let running = Promise.resolve()
+    await act(async () => {
+      running = result.current.submit(args)
+      for (let index = 0; index < 10; index += 1) await Promise.resolve()
+    })
+    const started = mocks.capture.mock.calls.find(
+      ([event]) => event === 'renewal:flow_start',
+    )?.[1]
+    unmount()
+    confirm()
+    await act(async () => await running)
+    expect(mocks.capture).toHaveBeenCalledWith('renewal:flow_complete', {
+      flow_id: started.flow_id,
+      is_bulk: true,
+      protocol_version: 'v2',
+      v1_item_count: 0,
+      v2_item_count: 3,
+      item_count: 3,
+    })
+    expect(
+      mocks.capture.mock.calls.filter(
+        ([event]) => event === 'renewal:flow_complete',
+      ),
+    ).toHaveLength(1)
+  },
+)

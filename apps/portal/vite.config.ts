@@ -12,6 +12,7 @@ import {
   assertDeploymentEnvironment,
   assertNetworkConfig,
 } from '../../packages/config/src/index'
+import { sourceMapsPlugin } from '../../packages/utils/src/posthog/sourceMapsPlugin.ts'
 import { PORTAL_ENDPOINTS } from './src/endpoints'
 
 const locales = dirname(
@@ -27,6 +28,14 @@ export default defineConfig(({ mode, command, isPreview }) => {
     endpoints: PORTAL_ENDPOINTS,
     allowMissingEndpoints: true,
   })
+  if (
+    command === 'build' &&
+    env.VITE_PUBLIC_POSTHOG_KEY &&
+    !env.POSTHOG_API_KEY
+  )
+    console.warn(
+      '[posthog] Source maps are not uploaded: POSTHOG_API_KEY is not configured for this build.',
+    )
   return {
     server: {
       port: 3001,
@@ -62,6 +71,25 @@ export default defineConfig(({ mode, command, isPreview }) => {
       viteReact(),
       i18nextLoader({ paths: [locales] }),
       tailwindcss(),
+      ...(command === 'build' &&
+      env.POSTHOG_API_KEY &&
+      env.POSTHOG_PROJECT_ID &&
+      env.VITE_PUBLIC_POSTHOG_KEY
+        ? [
+            sourceMapsPlugin({
+              personalApiKey: env.POSTHOG_API_KEY,
+              projectId: env.POSTHOG_PROJECT_ID,
+              host: env.POSTHOG_HOST,
+              cliBinaryPath: env.POSTHOG_CLI_BINARY_PATH,
+              sourcemaps: {
+                releaseName: 'ens-portal',
+                releaseVersion: process.env.GITHUB_SHA,
+                releaseMode: 'symbol-set',
+                deleteAfterUpload: true,
+              },
+            }),
+          ]
+        : []),
       ...(command === 'build' || isPreview ? [cloudflare()] : []),
     ],
     resolve: {

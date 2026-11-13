@@ -1,4 +1,5 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: focused machine tests use compact fixtures
+import type { RegistrationVerification } from '@ens-apps/transaction-manager/machines/registration/registration.verification'
 import type { Address } from 'viem'
 import { baseSepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,6 +14,10 @@ import { assign, createActor, createMachine } from 'xstate'
 type RegistrationStubEvent =
   | {
       type: 'START_REGISTRATION'
+      onRegistrationQueued?: (
+        txId: string,
+        verification?: RegistrationVerification,
+      ) => void
       primaryName?: string
       referrer?: `0x${string}`
       l2Funding?: { chain: { id: number } }
@@ -21,6 +26,7 @@ type RegistrationStubEvent =
       paymentTokenAddress?: Address
     }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
+  | { type: 'FORCE_REGISTRATION' }
   | { type: 'FORCE_SUCCESS' }
   | { type: 'FORCE_APPROVAL_SUCCESS' }
   | { type: 'FORCE_COMMITMENT_WITHOUT_TX_ID' }
@@ -38,6 +44,7 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     id: 'registrationStub',
     types: {} as { events: RegistrationStubEvent },
     on: {
+      FORCE_REGISTRATION: '.registeringDomain',
       FORCE_COMMITMENT_WITHOUT_TX_ID: {
         actions: assign({
           commitment: () => ({}),
@@ -52,6 +59,9 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     },
     context: {
       suspended: false,
+      onRegistrationQueued: undefined as
+        | ((txId: string, verification?: RegistrationVerification) => void)
+        | undefined,
       resolverAddress: undefined as Address | undefined,
       resolverTxId: 'tx-resolver',
       commitment: undefined as object | undefined,
@@ -87,6 +97,14 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           START_REGISTRATION: {
             target: 'running',
             actions: assign({
+              onRegistrationQueued: ({
+                event,
+              }: {
+                readonly event: Extract<
+                  RegistrationStubEvent,
+                  { type: 'START_REGISTRATION' }
+                >
+              }) => event.onRegistrationQueued,
               referrer: ({ event }) => event.referrer,
               primaryName: ({ event }) =>
                 event.type === 'START_REGISTRATION'
@@ -126,6 +144,23 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           RETRY: {
             actions: assign({
               retryCount: ({ context }) => context.retryCount + 1,
+            }),
+          },
+        },
+      },
+      registeringDomain: {
+        on: {
+          FORCE_ERROR: {
+            target: 'error',
+            actions: assign({
+              error: ({ event }) =>
+                event.type === 'FORCE_ERROR' ? event.error : undefined,
+              nameUnavailable: ({ event }) =>
+                event.type === 'FORCE_ERROR'
+                  ? event.nameUnavailable
+                  : undefined,
+              retryTarget: ({ event }) =>
+                event.type === 'FORCE_ERROR' ? event.retryTarget : undefined,
             }),
           },
         },
@@ -595,6 +630,24 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     walletClient: { account: { address: EOA_ADDRESS } } as any,
   } as unknown as SmartAccountContextValue
 
+  it('reports a registration failure against the observed child stage', async () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    const capture = vi.spyOn(actor.getSnapshot().context.analytics, 'capture')
+    sendToChild(actor, { type: 'FORCE_REGISTRATION' })
+    await flush()
+    sendToChild(actor, {
+      type: 'FORCE_ERROR',
+      error: new Error('registration failed'),
+    })
+    await flush()
+    expect(capture).toHaveBeenCalledWith(
+      'registration:stage_fail',
+      expect.objectContaining({ stage: 'registration' }),
+    )
+    actor.stop()
+  })
+
   describe.each(['EOA', 'HCA'])(
     '%s canonical primary-name registration',
     (mode) => {
@@ -620,6 +673,21 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       )
     },
   )
+
+  it('pins the submitted name on the detached completion owner after the UI stops', () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    const completion = actor.getSnapshot().context.registrationAnalytics
+    const queued = getChild(actor).getSnapshot().context.onRegistrationQueued
+    actor.stop()
+    expect(completion?.properties).toEqual({
+      flow_id: actor.getSnapshot().context.analytics.flow_id,
+      ens_name: 'example.eth',
+      chain_id: 11155111,
+      execution_method: 'eoa',
+    })
+    expect(queued).toBe(completion?.observe)
+  })
 
   it('keeps the registered Unicode label in both EOA primary-name legs', async () => {
     const actor = startActorInTokens()
@@ -652,6 +720,8 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     startPrimaryNameForward.mockReturnValueOnce(verification.promise)
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true }))
+    const analytics = actor.getSnapshot().context.analytics
+    const capture = vi.spyOn(analytics, 'capture')
     sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
     expect(
@@ -659,6 +729,12 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
         .getSnapshot()
         .matches({ registering: { transaction: 'settingPrimaryNameForward' } }),
     ).toBe(true)
+    expect(capture).toHaveBeenCalledWith('registration:flow_complete', {
+      flow_id: analytics.flow_id,
+      ens_name: 'example.eth',
+      chain_id: 11155111,
+      execution_method: 'eoa',
+    })
     expect(waitForKnownTransaction).not.toHaveBeenCalled()
     expect(startPrimaryNameReverse).not.toHaveBeenCalled()
     verification.reject(new Error('Name does not resolve to owner'))
@@ -668,6 +744,19 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toBe(true)
     expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
     expect(startPrimaryNameReverse).not.toHaveBeenCalled()
+    expect(
+      capture.mock.calls.filter(
+        ([name]) => name === 'registration:flow_complete',
+      ),
+    ).toHaveLength(1)
+    expect(capture).toHaveBeenCalledWith('registration:stage_fail', {
+      flow_id: analytics.flow_id,
+      ens_name: 'example.eth',
+      chain_id: 11155111,
+      execution_method: 'eoa',
+      stage: 'post_registration',
+      is_retryable: false,
+    })
     actor.stop()
   })
 

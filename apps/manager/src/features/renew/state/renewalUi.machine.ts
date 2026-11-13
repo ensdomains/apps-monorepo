@@ -13,6 +13,7 @@ import {
   submitApprovalActor,
   submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, WalletClient } from 'viem'
@@ -34,6 +35,12 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
+import {
+  type AnalyticsFlow,
+  bindAnalyticsFlow,
+  createAnalyticsFlow,
+  getAnalyticsExecutionMethod,
+} from '@/lib/posthog/flow'
 import { getRunPaymentToken, type RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -141,9 +148,70 @@ const requireRhinestoneSigner = (signer: Signer): RhinestoneSigner => {
   return signer
 }
 
+const getAnalyticsProperties = (
+  context: {
+    readonly analytics: AnalyticsFlow
+    readonly protocol: RenewalProtocol
+    readonly submissionData?: SubmissionData
+  },
+  chainId: number,
+) => ({
+  ...getAnalyticsNameProperties(
+    context.submissionData
+      ? `${context.submissionData.label}.eth`
+      : context.analytics.ens_name,
+  ),
+  flow_id: context.analytics.flow_id,
+  protocol_version: context.protocol,
+  chain_id: chainId,
+  execution_method: getAnalyticsExecutionMethod(
+    context.submissionData?.signer.type,
+  ),
+})
+
+const captureRenewalComplete = (
+  context: Parameters<typeof getAnalyticsProperties>[0],
+) => {
+  if (!context.analytics.claimCompletion()) return
+  context.analytics.capture('renewal:flow_complete', {
+    ...getAnalyticsProperties(context, envConfig.chain.id),
+    item_count: 1,
+  })
+}
+
+type RenewalReceiptInput = {
+  readonly txId: string
+  readonly completion: Parameters<typeof getAnalyticsProperties>[0]
+}
+
+const renewalReceipts = new WeakMap<
+  SubmissionData,
+  {
+    readonly txId: string
+    readonly status: ReturnType<typeof pollTransactionStatusActor>
+  }
+>()
+
+const startRenewalReceiptObservation = (input: RenewalReceiptInput) => {
+  const submission = requireSubmissionData(input.completion.submissionData)
+  const status = pollTransactionStatusActor({ txId: input.txId })
+  status.andTee(() => captureRenewalComplete(input.completion))
+  renewalReceipts.set(submission, { txId: input.txId, status })
+  return status
+}
+
+const getRenewalReceiptObservation = (input: RenewalReceiptInput) => {
+  const submission = requireSubmissionData(input.completion.submissionData)
+  const receipt = renewalReceipts.get(submission)
+  return receipt?.txId === input.txId
+    ? receipt.status
+    : startRenewalReceiptObservation(input)
+}
+
 export const renewalUiMachine = setup({
   types: {
     context: {} as {
+      readonly analytics: AnalyticsFlow
       currentExpiry: bigint
       protocol: RenewalProtocol
       renewerAddress: Address
@@ -168,6 +236,7 @@ export const renewalUiMachine = setup({
       paymentUpdate?: PaymentUpdateState
     },
     input: {} as {
+      readonly analyticsName?: string
       currentExpiry: bigint
       protocol: RenewalProtocol
       approvalFallback?: HcaFundingApprovalCapability
@@ -224,7 +293,7 @@ export const renewalUiMachine = setup({
       | { type: 'renewal.payment.accept' }
       | { type: 'retry' }
       | { type: 'cancel' }
-      | { type: 'label.changed' },
+      | { type: 'label.changed'; readonly analyticsName?: string },
     tags: '' as 'renewing',
   },
   actors: {
@@ -237,12 +306,29 @@ export const renewalUiMachine = setup({
         submitApprovalActor(input),
     ),
     submitRenewal: fromResultAsync(
-      (input: Parameters<typeof submitRenewActor>[0]) =>
-        submitRenewActor(input),
+      (
+        input: Parameters<typeof submitRenewActor>[0] & {
+          readonly completion: Parameters<typeof getAnalyticsProperties>[0]
+        },
+      ) => {
+        const { completion, ...submission } = input
+        return submitRenewActor(submission).andTee((txId) => {
+          startRenewalReceiptObservation({ txId, completion })
+        })
+      },
     ),
-    pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
-      return pollTransactionStatusActor(input)
-    }),
+    pollTransactionStatus: fromResultAsync(
+      (input: {
+        readonly txId: string
+        readonly completion?: Parameters<typeof getAnalyticsProperties>[0]
+      }) =>
+        input.completion
+          ? getRenewalReceiptObservation({
+              txId: input.txId,
+              completion: input.completion,
+            })
+          : pollTransactionStatusActor(input),
+    ),
     // The intent route submits and WAITS for the fill here, so there is nothing
     // left to poll afterwards.
     submitHcaRenewalIntent: fromPromise(
@@ -250,28 +336,30 @@ export const renewalUiMachine = setup({
         input,
         signal,
       }: {
-        input: Parameters<typeof submitHcaRenewal>[0]
+        input: Parameters<typeof submitHcaRenewal>[0] & {
+          readonly completion: Parameters<typeof getAnalyticsProperties>[0]
+        }
         signal: AbortSignal
       }) => {
-        const { confirmIncreasedPayment } = input
-        return (
-          await submitHcaRenewal({
-            ...input,
-            signal,
-            // An abandoned attempt never asks, and its open question is declined.
-            ...(confirmIncreasedPayment
-              ? {
-                  confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
-                    signal.aborted
-                      ? Promise.resolve(false)
-                      : Promise.race([
-                          confirmIncreasedPayment(prompt),
-                          declineOnAbort(signal),
-                        ]),
-                }
-              : {}),
-          })
-        ).txId
+        const { confirmIncreasedPayment, completion, ...submission } = input
+        const result = await submitHcaRenewal({
+          ...submission,
+          signal,
+          // An abandoned attempt never asks, and its open question is declined.
+          ...(confirmIncreasedPayment
+            ? {
+                confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
+                  signal.aborted
+                    ? Promise.resolve(false)
+                    : Promise.race([
+                        confirmIncreasedPayment(prompt),
+                        declineOnAbort(signal),
+                      ]),
+              }
+            : {}),
+        })
+        captureRenewalComplete(completion)
+        return result.txId
       },
     ),
     readExpiry: fromResultAsync(
@@ -296,6 +384,64 @@ export const renewalUiMachine = setup({
       params.expiry !== null && params.expiry > context.currentExpiry,
   },
   actions: {
+    resetAnalytics: assign({
+      analytics: ({ context, event }) =>
+        createAnalyticsFlow(
+          undefined,
+          event.type === 'label.changed'
+            ? event.analyticsName
+            : context.analytics.ens_name,
+        ),
+    }),
+    analyticsStart: ({ context }) =>
+      context.analytics.capture('renewal:flow_start', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+      }),
+    analyticsExecution: ({ context }) =>
+      context.analytics.capture('renewal:stage_enter', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: 'execution',
+      }),
+    analyticsApproval: ({ context }) =>
+      context.analytics.capture('renewal:stage_enter', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: 'approval',
+      }),
+    analyticsVerification: ({ context }) =>
+      context.analytics.capture('renewal:stage_enter', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: 'verification',
+      }),
+    analyticsPaymentSelect: ({ context, event }) => {
+      if (
+        !(
+          event.type === 'pricing.token.select' ||
+          event.type === 'pricing.fundingSource.select' ||
+          event.type === 'pricing.paymentAsset.select'
+        )
+      )
+        return
+      if (event.origin === 'fallback') return
+      context.analytics.capture('renewal:payment_option_select', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        payment_asset: context.paymentAsset,
+        funding_chain_id: context.fundingSourceChainId,
+      })
+    },
+    analyticsComplete: ({ context }) => captureRenewalComplete(context),
+    analyticsFailure: (
+      { context },
+      params: { readonly stage: 'approval' | 'execution' | 'verification' },
+    ) =>
+      context.analytics.capture('renewal:stage_fail', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+        stage: params.stage,
+        is_retryable: true,
+      }),
+    analyticsRetry: ({ context }) =>
+      context.analytics.capture('renewal:flow_retry', {
+        ...getAnalyticsProperties(context, envConfig.chain.id),
+      }),
     setDuration: assign({
       duration: ({ event, context }) =>
         event.type === 'pricing.duration.set'
@@ -384,6 +530,7 @@ export const renewalUiMachine = setup({
       lastErrorMessage: () => undefined,
     }),
     startRenewal: assign({
+      analytics: ({ context }) => bindAnalyticsFlow(context.analytics),
       lastErrorMessage: () => undefined,
       approvalTxId: () => undefined,
       renewalTxId: () => undefined,
@@ -432,6 +579,7 @@ export const renewalUiMachine = setup({
 }).createMachine({
   id: 'renewalUi',
   context: ({ input }) => ({
+    analytics: createAnalyticsFlow(undefined, input.analyticsName),
     currentExpiry: input.currentExpiry,
     protocol: input.protocol,
     renewerAddress: getRenewerAddress(input.protocol),
@@ -469,13 +617,13 @@ export const renewalUiMachine = setup({
               actions: 'clearPaymentPick',
             },
             'pricing.token.select': {
-              actions: 'setToken',
+              actions: ['setToken', 'analyticsPaymentSelect'],
             },
             'pricing.fundingSource.select': {
-              actions: 'setFundingSource',
+              actions: ['setFundingSource', 'analyticsPaymentSelect'],
             },
             'pricing.paymentAsset.select': {
-              actions: 'setPaymentAsset',
+              actions: ['setPaymentAsset', 'analyticsPaymentSelect'],
             },
             'pricing.dialog.dismiss': {
               target: 'duration',
@@ -487,7 +635,11 @@ export const renewalUiMachine = setup({
                 // the account itself.
                 guard: 'startsHcaRenewal',
                 target: '#renewalUi.submittingHcaRenewal',
-                actions: 'startRenewal',
+                actions: [
+                  'startRenewal',
+                  'analyticsStart',
+                  'analyticsExecution',
+                ],
               },
               {
                 // Only the account can be paid from an L2 or with ETH, so a
@@ -496,7 +648,7 @@ export const renewalUiMachine = setup({
                   event.l2Funding === undefined &&
                   event.ethFunding === undefined,
                 target: '#renewalUi.checkingAllowance',
-                actions: 'startRenewal',
+                actions: ['startRenewal', 'analyticsStart'],
               },
             ],
           },
@@ -541,7 +693,10 @@ export const renewalUiMachine = setup({
                 'keepAcceptedPayment',
               ],
             },
-            cancel: { target: '#renewalUi.pricing.tokens' },
+            cancel: {
+              target: '#renewalUi.pricing.tokens',
+              actions: 'resetAnalytics',
+            },
           },
         },
       },
@@ -551,6 +706,7 @@ export const renewalUiMachine = setup({
         input: ({ context, self }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
+            completion: context,
             onSubmitted: (txId: string) =>
               self.send({ type: 'renewal.submitted', txId }),
             confirmIncreasedPayment: (prompt: HcaFundingPrompt) =>
@@ -609,12 +765,15 @@ export const renewalUiMachine = setup({
           },
           {
             target: 'failure',
-            actions: assign({
-              lastErrorMessage: ({ event }) =>
-                event.error instanceof Error
-                  ? event.error.message
-                  : 'Renewal failed',
-            }),
+            actions: [
+              { type: 'analyticsFailure', params: { stage: 'execution' } },
+              assign({
+                lastErrorMessage: ({ event }) =>
+                  event.error instanceof Error
+                    ? event.error.message
+                    : 'Renewal failed',
+              }),
+            ],
           },
         ],
       },
@@ -622,6 +781,7 @@ export const renewalUiMachine = setup({
     // Read the connected EOA's current allowance to the registrar. This is the
     // EOA fallback route: the EOA is `msg.sender` and pays the price itself.
     checkingAllowance: {
+      entry: 'analyticsApproval',
       tags: 'renewing',
       invoke: {
         src: 'readPaymentTokenAllowance',
@@ -674,12 +834,15 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Token approval failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'approval' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Token approval failed',
+            }),
+          ],
         },
       },
     },
@@ -698,12 +861,15 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Token approval polling failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'approval' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Token approval polling failed',
+            }),
+          ],
         },
       },
     },
@@ -714,6 +880,7 @@ export const renewalUiMachine = setup({
       always: { target: 'submittingPlainRenewal' },
     },
     submittingPlainRenewal: {
+      entry: 'analyticsExecution',
       tags: 'renewing',
       invoke: {
         id: 'submitRenewal',
@@ -721,6 +888,7 @@ export const renewalUiMachine = setup({
         input: ({ context }) => {
           const submission = requireSubmissionData(context.submissionData)
           return {
+            completion: context,
             label: submission.label,
             referrer: submission.referrer,
             duration: submission.duration,
@@ -738,16 +906,20 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Renewal failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'execution' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Renewal failed',
+            }),
+          ],
         },
       },
     },
     waitingForRenewal: {
+      entry: 'analyticsVerification',
       tags: 'renewing',
       invoke: {
         src: 'pollTransactionStatus',
@@ -755,7 +927,7 @@ export const renewalUiMachine = setup({
           if (!context.renewalTxId) {
             throw new Error('renewalTxId is required')
           }
-          return { txId: context.renewalTxId }
+          return { txId: context.renewalTxId, completion: context }
         },
         onDone: {
           target: 'success',
@@ -763,12 +935,15 @@ export const renewalUiMachine = setup({
         },
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : 'Renewal failed',
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'verification' } },
+            assign({
+              lastErrorMessage: ({ event }) =>
+                event.error instanceof Error
+                  ? event.error.message
+                  : 'Renewal failed',
+            }),
+          ],
         },
       },
     },
@@ -799,19 +974,23 @@ export const renewalUiMachine = setup({
         ],
         onError: {
           target: 'failure',
-          actions: assign({
-            lastErrorMessage: () =>
-              "Couldn't confirm whether the last attempt renewed this name, so it wasn't retried. Please try again.",
-          }),
+          actions: [
+            { type: 'analyticsFailure', params: { stage: 'verification' } },
+            assign({
+              lastErrorMessage: () =>
+                "Couldn't confirm whether the last attempt renewed this name, so it wasn't retried. Please try again.",
+            }),
+          ],
         },
       },
     },
-    success: {},
+    success: { entry: 'analyticsComplete' },
     failure: {
       on: {
         retry: {
           target: 'checkingRenewed',
           actions: [
+            'analyticsRetry',
             'clearFailure',
             assign({
               approvalTxId: () => undefined,
@@ -821,7 +1000,7 @@ export const renewalUiMachine = setup({
         },
         cancel: {
           target: 'pricing',
-          actions: ['clearFailure', 'clearSubmission'],
+          actions: ['resetAnalytics', 'clearFailure', 'clearSubmission'],
         },
       },
     },
@@ -829,7 +1008,7 @@ export const renewalUiMachine = setup({
   on: {
     'label.changed': {
       target: '.pricing',
-      actions: ['clearFailure', 'clearSubmission'],
+      actions: ['resetAnalytics', 'clearFailure', 'clearSubmission'],
     },
   },
 })

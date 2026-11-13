@@ -1,83 +1,23 @@
-import type { FailedRunPayloadV2 } from '@ens-apps/transaction-manager'
-import type { CaptureOptions } from 'posthog-js'
-// Pre-bundled build so PostHog never injects runtime <script> tags that our
-// CSP would block. See provider.tsx for the full rationale.
+import { createAnalyticsTracker } from '@ens-apps/utils/posthog/createAnalyticsTracker'
+import { getConnection } from '@wagmi/core/actions'
 import posthog from 'posthog-js/dist/module.full.no-external'
+import { wagmiConfig } from '@/lib/wagmi'
 
-export type PostHogEvents = {
-  'nft:completion_check': {
-    outcome: 'complete' | 'incomplete' | 'reconciling' | 'error' | 'aborted'
-    duration_ms: number
-    remaining_count?: number
-  }
-  'nft:claim_outcome': {
-    outcome:
-      | 'submitted'
-      | 'minted'
-      | 'cancelled'
-      | 'replaced'
-      | 'reverted'
-      | 'pending'
-      | 'error'
-  }
-  'nft:renderer_fallback': {
-    reason: 'renderer_failed' | 'renderer_timeout' | 'reduced_motion'
-  }
-  'nft:download_failure': {
-    reason: 'network' | 'http' | 'timeout' | 'aborted' | 'unknown'
-  }
-  'name:search_selected': {
-    name: string
-    source: 'header_search'
-  }
+export type { AnalyticsEvents } from '@ens-apps/utils/posthog/eventContracts'
 
-  'wallet:connect': {
-    wallet_address: string
-    chain_id: number
-    wallet_connector: string
-  }
-
-  'wallet:disconnect': undefined
-
-  'intercom:booted': undefined
-
-  'tm:failed_run': {
-    tm_payload: FailedRunPayloadV2
-    tm_run_id: string
-    tm_tx_id: string
-    tm_status: 'error' | 'cancelled'
-    tm_failure_stage: string
-    tm_state_final: string
-    tm_chain_id?: number
-    tm_intent_type?: string
-    tm_request_type?: string
-    tm_signer_type?: string
-    tm_error_name?: string
-    tm_error_cause_name?: string
-    tm_hash?: string
-    tm_userop_hash?: string
-    tm_retry_count: number
-    tm_event_count: number
-    tm_truncated: boolean
-    tm_dropped_events: number
-    source_app: 'manager'
-    build_env: string
+export const getConnectedWalletAddress = (): string | null | undefined => {
+  try {
+    const connection = getConnection(wagmiConfig)
+    if (connection.status === 'disconnected') return null
+    if (connection.status !== 'connected') return undefined
+    return connection.address
+  } catch {
+    return undefined
   }
 }
 
-export type PostHogEvent = keyof PostHogEvents
-
-export function track<N extends PostHogEvent>(
-  name: N,
-  ...args: PostHogEvents[N] extends undefined ? [] : [PostHogEvents[N]]
-): void {
-  posthog.capture(name, args[0])
-}
-
-export function trackWithOptions<N extends PostHogEvent>(
-  name: N,
-  args: PostHogEvents[N],
-  options: CaptureOptions,
-): void {
-  posthog.capture(name, args, options)
-}
+export const { track, captureException, startAnalyticsOperation } =
+  createAnalyticsTracker({
+    client: posthog,
+    getConnectedWalletAddress,
+  })

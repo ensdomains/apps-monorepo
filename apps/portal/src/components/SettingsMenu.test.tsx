@@ -53,7 +53,8 @@ afterEach(() => {
   vi.unstubAllEnvs()
   posthog.__loaded = true
   posthog.stored = 'pending'
-  posthog.displaySurvey.mockClear()
+  posthog.displaySurvey.mockReset()
+  vi.restoreAllMocks()
 })
 
 describe('SettingsMenu', () => {
@@ -68,6 +69,21 @@ describe('SettingsMenu', () => {
       ignoreConditions: true,
       ignoreDelay: true,
     })
+  })
+
+  it('keeps settings usable if the feedback SDK throws', async () => {
+    posthog.stored = 'granted'
+    posthog.displaySurvey.mockImplementationOnce(() => {
+      throw new Error('SDK unavailable')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const user = await openMenu('survey-123')
+
+    await user.click(screen.getByRole('menuitem', { name: /feedback/i }))
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(screen.getByRole('menuitem', { name: /rpc: default/i }))
+
+    expect(await screen.findByTestId('rpc-dialog')).toBeInTheDocument()
   })
 
   it('hides feedback until analytics are accepted', async () => {

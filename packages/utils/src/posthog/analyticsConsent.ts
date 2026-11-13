@@ -14,8 +14,20 @@ type ConsentClient = {
   get_explicit_consent_status: () => AnalyticsConsent
 }
 
+export const getAnalyticsConsent = (
+  client: ConsentClient,
+): AnalyticsConsent | undefined => {
+  try {
+    return client.__loaded === true
+      ? client.get_explicit_consent_status()
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const hasAnalyticsConsent = (client: ConsentClient): boolean =>
-  client.__loaded === true && client.get_explicit_consent_status() === 'granted'
+  getAnalyticsConsent(client) === 'granted'
 
 const listeners = new Set<() => void>()
 
@@ -24,17 +36,21 @@ export const notifyAnalyticsConsent = (): void => {
   for (const listener of listeners) listener()
 }
 
+let poll: ReturnType<typeof setInterval> | undefined
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
-  // Another tab or ens.domains app can answer, and cookies fire no event, so
-  // look again on focus and every few seconds, well before PostHog's 5-minute
-  // flag refresh could send an identity the visitor has since declined.
-  window.addEventListener('focus', listener)
-  const poll = setInterval(listener, 5000)
+  if (listeners.size === 1) {
+    window.addEventListener('focus', notifyAnalyticsConsent)
+    poll = setInterval(notifyAnalyticsConsent, 5000)
+  }
   return () => {
     listeners.delete(listener)
-    window.removeEventListener('focus', listener)
-    clearInterval(poll)
+    if (listeners.size === 0) {
+      window.removeEventListener('focus', notifyAnalyticsConsent)
+      clearInterval(poll)
+      poll = undefined
+    }
   }
 }
 
@@ -44,6 +60,6 @@ export const useAnalyticsConsent = (
 ): AnalyticsConsent | undefined =>
   useSyncExternalStore(
     subscribe,
-    () => (client.__loaded ? client.get_explicit_consent_status() : undefined),
+    () => getAnalyticsConsent(client),
     () => undefined,
   )

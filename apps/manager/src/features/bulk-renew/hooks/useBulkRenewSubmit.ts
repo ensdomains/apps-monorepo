@@ -14,6 +14,7 @@ import {
   submitRenewBatchActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { ResultFn } from '@ens-apps/utils/neverthrow'
+import { createAnalyticsFlowId } from '@ens-apps/utils/posthog/flowId'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useSearch } from '@tanstack/react-router'
@@ -34,6 +35,7 @@ import {
 import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { type AnalyticsFlow, bindAnalyticsFlow } from '@/lib/posthog/flow'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import {
   useHcaFundingPrompt,
@@ -44,6 +46,7 @@ import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
 import { getBatchDisplayedDebit } from '../utils/batchDisplayedDebit'
+import { getBulkRenewalCompletionCount } from '../utils/bulkRenewalCompletion'
 
 type AttributedRenewItem = RenewItem & {
   readonly referrer: `0x${string}`
@@ -384,16 +387,39 @@ const rowReporters = (
   isCurrent: () => boolean,
   markStatus: (label: string, status: RowStatus) => void,
   completed: Set<string>,
+  reportCompletion: () => void,
 ): RowReporters => ({
   onActive: (label: string) => {
     if (isCurrent()) markStatus(label, 'active')
   },
   onDone: (label: string) => {
     completed.add(label)
+    reportCompletion()
     invalidateName(label)
     if (isCurrent()) markStatus(label, 'done')
   },
 })
+
+const createBulkRenewalCompletionReporter = (
+  analytics: AnalyticsFlow | undefined,
+  items: readonly RenewItem[],
+  completed: ReadonlySet<string>,
+) => {
+  let hasReportedCompletion = false
+  return () => {
+    const itemCount = getBulkRenewalCompletionCount(items, completed)
+    if (itemCount === undefined || hasReportedCompletion || !analytics) return
+    hasReportedCompletion = true
+    analytics.capture('renewal:flow_complete', {
+      flow_id: analytics.flow_id,
+      is_bulk: true,
+      protocol_version: 'v2',
+      item_count: itemCount,
+      v1_item_count: 0,
+      v2_item_count: itemCount,
+    })
+  }
+}
 
 /** Refresh a single renewed name's profile/expiry queries. */
 const invalidateName = (label: string) =>
@@ -479,6 +505,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const completedRef = useRef<Set<string>>(new Set())
   // Set by a failed run: the next submit re-reads expiries before paying.
   const failedRef = useRef(false)
+  const analyticsRef = useRef<AnalyticsFlow | undefined>(undefined)
   // Monotonic id for the active submission. Bumped on every `submit` and on
   // `reset`, so a superseded submission can detect it's stale and skip its UI
   // updates.
@@ -489,6 +516,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     runIdRef.current += 1
     completedRef.current = new Set()
     failedRef.current = false
+    analyticsRef.current = undefined
     declineFunding()
     setPhase('idle')
     setStatuses({})
@@ -499,6 +527,15 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     setStatuses((prev) => ({ ...prev, [label]: status }))
 
   const failWith = (error: Error) => {
+    const analytics = analyticsRef.current
+    analytics?.capture('renewal:stage_fail', {
+      flow_id: analytics.flow_id,
+      is_bulk: true,
+      protocol_version: 'v2',
+      stage: 'execution',
+      is_retryable: true,
+      completed_count: completedRef.current.size,
+    })
     failedRef.current = true
     setErrorMessage(error.message)
     setStatuses((prev) => {
@@ -575,6 +612,8 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     l2Payment: SubmitArgs['l2Payment'],
     ethPayment: SubmitArgs['ethPayment'],
     displayedDebit: SubmitArgs['displayedDebit'],
+    reporters: RowReporters,
+    signal: AbortSignal,
     isCirclePayment: SubmitArgs['isCirclePayment'],
   ) => {
     const funding = getBulkIntentFunding({
@@ -591,10 +630,10 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const renewed = await runHcaRenewals(
       { ...hca, paymentToken: funding.paymentToken },
       remaining,
-      rowReporters(isCurrent, markStatus, completedRef.current),
+      reporters,
       funding.shownDebit,
       { confirmApproval, confirmApprovalRecovery, onState: onApprovalState },
-      abortRef.current?.signal,
+      signal,
       funding.fundingSource,
     )
     if (!isCurrent()) return
@@ -620,6 +659,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     remaining: readonly AttributedRenewItem[],
     sumPriceRaw: bigint,
     isCurrent: () => boolean,
+    reporters: RowReporters,
   ) => {
     setPhase('authorizing')
     const authorized = await authorizeSpend(ctx, sumPriceRaw)
@@ -627,15 +667,33 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     if (authorized.isErr()) return failWith(authorized.error)
 
     setPhase('renewing')
-    const renewed = await runRenewals(
-      ctx,
-      remaining,
-      rowReporters(isCurrent, markStatus, completedRef.current),
-    )
+    const renewed = await runRenewals(ctx, remaining, reporters)
     if (!isCurrent()) return
     if (renewed.isErr()) return failWith(renewed.error)
 
     await finishSuccess(isCurrent)
+  }
+
+  const beginAnalytics = (itemCount: number) => {
+    if (!failedRef.current)
+      analyticsRef.current = bindAnalyticsFlow(createAnalyticsFlowId() ?? '')
+    const analytics = analyticsRef.current
+    analytics?.capture(
+      failedRef.current ? 'renewal:flow_retry' : 'renewal:flow_start',
+      {
+        v1_item_count: 0,
+        v2_item_count: itemCount,
+        flow_id: analytics.flow_id,
+        is_bulk: true,
+        protocol_version: 'v2',
+      },
+    )
+    analytics?.capture('renewal:stage_enter', {
+      flow_id: analytics.flow_id,
+      is_bulk: true,
+      protocol_version: 'v2',
+      stage: 'execution',
+    })
   }
 
   const submit = async ({
@@ -671,6 +729,8 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       return
     }
 
+    beginAnalytics(items.length)
+
     // A failed run may have renewed names it never recorded, so a retry
     // re-reads their expiries before paying again.
     if (failedRef.current && !(await recordLandedRenewals(items, isCurrent))) {
@@ -679,6 +739,20 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
 
     // Skip names already renewed in an earlier attempt (retry resumes failures).
     const completed = completedRef.current
+    const analytics = analyticsRef.current
+    const signal = abortRef.current.signal
+    const reportCompletion = createBulkRenewalCompletionReporter(
+      analytics,
+      items,
+      completed,
+    )
+    const reporters = rowReporters(
+      isCurrent,
+      markStatus,
+      completed,
+      reportCompletion,
+    )
+    reportCompletion()
     const remaining = items.filter((item) => !completed.has(item.label))
 
     setErrorMessage(undefined)
@@ -699,13 +773,16 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
         l2Payment,
         ethPayment,
         displayedDebit,
+        reporters,
+        signal,
         isCirclePayment,
       )
     if (isPaidFromAccount({ l2Payment, ethPayment }))
       return failWith(new Error(ACCOUNT_LOADING_MESSAGE))
     // `ctx` exists wherever `hca` does not — the guard above rejected the
     // no-context case.
-    if (ctx) return renewWithWallet(ctx, remaining, sumPriceRaw, isCurrent)
+    if (ctx)
+      return renewWithWallet(ctx, remaining, sumPriceRaw, isCurrent, reporters)
   }
 
   return {

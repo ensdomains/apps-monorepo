@@ -1,5 +1,5 @@
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { withRequestDeadline } from '../service/requestDeadline'
-import { trackNftEvent } from './diagnostics'
 
 class CommemorativeNftAssetRequestError extends Error {
   override readonly name = 'CommemorativeNftAssetRequestError'
@@ -36,6 +36,7 @@ export const downloadCommemorativeNftImage = async (params: {
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
 }): Promise<void> => {
+  const analytics = startAnalyticsOperation()
   try {
     const blob = await withRequestDeadline(
       async (signal) => {
@@ -58,7 +59,7 @@ export const downloadCommemorativeNftImage = async (params: {
     const saveBlob = params.saveBlob ?? saveBlobToFile
     saveBlob(blob, params.filename)
   } catch (error) {
-    trackNftEvent('nft:download_failure', {
+    analytics.capture('nft:download_failure', {
       reason: downloadFailureReason(error),
     })
     throw error

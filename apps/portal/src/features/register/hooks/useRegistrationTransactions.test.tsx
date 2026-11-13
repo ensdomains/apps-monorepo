@@ -6,7 +6,14 @@ import {
   type TransactionRequest,
   transactionManager,
 } from '@ens-apps/transaction-manager'
+import * as registrationActors from '@ens-apps/transaction-manager/machines/registration/registration.actors'
+import {
+  createCountingWallet,
+  testIntent,
+  testPublicClient,
+} from '@ens-apps/transaction-manager/test-utils/transactionActor'
 import { act, renderHook } from '@testing-library/react'
+import { ResultAsync } from 'neverthrow'
 import {
   type Address,
   createWalletClient,
@@ -26,6 +33,10 @@ import { useRegistrationTransactions } from './useRegistrationTransactions'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const wallet = vi.hoisted(() => ({ canBatchAtomically: false }))
+const analytics = vi.hoisted(() => ({ capture: vi.fn() }))
+vi.mock('@/lib/posthog/events', () => ({
+  startAnalyticsOperation: () => analytics,
+}))
 
 vi.mock('@ens-apps/transaction-manager', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/transaction-manager')>()),
@@ -319,5 +330,124 @@ it('resumes with the committed referrer even if the URL supplies a different one
   const result = resumeAtCommitPrompt(true)
   expect(result.current.actor.getSnapshot().context.referrer).toBe(
     `0x${'ab'.repeat(32)}`,
+  )
+})
+
+describe('registration queued outcome after actual hook cleanup', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    transactionManager.clear()
+  })
+
+  it.each([
+    { isVerified: true, queueTiming: 'before' },
+    { isVerified: true, queueTiming: 'after' },
+    { isVerified: true, queueTiming: 'resume_only' },
+    { isVerified: false, queueTiming: 'resume_only' },
+    { isVerified: true, queueTiming: 'resume_missing' },
+  ])(
+    'confirms verified=$isVerified for $queueTiming with a pending wallet',
+    async ({ isVerified, queueTiming }) => {
+      analytics.capture.mockClear()
+      let finishVerification = () => {}
+      const verification = new Promise<{
+        verified: boolean
+        registeredToOther: boolean
+        isUnregistered: boolean
+      }>((resolve) => {
+        finishVerification = () =>
+          resolve({
+            verified: isVerified,
+            registeredToOther: false,
+            isUnregistered: !isVerified,
+          })
+      })
+      vi.spyOn(
+        registrationActors,
+        'verifyRegistrationActor',
+      ).mockImplementation(() => ResultAsync.fromSafePromise(verification))
+      const wallet = createCountingWallet(OWNER)
+      wallet.hold()
+      const signer = wallet.signer
+      transactionManager.startTransaction(testIntent(OWNER), signer, {
+        id: REGISTRATION_TX_IDS.register,
+        publicClient: testPublicClient,
+      })
+      const transaction = transactionManager.getTransaction(
+        REGISTRATION_TX_IDS.register,
+      )
+      if (!transaction)
+        throw new Error('Registration transaction was not queued')
+      await waitFor(transaction, (snapshot) => snapshot.matches('submitting'))
+      if (queueTiming === 'resume_missing') {
+        transactionManager.cancelTransaction(REGISTRATION_TX_IDS.register)
+      }
+      const { result, unmount } = renderHook(() =>
+        useRegistrationTransactions({
+          name: 'leon.eth',
+          duration: 31_536_000,
+          analyticsFlowId: 'visible-flow',
+        }),
+      )
+      const record = buildRegistrationRecord(
+        'waitingForRegistration',
+        {
+          chainId: sepolia.id,
+          name: 'leon.eth',
+          duration: 31_536_000n,
+          selectedToken: 'USDC',
+          tokenPrice: 5_000_000n,
+          signer,
+          accountAddress: OWNER,
+          ownerAddress: OWNER,
+          resolverAddress: OWNER,
+          commitment: {
+            commitment: `0x${'ab'.repeat(32)}`,
+            secret: `0x${'cd'.repeat(32)}`,
+          },
+          registrationTxId: REGISTRATION_TX_IDS.register,
+        },
+        1,
+      )
+      act(() => {
+        result.current.resumeFlow({
+          record,
+          token: PAYMENT_TOKENS[0],
+          signer,
+          commitmentOnChain: true,
+          approvalNeeded: false,
+        })
+      })
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'registration:flow_resume',
+        expect.objectContaining({
+          flow_id: 'visible-flow',
+          ens_name: 'leon.eth',
+        }),
+      )
+      const onQueued =
+        result.current.actor.getSnapshot().context.onRegistrationQueued
+      if (!onQueued)
+        throw new Error('Registration submission callback was not installed')
+      if (queueTiming === 'before') onQueued(REGISTRATION_TX_IDS.register)
+      unmount()
+      if (queueTiming === 'after') onQueued(REGISTRATION_TX_IDS.register)
+      expect(
+        transactionManager.getTransaction(REGISTRATION_TX_IDS.register),
+      ).toBeUndefined()
+      expect(transaction.getSnapshot().context.hash).toBeUndefined()
+      await act(async () => {
+        finishVerification()
+        await verification
+      })
+      expect(result.current.actor.getSnapshot().value).toBe(
+        'verifyingRegistration',
+      )
+      expect(
+        analytics.capture.mock.calls
+          .filter(([name]) => name === 'registration:flow_complete')
+          .map(([name]) => name),
+      ).toEqual(isVerified ? ['registration:flow_complete'] : [])
+    },
   )
 })

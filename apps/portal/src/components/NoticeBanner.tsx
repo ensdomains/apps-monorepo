@@ -7,9 +7,13 @@ import {
   readDismissedNoticeId,
   storeDismissedNoticeId,
 } from '@ens-apps/utils/posthog/noticeDismissal'
+import {
+  useFeatureFlagEnabled,
+  useFeatureFlagPayload,
+} from '@ens-apps/utils/posthog/useFeatureFlags'
 import { useCssHeightVariable } from '@ens-apps/utils/useCssHeightVariable'
-import { useFeatureFlagEnabled, useFeatureFlagPayload } from '@posthog/react'
 import { XIcon } from 'lucide-react'
+import posthog from 'posthog-js/dist/module.full.no-external'
 import { useRef, useState } from 'react'
 import { envConfig } from '@/config'
 import { cn } from '@/lib/utils'
@@ -23,8 +27,8 @@ const VARIANT_CLASSES: Record<NoticeBannerVariant, string> = {
 
 /** Full-width strip at the top of the viewport; the sidebar and mobile header sit below it. */
 export const NoticeBanner = () => {
-  const isEnabled = useFeatureFlagEnabled(NOTICE_BANNER_FLAG)
-  const payload = useFeatureFlagPayload(NOTICE_BANNER_FLAG)
+  const isEnabled = useFeatureFlagEnabled(posthog, NOTICE_BANNER_FLAG)
+  const payload = useFeatureFlagPayload(posthog, NOTICE_BANNER_FLAG)
   const notice =
     isEnabled === true
       ? readNoticeBanner(payload, {

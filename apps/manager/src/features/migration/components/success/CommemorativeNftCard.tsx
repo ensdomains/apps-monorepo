@@ -10,12 +10,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
+import { track } from '@/lib/posthog/events'
 import { cn } from '@/lib/utils'
 import {
   buildCommemorativeNftRendererUrl,
   getCommemorativeNftConfig,
 } from '../../commemorative-nft/config'
-import { trackNftEvent } from '../../commemorative-nft/diagnostics'
 import {
   CommemorativeNftRendererSurface,
   nftRendererFrameClassName,
@@ -454,7 +454,7 @@ const ArtworkCard = ({
 
   useEffect(() => {
     if (shouldReduceMotion)
-      trackNftEvent('nft:renderer_fallback', { reason: 'reduced_motion' })
+      track('nft:renderer_fallback', { reason: 'reduced_motion' })
   }, [shouldReduceMotion])
 
   return (

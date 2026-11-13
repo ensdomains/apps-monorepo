@@ -1,3 +1,5 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
+import type { ProfileSaveAttempt } from '@ens-apps/utils/posthog/profileEditing'
 /**
  * Pure async function to save ENS record changes.
  *
@@ -25,6 +27,7 @@ import {
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 import { getIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { transformPendingChangesToSetRecords } from './transformPendingChanges'
 
@@ -51,6 +54,7 @@ export type SaveRecordsParameters = SaveRecordsTransactionParameters & {
   publicClient: PublicClient
   signer: Signer
   id: string
+  readonly analyticsAttempt?: ProfileSaveAttempt
 }
 
 export interface SaveRecordsResult {
@@ -167,19 +171,40 @@ export async function saveRecords(
 ): Promise<SaveRecordsResult> {
   const { name, publicClient, signer, chainId, id } = params
 
-  const intent = await prepareSaveRecordsTransaction(params)
+  const operation = params.analyticsAttempt ?? startAnalyticsOperation()
+  const nameProperties = getAnalyticsNameProperties(name)
+  let stage: 'preparation' | 'execution' = 'preparation'
+  try {
+    const intent = await prepareSaveRecordsTransaction(params)
+    stage = 'execution'
 
-  const txId = transactionManager.startTransaction(intent, signer, {
-    id,
-    description: `Update records for ${name}`,
-    publicClient,
-    chainId,
-  })
+    const txId = transactionManager.startTransaction(intent, signer, {
+      id,
+      description: `Update records for ${name}`,
+      publicClient,
+      chainId,
+    })
 
-  const result = await waitForTransaction(txId)
+    const result = await waitForTransaction(txId)
+    operation.capture('profile:records_update', {
+      ...nameProperties,
+      chain_id: chainId,
+      ...(params.analyticsAttempt?.flow_id
+        ? { flow_id: params.analyticsAttempt.flow_id }
+        : {}),
+      record_count:
+        params.pendingChanges.newRecords.length +
+        params.pendingChanges.editedValues.size +
+        params.pendingChanges.deletedIds.size,
+    })
 
-  return {
-    txId,
-    hash: result.hash,
+    params.analyticsAttempt?.complete()
+    return {
+      txId,
+      hash: result.hash,
+    }
+  } catch (error) {
+    params.analyticsAttempt?.fail(stage)
+    throw error
   }
 }

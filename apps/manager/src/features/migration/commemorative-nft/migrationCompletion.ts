@@ -4,6 +4,7 @@ import { getPublicClient, type Config as WagmiConfig } from '@wagmi/core'
 import { type Address, isAddress, type PublicClient, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
 import { bigname } from '@/lib/bigname'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import { abortablePublicClient } from '../service/abortablePublicClient'
 import { classifyNames } from '../service/classifyNames'
 import { getMigratedNamesCount } from '../service/getMigratedNamesCount'
@@ -24,7 +25,6 @@ import { reconcileMigrationRecovery } from '../service/reconcileMigrationRecover
 import { withRequestDeadline } from '../service/requestDeadline'
 import { getV1NamesForAddress } from '../service/v1Names'
 import { getCommemorativeNftContractAddress } from './config'
-import { trackNftEvent } from './diagnostics'
 import {
   getVerifiedNftMigrationCount,
   type VerifiedNftMigration,
@@ -201,20 +201,21 @@ const checkMigrationCompletion = async (
 export const fetchCommemorativeNftMigrationCompletion = async (
   params: CommemorativeNftMigrationCompletionParams,
 ): Promise<CommemorativeNftMigrationCompletion> => {
+  const analytics = startAnalyticsOperation()
   const startedAt = Date.now()
   try {
     const result = await withRequestDeadline(
       (signal) => checkMigrationCompletion({ ...params, signal }),
       { signal: params.signal, timeoutMs: 30_000 },
     )
-    trackNftEvent('nft:completion_check', {
+    analytics.capture('nft:completion_check', {
       outcome: result.status,
       duration_ms: Date.now() - startedAt,
       remaining_count: result.remainingNameCount,
     })
     return result
   } catch (error) {
-    trackNftEvent('nft:completion_check', {
+    analytics.capture('nft:completion_check', {
       outcome: params.signal?.aborted ? 'aborted' : 'error',
       duration_ms: Date.now() - startedAt,
     })
