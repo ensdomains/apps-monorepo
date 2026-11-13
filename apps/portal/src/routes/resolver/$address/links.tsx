@@ -65,6 +65,16 @@ export const Route = createFileRoute('/resolver/$address/links')({
   },
 })
 
+const NameProfileLink = ({ name }: { readonly name: string }) => (
+  <Link
+    to="/$name"
+    params={{ name }}
+    className="text-entity-name truncate min-w-0 rounded bg-accent-fill dark:bg-entity-bg text-accent-text px-1 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+  >
+    {name}
+  </Link>
+)
+
 const baseColumns: ColumnDef<ResolverLink>[] = [
   {
     id: 'name',
@@ -78,7 +88,7 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
           height="28px"
           rounded="rounded-sm"
         />
-        <span className="text-entity-base truncate">{row.original.name}</span>
+        <NameProfileLink name={row.original.name} />
         <CopyButton value={row.original.name} />
       </div>
     ),
@@ -105,7 +115,7 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
               height="28px"
               rounded="rounded-sm"
             />
-            <span className="text-entity-base truncate">{other}</span>
+            <NameProfileLink name={other} />
             <CopyButton value={other} />
           </div>
         ))}
@@ -339,9 +349,7 @@ function RouteComponent() {
                         height="28px"
                         rounded="rounded-sm"
                       />
-                      <span className="text-entity-base truncate">
-                        {row.original.name}
-                      </span>
+                      <NameProfileLink name={row.original.name} />
                       <CopyButton value={row.original.name} />
                     </div>
                     {canLink && (
@@ -370,9 +378,7 @@ function RouteComponent() {
                           height="24px"
                           rounded="rounded-sm"
                         />
-                        <span className="text-entity-base truncate">
-                          {other}
-                        </span>
+                        <NameProfileLink name={other} />
                         <CopyButton value={other} />
                       </div>
                     </div>

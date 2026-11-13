@@ -1,6 +1,14 @@
 import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from '@tanstack/react-router'
+import {
   act,
   cleanup,
   render,
@@ -9,7 +17,7 @@ import {
   within,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Profiler, type ReactNode } from 'react'
+import { Profiler } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import {
@@ -20,10 +28,8 @@ import { closeTransactionModal } from '@/features/transaction-manager/hooks/useT
 
 const ADDRESS = '0x1111111111111111111111111111111111111111'
 
-vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { readonly children: ReactNode }) => (
-    <a href="/">{children}</a>
-  ),
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
   createFileRoute: () => (options: Record<string, unknown>) => ({
     options,
     useParams: () => ({ address: ADDRESS }),
@@ -76,7 +82,7 @@ const overview = (...names: readonly string[]): ResolverOverview => ({
   eventsHasMore: false,
 })
 
-const mountPage = () => {
+const mountPage = async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   })
@@ -91,6 +97,22 @@ const mountPage = () => {
     true,
   )
   const commits = vi.fn()
+  const root = createRootRoute({ component: Outlet })
+  const index = createRoute({
+    getParentRoute: () => root,
+    path: '/',
+    component: LinksPage,
+  })
+  const profile = createRoute({
+    getParentRoute: () => root,
+    path: '/$name',
+    component: () => <div>Profile destination</div>,
+  })
+  const router = createRouter({
+    routeTree: root.addChildren([index, profile]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  })
+  await router.load()
   render(
     <QueryClientProvider client={client}>
       <Profiler
@@ -102,11 +124,11 @@ const mountPage = () => {
             throw new Error('Links render loop')
         }}
       >
-        <LinksPage />
+        <RouterProvider router={router} />
       </Profiler>
     </QueryClientProvider>,
   )
-  return { client, key }
+  return { client, key, router }
 }
 
 const table = () => within(screen.getByRole('table'))
@@ -127,9 +149,32 @@ afterEach(() => {
 })
 
 describe('resolver links table', () => {
+  it.each([0, 1, 2, 3])(
+    'navigates from name occurrence %i while keeping copy separate',
+    async (occurrence) => {
+      const user = userEvent.setup()
+      const { router } = await mountPage()
+      const links = await screen.findAllByRole('link', { name: 'alpha.eth' })
+      const link = links[occurrence]
+      if (!link) throw new Error('Missing name link')
+      expect(link).toHaveAttribute('href', '/alpha.eth')
+      const copy = link.parentElement?.querySelector('button')
+      if (!(copy instanceof HTMLElement))
+        throw new Error('Missing copy control')
+      await user.click(copy)
+      expect(await navigator.clipboard.readText()).toBe('alpha.eth')
+      expect(router.state.location.pathname).toBe('/')
+      link.focus()
+      await user.keyboard('{Enter}')
+      await waitFor(() =>
+        expect(router.state.location.pathname).toBe('/alpha.eth'),
+      )
+    },
+  )
+
   it('searches and restores rows without a render loop', async () => {
     const user = userEvent.setup()
-    mountPage()
+    await mountPage()
     await user.type(screen.getByPlaceholderText('Search...'), 'alpha')
     expect(table().getAllByRole('row')).toHaveLength(2)
     expect(
@@ -143,7 +188,7 @@ describe('resolver links table', () => {
 
   it('opens, cancels and reopens unlink confirmation without submitting', async () => {
     const user = userEvent.setup()
-    const { client } = mountPage()
+    const { client } = await mountPage()
     await user.click(bin('alpha.eth'))
     expect(await screen.findByRole('dialog')).toHaveTextContent('Unlink name')
     await user.click(screen.getByRole('button', { name: /^Close$/ }))
@@ -159,7 +204,7 @@ describe('resolver links table', () => {
 
   it('renders refreshed links while preserving the current search', async () => {
     const user = userEvent.setup()
-    const { client, key } = mountPage()
+    const { client, key } = await mountPage()
     await user.type(screen.getByPlaceholderText('Search...'), 'gamma')
     expect(table().getByText('No links match your search.')).toBeInTheDocument()
     await act(async () =>
