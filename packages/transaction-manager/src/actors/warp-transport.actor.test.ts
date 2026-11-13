@@ -312,6 +312,25 @@ describe('submitWarpTransaction', () => {
     )
   })
 
+  it('lets the orchestrator spend only the payment token when one is named', async () => {
+    const signer = createMockSigner()
+    const usdc = '0x240b0316Df57887DBBE58b586508b19e633a14aa' as Address
+
+    await submitWarpTransaction({
+      request: createRhinestoneRequest({
+        rhinestoneParams: { calls: MOCK_CALLS, paymentToken: usdc },
+      }),
+      signer,
+    })
+    await submitWarpTransaction({ request: createRhinestoneRequest(), signer })
+
+    const [pinned, unpinned] = vi
+      .mocked(signer.account.prepareTransaction)
+      .mock.calls.map(([params]) => params)
+    expect(pinned).toEqual(expect.objectContaining({ sourceAssets: [usdc] }))
+    expect(unpinned).not.toHaveProperty('sourceAssets')
+  })
+
   it('calls waitForExecution and returns receipt.fill.hash', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest()
