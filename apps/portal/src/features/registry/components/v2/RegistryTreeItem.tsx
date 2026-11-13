@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftRight, ArrowUpRight, TriangleAlert } from 'lucide-react'
-import { Fragment, type ReactNode, useState } from 'react'
+import { type CSSProperties, Fragment, type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -119,8 +119,13 @@ export const RegistryTreeItem = ({
   return (
     <Fragment>
       <div
-        className="flex flex-col md:gap-2 gap-0"
-        style={{ paddingLeft: `${50 * Math.max(index - 1, 0)}px` }}
+        className="flex min-w-0 flex-col md:gap-2 gap-0 pl-[min(var(--tree-indent),1rem)] lg:pl-[min(var(--tree-indent),20%)]"
+        // Bound dynamic ancestry spacing to leave room for labels at every depth.
+        style={
+          {
+            '--tree-indent': `${50 * Math.max(index - 1, 0)}px`,
+          } as CSSProperties
+        }
       >
         <div className="flex flex-col lg:flex-row lg:items-center justify-start md:gap-2 gap-0">
           {!isRoot ? (
@@ -128,6 +133,7 @@ export const RegistryTreeItem = ({
               <RegistryTreePathIcon />
               <EntityBadge
                 variant="name"
+                containerClassName="[&_[data-entity-chips]]:max-w-full [&_[data-entity-chips]]:flex-wrap"
                 name={levelName}
                 showAvatar
                 format="truncate"
@@ -195,6 +201,8 @@ const RegistryContractRow = ({
   <Fragment>
     <EntityBadge
       label={badgeLabel}
+      containerClassName="[&_[data-entity-chips]]:max-w-full [&_[data-entity-chips]]:flex-wrap"
+      format="wrap"
       variant="contract"
       className="font-normal"
       address={address}
@@ -206,7 +214,7 @@ const RegistryContractRow = ({
     {isDeployedRegistry ? <UntrustedRegistryBadge address={address} /> : null}
     {privilegeWarning}
     {showInlineMeta ? (
-      <div className="flex flex-row items-center justify-start gap-2 px-1 lg:px-0 pb-2.5 lg:pb-0">
+      <div className="flex flex-wrap items-center justify-start gap-2 px-1 lg:px-0 pb-2.5 lg:pb-0">
         <span className="text-entity-base text-muted-foreground">
           Chain ID: {chainId}
         </span>

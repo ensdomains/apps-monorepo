@@ -32,7 +32,7 @@ export const NameAvatar = ({
     '--width': width,
   } as CSSProperties
 
-  if (error || isLoading) {
+  if (isLoading) {
     return (
       <div
         style={sizeStyle}
@@ -45,13 +45,17 @@ export const NameAvatar = ({
     )
   }
 
-  if (avatar && avatar !== failedSrc)
+  if (error === null && avatar && avatar !== failedSrc)
     return (
       <img
         src={avatar}
         onError={() => setFailedSrc(avatar)}
         alt="avatar"
-        className={cn('shrink-0', rounded)}
+        style={sizeStyle}
+        className={cn(
+          'shrink-0 w-(--width) h-(--height) object-cover',
+          rounded,
+        )}
         height={height}
         width={width}
       />
