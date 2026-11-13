@@ -40,8 +40,8 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
 import { useDebounce } from '@/hooks/useDebounce'
+import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
-import { tw } from '@/utils/tailwind'
 
 type RoleFilter = 'owned' | 'managed'
 type Sort = `${SortField}-${SortDir}`
@@ -378,7 +378,7 @@ export const AddressProfileNamesList = ({
       </div>
 
       <div
-        className={tw(
+        className={cn(
           'flex w-full flex-col',
           isPlaceholderData && 'opacity-50 transition-opacity',
         )}

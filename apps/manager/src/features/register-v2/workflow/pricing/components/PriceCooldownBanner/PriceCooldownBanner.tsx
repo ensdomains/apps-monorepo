@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useState } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { PriceCooldownBannerHeader } from './PriceCooldownBannerHeader'
 import { PriceCooldownExpandedContent } from './PriceCooldownExpandedContent'
 import { PriceCooldownFeePills } from './PriceCooldownFeePills'
@@ -24,7 +24,7 @@ export const PriceCooldownBanner = ({
 
   return (
     <section
-      className={tw(
+      className={cn(
         'price-cooldown-banner flex flex-col gap-4 overflow-hidden rounded border border-ens-lapis-100 bg-ens-lapis-tint p-4',
         className,
       )}
@@ -43,7 +43,7 @@ export const PriceCooldownBanner = ({
       </div>
 
       <button
-        className={tw(
+        className={cn(
           'flex w-full items-center justify-center gap-1.5 border-ens-lapis-100 border-t pt-3',
           'font-medium font-mono text-ens-lapis-500 uppercase tracking-wider',
           'text-xs md:text-sm',
@@ -53,7 +53,7 @@ export const PriceCooldownBanner = ({
       >
         {expanded ? <Trans>Show less</Trans> : <Trans>How it works</Trans>}
         <MSymbol
-          className={tw(
+          className={cn(
             'ms-opsz-14 ms-wght-500 transition-transform',
             expanded ? 'rotate-180' : '',
           )}
@@ -65,7 +65,7 @@ export const PriceCooldownBanner = ({
           auto without JS measuring) + an opacity fade. The collapsed content
           stays mounted but is marked inert so it isn't tab-focusable. */}
       <div
-        className={tw(
+        className={cn(
           'grid transition-all duration-300 ease-out motion-reduce:transition-none',
           expanded
             ? 'grid-rows-[1fr] opacity-100'

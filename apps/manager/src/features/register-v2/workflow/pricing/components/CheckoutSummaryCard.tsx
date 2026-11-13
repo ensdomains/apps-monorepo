@@ -6,8 +6,8 @@ import ethCoinIcon from '@/assets/icons/eth-coin.svg'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { tw } from '@/utils/tailwind'
 import type { CheckoutAction } from '../lib/checkoutAvailability'
 import type { CheckoutSummary } from '../lib/checkoutSummary'
 import { AnimatedPrice } from './AnimatedPrice'
@@ -70,7 +70,7 @@ const TotalAmount = ({
   readonly className: string
 }) =>
   isPending ? (
-    <span aria-hidden="true" className={tw(className, PENDING_FIGURE)}>
+    <span aria-hidden="true" className={cn(className, PENDING_FIGURE)}>
       $00.00
     </span>
   ) : (
@@ -240,7 +240,7 @@ export const CheckoutSummaryCard = ({
 }) => (
   <Card className="flex-1 items-center justify-between gap-8 px-6 pt-12 pb-6 md:px-12">
     <div
-      className={tw(
+      className={cn(
         'flex w-full flex-1 flex-col items-center justify-center gap-3',
         isLoading && 'animate-pulse',
       )}

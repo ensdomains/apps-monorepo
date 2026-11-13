@@ -3,13 +3,12 @@ import { Plural, Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { tw } from '@/utils/tailwind'
 import type { DurationPresetData } from './durationPresets'
 
 const YEARLY_PRICE_STYLE = {
-  citrine: tw`text-ens-citrine-500 bg-ens-citrine-100`,
-  peridot: tw`text-ens-peridot-500 bg-ens-peridot-100`,
-  garnet: tw`text-ens-garnet-500 bg-ens-garnet-100`,
+  citrine: cn('bg-ens-citrine-100 text-ens-citrine-500'),
+  peridot: cn('bg-ens-peridot-100 text-ens-peridot-500'),
+  garnet: cn('bg-ens-garnet-100 text-ens-garnet-500'),
 } as const
 
 export const DurationPresetRow = ({
@@ -60,7 +59,7 @@ export const DurationPresetRow = ({
         </span>
 
         <div
-          className={tw(
+          className={cn(
             YEARLY_PRICE_STYLE[data.color],
             'flex h-5 items-center justify-center rounded-full px-2 font-[450] text-xs',
           )}

@@ -15,7 +15,7 @@ import {
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 import { useV1Renewable } from '@/features/renew/data/queries/v1Renewable.query'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { getV1NameStatus } from '../dashboardMigrationEligibility'
 import { type DashboardName, isHeldName } from '../dashboardNames'
 import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
@@ -318,7 +318,7 @@ export const MyNamesList = ({
         </div>
       ) : null}
 
-      <div className={tw`flex w-full flex-col`}>
+      <div className={cn('flex w-full flex-col')}>
         {match({ isPending, pageItems })
           .with({ isPending: true }, () => (
             <>

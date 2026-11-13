@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { type ReactNode, useEffect, useState } from 'react'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { getCommemorativeNftConfig } from '../../commemorative-nft/config'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
 import { getRendererSandbox } from './rendererSandbox'
@@ -89,7 +89,7 @@ export const CommemorativeNftRendererSurface = (
       {props.rendererUrl && source.rendererStatus !== 'failed' ? (
         <iframe
           aria-hidden={!showRenderer}
-          className={tw(
+          className={cn(
             nftRendererFrameClassName,
             'z-0 border-0 transition-opacity duration-300 ease-out motion-reduce:transition-none',
             showRenderer ? 'opacity-100' : 'opacity-0',

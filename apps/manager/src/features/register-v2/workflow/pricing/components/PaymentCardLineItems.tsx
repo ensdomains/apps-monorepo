@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { type MaterialSymbol, MSymbol } from '@/components/ui/material-symbol'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { AnimatedPrice } from './AnimatedPrice'
 
 type PaymentCardLineItemProps = {
@@ -20,7 +20,7 @@ const PaymentCardLineItem = ({
   showPlus = false,
 }: PaymentCardLineItemProps) => (
   <div
-    className={tw(
+    className={cn(
       'flex w-full items-center justify-between gap-4 whitespace-nowrap text-ens-lapis-500 text-sm',
       isLoading && 'animate-pulse',
     )}

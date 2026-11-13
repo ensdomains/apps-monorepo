@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import {
   ProfileSectionLoading,
   SkeletonBlock,
@@ -29,7 +29,7 @@ const SkeletonCardLoading = ({
         />
       </div>
       <SkeletonBlock
-        className={tw('h-[16.5px] rounded-sm xl:h-4.5', labelWidth)}
+        className={cn('h-[16.5px] rounded-sm xl:h-4.5', labelWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
@@ -38,7 +38,7 @@ const SkeletonCardLoading = ({
       shouldReduceMotion={shouldReduceMotion}
     />
     <SkeletonBlock
-      className={tw('h-[19.5px] max-w-full rounded-sm xl:h-5', valueWidth)}
+      className={cn('h-[19.5px] max-w-full rounded-sm xl:h-5', valueWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
   </Card>

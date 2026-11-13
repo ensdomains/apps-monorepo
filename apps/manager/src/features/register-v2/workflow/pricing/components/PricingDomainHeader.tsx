@@ -1,7 +1,7 @@
 import { useLingui } from '@lingui/react'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
+import { cn } from '@/lib/utils'
 import { getByteLength, getDomainHeaderSizeClasses } from '@/utils/domain'
-import { twm } from '@/utils/tailwind'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { EthNameText } from './EthNameText'
 
@@ -20,7 +20,7 @@ export const PricingDomainHeader = ({ label }: { label: string }) => {
         />
       )}
       <h1
-        className={twm(
+        className={cn(
           'font-semi-mono text-ens-gray leading-ens-none tracking-tighter',
           'wrap-break-word min-h-0 w-full',
           sizeClasses,

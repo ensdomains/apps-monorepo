@@ -1,5 +1,4 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import clsx from 'clsx'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { motion, useMotionValue, useTransform } from 'motion/react'
 import type { ComponentProps, ReactNode } from 'react'
@@ -8,7 +7,6 @@ import card_1_1 from '@/assets/pages/landing/card-1-1.webp'
 import card_1_2 from '@/assets/pages/landing/card-1-2.webp'
 import card_1_3 from '@/assets/pages/landing/card-1-3.webp'
 import { cn } from '@/lib/utils'
-import { tw } from '@/utils/tailwind'
 import { BgPattern, ChatBubble, Sparkle } from './components/primitives'
 
 type FeatureCard = {
@@ -21,8 +19,10 @@ type FeatureCard = {
 
 export const FEATURE_CARDS: FeatureCard[] = [
   {
-    className: tw`bg-ens-peridot-dust text-ens-peridot-core`,
-    indicatorClass: tw`border-ens-peridot-core data-active:bg-ens-peridot-core`,
+    className: cn('bg-ens-peridot-dust text-ens-peridot-core'),
+    indicatorClass: cn(
+      'border-ens-peridot-core data-active:bg-ens-peridot-core',
+    ),
     title: <Trans>One username everywhere</Trans>,
     description: (
       <Trans>
@@ -57,8 +57,8 @@ export const FEATURE_CARDS: FeatureCard[] = [
     ),
   },
   {
-    className: tw`bg-ens-garnet-dust text-ens-garnet-core`,
-    indicatorClass: tw`border-ens-garnet-core data-active:bg-ens-garnet-core`,
+    className: cn('bg-ens-garnet-dust text-ens-garnet-core'),
+    indicatorClass: cn('border-ens-garnet-core data-active:bg-ens-garnet-core'),
     title: <Trans>Verify authenticity and stay safe.</Trans>,
     description: (
       <Trans>
@@ -109,8 +109,8 @@ export const FEATURE_CARDS: FeatureCard[] = [
     ),
   },
   {
-    className: tw`bg-ens-lapis-dust text-ens-lapis-core`,
-    indicatorClass: tw`border-ens-lapis-core data-active:bg-ens-lapis-core`,
+    className: cn('bg-ens-lapis-dust text-ens-lapis-core'),
+    indicatorClass: cn('border-ens-lapis-core data-active:bg-ens-lapis-core'),
     title: <Trans>A simpler way to get paid.</Trans>,
     description: (
       <Trans>
@@ -236,7 +236,7 @@ export const FeaturesCarousel = () => {
               (index - offset + FEATURE_CARDS.length) % FEATURE_CARDS.length
             return (
               <CarouselCard
-                className={clsx(className, 'basis-(--s2-basis)')}
+                className={cn(className, 'basis-(--s2-basis)')}
                 data={data}
                 drag={cardIndex === 0 ? 'x' : false}
                 dragConstraints={{
@@ -288,7 +288,7 @@ export const FeaturesCarousel = () => {
               return (
                 <button
                   aria-label={t`Go to slide ${index + 1}`}
-                  className={clsx(
+                  className={cn(
                     'size-4 rounded-xs border-2 bg-transparent transition-colors',
                     indicatorClass,
                   )}

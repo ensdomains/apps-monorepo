@@ -5,7 +5,7 @@ import {
   PopoverTrigger,
 } from '@/components/base-ui/popover'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { UnreadDot } from '../notifications/UnreadBadge'
 import { floatingWrapperClassName } from '../shared/FloatingWrapper'
 import { AccountContent } from './AccountContent'
@@ -30,7 +30,7 @@ export const DesktopAccountSection = () => {
     <>
       <Popover onOpenChange={setOpen} open={open}>
         <PopoverTrigger
-          className={tw(floatingWrapperClassName, 'group relative')}
+          className={cn(floatingWrapperClassName, 'group relative')}
           ref={triggerRef}
         >
           <AccountTriggerContent />
