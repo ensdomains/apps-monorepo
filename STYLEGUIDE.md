@@ -1496,7 +1496,7 @@ The codebase uses `neverthrow` for functional error handling with `Result` types
 1. Use `Result<T, E>` for sync operations, `ResultAsync<T, E>` for async
 2. Create specific error classes extending `TaggedError`
 3. Always handle both success and error cases explicitly
-4. **Code that handles a Result has no try/catch.** Turn each throwing or rejecting call into a Result at the call site with `ResultAsync.fromPromise` or `Result.fromThrowable`. A plain try/catch is allowed only in a handler that touches no Result.
+4. **Code that handles a Result has no try/catch.** Turn each throwing or rejecting call into a Result at the call site with `fromPromise` (async), `fromSync` (sync) or `fromThrowable` (a reusable sync wrapper). A plain try/catch is allowed only in a handler that touches no Result.
 
 ### Creating Result Functions
 
@@ -3821,7 +3821,7 @@ const data: any = externalLibrary.getData()
 16. **Use neverthrow** - Functional error handling with `Result` types (🔴 Must)
 17. **TaggedError classes** - For discriminated error unions (🟡 Default)
 18. **ResultFn generators** - For clean error composition (🟡 Default)
-19. **No try/catch where a Result is handled** - Turn throwing calls into Results with `ResultAsync.fromPromise` or `Result.fromThrowable` (🔴 Must)
+19. **No try/catch where a Result is handled** - Turn throwing calls into Results with `fromPromise`, `fromSync` or `fromThrowable` (🔴 Must)
 
 #### React Patterns
 
