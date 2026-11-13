@@ -1,8 +1,10 @@
+import { LATEST_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireResourceIdForName } from '@/lib/resource/resourceId'
+import { ensChain } from '@/lib/wagmi'
 import { ChangeResolverForm } from './ChangeResolverForm'
 
 // Captures the transaction descriptors so the tests can drive the lifecycle
@@ -380,5 +382,75 @@ describe('ChangeResolverForm', () => {
       to: '/$name/resolver',
       params: { name },
     })
+  })
+
+  describe('for a V1 name', () => {
+    const v1Target = { protocol: 'ENSv1', isWrapped: false } as const
+    const latest = LATEST_V1_PUBLIC_RESOLVERS[ensChain.id]
+
+    it('sets the latest public resolver by default', () => {
+      render(<ChangeResolverForm name={name} target={v1Target} />)
+
+      expect(
+        screen.getByRole('radio', { name: 'Use latest resolver' }),
+      ).toBeChecked()
+      expect(screen.getByRole('link', { name: /Etherscan/ })).toHaveAttribute(
+        'href',
+        `https://sepolia.etherscan.io/address/${latest}`,
+      )
+      transactionById('tx-change-resolver')?.onStart?.()
+      expect(mockChangeResolver).toHaveBeenCalledWith(latest)
+    })
+
+    it('sets the typed address once custom resolver is picked', async () => {
+      const user = userEvent.setup()
+      render(<ChangeResolverForm name={name} target={v1Target} />)
+
+      const input = screen.getByLabelText('Custom resolver address')
+      expect(input).toBeDisabled()
+      await user.click(screen.getByRole('radio', { name: 'Custom resolver' }))
+      await user.type(input, '0xabcdef123456789012345678901234567890abcd')
+
+      transactionById('tx-change-resolver')?.onStart?.()
+      expect(mockChangeResolver).toHaveBeenCalledWith(
+        '0xabcdef123456789012345678901234567890abcd',
+      )
+    })
+
+    it('offers only a custom resolver once the name is on the latest', () => {
+      render(
+        <ChangeResolverForm
+          name={name}
+          target={v1Target}
+          currentResolverAddress={latest}
+        />,
+      )
+
+      expect(
+        screen.getByRole('radio', { name: 'Use latest resolver' }),
+      ).toBeDisabled()
+      expect(
+        screen.getByRole('radio', { name: 'Custom resolver' }),
+      ).toBeChecked()
+      expect(
+        screen.getByText('You are on the latest resolver'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Save changes/i }),
+      ).toBeDisabled()
+    })
+  })
+
+  it('does not offer the V1 public resolver to a V2 name', async () => {
+    const user = userEvent.setup()
+    render(<ChangeResolverForm name={name} target={target} />)
+
+    await user.click(
+      screen.getByRole('switch', { name: /Use custom resolver/i }),
+    )
+
+    expect(
+      screen.queryByRole('radio', { name: 'Use latest resolver' }),
+    ).not.toBeInTheDocument()
   })
 })

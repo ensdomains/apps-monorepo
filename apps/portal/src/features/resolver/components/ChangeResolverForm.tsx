@@ -1,8 +1,15 @@
+import { LATEST_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
+import {
+  ArrowLeftIcon,
+  ArrowUpRight,
+  ChevronDown,
+  CircleCheckIcon,
+} from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -12,6 +19,7 @@ import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Switch } from '@/components/ui/switch'
 import {
   prepareSetResolverTransaction,
@@ -25,10 +33,17 @@ import {
 import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserPermissionedResolvers'
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
 import { getResolverAddressError } from '@/features/resolver/utils/getResolverAddressError'
+import {
+  getResolverChoice,
+  type ResolverChoice,
+  type ResolverChoiceSelection,
+} from '@/features/resolver/utils/getResolverChoice'
 import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ensChain } from '@/lib/wagmi'
+import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 
 const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-permissioned-resolver'
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
@@ -55,9 +70,11 @@ function useAutoSelectFirstResolver(
 const CustomResolverAddressInput = ({
   value,
   onChange,
+  isDisabled = false,
 }: {
   readonly value: string
   readonly onChange: (value: string) => void
+  readonly isDisabled?: boolean
 }) => {
   // The value outlives this input when custom resolver is toggled off and on,
   // so a remount with a value already in it starts touched.
@@ -71,6 +88,7 @@ const CustomResolverAddressInput = ({
         id="resolver-address"
         placeholder="0x..."
         value={value}
+        disabled={isDisabled}
         aria-invalid={error !== null}
         aria-describedby={error ? errorId : undefined}
         onChange={(event) => onChange(event.target.value.trim())}
@@ -85,14 +103,108 @@ const CustomResolverAddressInput = ({
   )
 }
 
+const ResolverAddressField = ({
+  isV1,
+  latestAddress,
+  resolverChoice,
+  onChoiceChange,
+  typedAddress,
+  onTypedAddressChange,
+}: {
+  readonly isV1: boolean
+  readonly latestAddress: Address
+  readonly resolverChoice: ResolverChoiceSelection
+  readonly onChoiceChange: (choice: ResolverChoice) => void
+  readonly typedAddress: string
+  readonly onTypedAddressChange: (value: string) => void
+}) => {
+  const etherscanHref = useBlockExplorerAddressUrl(latestAddress, ensChain.id)
+  const input = (
+    <CustomResolverAddressInput
+      value={typedAddress}
+      onChange={onTypedAddressChange}
+      isDisabled={resolverChoice.choice === 'latest'}
+    />
+  )
+
+  if (!isV1)
+    return (
+      <div className="flex flex-col gap-3">
+        <Label
+          htmlFor="resolver-address"
+          info="Address of the resolver contract to set on this name"
+        >
+          Contract address
+        </Label>
+        {input}
+      </div>
+    )
+
+  return (
+    <RadioGroup
+      value={resolverChoice.choice}
+      onValueChange={(value) =>
+        onChoiceChange(value === 'latest' ? 'latest' : 'custom')
+      }
+      className="gap-5"
+    >
+      <div className="flex items-start gap-3">
+        <RadioGroupItem
+          id="resolver-choice-latest"
+          value="latest"
+          disabled={resolverChoice.isOnLatest}
+          className="mt-0.5"
+        />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <label htmlFor="resolver-choice-latest" className="cursor-pointer">
+              Use latest resolver
+            </label>
+            {etherscanHref ? (
+              <ExternalLink
+                href={etherscanHref}
+                className="inline-flex items-center gap-1 text-p text-primary underline-offset-4 hover:underline"
+              >
+                Etherscan
+                <ArrowUpRight className="size-3.5" />
+              </ExternalLink>
+            ) : null}
+          </div>
+          {resolverChoice.isOnLatest ? (
+            <p className="text-p text-muted-foreground">
+              You are on the latest resolver
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <RadioGroupItem id="resolver-choice-custom" value="custom" />
+          <label htmlFor="resolver-choice-custom" className="cursor-pointer">
+            Custom resolver
+          </label>
+        </div>
+        <div className="pl-8">
+          <label htmlFor="resolver-address" className="sr-only">
+            Custom resolver address
+          </label>
+          {input}
+        </div>
+      </div>
+    </RadioGroup>
+  )
+}
+
 interface ChangeResolverFormProps {
   readonly name: string
   readonly target: ResolverWriteTarget
+  readonly currentResolverAddress?: Address | null
 }
 
 export const ChangeResolverForm = ({
   name,
   target,
+  currentResolverAddress,
 }: ChangeResolverFormProps) => {
   const { address: connectedAddress } = useConnection()
   const navigate = useNavigate()
@@ -104,6 +216,15 @@ export const ChangeResolverForm = ({
   const useCustomResolver = isV1 || customResolverPreference
   const [deployNewResolver, setDeployNewResolver] = useState(false)
   const [resolverAddress, setResolverAddress] = useState('')
+  const [pickedChoice, setPickedChoice] = useState<ResolverChoice | null>(null)
+  const latestResolverAddress = LATEST_V1_PUBLIC_RESOLVERS[ensChain.id]
+  const resolverChoice = getResolverChoice({
+    isV1,
+    pickedChoice,
+    typedAddress: resolverAddress,
+    latestAddress: latestResolverAddress,
+    currentAddress: currentResolverAddress,
+  })
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
   const deployedResolverAddressRef = useRef<Address | null>(null)
 
@@ -172,7 +293,9 @@ export const ChangeResolverForm = ({
   // it can drive the pre-start gas estimate.
   const customResolverToUse = match({ useCustomResolver })
     .with({ useCustomResolver: true }, () =>
-      isAddress(resolverAddress) ? (resolverAddress as Address) : null,
+      isAddress(resolverChoice.address)
+        ? (resolverChoice.address as Address)
+        : null,
     )
     .with({ useCustomResolver: false }, () =>
       isAddress(selectedExistingResolver)
@@ -229,7 +352,7 @@ export const ChangeResolverForm = ({
       if (!connectedAddress) return
 
       if (useCustomResolver) {
-        if (!isAddress(resolverAddress)) return
+        if (!isAddress(resolverChoice.address)) return
         attempt.start(connectedAddress)
         return
       }
@@ -249,7 +372,7 @@ export const ChangeResolverForm = ({
   const isSubmitDisabled = getIsSubmitDisabled({
     walletOk,
     useCustomResolver,
-    resolverAddress,
+    resolverAddress: resolverChoice.address,
     deployNewResolver,
     selectedExistingResolver,
   })
@@ -290,18 +413,14 @@ export const ChangeResolverForm = ({
       )}
 
       {useCustomResolver ? (
-        <div className="flex flex-col gap-3">
-          <Label
-            htmlFor="resolver-address"
-            info="Address of the resolver contract to set on this name"
-          >
-            Contract address
-          </Label>
-          <CustomResolverAddressInput
-            value={resolverAddress}
-            onChange={setResolverAddress}
-          />
-        </div>
+        <ResolverAddressField
+          isV1={isV1}
+          latestAddress={latestResolverAddress}
+          resolverChoice={resolverChoice}
+          onChoiceChange={setPickedChoice}
+          typedAddress={resolverAddress}
+          onTypedAddressChange={setResolverAddress}
+        />
       ) : (
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">

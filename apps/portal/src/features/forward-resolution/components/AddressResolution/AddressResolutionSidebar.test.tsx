@@ -2,6 +2,7 @@ import type { Row } from '@tanstack/react-table'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import type { AddressResolutionRow } from './types'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
@@ -77,6 +78,11 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: () => null,
 }))
 vi.mock('@/lib/wagmi', () => ({ ensChain: { id: 11155111 } }))
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+    <a href={to}>{children}</a>
+  ),
+}))
 vi.mock('@ens-apps/l2-primary/v1', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/l2-primary/v1')>()),
   getRegistrarAddress: () => '0x3333333333333333333333333333333333333333',
@@ -102,12 +108,14 @@ const mainnetRow = (address: Address): Row<AddressResolutionRow> =>
 const renderSidebar = (
   row: Row<AddressResolutionRow>,
   resolverAddress?: Address,
+  v1ResolverAddress?: Address,
 ) =>
   render(
     <AddressResolutionSidebar
       row={row}
       name="attacker.eth"
       resolverAddress={resolverAddress}
+      v1ResolverAddress={v1ResolverAddress}
       open
       setOpen={vi.fn()}
     />,
@@ -181,6 +189,41 @@ describe('AddressResolutionSidebar', () => {
         screen.queryByText(/^Invalid MAINNET address/),
       ).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    })
+  })
+
+  describe('on an older V1 public resolver', () => {
+    // Sepolia's previous PublicResolver, which has no default address.
+    const OLDER_RESOLVER =
+      '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address
+    const defaultRow = (address: Address): Row<AddressResolutionRow> =>
+      ({
+        original: {
+          ...mainnetRow(address).original,
+          coinType: DEFAULT_EVM_COIN_TYPE,
+          label: 'Default',
+          addressSource: 'record',
+        },
+      }) as Row<AddressResolutionRow>
+
+    it('warns the owner before setting a default primary name', () => {
+      renderSidebar(defaultRow(OWNER), RESOLVER, OLDER_RESOLVER)
+
+      expect(screen.getByText('Update the resolver first')).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: 'Change resolver' }),
+      ).toHaveAttribute('href', '/$name/change-resolver')
+    })
+
+    it('does not warn a visitor who cannot set the primary name', () => {
+      connectedAddress = VISITOR
+      isOwner = false
+
+      renderSidebar(defaultRow(VISITOR), RESOLVER, OLDER_RESOLVER)
+
+      expect(
+        screen.queryByText('Update the resolver first'),
+      ).not.toBeInTheDocument()
     })
   })
 })

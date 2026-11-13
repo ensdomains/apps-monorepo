@@ -36,6 +36,7 @@ import {
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
+import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/address')({
@@ -83,6 +84,12 @@ function RouteComponent() {
   const [sorting, setSorting] = useState<SortingState>([])
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const isV1 = ownerQuery.data?.protocolVersion === 'ENSv1'
+  // The name's own V1 registry resolver; the UniversalResolver can report a mirror instead.
+  const v1StateQuery = useQuery({
+    ...getV1NameStateQueryOptions({ name }),
+    enabled: isV1,
+  })
   const profileQuery = useQuery({
     ...getProfileQueryOptions({ name }),
   })
@@ -223,6 +230,9 @@ function RouteComponent() {
         table={table}
         name={name}
         resolverAddress={resolverAddress ?? undefined}
+        v1ResolverAddress={
+          isV1 ? v1StateQuery.data?.resolverAddress : undefined
+        }
       />
     </>
   )
