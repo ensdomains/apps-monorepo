@@ -24,6 +24,12 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
+function verdictFrom(stdout) {
+  const line = stdout.split('\n').find((entry) => entry.startsWith('{'))
+  if (!line) throw new Error(`no JSON verdict in ${stdout}`)
+  return JSON.parse(line)
+}
+
 test('guard-command blocks the banned typecheck and full-suite forms', () => {
   const blocked = [
     'npx tsc --noEmit',
@@ -195,14 +201,14 @@ test('guard-command exits 2, and report-only does not', () => {
     encoding: 'utf8',
   })
   assert.equal(blocked.status, 2)
-  assert.equal(JSON.parse(blocked.stdout).decision, 'block')
+  assert.equal(verdictFrom(blocked.stdout).decision, 'block')
   const reported = spawnSync(
     process.execPath,
     [runner, 'guard-command', '--command', 'npx tsc', '--report-only'],
     { encoding: 'utf8' },
   )
   assert.equal(reported.status, 0)
-  assert.equal(JSON.parse(reported.stdout).decision, 'block')
+  assert.equal(verdictFrom(reported.stdout).decision, 'block')
 })
 
 test('claude adapter denies npx tsc and does not re-enter a stop hook', () => {
