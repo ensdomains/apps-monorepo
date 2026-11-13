@@ -1017,6 +1017,27 @@ describe('migrationUiMachine', () => {
       expect(actor.getSnapshot().context.txHashes).toEqual([])
     })
 
+    it('reports completed and remaining names as partial-success without the success animation', async () => {
+      executeMigrationMock.mockResolvedValueOnce(
+        migrationResult({
+          completed: 1,
+          migrated: 1,
+          completedOperations: [{ name: 'alice.eth', action: 'migrate' }],
+        }),
+      )
+      const actor = start([domain('alice'), domain('bob')])
+
+      await vi.advanceTimersByTimeAsync(
+        FINAL_STAGE_FILL_MS + REUNION_SLIDE_MS + REUNION_HOLD_MS,
+      )
+
+      expect(actor.getSnapshot().value).toBe('partial-success')
+      expect(actor.getSnapshot().context.completedOperations).toEqual([
+        { name: 'alice.eth', action: 'migrate' },
+      ])
+      actor.stop()
+    })
+
     it('resetAll returns to select and wipes context on done', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
         params.onBatchComplete?.(
