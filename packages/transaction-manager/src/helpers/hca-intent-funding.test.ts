@@ -226,6 +226,16 @@ describe('planHcaIntentFunding', () => {
     expect(funding.calls[2]).toEqual(actionCalls[0])
   })
 
+  it('tells a wallet short of the fee that the USDC pays the network fee', async () => {
+    // Choose Primary Name with an empty wallet: the action buys nothing.
+    mockReads({ hcaBalance: 0n, walletBalance: 0n })
+
+    await expect(planHcaIntentFunding(params)).rejects.toThrow(
+      'This action needs 0.9 USDC to pay the network fee, but your wallet holds 0 USDC.',
+    )
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
   it('funds the fee above the quote by the margin a caller asks for', async () => {
     mockReads({ hcaBalance: 0n })
 
@@ -675,8 +685,9 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
       walletBalance: 1_000_000n,
     })
 
+    // The pull covers the price too, so it is not called a network fee.
     await expect(planHcaIntentFunding(rentParams)).rejects.toThrow(
-      /connected wallet holds/,
+      'This action needs 2.9 USDC to cover its cost and the network fee, but your wallet holds 1 USDC.',
     )
     expect(signFundingPermit).not.toHaveBeenCalled()
   })
@@ -793,7 +804,9 @@ describe('planHcaIntentFunding for a spend in another token', () => {
 
     await expect(
       planHcaIntentFunding({ ...daiParams, confirmFunding }),
-    ).rejects.toThrow(/wallet holds 1 DAI/)
+    ).rejects.toThrow(
+      'This action needs 2 DAI to cover its cost, but your wallet holds 1 DAI.',
+    )
     expect(confirmFunding).not.toHaveBeenCalled()
     expect(signFundingPermit).not.toHaveBeenCalled()
   })
