@@ -13,13 +13,15 @@ const LONG_NAME_THRESHOLD = 32
 export type NameFallbackReason =
   | 'unsupported-tld'
   | 'too-short'
+  | 'address-like'
   | 'not-found'
   | 'not-imported'
 
 /**
  * Shown instead of a profile/registration flow for names the app can't
  * display or register: unsupported TLDs, labels too short to register,
- * nonexistent subnames, and unimported DNS names.
+ * labels that read like a wallet address, nonexistent subnames, and
+ * unimported DNS names.
  */
 export const NameFallbackCard = ({
   name,
@@ -60,6 +62,9 @@ export const NameFallbackCard = ({
               </>
             )}
             {reason === 'too-short' && <Trans>is too short to register</Trans>}
+            {reason === 'address-like' && (
+              <Trans>looks like a wallet address and can't be registered</Trans>
+            )}
             {reason === 'not-found' && <Trans>doesn't exist</Trans>}
             {reason === 'not-imported' && (
               <Trans>hasn't been imported to ENS yet</Trans>
