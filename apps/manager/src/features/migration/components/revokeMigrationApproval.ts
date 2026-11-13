@@ -1,5 +1,5 @@
 import { orSafeExecution } from '@ens-apps/transaction-manager'
-import { TransactionRevertedError } from '@ens-apps/transaction-manager/errors/transaction.errors'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   getConnection,
@@ -16,12 +16,17 @@ import {
   migrationOperatorApprovalsQueryKey,
 } from '@/features/migration/service/migrationApprovalQueryKeys'
 import type { MigrationOperatorApproval } from '@/features/migration/service/migrationApprovals'
+import { withRequestDeadline } from '@/features/migration/service/requestDeadline'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
+import {
+  RevokeMigrationApprovalError,
+  toRevokeMigrationApprovalError,
+  verifyMigrationApprovalRevocationReceipt,
+} from './revokeMigrationApproval.helpers'
 
-/** viem's default, which the direct receipt wait keeps. */
 const RECEIPT_TIMEOUT_MS = 180_000
 
-export const revokeMigrationApproval = async (params: {
+export const revokeMigrationApproval = ResultFn(async function* (params: {
   readonly approval: MigrationOperatorApproval
   readonly owner?: Address
   readonly hca?: Address
@@ -29,7 +34,7 @@ export const revokeMigrationApproval = async (params: {
   readonly chainId?: number
   readonly wagmiConfig: WagmiConfig
   readonly queryClient: QueryClient
-}): Promise<void> => {
+}) {
   const {
     approval,
     owner,
@@ -45,48 +50,67 @@ export const revokeMigrationApproval = async (params: {
     !chainId ||
     !isAddressEqual(owner, walletAddress)
   ) {
-    throw new Error('Connect the owner wallet to remove this permission.')
+    return err(
+      new RevokeMigrationApprovalError({
+        cause: undefined,
+        message: 'Connect the owner wallet to remove this permission.',
+      }),
+    )
   }
   const publicClient = getPublicClient(wagmiConfig, { chainId })
-  if (!publicClient) {
-    throw new Error('Switch to the migration network and try again.')
-  }
+  if (!publicClient)
+    return err(
+      new RevokeMigrationApprovalError({
+        cause: undefined,
+        message: 'Switch to the migration network and try again.',
+      }),
+    )
 
-  await ensureWalletChain(wagmiConfig, chainId)
-  const hash = await writeContract(wagmiConfig, {
-    address: approval.contractAddress,
-    abi: OPERATOR_APPROVAL_ABI,
-    functionName: 'setApprovalForAll',
-    args: [approval.operatorAddress, false],
-    account: owner,
-    chainId,
-  })
+  yield* fromPromise(
+    ensureWalletChain(wagmiConfig, chainId),
+    toRevokeMigrationApprovalError,
+  )
+  const hash = yield* fromPromise(
+    writeContract(wagmiConfig, {
+      address: approval.contractAddress,
+      abi: OPERATOR_APPROVAL_ABI,
+      functionName: 'setApprovalForAll',
+      args: [approval.operatorAddress, false],
+      account: owner,
+      chainId,
+    }),
+    toRevokeMigrationApprovalError,
+  )
   const receiptOf = (txHash: Hash) =>
     fromPromise(
-      waitForTransactionReceipt(wagmiConfig, { hash: txHash, chainId }),
+      waitForTransactionReceipt(wagmiConfig, {
+        hash: txHash,
+        chainId,
+        timeout: RECEIPT_TIMEOUT_MS,
+      }),
       (cause) => cause,
     )
   // A Safe{Wallet} answers with its safeTxHash; a failed Safe execution counts as a revert.
-  const status = await orSafeExecution({
-    publicClient,
-    connector: getConnection(wagmiConfig).connector,
-    account: owner,
-    id: hash,
-    timeout: RECEIPT_TIMEOUT_MS,
-    direct: receiptOf(hash),
-    settle: receiptOf,
-    signal: AbortSignal.timeout(RECEIPT_TIMEOUT_MS),
-  })
-    .map(({ status }) => status)
-    .orElse((error) =>
-      error instanceof TransactionRevertedError
-        ? ok('reverted' as const)
-        : err(error),
-    )
-  if (status.isErr()) throw status.error
-  if (status.value !== 'success') {
-    throw new Error('The revocation failed. Please try again.')
-  }
+  const receipt = yield* fromPromise(
+    withRequestDeadline(
+      async (signal) =>
+        orSafeExecution({
+          publicClient,
+          connector: getConnection(wagmiConfig).connector,
+          account: owner,
+          id: hash,
+          timeout: RECEIPT_TIMEOUT_MS,
+          direct: receiptOf(hash),
+          settle: receiptOf,
+          signal,
+        }),
+      { timeoutMs: RECEIPT_TIMEOUT_MS },
+    ),
+    (cause) => cause,
+  )
+    .andThen((result) => result)
+    .mapErr(toRevokeMigrationApprovalError)
+  yield* verifyMigrationApprovalRevocationReceipt(receipt)
 
   // Trust the receipt: a latest-block read from a lagging node still lists the approval.
   const approvalsKey = migrationOperatorApprovalsQueryKey({
@@ -94,12 +118,19 @@ export const revokeMigrationApproval = async (params: {
     hca,
     chainId,
   })
-  await queryClient.cancelQueries({ queryKey: approvalsKey, exact: true })
+  yield* fromPromise(
+    queryClient.cancelQueries({ queryKey: approvalsKey, exact: true }),
+    toRevokeMigrationApprovalError,
+  )
   queryClient.setQueryData<readonly MigrationOperatorApproval[]>(
     approvalsKey,
     (approvals) => approvals?.filter(({ id }) => id !== approval.id),
   )
-  await queryClient.invalidateQueries({
-    queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
-  })
-}
+  yield* fromPromise(
+    queryClient.invalidateQueries({
+      queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
+    }),
+    toRevokeMigrationApprovalError,
+  )
+  return ok(undefined)
+})

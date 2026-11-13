@@ -386,6 +386,32 @@ describe('namesWithDroppedPubkey', () => {
 })
 
 describe('buildMigrationPlan resolver preservation', () => {
+  it('refuses an incompatible delegated recipient before preparing transaction work', async () => {
+    const publicClient = publicClientWithProfileResults()
+    vi.mocked(publicClient.getCode).mockImplementation(({ address }) =>
+      Promise.resolve(
+        address.toLowerCase() === OWNER.toLowerCase()
+          ? '0xef010000000000000000000000000000000000000000ab'
+          : '0x',
+      ),
+    )
+
+    await expect(
+      buildMigrationPlan({
+        domains: [makeDomain({ resolverAddress: CUSTOM_RESOLVER })],
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient,
+        preflight: { skipFetchProfilesPhase: true },
+      }),
+    ).rejects.toMatchObject({
+      name: 'MigrationRecipientCheckError',
+      reason: 'incompatible',
+      recipient: OWNER,
+    })
+    expect(buildAtomicMigrationBatchesMock).not.toHaveBeenCalled()
+  })
+
   it('never routes a custom resolver to the HCA resolver from a partial inventory', async () => {
     const domain = makeDomain({ resolverAddress: CUSTOM_RESOLVER })
     const preflight: MigrationPreflight = {

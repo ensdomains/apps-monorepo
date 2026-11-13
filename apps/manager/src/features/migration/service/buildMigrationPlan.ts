@@ -82,6 +82,8 @@ import {
   resolveLockedMigrationResolvers,
   resolverWriterFor,
 } from './migrationInvariants'
+import { assertMigrationRecipientsCanReceive } from './migrationRecipient'
+import { getMigrationRecipientAddresses } from './migrationRecipientPolicy'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
   applySubnameRecreation,
@@ -549,6 +551,11 @@ export const buildMigrationPlan = async (params: {
         owner: migrationOwner,
       })
     : ordinaryClassified
+  await assertMigrationRecipientsCanReceive({
+    publicClient,
+    recipients: getMigrationRecipientAddresses(classified, migrationOwner),
+    signal,
+  })
   if (params.subnameRecreation)
     await assertSubnameRecreationUnchanged({
       publicClient,

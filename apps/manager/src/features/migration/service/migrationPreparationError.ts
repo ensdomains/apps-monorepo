@@ -1,6 +1,11 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
+import {
+  decodeMigrationError,
+  type MigrationError,
+} from './decodeMigrationError'
+import { migrationRecipientMessage } from './migrationRecipientError'
 import { shouldRetrySubnameMigrationImpact } from './subnameMigrationImpactQuery.helpers'
 import { SubnameRecreationError } from './subnameRecreationError'
 
@@ -29,6 +34,8 @@ type MigrationPreparationReason =
   | 'atomic-name-gas-limit'
   | 'rpc-unavailable'
   | 'fee-unavailable'
+  | 'recipient-incompatible'
+  | 'recipient-unavailable'
   | 'unknown'
 
 class MigrationPreparationError extends TaggedError(
@@ -67,11 +74,26 @@ const NAMED_ERROR_REASONS = [
   ['AtomicMigrationNameGasLimitExceededError', 'atomic-name-gas-limit'],
 ] as const satisfies readonly (readonly [string, MigrationPreparationReason])[]
 
+const recipientPreparationFailure = (
+  cause: unknown,
+): Extract<
+  MigrationError,
+  { readonly type: 'recipient-incompatible' | 'recipient-unavailable' }
+> | null => {
+  const error = decodeMigrationError(cause)
+  return error.type === 'recipient-incompatible' ||
+    error.type === 'recipient-unavailable'
+    ? error
+    : null
+}
+
 const reasonFor = (
   stage: MigrationPreparationStage,
   cause: unknown,
 ): MigrationPreparationReason => {
   const chain = causeChain(cause)
+  const recipientFailure = recipientPreparationFailure(cause)
+  if (recipientFailure) return recipientFailure.type
   if (
     chain.some(
       (error) =>
@@ -230,6 +252,8 @@ const messages: Record<MigrationPreparationReason, MessageDescriptor> = {
   'atomic-name-gas-limit': msg`The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest.`,
   'rpc-unavailable': msg`Couldn't reach the network to prepare your upgrade. Please try again.`,
   'fee-unavailable': msg`Couldn't estimate the network fee`,
+  'recipient-incompatible': msg`Your wallet cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading.`,
+  'recipient-unavailable': msg`Couldn't verify whether your wallet can receive upgraded names. Please try again.`,
   unknown: msg`Couldn't prepare your upgrade. Please try again.`,
 }
 
@@ -248,6 +272,12 @@ export const migrationPreparationMessage = (
   failure: Pick<MigrationPreparationFailure, 'reason'> &
     Partial<Pick<MigrationPreparationFailure, 'cause'>>,
 ): MessageDescriptor => {
+  const recipientFailure = recipientPreparationFailure(failure.cause)
+  if (recipientFailure)
+    return migrationRecipientMessage({
+      recipient: recipientFailure.recipient,
+      reason: recipientFailure.type,
+    })
   if (failure.cause instanceof SubnameRecreationError) {
     const details = failure.cause.message
     return msg`${details}`

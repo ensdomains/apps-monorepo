@@ -1,3 +1,4 @@
+import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
@@ -41,18 +42,20 @@ export const useMigrationApprovalSettings = () => {
       wagmiConfig,
     }),
   )
-  const revoke = useMutation({
-    mutationFn: (approval: MigrationOperatorApproval) =>
-      revokeMigrationApproval({
-        approval,
-        owner,
-        hca,
-        walletAddress: walletClient?.account?.address,
-        chainId,
-        wagmiConfig,
-        queryClient,
-      }),
-  })
+  const revoke = useMutation(
+    resultMutationOptions({
+      mutationFn: (approval: MigrationOperatorApproval) =>
+        revokeMigrationApproval({
+          approval,
+          owner,
+          hca,
+          walletAddress: walletClient?.account?.address,
+          chainId,
+          wagmiConfig,
+          queryClient,
+        }),
+    }),
+  )
 
   return {
     owner,
