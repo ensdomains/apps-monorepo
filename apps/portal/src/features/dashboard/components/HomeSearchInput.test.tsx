@@ -1,28 +1,33 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PaletteActionsContext } from '@/features/command-palette/context'
+import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 import { HomeSearchInput } from './HomeSearchInput'
+
+const boundary = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  address: undefined as `0x${string}` | undefined,
+  availability: vi.fn(),
+  tlds: vi.fn(() => ({ validTlds: ['eth'], isLoading: false })),
+}))
 
 // Mock dependencies
 vi.mock('@tanstack/react-router', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => boundary.navigate,
 }))
 
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
     ...actual,
-    useConnection: () => ({ address: undefined }),
+    useConnection: () => ({ address: boundary.address }),
   }
 })
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: vi.fn(),
-}))
-
-vi.mock('@/hooks/useDebounce', () => ({
-  useDebouncedValue: (value: string) => value,
 }))
 
 vi.mock('@/features/profile/components/NameAvatar', () => ({
@@ -37,7 +42,7 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 // calls happened to answer inside `waitFor`, so CI — where they don't — saw a
 // lone `.eth` row still showing its skeleton.
 vi.mock('../hooks/useSuggestionTlds', () => ({
-  useSuggestionTlds: () => ({ validTlds: ['eth'], isLoading: false }),
+  useSuggestionTlds: () => boundary.tlds(),
 }))
 
 vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
@@ -81,16 +86,17 @@ vi.mock('@/features/profile/hooks/useProfile', () => ({
 vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
   getNameAvailabilityQueryOptions: ({ name }: { name: string }) => ({
     queryKey: ['check-name-availability', { name }],
-    queryFn: async () => ({ isAvailable: false, name }),
+    queryFn: () => boundary.availability(name),
   }),
 }))
 
 const { useIsMobile } = await import('@/hooks/use-mobile')
 
-function createWrapper() {
-  const queryClient = new QueryClient({
+function createWrapper(
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  })
+  }),
+) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -106,6 +112,142 @@ async function openSearchDialog(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('HomeSearchInput', () => {
+  beforeEach(() => {
+    boundary.navigate.mockClear()
+    boundary.address = undefined
+    boundary.availability.mockClear()
+    boundary.availability.mockResolvedValue({ isAvailable: false })
+    boundary.tlds.mockReturnValue({ validTlds: ['eth'], isLoading: false })
+  })
+
+  it('keeps the homepage dropdown while showing focused name completions', async () => {
+    boundary.tlds.mockReturnValue({
+      validTlds: ['eth', 'box'],
+      isLoading: false,
+    })
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper() })
+    const input = await openSearchDialog(user)
+    await user.type(input, 'helgesson')
+    await screen.findByRole('option', { name: /helgesson.eth/ })
+    expect(
+      screen.queryByRole('option', { name: /helgesson.box/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('listbox')).toBeVisible()
+    expect(
+      screen.queryByRole('dialog', { name: 'Search and actions' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('opens the current candidate when Enter is pressed before verification debounces', async () => {
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper() })
+    const input = await openSearchDialog(user)
+    await user.type(input, 'helgesson')
+    expect(screen.getByRole('listbox')).toBeVisible()
+    await user.keyboard('{Enter}')
+    expect(boundary.navigate).toHaveBeenLastCalledWith({
+      to: '/$name',
+      params: { name: 'helgesson.eth' },
+    })
+    expect(boundary.availability).not.toHaveBeenCalled()
+  })
+
+  it('keeps View distinct from the explicit Register action', async () => {
+    boundary.availability.mockResolvedValue({ isAvailable: true })
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper() })
+    const input = await openSearchDialog(user)
+    await user.type(input, 'fox.eth')
+    await screen.findByRole('option', { name: /^Register fox.eth/ })
+    await user.keyboard('{Enter}')
+    expect(boundary.navigate).toHaveBeenLastCalledWith({
+      to: '/$name',
+      params: { name: 'fox.eth' },
+    })
+
+    await user.click(input)
+    await user.type(input, 'fox.eth')
+    await user.click(
+      await screen.findByRole('option', { name: /^Register fox.eth/ }),
+    )
+    expect(boundary.navigate).toHaveBeenLastCalledWith({
+      to: '/register',
+      search: { name: 'fox.eth' },
+    })
+  })
+
+  it('preserves keyboard selection when delayed registration metadata adds a row', async () => {
+    const address = '0x1111111111111111111111111111111111111111'
+    boundary.address = address
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(
+      getAddressNamesQueryOptions({ address }).queryKey,
+      [
+        {
+          name: 'foxglove.eth',
+          relations: ['owner'],
+          expiryDate: null,
+          graceEndDate: null,
+          status: 'active',
+          protocolVersion: 'ENSv2',
+        },
+      ],
+    )
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper(queryClient) })
+    const input = await openSearchDialog(user)
+    await user.type(input, 'fox')
+    await screen.findByRole('option', { name: /foxglove.eth/ })
+    await user.keyboard('{ArrowDown}')
+    queryClient.setQueryData(['check-name-availability', { name: 'fox.eth' }], {
+      isAvailable: true,
+    })
+    await screen.findByRole('option', { name: /^Register fox.eth/ })
+    await user.keyboard('{Enter}')
+    expect(boundary.navigate).toHaveBeenLastCalledWith({
+      to: '/$name',
+      params: { name: 'foxglove.eth' },
+    })
+  })
+
+  it('does not navigate while Enter confirms composed text', async () => {
+    const user = userEvent.setup()
+    render(<HomeSearchInput />, { wrapper: createWrapper() })
+    const input = await openSearchDialog(user)
+    await user.type(input, 'fox.eth')
+    await screen.findByRole('option', { name: /fox.eth/ })
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    expect(boundary.navigate).not.toHaveBeenCalled()
+  })
+
+  it('promotes the hero query into the shared palette without mounting another dialog', async () => {
+    const openPalette = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <PaletteActionsContext.Provider
+        value={{
+          isAvailable: true,
+          openPalette,
+          closePalette: vi.fn(),
+          registerPageCommands: () => () => {},
+        }}
+      >
+        <HomeSearchInput isHero />
+      </PaletteActionsContext.Provider>,
+      { wrapper: createWrapper() },
+    )
+    await user.type(screen.getByRole('combobox'), 'fox.eth')
+    expect(
+      screen.getByRole('combobox').closest('[data-slot="popover-trigger"]'),
+    ).toContainElement(screen.getByRole('button', { name: /Search actions/ }))
+    await user.click(screen.getByRole('button', { name: /Search actions/ }))
+    expect(openPalette).toHaveBeenCalledWith({ query: 'fox.eth' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it.each([
     ['jesse.base.eth', false],
     ['sse.base.eth', true],
@@ -285,14 +427,11 @@ describe('HomeSearchInput', () => {
 
       render(<HomeSearchInput />, { wrapper: createWrapper() })
 
-      // Open the search modal (Cmd+K / Ctrl+K) to see empty state
+      // The shared root palette owns Mod+K; the inline control mounts no dialog.
       await user.keyboard('{Control>}k{/Control}')
 
-      await waitFor(() => {
-        expect(
-          screen.getByText('Type to search for names or addresses...'),
-        ).toBeInTheDocument()
-      })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
       expect(screen.queryByText('View address details')).not.toBeInTheDocument()
       expect(
         screen.queryByText('View ENS name details'),

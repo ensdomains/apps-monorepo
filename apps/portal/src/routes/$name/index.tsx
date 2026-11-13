@@ -47,6 +47,7 @@ import { RegistrationSuccessBanner } from '@/features/register/components/Regist
 import { readRegistrationSuccessState } from '@/features/register/types/registrationSuccessState'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
+import { useRenewalPaletteGate } from '@/features/renew/hooks/useRenewalPaletteGate'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
@@ -521,6 +522,8 @@ function App() {
       enabled: isValidName,
     },
   })
+
+  useRenewalPaletteGate(name, Boolean(error))
 
   // The `$name` layout already shows this for an invalid name; kept so this
   // page never resolves one as its normalised twin on its own.

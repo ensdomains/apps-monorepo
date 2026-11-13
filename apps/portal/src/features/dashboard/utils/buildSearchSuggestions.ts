@@ -25,7 +25,33 @@ type BuildSuggestionsOptions = {
   isResolver?: boolean
   /** When set and value is a single label (no dots), suggest label.tld for each valid TLD. */
   validTlds?: readonly string[]
+  readonly suggestionMode?: 'expanded' | 'focused'
 }
+
+const getFocusedNameCandidate = (value: string): string | undefined => {
+  const lastDot = value.lastIndexOf('.')
+  if (lastDot < 0 && [...value].length < 3) return undefined
+  const suffix = value.slice(lastDot + 1)
+  const candidate =
+    lastDot < 0
+      ? `${value}.eth`
+      : ['', 'e', 'et'].includes(suffix)
+        ? `${value.slice(0, lastDot)}.eth`
+        : value
+  return isValidEnsName(candidate) ? candidate : undefined
+}
+
+const getNameSuggestion = (
+  name: string,
+  isMobile: boolean,
+  navigateToName: NavigateToName,
+): Suggestion => ({
+  id: `name:${name}`,
+  label: isMobile ? truncateAddress(name, 18, 8) : name,
+  description: 'View ENS name details',
+  inputValue: name,
+  action: () => navigateToName(name),
+})
 
 const SHORT_LABEL_NOTICE = 'Names are at least 3 characters'
 
@@ -50,7 +76,7 @@ export const getSearchNotice = (value: string): string | null => {
  * @param options - Configuration object
  * @returns Array of suggestions to display
  */
-export const buildSearchSuggestions = ({
+const buildExpandedSearchSuggestions = ({
   value,
   isMobile,
   navigateToAddress,
@@ -69,25 +95,27 @@ export const buildSearchSuggestions = ({
     try {
       const checksum = checksumAddress(trimmedValue as Address)
 
+      const addressSuggestion: Suggestion = {
+        id: `address:${checksum}`,
+        label: isMobile ? truncateAddress(checksum) : checksum,
+        description: 'View address details',
+        inputValue: checksum,
+        action: () => navigateToAddress(checksum),
+      }
       if (isResolver && navigateToResolver) {
-        items.push({
-          id: `resolver:${checksum}`,
-          label: isMobile ? truncateAddress(checksum) : checksum,
-          description: 'View resolver details',
-          inputValue: checksum,
-          action: () => navigateToResolver(checksum),
-        })
-      } else {
-        items.push({
-          id: `address:${checksum}`,
-          label: isMobile ? truncateAddress(checksum) : checksum,
-          description: 'View address details',
-          inputValue: checksum,
-          action: () => navigateToAddress(checksum),
-        })
+        return [
+          addressSuggestion,
+          {
+            id: `resolver:${checksum}`,
+            label: isMobile ? truncateAddress(checksum) : checksum,
+            description: 'View resolver details',
+            inputValue: checksum,
+            action: () => navigateToResolver(checksum),
+          },
+        ]
       }
 
-      return items
+      return [addressSuggestion]
     } catch {
       return []
     }
@@ -102,16 +130,8 @@ export const buildSearchSuggestions = ({
   const labelBeforeFirstDot =
     firstDotIndex >= 0 ? lowercaseValue.slice(0, firstDotIndex) : lowercaseValue
 
-  const createNameSuggestion = (name: string): Suggestion => {
-    const displayLabel = isMobile ? truncateAddress(name, 18, 8) : name
-    return {
-      id: `name:${name}`,
-      label: displayLabel,
-      description: 'View ENS name details',
-      inputValue: name,
-      action: () => navigateToName(name),
-    }
-  }
+  const createNameSuggestion = (name: string) =>
+    getNameSuggestion(name, isMobile, navigateToName)
 
   const isTldPrefix = (s: string) =>
     s === '' || (validTlds ?? []).some((t) => t.startsWith(s))
@@ -199,4 +219,18 @@ export const buildSearchSuggestions = ({
   }
 
   return items
+}
+
+export const buildSearchSuggestions = (
+  options: BuildSuggestionsOptions,
+): Suggestion[] => {
+  if (
+    options.suggestionMode !== 'focused' ||
+    isAddress(options.value.trim(), { strict: false })
+  )
+    return buildExpandedSearchSuggestions(options)
+  const candidate = getFocusedNameCandidate(options.value.trim().toLowerCase())
+  return candidate
+    ? [getNameSuggestion(candidate, options.isMobile, options.navigateToName)]
+    : []
 }

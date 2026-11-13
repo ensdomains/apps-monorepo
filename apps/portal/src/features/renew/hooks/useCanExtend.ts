@@ -18,6 +18,38 @@ type UseCanExtendReturnType = {
   expiryDate: Date | undefined
   /** True while the v1 on-chain renewability check is still resolving. */
   isLoading: boolean
+  readonly isChecking: boolean
+  readonly hasCheckError: boolean
+}
+
+type QueryReadiness = {
+  readonly isPending: boolean
+  readonly isError: boolean
+}
+
+const getRenewalCheckStatus = ({
+  enabled,
+  isV2,
+  v1Expiry,
+  v2Expiry,
+  renewability,
+}: {
+  readonly enabled: boolean
+  readonly isV2: boolean
+  readonly v1Expiry: QueryReadiness
+  readonly v2Expiry: QueryReadiness
+  readonly renewability: {
+    readonly isLoading: boolean
+    readonly hasError: boolean
+  }
+}) => {
+  if (!enabled) return { isChecking: false, hasCheckError: false }
+  if (isV2)
+    return { isChecking: v2Expiry.isPending, hasCheckError: v2Expiry.isError }
+  return {
+    isChecking: v1Expiry.isPending || renewability.isLoading,
+    hasCheckError: v1Expiry.isError || renewability.hasError,
+  }
 }
 
 /**
@@ -67,11 +99,25 @@ export const useCanExtend = ({
 
   // v2 renews throughout registered + grace, so the client-side window is
   // authoritative; v1 additionally requires the renewer's on-chain isRenewable.
-  const { isRenewable, isLoading } = useV1Renewable(
+  const { isRenewable, isLoading, hasError } = useV1Renewable(
     enabled && !isV2 ? [name] : [],
   )
 
   const canExtend = isExtendable2LD(selectedName) && (isV2 || isRenewable(name))
 
-  return { canExtend, selectedName, expiryDate, isLoading }
+  const checkStatus = getRenewalCheckStatus({
+    enabled,
+    isV2,
+    v1Expiry: v1ExpiryQuery,
+    v2Expiry: v2DataQuery,
+    renewability: { isLoading, hasError },
+  })
+
+  return {
+    canExtend,
+    selectedName,
+    expiryDate,
+    isLoading,
+    ...checkStatus,
+  }
 }

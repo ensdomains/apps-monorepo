@@ -8,11 +8,13 @@ export const NameAvatar = ({
   height = '142px',
   width = '142px',
   rounded = 'rounded-sm',
+  isEnabled = true,
 }: {
   name: string
   height?: string
   width?: string
   rounded?: string
+  readonly isEnabled?: boolean
 }) => {
   const {
     data: avatar,
@@ -21,7 +23,7 @@ export const NameAvatar = ({
   } = useEnsAvatar({
     name,
     query: {
-      enabled: name.endsWith('.eth'),
+      enabled: isEnabled && name.endsWith('.eth'),
     },
   })
 

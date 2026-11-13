@@ -1,19 +1,12 @@
 import { applyPastedNameSearch } from '@ens-apps/utils/normalizePastedNameSearch'
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys'
+import { formatForDisplay } from '@tanstack/react-hotkeys'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
-import {
-  type KeyboardEvent,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from 'react'
+import { type KeyboardEvent, useCallback, useId, useRef, useState } from 'react'
+import { match } from 'ts-pattern'
 import { isAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
-import { CommandDialog, CommandInput } from '@/components/ui/command'
 import {
   InputGroup,
   InputGroupAddon,
@@ -24,11 +17,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { useCommandPalette } from '@/features/command-palette/context'
+import { PaletteTrigger } from '@/features/command-palette/PaletteTrigger'
+import { PALETTE_AVAILABILITY_STALE_TIME_MS } from '@/features/command-palette/queryPolicy'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
+import { ensureEthSuffix } from '@/utils/ens/ensureEthSuffix'
 import { useSearchResults } from '../hooks/useSearchResults'
-import type { Suggestion } from '../utils/buildSearchSuggestions'
-import { SearchModalContent } from './SearchModalContent'
+import {
+  getInlineSearchKeyAction,
+  getInlineSearchSelection,
+} from '../utils/searchResultsUtils'
 import { SearchResultsList } from './SearchResultsList'
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -49,19 +48,12 @@ export const HomeSearchInput = ({
   const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activeIndex, setActiveIndex] = useState<number>(-1)
+  const [selectedValue, setSelectedValue] = useState<string | null>(null)
+  const { isAvailable: isPaletteAvailable, openPalette } = useCommandPalette()
   const triggerRef = useRef<HTMLDivElement | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalSearchValue, setModalSearchValue] = useState('')
 
-  const trimmedSearch = useDebouncedValue(
-    searchValue,
-    SEARCH_DEBOUNCE_MS,
-  ).trim()
-  const trimmedModalSearch = useDebouncedValue(
-    modalSearchValue,
-    SEARCH_DEBOUNCE_MS,
-  ).trim()
+  const trimmedSearch = searchValue.trim()
+  const verifiedSearch = useDebouncedValue(trimmedSearch, SEARCH_DEBOUNCE_MS)
 
   const navigateToAddress = useCallback(
     (address: string) => {
@@ -85,14 +77,19 @@ export const HomeSearchInput = ({
 
   const navigateToRegister = useCallback(
     (name: string) => {
-      const nameWithEth = name.includes('.') ? name : `${name}.eth`
-      navigate({ to: '/register', search: { name: nameWithEth } })
+      navigate({ to: '/register', search: { name: ensureEthSuffix(name) } })
     },
     [navigate],
   )
 
   const searchResults = useSearchResults({
     searchValue: trimmedSearch,
+    enabled: trimmedSearch === verifiedSearch,
+    fetchOwnedNames: false,
+    suggestionMode: 'focused',
+    verificationLimit: 1,
+    shouldDeferDnsVerification: true,
+    queryStaleTime: PALETTE_AVAILABILITY_STALE_TIME_MS,
     navigateToName,
     navigateToAddress,
     navigateToResolver,
@@ -107,20 +104,24 @@ export const HomeSearchInput = ({
     availableNames,
     pendingAvailabilityIds,
     ownedNamesFiltered,
+    nameVerificationBySuggestionId,
   } = searchResults
 
-  useEffect(() => {
-    setMenuOpen(Boolean(trimmedSearch))
-  }, [trimmedSearch])
-  useEffect(() => {
-    setActiveIndex(allItems.length ? 0 : -1)
-  }, [allItems.length])
-
-  useHotkey('Mod+K', () => setModalOpen(true))
-
-  useEffect(() => {
-    if (!modalOpen) setModalSearchValue('')
-  }, [modalOpen])
+  const selection = {
+    items: allItems,
+    selectedValue,
+    verification: nameVerificationBySuggestionId,
+  }
+  const activeItem = getInlineSearchSelection(selection)
+  const activeIndex = allItems.findIndex(
+    ({ value }) => value === activeItem?.value,
+  )
+  const isPopoverOpen = menuOpen && (hasAnySection || Boolean(searchNotice))
+  const updateSearchValue = useCallback((value: string) => {
+    setSearchValue(value)
+    setSelectedValue(null)
+    setMenuOpen(Boolean(value.trim()))
+  }, [])
 
   const closePopover = useCallback(() => {
     setMenuOpen(false)
@@ -129,126 +130,66 @@ export const HomeSearchInput = ({
 
   const handleSelectByValue = useCallback(
     (value: string) => {
+      const item = allItems.find((candidate) => candidate.value === value)
+      if (!item) return
       closePopover()
-      if (value.startsWith('owned:')) {
-        setSearchValue('')
-        setModalOpen(false)
-        setMenuOpen(false)
-        navigateToName(value.slice('owned:'.length))
-        return
-      }
-      const suggestion = suggestions.find((s) => s.id === value)
-      if (suggestion) {
-        setSearchValue('')
-        const isAvailable = availableNames.some((a) => a.id === suggestion.id)
-        if (isAvailable) {
-          navigateToRegister(suggestion.inputValue)
-        } else {
-          suggestion.action()
-        }
-      }
+      updateSearchValue('')
+      match(item)
+        .with({ type: 'owned' }, ({ name }) => navigateToName(name))
+        .with({ type: 'register' }, ({ name }) => navigateToRegister(name))
+        .with({ type: 'suggestion' }, ({ suggestion }) => suggestion.action())
+        .exhaustive()
     },
     [
+      allItems,
       closePopover,
-      suggestions,
-      availableNames,
       navigateToName,
       navigateToRegister,
+      updateSearchValue,
     ],
   )
 
-  const handleModalSelectSuggestion = useCallback((suggestion: Suggestion) => {
-    setModalOpen(false)
-    suggestion.action()
-  }, [])
-
-  const handleModalSelectAvailableName = useCallback(
-    (name: string) => {
-      setModalOpen(false)
-      navigateToRegister(name)
-    },
-    [navigateToRegister],
-  )
-
-  const handleSelectOwnedName = useCallback(
-    (name: string) => {
-      setModalOpen(false)
-      setMenuOpen(false)
-      navigateToName(name)
-    },
-    [navigateToName],
-  )
-
-  const onSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown' && allItems.length) {
-      e.preventDefault()
-      setActiveIndex((i) => (i + 1) % allItems.length)
-      return
-    }
-    if (e.key === 'ArrowUp' && allItems.length) {
-      e.preventDefault()
-      setActiveIndex((i) => (i - 1 + allItems.length) % allItems.length)
-      return
-    }
-    if (e.key === 'Enter') {
-      const item = allItems[activeIndex >= 0 ? activeIndex : 0]
-      if (item) {
-        e.preventDefault()
-        handleSelectByValue(item.value)
-      }
-      return
-    }
-    if (e.key === 'Escape') setMenuOpen(false)
+  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const action = getInlineSearchKeyAction({
+      ...selection,
+      key: event.key,
+      isComposing: event.nativeEvent.isComposing || event.keyCode === 229,
+      isCurrentQuery: true,
+    })
+    match(action)
+      .with({ type: 'ignore' }, () => {})
+      .with({ type: 'close' }, () => setMenuOpen(false))
+      .with({ type: 'move' }, ({ value }) => {
+        event.preventDefault()
+        setSelectedValue(value)
+      })
+      .with({ type: 'select' }, ({ value }) => {
+        event.preventDefault()
+        handleSelectByValue(value)
+      })
+      .exhaustive()
   }
 
-  if (iconOnly) {
-    return (
-      <>
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon"
-          className="size-7 text-muted-foreground hover:text-foreground"
-          onClick={() => setModalOpen(true)}
-        >
-          <Search className="size-3.5" />
-          <span className="sr-only">Search</span>
-        </Button>
-        <CommandDialog
-          open={modalOpen}
-          onOpenChange={setModalOpen}
-          title="Search"
-          description="Search for ENS names or Ethereum addresses"
-          showCloseButton={false}
-          shouldFilter={false}
-        >
-          <CommandInput
-            placeholder="Search..."
-            value={modalSearchValue}
-            onValueChange={setModalSearchValue}
-            onPaste={(event) =>
-              applyPastedNameSearch(event, setModalSearchValue)
-            }
-          />
-          <SearchModalContent
-            searchValue={trimmedModalSearch}
-            onSelectSuggestion={handleModalSelectSuggestion}
-            onSelectOwnedName={handleSelectOwnedName}
-            onSelectAvailableName={handleModalSelectAvailableName}
-            navigateToName={navigateToName}
-            navigateToAddress={navigateToAddress}
-            navigateToResolver={navigateToResolver}
-          />
-        </CommandDialog>
-      </>
-    )
-  }
+  const shortcutHint = (
+    <kbd
+      className={cn(
+        'pointer-events-none select-none items-center gap-1',
+        isHero
+          ? 'flex font-sans text-base font-normal text-neutral-5'
+          : 'hidden h-5 rounded border px-1.5 text-smallmono font-medium text-muted-foreground sm:flex',
+      )}
+    >
+      <span className="translate-y-px">{formatForDisplay('Mod+K')}</span>
+    </kbd>
+  )
+
+  if (iconOnly) return <PaletteTrigger iconOnly className={className} />
 
   return (
-    <>
+    <div className="flex w-full flex-col gap-2">
       <Popover
         modal={false}
-        open={menuOpen && (hasAnySection || !!searchNotice)}
+        open={isPopoverOpen}
         onOpenChange={(open) => !open && setMenuOpen(false)}
       >
         <PopoverTrigger asChild>
@@ -268,12 +209,15 @@ export const HomeSearchInput = ({
               />
             </InputGroupAddon>
             <InputGroupInput
+              data-palette-inline-input
               id={listboxId}
               role="combobox"
-              aria-expanded={menuOpen && (hasAnySection || !!searchNotice)}
+              aria-expanded={isPopoverOpen}
               aria-controls={`${listboxId}-listbox`}
               aria-activedescendant={
-                activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
+                isPopoverOpen && activeIndex >= 0
+                  ? `${listboxId}-opt-${activeIndex}`
+                  : undefined
               }
               aria-autocomplete="list"
               aria-label={ariaLabel}
@@ -285,9 +229,11 @@ export const HomeSearchInput = ({
               placeholder={isHero ? 'Search' : 'Search...'}
               value={searchValue}
               onFocus={(e) => e.target.value.trim() && setMenuOpen(true)}
-              onChange={(e) => setSearchValue(e.target.value)}
+              onChange={(e) => updateSearchValue(e.target.value)}
               onKeyDown={onSearchKeyDown}
-              onPaste={(event) => applyPastedNameSearch(event, setSearchValue)}
+              onPaste={(event) =>
+                applyPastedNameSearch(event, updateSearchValue)
+              }
             />
             {isHero && !searchValue && (
               <span
@@ -299,23 +245,38 @@ export const HomeSearchInput = ({
                 <EntityBadge variant="contract">contract</EntityBadge>
               </span>
             )}
-            <InputGroupAddon align="inline-end">
-              <kbd
-                className={cn(
-                  'pointer-events-none select-none items-center gap-1',
-                  isHero
-                    ? 'flex font-sans text-base font-normal text-neutral-5'
-                    : 'hidden h-5 rounded border px-1.5 text-smallmono font-medium text-muted-foreground sm:flex',
-                )}
-              >
-                <span className="translate-y-px">
-                  {formatForDisplay('Mod+K')}
-                </span>
-              </kbd>
+            <InputGroupAddon
+              align="inline-end"
+              role="group"
+              tabIndex={-1}
+              onKeyDown={undefined}
+            >
+              {isPaletteAvailable ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 px-1.5"
+                  aria-label="Search actions"
+                  aria-keyshortcuts="Control+K Meta+K"
+                  onClick={() => {
+                    closePopover()
+                    openPalette({ query: searchValue })
+                  }}
+                >
+                  {shortcutHint}
+                </Button>
+              ) : (
+                shortcutHint
+              )}
             </InputGroupAddon>
           </InputGroup>
         </PopoverTrigger>
         <PopoverContent
+          data-palette-inline-search
+          onEscapeKeyDown={(event) => {
+            if (event.isComposing) event.preventDefault()
+          }}
           align="start"
           className={cn(
             'p-1 max-h-[min(60vh,400px)] overflow-y-auto max-w-[min(28rem,calc(100vw-1rem))]',
@@ -346,6 +307,7 @@ export const HomeSearchInput = ({
                 availableNames={availableNames}
                 pendingAvailabilityIds={pendingAvailabilityIds}
                 ownedNamesFiltered={ownedNamesFiltered}
+                nameVerificationBySuggestionId={nameVerificationBySuggestionId}
                 onSelect={handleSelectByValue}
                 variant="listbox"
                 listboxId={listboxId}
@@ -355,31 +317,6 @@ export const HomeSearchInput = ({
           )}
         </PopoverContent>
       </Popover>
-
-      <CommandDialog
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        title="Search"
-        description="Search for ENS names or Ethereum addresses"
-        showCloseButton={false}
-        shouldFilter={false}
-      >
-        <CommandInput
-          placeholder="Search..."
-          value={modalSearchValue}
-          onValueChange={setModalSearchValue}
-          onPaste={(event) => applyPastedNameSearch(event, setModalSearchValue)}
-        />
-        <SearchModalContent
-          searchValue={trimmedModalSearch}
-          onSelectSuggestion={handleModalSelectSuggestion}
-          onSelectOwnedName={handleSelectOwnedName}
-          onSelectAvailableName={handleModalSelectAvailableName}
-          navigateToName={navigateToName}
-          navigateToAddress={navigateToAddress}
-          navigateToResolver={navigateToResolver}
-        />
-      </CommandDialog>
-    </>
+    </div>
   )
 }

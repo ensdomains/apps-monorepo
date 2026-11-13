@@ -1,10 +1,17 @@
 import { BignameError } from '@ens-apps/indexer/bigname'
 import { getRecordKeys } from '@ensdomains/ensjs/public/v2'
+import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
-import type { Address } from 'viem'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Address, zeroAddress } from 'viem'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
-import { getProfile, isUnindexedResolver, parseRecordKeys } from './useProfile'
+import * as legacyResolver from '@/utils/ens/getLegacyRegistryResolver'
+import {
+  getProfile,
+  getProfileQueryOptions,
+  isUnindexedResolver,
+  parseRecordKeys,
+} from './useProfile'
 import { getRecords } from './useRecords'
 
 vi.mock('@/lib/bigname', () => ({
@@ -260,5 +267,60 @@ describe('getProfile with a resolver bigname does not attribute', () => {
 
     expect(profile._unsafeUnwrap()).toEqual({ records })
     expect(getRecords).toHaveBeenCalledOnce()
+  })
+})
+
+describe('getProfile current resolution', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('keeps current-resolution results separate from cached legacy profile records', async () => {
+    inventory([])
+    const legacy = vi
+      .spyOn(legacyResolver, 'getLegacyRegistryResolver')
+      .mockResolvedValue(OWN_RESOLVER)
+    vi.mocked(getRecords)
+      .mockReset()
+      .mockReturnValue(
+        okAsync({
+          texts: [],
+          coins: [],
+          contentHash: null,
+          abi: null,
+          resolverAddress: zeroAddress,
+        }),
+      )
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+    })
+    await client.fetchQuery(getProfileQueryOptions({ name: 'helgesson.com' }))
+    await client.fetchQuery(
+      getProfileQueryOptions({
+        name: 'helgesson.com',
+        includeLegacyRecords: false,
+      }),
+    )
+    expect(getRecords).toHaveBeenCalledTimes(3)
+    expect(legacy).toHaveBeenCalledOnce()
+  })
+
+  it('does not read legacy resolver records when checking current DNS usability', async () => {
+    inventory([])
+    const legacy = vi
+      .spyOn(legacyResolver, 'getLegacyRegistryResolver')
+      .mockResolvedValue(OWN_RESOLVER)
+    vi.mocked(getRecords)
+      .mockReset()
+      .mockReturnValue(
+        okAsync({
+          texts: [],
+          coins: [],
+          contentHash: null,
+          abi: null,
+          resolverAddress: zeroAddress,
+        }),
+      )
+    await getProfile({ name: 'helgesson.com', includeLegacyRecords: false })
+    expect(getRecords).toHaveBeenCalledOnce()
+    expect(legacy).not.toHaveBeenCalled()
   })
 })

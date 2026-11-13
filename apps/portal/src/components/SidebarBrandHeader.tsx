@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { EnsLogoMarkSVG } from '@/assets/ens-logo-mark'
 import { ExplorerLogoSVG } from '@/assets/explorer-logo'
-import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
+import { useCommandPalette } from '@/features/command-palette/context'
+import { PaletteTrigger } from '@/features/command-palette/PaletteTrigger'
 import { SidebarHeader, SidebarTrigger, useSidebar } from './ui/sidebar'
 
 /**
@@ -9,8 +10,13 @@ import { SidebarHeader, SidebarTrigger, useSidebar } from './ui/sidebar'
  * the sidebar is in icon mode. Used by every app sidebar.
  */
 export const SidebarBrandHeader = () => {
-  const { state, isMobile } = useSidebar()
+  const { state, isMobile, closeMobileSidebar } = useSidebar()
+  const { openPalette } = useCommandPalette()
   const isIconMode = state === 'collapsed' && !isMobile
+  const openSearch = () => {
+    if (isMobile) closeMobileSidebar(() => openPalette())
+    else openPalette()
+  }
 
   return (
     <SidebarHeader className="p-0 gap-0">
@@ -20,7 +26,7 @@ export const SidebarBrandHeader = () => {
             <EnsLogoMarkSVG />
           </Link>
           <SidebarTrigger className="size-7" />
-          <HomeSearchInput iconOnly />
+          <PaletteTrigger iconOnly onOpen={openSearch} />
         </div>
       ) : (
         <div className="px-6 pt-6 flex flex-col gap-6">
@@ -30,8 +36,8 @@ export const SidebarBrandHeader = () => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <HomeSearchInput />
+            <div className="min-w-0 flex-1">
+              <PaletteTrigger onOpen={openSearch} />
             </div>
             <SidebarTrigger className="shrink-0" />
           </div>
