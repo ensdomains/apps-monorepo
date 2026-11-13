@@ -101,12 +101,14 @@ export const ResolverRolesTable = ({
     [namedResources],
   )
   // A grant whose scope bigname does not identify is listed on its own below.
+  // bigname keeps serving a revoked grant with no powers; it has nothing left
+  // to show or edit.
   const data = useMemo(
     () =>
       groupRolesByAccount(
         roles.filter((role) => role.resource !== null),
         revealed,
-      ),
+      ).filter((group) => group.decodedRoles.length > 0),
     [roles, revealed],
   )
 
