@@ -56,3 +56,10 @@ export const profileStickyBarClassName =
 
 export const desktopActionClusterClassName =
   'hidden shrink-0 items-center gap-2 xl:flex'
+
+// When the owner's actions and Edit don't fit on one row, Edit wraps to its own
+export const ownerBarContentClassName = `${editBottomBarContentClassName} flex-wrap`
+
+// Grow from an auto basis (not flex-1), so Edit wraps rather than squeezing under the actions
+export const ownerBarEditActionsClassName =
+  'flex min-w-0 grow items-center justify-end gap-3 xl:ml-auto xl:flex-none'

@@ -5,9 +5,11 @@ import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
+import { ProfileExploreAction } from '@/features/profile/components/view/ProfileExploreAction'
 import { useDebounce } from '@/hooks/useDebounce'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {
@@ -36,6 +38,8 @@ import { SortMenu, type SortOption } from './SortMenu'
 type FilterKey = 'owned' | 'favorites'
 
 interface NamesTableProps {
+  /** The connected wallet, linked to its address page in Explorer. */
+  readonly ownerAddress?: Address | null
   readonly primaryLabel?: string | null
 }
 
@@ -56,7 +60,7 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
-export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
+export const NamesTable = ({ ownerAddress, primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
   const [filter, setFilter] = useState<FilterKey>('owned')
   const [version, setVersion] = useState<NameVersion | null>(null)
@@ -223,9 +227,16 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     <div className="w-full">
       <div className="mb-5 flex w-full flex-col items-start gap-5 md:mb-4">
         <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <h2 className="font-sans text-[#232222] text-[16px] leading-[0.96] tracking-[0.16px] md:text-[28px] md:tracking-[0.28px]">
-            <Trans>My Names</Trans>
-          </h2>
+          <div className="flex w-full items-center justify-between gap-3 md:w-auto md:justify-start md:gap-4">
+            <h2 className="font-sans text-[#232222] text-[16px] leading-[0.96] tracking-[0.16px] md:text-[28px] md:tracking-[0.28px]">
+              <Trans>My Names</Trans>
+            </h2>
+            {ownerAddress ? (
+              <ProfileExploreAction
+                target={{ kind: 'address', address: ownerAddress }}
+              />
+            ) : null}
+          </div>
           <div className="w-full md:w-88">
             <Input
               className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350 focus-visible:ring-0"
