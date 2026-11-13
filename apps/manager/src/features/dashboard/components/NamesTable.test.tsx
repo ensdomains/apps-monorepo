@@ -129,21 +129,32 @@ describe('NamesTable version controls', () => {
         resolveOwner.mockImplementation(resolve),
       ),
     )
+    // More than a page of favorites, so the version change must leave page 2.
+    io.favorites.mockReturnValue([
+      ...Array.from({ length: 31 }, (_, index) => ({
+        name: `old-${index}.eth`,
+        created_at: '2026-01-01',
+      })),
+      { name: 'v2.eth', created_at: '2026-01-01' },
+    ])
     render(<NamesTable />)
     expect(bigname.lookup).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /^Favorites/ }))
-    await screen.findByText('Showing 1-7 of 7')
+    await screen.findByText('Showing 1-25 of 32')
     expect(bigname.lookup).not.toHaveBeenCalled()
     expect(io.owner).not.toHaveBeenCalled()
-    expect(screen.getByText('old-5.eth')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(screen.getByText('Showing 26-32 of 32')).toBeInTheDocument()
+    expect(screen.getByText('v2.eth')).toBeInTheDocument()
+    expect(screen.queryByText('old-0.eth')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'V1' }))
     expect(await screen.findByText('old-0.eth')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Loading...')
     resolveOwner({ protocol: 'v1' })
-    expect(await screen.findByText('Showing 1-6 of 6')).toBeInTheDocument()
+    expect(await screen.findByText('Showing 1-25 of 31')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'V1' }))
-    expect(screen.getByText('Showing 1-7 of 7')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1-25 of 32')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'V2' }))
     expect(await screen.findByText('v2.eth')).toBeInTheDocument()
     expect(screen.getByText('Showing 1-1 of 1')).toBeInTheDocument()
