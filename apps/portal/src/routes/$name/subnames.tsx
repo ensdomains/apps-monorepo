@@ -415,6 +415,7 @@ const SubregistrySubnames = ({
         name={name}
         canCreateSubname={canCreateSubname}
         isCreationPaused={isSubnameCreationPaused(isPendingUpgrade)}
+        isRegistryUpdateRequired={isPendingUpgrade === true}
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
         onClearSelected={canDeleteSubname ? handleClearSelected : undefined}
         isDeleting={isDeleting}
