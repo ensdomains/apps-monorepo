@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { GridIcon, UserRoundCog } from 'lucide-react'
 import { match } from 'ts-pattern'
-import { type Address, isAddressEqual } from 'viem'
+import type { Address } from 'viem'
 import { HistoryIcon } from '@/assets/icons'
 import {
   ContractAddressValue,
@@ -36,7 +36,7 @@ import {
   RESOLVER_INTERFACE_IDS,
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
-import { officialPublicResolverAddress } from '@/lib/constants/universalResolver'
+import { isOfficialPublicResolver } from '@/lib/constants/universalResolver'
 import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -81,10 +81,7 @@ function RouteComponent() {
       />
     )
 
-  const isPublicResolver = isAddressEqual(
-    address,
-    officialPublicResolverAddress,
-  )
+  const isPublicResolver = isOfficialPublicResolver(address)
   const usedBy = resolverCollectionCount(
     resolver?.nodeCount ?? null,
     resolver?.nodeCountIsLowerBound ? 'partial' : 'full',

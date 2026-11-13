@@ -1,10 +1,9 @@
-import { LATEST_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { officialPublicResolverAddress } from '@/lib/constants/universalResolver'
 import { requireResourceIdForName } from '@/lib/resource/resourceId'
-import { ensChain } from '@/lib/wagmi'
 import { ChangeResolverForm } from './ChangeResolverForm'
 
 // Captures the transaction descriptors so the tests can drive the lifecycle
@@ -386,7 +385,7 @@ describe('ChangeResolverForm', () => {
 
   describe('for a V1 name', () => {
     const v1Target = { protocol: 'ENSv1', isWrapped: false } as const
-    const latest = LATEST_V1_PUBLIC_RESOLVERS[ensChain.id]
+    const latest = officialPublicResolverAddress
 
     it('sets the latest public resolver by default', () => {
       render(<ChangeResolverForm name={name} target={v1Target} />)

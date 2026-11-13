@@ -152,12 +152,6 @@ const ALLOWED: Record<string, Allowance> = {
       'PublicResolverV2 on Sepolia (smart-account manifest), not in ensL1Contracts. migration-resolver.spec.ts names it as the ticket does',
   },
 
-  // ── The second V1 PublicResolver.
-  '0xe99638b40e4fff0129d56f03b55b6bbc4bbe49b5': {
-    reason:
-      '`CERTIFIED_V1_RESOLVER` in makeV1Name.ts: a Sepolia PublicResolver bound to the canonical registry and listed in migration KNOWN_PUBLIC_RESOLVERS, but absent from ensL1Contracts',
-  },
-
   // ── DNS fixtures (dnsImport.spec.ts, dnsSyncBanners.spec.ts).
   '0x0ef1af80c24b681991d675176d9c07d8c9236b9a': {
     reason:
