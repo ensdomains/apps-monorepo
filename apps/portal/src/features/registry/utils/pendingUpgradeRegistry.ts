@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern'
 import { type Address, isAddressEqual } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 
@@ -42,3 +43,15 @@ export const isPastedRegistryBlocked = ({
   readonly isPasted: boolean
   readonly isPendingUpgrade: boolean | undefined
 }): boolean => isPasted && isPendingUpgrade !== false
+
+export type RoleEditLock = 'open' | 'checking' | 'needs-update'
+
+/** Roles on a registry can only change once it is confirmed not to be pending an upgrade. */
+export const getRoleEditLock = (
+  isPendingUpgrade: boolean | undefined,
+): RoleEditLock =>
+  match(isPendingUpgrade)
+    .with(false, () => 'open' as const)
+    .with(true, () => 'needs-update' as const)
+    .with(undefined, () => 'checking' as const)
+    .exhaustive()

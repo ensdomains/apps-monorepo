@@ -11,7 +11,10 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
+import { RegistryRolesLockedNotice } from '@/features/registry/components/v2/RegistryRolesLockedNotice'
+import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
+import { getRoleEditLock } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
@@ -210,13 +213,21 @@ export const NameRolesOverviewTable = ({
     account: address,
   })
 
-  // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
-  const canManageRoles = callerAdminRoles.size > 0
-  const canAddUser = permissions.some((permission) =>
-    canCallerSetManagerRole(permission.key, callerAdminRoles, {
-      is2LD: name.split('.').length === 2,
-    }),
+  const { data: isPendingUpgrade } = useQuery(
+    getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
   )
+  const roleEditLock = getRoleEditLock(isPendingUpgrade)
+  const isRoleAdmin = callerAdminRoles.size > 0
+
+  // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
+  const canManageRoles = isRoleAdmin && roleEditLock === 'open'
+  const canAddUser =
+    roleEditLock === 'open' &&
+    permissions.some((permission) =>
+      canCallerSetManagerRole(permission.key, callerAdminRoles, {
+        is2LD: name.split('.').length === 2,
+      }),
+    )
 
   return (
     <Fragment>
@@ -234,6 +245,9 @@ export const NameRolesOverviewTable = ({
           {truncateAddress(registryAddress)}
         </EntityBadge>
       </div>
+      {isRoleAdmin && roleEditLock === 'needs-update' && (
+        <RegistryRolesLockedNotice />
+      )}
       <V2NameRoles
         name={name}
         registryAddress={registryAddress}

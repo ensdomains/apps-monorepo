@@ -2,6 +2,7 @@ import { getDestinationContracts } from '@ens-apps/smart-account'
 import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
+  getRoleEditLock,
   isPastedRegistryBlocked,
   isPendingUpgradeImplementation,
 } from './pendingUpgradeRegistry'
@@ -55,4 +56,14 @@ describe('isPastedRegistryBlocked', () => {
       )
     },
   )
+})
+
+describe('getRoleEditLock', () => {
+  it.each([
+    [false, 'open'],
+    [true, 'needs-update'],
+    [undefined, 'checking'],
+  ] as const)('pending upgrade %s: %s', (isPendingUpgrade, expected) => {
+    expect(getRoleEditLock(isPendingUpgrade)).toBe(expected)
+  })
 })
