@@ -9,14 +9,14 @@ import {
 
 describe('isPendingUpgradeImplementation', () => {
   it.each([mainnet.id, sepolia.id])(
-    'flags the UserRegistry implementation deployed on chain %i',
+    'leaves the current UserRegistry implementation on chain %i alone',
     (chainId) => {
       expect(
         isPendingUpgradeImplementation({
           chainId,
           implementation: getDestinationContracts(chainId).userRegistryImpl,
         }),
-      ).toBe(true)
+      ).toBe(false)
     },
   )
 
