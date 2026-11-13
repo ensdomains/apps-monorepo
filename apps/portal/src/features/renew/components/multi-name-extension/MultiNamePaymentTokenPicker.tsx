@@ -14,6 +14,7 @@ import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import { getPaymentHeading } from '@/features/register/utils/paymentHeading'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import type {
   MultiRenewalEntry,
   RenewerPayment,
@@ -120,6 +121,8 @@ export const MultiNamePaymentTokenPicker = ({
     priceQueries.some((q) => q.isLoading)
 
   if (isLoading) return <Skeleton />
+
+  if (!hasAddress) return <ConnectWalletAlert />
 
   // A settled-but-errored price read must NOT be treated as 0: that would
   // understate a renewer's approval total (risking an on-chain revert) and make

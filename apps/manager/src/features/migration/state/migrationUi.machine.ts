@@ -2,7 +2,6 @@ import type { V1Domain } from '@ens-apps/migration'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import posthog from 'posthog-js/dist/module.full.no-external'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
   assign,
@@ -17,6 +16,7 @@ import {
 } from '@/features/migration/service/buildMigrationPlan'
 import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import {
+  canRetryMigration,
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
@@ -26,7 +26,6 @@ import {
   type MigrationProgress,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
   executeGraceRenewal,
@@ -265,10 +264,6 @@ export const migrationUiMachine = setup({
         wagmiConfig: input.wagmiConfig,
         managerRestorationNames: input.managerRestorationNames,
         canBatchAtomically: input.renewal.canBatchAtomically,
-        isSubnameRecreationEnabled:
-          posthog.isFeatureEnabled(
-            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-          ) === true,
         signal,
       }),
     ),
@@ -310,10 +305,6 @@ export const migrationUiMachine = setup({
       executeMigration({
         plan: input.plan,
         submissionGate: { signal: controller.signal },
-        canRecreateSubnames: () =>
-          posthog.isFeatureEnabled(
-            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-          ) === true,
         wagmiConfig: input.wagmiConfig,
         publicClient: defaultPublicClient as PublicClient,
         signer: input.signer,
@@ -444,9 +435,19 @@ export const migrationUiMachine = setup({
         ),
       }
     }),
-    setProgress: assign({
-      progress: ({ event, context }) =>
-        event.type === 'migration.progress' ? event.progress : context.progress,
+    setProgress: assign(({ event, context }) => {
+      if (event.type !== 'migration.progress') return {}
+      return {
+        progress: event.progress,
+        stepDescriptors: event.progress.stepDescriptors
+          ? [
+              ...(context.renewedDomains
+                ? renewalStepsOf(context.stepDescriptors)
+                : []),
+              ...event.progress.stepDescriptors,
+            ]
+          : context.stepDescriptors,
+      }
     }),
     appendBatchComplete: assign(({ event, context }) => {
       if (event.type !== 'migration.batchComplete') return {}
@@ -754,17 +755,20 @@ export const migrationUiMachine = setup({
       on: {
         retry: [
           {
-            guard: ({ context }) => !!context.plan,
+            guard: ({ context }) =>
+              !!context.plan && canRetryMigration(context.lastError),
             target: 'migrate.running',
             actions: 'resetForRetry',
           },
           {
-            guard: ({ context }) => !!context.renewedDomains,
+            guard: ({ context }) =>
+              !!context.renewedDomains && canRetryMigration(context.lastError),
             target: 'migrate.preparing',
             actions: assign({ lastError: undefined }),
           },
           {
-            guard: ({ context }) => !!context.renewal,
+            guard: ({ context }) =>
+              !!context.renewal && canRetryMigration(context.lastError),
             target: 'migrate.renewing',
             actions: assign({ lastError: undefined }),
           },

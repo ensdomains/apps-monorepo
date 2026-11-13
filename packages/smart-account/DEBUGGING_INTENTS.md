@@ -230,7 +230,9 @@ So the overhead cap is no longer a constant (`refund-caps.ts`):
   A miss on `refundAmount` or `exchangeRate` is a fixed bound and is refused.
 
 The same mismatch under-funds the HCA. `intentCost.tokensSpent` prices about
-`(destinationGasUnits + ~880k) × gasPrice` and does **not** include the relay
+`(destinationGasUnits + ~880k) × gasPrice` (2026-10-07, at Sepolia's ~1 Mwei gas
+price; on 2026-11-05 the added term was ~104k on Sepolia at 1 gwei and ~109k on
+mainnet at 0.36 gwei) and does **not** include the relay
 fee in `gasOverhead`: on 2026-10-07 a first commit pulled 0.010017 USDC while
 both legs had been quoted at 0.007681 together, and the reveal then failed
 simulation with `ERC20InsufficientBalance` 0.0023 USDC short of the price.

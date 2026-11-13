@@ -32,6 +32,7 @@ import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { err, fromPromise, ok, ResultAsync } from 'neverthrow'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData, erc20Abi, isAddressEqual } from 'viem'
+import { mainnet } from 'viem/chains'
 import {
   clearPendingL2Bridge,
   readPendingL2Bridge,
@@ -49,24 +50,29 @@ import {
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { type HcaRenewalEthFunding, swapEthForRenewal } from './renewalEthSwap'
 
-/**
- * Declared gas limit for a renewal intent, and the marginal cost of each extra
- * name in a batch.
- *
- * The rail prices the quote on the DECLARED limit, so an under-declared batch
- * quotes a fee that cannot pay for its own fill (registration's `register` leg
- * learned this the expensive way). Measured on a Sepolia fork against the v2
- * registrar: `renew` alone costs ~91k gas and each extra `renewBatch` entry
- * ~24-35k, on top of the executor's own overhead — the commit leg, a comparable
- * `permit + transferFrom + one call` batch, BILLS ~385k. 600k base plus 100k
- * per extra name therefore covers the whole shape with room to spare, and the
- * overshoot is not wasted: whatever the fill does not spend stays in the HCA.
- */
-export const HCA_RENEWAL_INTENT_GAS_LIMIT_BASE = 600_000n
-export const HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM = 100_000n
+/** Gas a renewal intent is quoted on: what its fills used on average, not the most, since the user funds the quote. */
+export type RenewalIntentGas = {
+  /** One name, funding permit and `transferFrom` included. */
+  readonly base: bigint
+  /** Each further name in a `renewBatch`. */
+  readonly perExtraName: bigint
+  /** The second permit and `transferFrom` pair when the price is not in USDC. */
+  readonly tokenFunding: bigint
+}
 
-/** Room for a second permit + `transferFrom` pair when the price is not in USDC. */
-export const HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS = 150_000n
+/** Sepolia's fills on 2026-11-05, which pay Glamsterdam's state-creation gas (EIP-8037). */
+export const POST_GLAMSTERDAM_RENEWAL_INTENT_GAS: RenewalIntentGas = {
+  base: 540_000n,
+  perExtraName: 30_000n,
+  tokenFunding: 130_000n,
+}
+
+/** Mainnet's fills on 2026-11-05, before Glamsterdam; drop this once mainnet activates it. */
+export const MAINNET_RENEWAL_INTENT_GAS: RenewalIntentGas = {
+  base: 330_000n,
+  perExtraName: 30_000n,
+  tokenFunding: 90_000n,
+}
 
 /**
  * Most names one intent may carry.
@@ -87,10 +93,22 @@ const RENEWAL_PERMIT_PURPOSE: PermitPurpose = {
     'the network fee, less what the smart account already holds.',
 }
 
-/** Gas limit a renewal batch of `itemCount` names is quoted against. */
-export const hcaRenewalIntentGasLimit = (itemCount: number): bigint =>
-  HCA_RENEWAL_INTENT_GAS_LIMIT_BASE +
-  HCA_RENEWAL_INTENT_GAS_LIMIT_PER_ITEM * BigInt(Math.max(itemCount - 1, 0))
+/** Gas limit a renewal batch of `itemCount` names, priced in `token`, is quoted against. */
+export const hcaRenewalIntentGasLimit = (params: {
+  readonly chainId: number
+  readonly itemCount: number
+  readonly token: RENEWAL_TOKEN
+}): bigint => {
+  const gas =
+    params.chainId === mainnet.id
+      ? MAINNET_RENEWAL_INTENT_GAS
+      : POST_GLAMSTERDAM_RENEWAL_INTENT_GAS
+  return (
+    gas.base +
+    gas.perExtraName * BigInt(Math.max(params.itemCount - 1, 0)) +
+    (params.token === 'USDC' ? 0n : gas.tokenFunding)
+  )
+}
 
 export interface HcaRenewalItem {
   readonly label: string
@@ -169,6 +187,8 @@ export interface SubmitHcaRenewalParams {
   readonly l2Funding?: HcaRenewalL2Funding
   /** Swap the wallet's ETH for the USDC its permit moves, before the funding is planned. */
   readonly ethFunding?: HcaRenewalEthFunding
+  /** The USDC the renewal and its fee are paid in when not the deployment's: the one ETH buys. */
+  readonly paymentToken?: Address
 }
 
 /** The batch's price, read now: the renewer charges exactly this, as its rates are fixed. */
@@ -201,6 +221,8 @@ const buildRenewalIntent = async (params: {
   readonly token: RENEWAL_TOKEN
   readonly hca: Address
   readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly paymentToken?: Address
 }): Promise<RenewalIntent> => {
   const { items, renewerAddress, protocol, token, hca, publicClient } = params
   const [first, ...rest] = items
@@ -208,7 +230,7 @@ const buildRenewalIntent = async (params: {
     throw new Error('A renewal intent needs at least one name.')
   }
   const single = rest.length === 0 ? first : undefined
-  const tokenAddress = TOKENS[token].address
+  const tokenAddress = params.paymentToken ?? TOKENS[token].address
 
   // Unwrapped at this promise boundary: the service reports failures by
   // rejecting, and the reads themselves are composed as one Result.
@@ -259,9 +281,11 @@ const buildRenewalIntent = async (params: {
     },
   ]
 
-  const gasLimit =
-    hcaRenewalIntentGasLimit(items.length) +
-    (token === 'USDC' ? 0n : HCA_RENEWAL_INTENT_TOKEN_FUNDING_GAS)
+  const gasLimit = hcaRenewalIntentGasLimit({
+    chainId: params.chainId,
+    itemCount: items.length,
+    token,
+  })
 
   return { tokenAddress, rentTotal, actionCalls, gasLimit }
 }
@@ -305,6 +329,7 @@ export async function quoteHcaRenewalFee(
       token,
       hca,
       publicClient,
+      chainId,
     })
 
   return quoteHcaIntentFeeUsdc({
@@ -338,6 +363,8 @@ const awaitHcaBalance = ResultFn(async function* (params: {
   readonly publicClient: PublicClient
   readonly chainId: number
   readonly atLeast: bigint
+  /** The USDC the bridge delivers. Defaults to the deployment's. */
+  readonly token?: Address
 }) {
   const balance = yield* readHcaUsdcBalanceAtLeastActor(params)
   return balance >= params.atLeast
@@ -361,8 +388,10 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
   readonly hca: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  /** The USDC bridges deliver. Defaults to the deployment's. */
+  readonly token?: Address
 }) {
-  const { hca, publicClient, chainId } = params
+  const { hca, publicClient, chainId, token } = params
   const pending = readPendingL2Bridge(chainId, hca)
   if (!pending) return ok(undefined)
 
@@ -376,6 +405,7 @@ const settlePendingL2Bridge = ResultFn(async function* (params: {
       hca,
       publicClient,
       chainId,
+      token,
       atLeast: pending.fundsHcaTo,
     })
   }
@@ -393,8 +423,9 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
   readonly hca: Address
   /** Why nothing is paid when a fee can't be quoted. */
   readonly unpricedMessage: string
+  readonly paymentToken?: Address
 }) {
-  const { intents, signer, publicClient, chainId, hca } = params
+  const { intents, signer, publicClient, chainId, hca, paymentToken } = params
   const fees = yield* ResultAsync.combine(
     intents.map((intent) =>
       fromPromise(
@@ -407,6 +438,7 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
           requiredUsdc: intent.rentTotal,
           gasLimit: intent.gasLimit,
           feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
+          paymentToken,
         }),
         toError,
       ),
@@ -426,6 +458,7 @@ const sizeRenewalShortfall = ResultFn(async function* (params: {
     hca,
     publicClient,
     chainId,
+    token: paymentToken,
   })
   const amount = getL2RenewalAmountOut({
     rentTotal: intents.reduce((sum, intent) => sum + intent.rentTotal, 0n),
@@ -449,8 +482,10 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
   readonly ownerAddress: Address
   readonly publicClient: PublicClient
   readonly chainId: number
+  /** The USDC the bridge delivers and the renewal pays in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
 }) {
-  const { l2Funding, signer, publicClient, chainId } = params
+  const { l2Funding, signer, publicClient, chainId, paymentToken } = params
   const { source } = l2Funding
   if (params.token !== 'USDC') {
     return err(
@@ -459,7 +494,12 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
   }
 
   const hca = getSmartAccountAddress(signer)
-  yield* settlePendingL2Bridge({ hca, publicClient, chainId })
+  yield* settlePendingL2Bridge({
+    hca,
+    publicClient,
+    chainId,
+    token: paymentToken,
+  })
 
   const { amount, hcaBalance } = yield* sizeRenewalShortfall({
     ...params,
@@ -481,10 +521,17 @@ const fundRenewalsFromL2 = ResultFn(async function* (params: {
         fundsHcaTo,
       })
     },
+    paymentToken,
   })
   yield* fromPromise(waitForTransaction(txId), toError)
   // A lagging read would otherwise ask the wallet to fund it all over again.
-  yield* awaitHcaBalance({ hca, publicClient, chainId, atLeast: fundsHcaTo })
+  yield* awaitHcaBalance({
+    hca,
+    publicClient,
+    chainId,
+    atLeast: fundsHcaTo,
+    token: paymentToken,
+  })
   clearPendingL2Bridge(chainId, hca)
   return ok(fundsHcaTo)
 })
@@ -643,6 +690,7 @@ const prefundRenewal = ResultFn(async function* (
       ownerAddress,
       publicClient,
       chainId,
+      paymentToken: params.paymentToken,
     })
     return ok<bigint | undefined>(balance)
   }
@@ -715,6 +763,8 @@ export async function submitHcaRenewal(
       token,
       hca,
       publicClient,
+      chainId,
+      paymentToken: params.paymentToken,
     })
 
   // Owner-signed on purpose: `renew` is not one of the calls
@@ -752,6 +802,7 @@ export async function submitHcaRenewal(
     },
     gasLimit,
     feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
+    paymentToken: params.paymentToken,
     ...(hcaBalanceAtLeast === undefined ? {} : { hcaBalanceAtLeast }),
     maxFeeUsdc: hcaMaxIntentFeeUsdcFor(gasLimit),
     ...fundingConsent(params),

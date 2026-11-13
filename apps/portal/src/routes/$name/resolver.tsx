@@ -31,7 +31,10 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
-import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
+import {
+  formatRoleHolderCount,
+  getResolverOverviewQueryOptions,
+} from '@/features/resolver/hooks/useResolverOverview'
 import { ResolverPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import {
@@ -84,7 +87,7 @@ const ResolverAddressValue = ({ address }: { address: Address }) => (
     variant="contract"
     address={address}
     etherscanHref={`${blockExplorerUrl}/address/${address}`}
-    className="max-w-full truncate"
+    format="truncate"
   >
     {address}
   </EntityBadge>
@@ -100,7 +103,12 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
 
   if (isLoading) return <LoadingSpinner title="Loading interfaces..." />
   if (error)
-    return <div className="text-p text-destructive">{error.cause?.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching interfaces. Please refresh the page."
+      />
+    )
   if (!data)
     return <div className="text-base text-muted-foreground">No data</div>
 
@@ -139,6 +147,33 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
   )
 }
 
+const RoleHolderCount = ({
+  resolverAddress,
+}: {
+  readonly resolverAddress: Address
+}) => {
+  const {
+    data: resolver,
+    isLoading,
+    error,
+  } = useQuery(getResolverOverviewQueryOptions({ address: resolverAddress }))
+
+  if (isLoading)
+    return (
+      <span className="text-muted-foreground">Loading role holders...</span>
+    )
+  if (error)
+    return (
+      <span className="text-destructive">Failed to load role holders.</span>
+    )
+
+  return (
+    <span>
+      {formatRoleHolderCount(resolver?.roleHolderCount, resolver?.rolesStatus)}.
+    </span>
+  )
+}
+
 /**
  * Flags an owner who can't change the name's own resolver slot. Shown even when
  * the resolver above is inherited from an ancestor: a locked, empty slot means
@@ -161,6 +196,7 @@ const ResolverInfoList = ({
   ownerData,
   type,
   docsHref,
+  isPermissioned,
 }: {
   resolverAddress: Address
   name: string
@@ -168,6 +204,8 @@ const ResolverInfoList = ({
   type: string
   /** Official-resolver docs link — renders the audited notice in the Type row. */
   docsHref?: string
+  /** Only a PermissionedResolver has resolver roles. */
+  readonly isPermissioned?: boolean
 }) => {
   const { data: resolver } = useQuery(
     getResolverOverviewQueryOptions({ address: resolverAddress }),
@@ -197,8 +235,8 @@ const ResolverInfoList = ({
         </div>
       </InfoRow>
       <InfoRow label="Node">
-        <div className="flex items-center gap-2">
-          <EntityBadge variant="name" name={name} showAvatar>
+        <div className="flex min-w-0 items-center gap-2">
+          <EntityBadge variant="name" name={name} showAvatar format="truncate">
             {name}
           </EntityBadge>
           {isLinked && <Badge variant="outline">Linked</Badge>}
@@ -214,6 +252,21 @@ const ResolverInfoList = ({
           <FeatureLinks resolverAddress={resolverAddress} />
         </div>
       </InfoRow>
+      {isPermissioned && (
+        <InfoRow label="Permissions">
+          <p className="text-p text-foreground">
+            <RoleHolderCount resolverAddress={resolverAddress} />{' '}
+            <Link
+              to="/resolver/$address"
+              params={{ address: resolverAddress }}
+              className="underline"
+            >
+              View and manage
+            </Link>{' '}
+            on this contract's page.
+          </p>
+        </InfoRow>
+      )}
     </div>
   )
 }
@@ -265,6 +318,7 @@ const ResolverView = ({
           ownerData={ownerData}
           type="ENS Permissioned Resolver"
           docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
+          isPermissioned
         />
       ) : isOfficialPublicResolver ? (
         <ResolverInfoList

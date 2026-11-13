@@ -18,6 +18,7 @@ type RegistrationStubEvent =
       l2Funding?: { chain: { id: number } }
       ethFunding?: { displayedCharge?: bigint }
       pendingEthSwap?: { hash: `0x${string}`; deadline: bigint }
+      paymentTokenAddress?: Address
     }
   | { type: 'RESUME'; stage: string; context: any; deps: any }
   | { type: 'FORCE_SUCCESS' }
@@ -68,6 +69,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       l2FundingChainId: undefined as number | undefined,
       /** The ETH payment the run was handed. */
       ethFunding: undefined as { displayedCharge?: bigint } | undefined,
+      /** The USDC the run was told to pay in, when not the deployment's. */
+      paymentTokenAddress: undefined as Address | undefined,
       /** The swap an abandoned run sent, as the run was handed it. */
       pendingEthSwap: undefined as
         | { hash: `0x${string}`; deadline: bigint }
@@ -100,6 +103,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
               pendingEthSwap: ({ event }) =>
                 event.type === 'START_REGISTRATION'
                   ? event.pendingEthSwap
+                  : undefined,
+              paymentTokenAddress: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.paymentTokenAddress
                   : undefined,
             }),
           },
@@ -245,6 +252,7 @@ const startPrimaryNameReverse = vi.mocked(submitPrimaryNameReverse)
 
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as const
 const EOA_ADDRESS = '0x2222222222222222222222222222222222222222' as const
+const CIRCLE_USDC = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const
 
 const startEvent = (
   account: SmartAccountContextValue,
@@ -1497,6 +1505,46 @@ describe('registrationV2UiMachine — name lost to another registrant', () => {
   })
 })
 
+// A reset mid-run makes the orchestrator refuse the run's next intent with `InvalidSignature()`.
+describe('signature rejection on failure', () => {
+  const eoaAccount = {
+    signer: { type: 'eoa', walletClient: {} as never },
+    accountAddress: EOA_ADDRESS,
+    ownerAddress: EOA_ADDRESS,
+    walletClient: { account: { address: EOA_ADDRESS } },
+    // Only the fields the start reads; the full context value isn't needed.
+  } as unknown as SmartAccountContextValue
+
+  const failWith = async (error: Error) => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(eoaAccount))
+    sendToChild(actor, { type: 'FORCE_ERROR', error })
+    await flush()
+    return actor
+  }
+
+  it('flags a refused signature and clears the flag on retry', async () => {
+    const actor = await failWith(
+      new Error(
+        'Failed to submit transaction: Simulation failed: InvalidSignature()',
+      ),
+    )
+    expect(actor.getSnapshot().context.isSignatureRejected).toBe(true)
+
+    actor.send({ type: 'retry' })
+    await flush()
+    expect(actor.getSnapshot().matches('registering')).toBe(true)
+    expect(actor.getSnapshot().context.isSignatureRejected).toBe(false)
+  })
+
+  it('leaves other failures unflagged', async () => {
+    const actor = await failWith(new Error('rpc down'))
+
+    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(actor.getSnapshot().context.isSignatureRejected).toBe(false)
+  })
+})
+
 describe('registration referrer boundary', () => {
   it.each([
     ['0x1234', `0x${'0'.repeat(60)}1234`],
@@ -1692,6 +1740,50 @@ describe('paying with ETH', () => {
     expect(getChild(actor).getSnapshot().context.ethFunding).toEqual({
       displayedCharge: 10n ** 16n,
     })
+    actor.stop()
+  })
+
+  // Sepolia's MockUSDC has no Uniswap pool or bridge, so ETH and L2s bring in Circle's USDC.
+  it.each([
+    [
+      'an ETH payment in the USDC the swap buys',
+      { ethFunding: {} },
+      CIRCLE_USDC,
+    ],
+    [
+      'an L2 payment in the USDC the bridge delivers',
+      { l2FundingChainId: baseSepolia.id },
+      CIRCLE_USDC,
+    ],
+    [
+      'a chosen L2 with nothing to bridge in the USDC the account holds from it',
+      { isCirclePayment: true },
+      CIRCLE_USDC,
+    ],
+    ['any other payment in the deployment’s USDC', {}, undefined],
+  ])('has %s', (_case, funding, paymentTokenAddress) => {
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(smartAccount), ...funding })
+
+    expect(getChild(actor).getSnapshot().context.paymentTokenAddress).toBe(
+      paymentTokenAddress,
+    )
+    actor.stop()
+  })
+
+  it('keeps an EOA run in its own token whatever the screen says', () => {
+    const eoaAccount = {
+      signer: { type: 'eoa', walletClient: {} as never },
+      accountAddress: EOA_ADDRESS,
+      ownerAddress: EOA_ADDRESS,
+      walletClient: { account: { address: EOA_ADDRESS } },
+    } as unknown as SmartAccountContextValue
+    const actor = startActorInTokens()
+    actor.send({ ...startEvent(eoaAccount), isCirclePayment: true })
+
+    expect(
+      getChild(actor).getSnapshot().context.paymentTokenAddress,
+    ).toBeUndefined()
     actor.stop()
   })
 

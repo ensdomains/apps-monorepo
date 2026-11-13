@@ -94,6 +94,8 @@ export interface DestinationSessionParams {
    * legacy caps.
    */
   readonly refundCaps?: RefundCaps
+  /** The token its intents refund gas in, and the only one their permit may pull; default the deployment's USDC. */
+  readonly refundToken?: Address
 }
 
 export interface DestinationSessionResult {
@@ -103,6 +105,7 @@ export interface DestinationSessionResult {
   readonly hcaSessionNonce: bigint
   readonly validUntil: bigint
   readonly refundCaps: RefundCaps
+  readonly refundToken: Address
 }
 
 /**
@@ -178,7 +181,8 @@ export function createDestinationSession(
 ): ResultAsync<DestinationSessionResult, SessionEnableError> {
   return fromPromise(
     (async () => {
-      const c = getDestinationContracts(params.chain.id)
+      const refundToken =
+        params.refundToken ?? getDestinationContracts(params.chain.id).usdc
       const refundCaps = params.refundCaps ?? LEGACY_REFUND_CAPS
       const hcaSessionNonce = await readSessionNonce({
         publicClient: params.publicClient,
@@ -190,7 +194,7 @@ export function createDestinationSession(
         hcaSessionNonce,
         validUntil: params.validUntil,
         resolver: params.resolver,
-        refundToken: c.usdc,
+        refundToken,
         ...refundCaps,
       })
 
@@ -220,6 +224,7 @@ export function createDestinationSession(
           validUntil: params.validUntil,
           resolver: params.resolver,
           refundCaps,
+          refundToken,
         }),
       }
 
@@ -230,6 +235,7 @@ export function createDestinationSession(
         hcaSessionNonce,
         validUntil: params.validUntil,
         refundCaps,
+        refundToken,
       }
     })(),
     (error: unknown) =>
@@ -252,14 +258,16 @@ export function buildHcaSessionConfig(params: {
   readonly resolver: Address
   /** The caps the session was authorized with. Defaults to the legacy caps. */
   readonly refundCaps?: RefundCaps
+  /** The session's refund token. Defaults to the deployment's USDC. */
+  readonly refundToken?: Address
 }): HcaSessionConfig {
-  const c = getDestinationContracts(params.chainId)
   const caps = params.refundCaps ?? LEGACY_REFUND_CAPS
   return {
     sessionKey: params.sessionKey,
     validUntil: Number(params.validUntil),
     resolver: params.resolver,
-    refundToken: c.usdc,
+    refundToken:
+      params.refundToken ?? getDestinationContracts(params.chainId).usdc,
     maxRefundExchangeRate: caps.maxRefundExchangeRate,
     maxRefundGasOverhead: Number(caps.maxRefundGasOverhead),
     maxRefundAmount: caps.maxRefundAmount,
@@ -284,13 +292,15 @@ export function rebuildDestinationSession(params: {
   readonly sessionPrivateKey: Hex
   /** The caps the session was authorized with. Defaults to the legacy caps. */
   readonly refundCaps?: RefundCaps
+  /** The session's refund token. Defaults to the deployment's USDC. */
+  readonly refundToken?: Address
 }): { session: StandaloneHcaSession; permissionId: Hex } {
-  const c = getDestinationContracts(params.chain.id)
   const salt = computeDestinationSessionSalt({
     hcaSessionNonce: params.hcaSessionNonce,
     validUntil: params.validUntil,
     resolver: params.resolver,
-    refundToken: c.usdc,
+    refundToken:
+      params.refundToken ?? getDestinationContracts(params.chain.id).usdc,
     ...(params.refundCaps ?? LEGACY_REFUND_CAPS),
   })
   const session: StandaloneHcaSession = {

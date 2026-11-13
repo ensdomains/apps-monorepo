@@ -61,7 +61,7 @@ const ProfileOffer = ({
       // The 110-degree wash follows the horizontal offer layout; these pale pink stops have no matching theme tokens.
       <div className="relative mt-4 overflow-hidden rounded-xl border border-ens-pink/20 bg-[linear-gradient(110deg,#fff5f8,#ffe0ec)] p-5">
         <div className="absolute -top-10 -right-8 size-28 rounded-full bg-white/50 blur-2xl" />
-        <div className="relative flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/75 text-ens-garnet-500">
               {/* Keep the sparkle at 22px within the 40px disc; the standard 20px/24px steps change its visual balance. */}

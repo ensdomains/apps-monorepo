@@ -93,7 +93,7 @@ const withParentExpiry = (
 
 /**
  * Every name the address owns, manages or holds a role on, in either era,
- * plus the names it held through their grace and price cooldown. Names that only resolve
+ * plus the names it let expire in the last 30 days. Names that only resolve
  * to the address are on its resolution page instead.
  */
 export const getAddressNames = (

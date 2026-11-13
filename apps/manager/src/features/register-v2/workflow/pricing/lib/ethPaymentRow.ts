@@ -1,4 +1,7 @@
-import { ethToUsdcRaw } from '@ens-apps/transaction-manager'
+import {
+  ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+  ethToUsdcRaw,
+} from '@ens-apps/transaction-manager'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { formatUnits } from 'viem'
 import type { EthPaymentRow } from '../components/EthPaymentListItem'
@@ -41,10 +44,32 @@ export const getEthSwapDebitUsdcRaw = ({
     ? undefined
     : ethToUsdcRaw(chargeRaw, ethUsdRaw)
 
+/** What paying with ETH takes from the wallet: its USDC, then up to `ethWei` for the swap and its gas. */
+export type EthPaymentDebit = Readonly<{
+  usdcRaw: bigint
+  ethWei: bigint
+  /** The most the swap sends, in USDC (6dp). */
+  swapUsdcRaw: bigint
+}>
+
+/** Undefined until quoted and priced, or with nothing to swap. */
+export const getEthPaymentDebit = (
+  row: EthPaymentRow,
+): EthPaymentDebit | undefined => {
+  const swapUsdcRaw = getEthSwapDebitUsdcRaw(row)
+  if (swapUsdcRaw === undefined || row.chargeRaw === undefined) return undefined
+  return {
+    usdcRaw: row.walletUsdcRaw,
+    ethWei: row.chargeRaw + row.gasReserveRaw / ETH_SWAP_GAS_RESERVE_MULTIPLIER,
+    swapUsdcRaw,
+  }
+}
+
 /** The ETH row, from its quote. With the HCA already funded, nothing is sent. */
 export const getEthPaymentRow = (
   quote: {
     readonly data?: {
+      readonly usdcToBuy: bigint
       readonly swap?: { readonly maximumEth: bigint }
       readonly walletBalance: bigint
       readonly gasReserve: bigint
@@ -61,6 +86,7 @@ export const getEthPaymentRow = (
         chargeRaw: 0n,
         balanceRaw: undefined,
         gasReserveRaw: 0n,
+        walletUsdcRaw: 0n,
         ethUsdRaw: undefined,
         isQuoteLoading: false,
         hasQuoteFailed: false,
@@ -73,6 +99,12 @@ export const getEthPaymentRow = (
             : (quote.data.swap?.maximumEth ?? 0n),
         balanceRaw: quote.data?.walletBalance,
         gasReserveRaw: quote.data?.gasReserve ?? 0n,
+        walletUsdcRaw:
+          quote.data === undefined ||
+          walletDebitRaw === undefined ||
+          walletDebitRaw < quote.data.usdcToBuy
+            ? 0n
+            : walletDebitRaw - quote.data.usdcToBuy,
         ethUsdRaw: quote.data?.ethUsd,
         // A placeholder belongs to another amount: shown, never paid on.
         isQuoteLoading: quote.isPending || quote.isPlaceholderData,

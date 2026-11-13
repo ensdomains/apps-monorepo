@@ -2,6 +2,7 @@ import type { FC, PropsWithChildren } from 'react'
 import type { Hash } from 'viem'
 import { useTransaction } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import type { EventsTableData } from '@/components/table/EventsDataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
@@ -71,9 +72,10 @@ const TransactionDetails = ({
   if (error) {
     return (
       <div className="p-6 flex flex-col gap-4">
-        <div className="text-destructive">
-          Error loading transaction: {error.message}
-        </div>
+        <ErrorMessage
+          compact
+          description={`Error loading transaction: ${error.message}`}
+        />
       </div>
     )
   }

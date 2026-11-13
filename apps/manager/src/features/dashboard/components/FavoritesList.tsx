@@ -2,19 +2,30 @@ import { Trans } from '@lingui/react/macro'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { profileAvatarRecordsQuery } from '@/features/profile/service/profileAvatarRecords'
+import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
-import type { SortDir } from '../mergedNames'
+import type { NameVersion, SortDir } from '../mergedNames'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
+  filterFavoritesByVersion,
+  getFavoriteLookupBatches,
+  getFavoriteResolutionState,
+  getFavoriteVersionFallbacks,
+  getFavoriteVersions,
+  getIndexedFavoriteVersions,
   paginateFavorites,
   sortFavorites,
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import {
+  favoriteReadOptions,
+  getFavoriteVersionsQueryOptions,
+} from '../service/queries/getFavoriteVersions'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
@@ -24,6 +35,7 @@ export type FavoritesSort = `${FavoritesSortField}-${'asc' | 'desc'}`
 
 interface FavoritesListProps {
   readonly searchQuery?: string
+  readonly version?: NameVersion | null
   readonly sort: FavoritesSort
   readonly isAuthenticated: boolean
 }
@@ -78,6 +90,7 @@ const FavoriteNameRow = ({
 
 export const FavoritesList = ({
   searchQuery = '',
+  version = null,
   sort,
   isAuthenticated,
 }: FavoritesListProps) => {
@@ -85,7 +98,7 @@ export const FavoritesList = ({
   const [page, setPage] = useState(1)
   const { field: sortField, direction: sortDirection } = parseSort(sort)
 
-  const filterKey = `${searchQuery} ${sort}`
+  const filterKey = `${searchQuery} ${sort} ${version}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
@@ -104,10 +117,56 @@ export const FavoritesList = ({
     removeMutation.mutate({ name: label })
   }
 
-  const sortedFiltered = useMemo(() => {
-    const filtered = filterFavoritesBySearch(favorites, searchQuery)
-    return sortFavorites(filtered, sortField, sortDirection)
-  }, [favorites, searchQuery, sortField, sortDirection])
+  const searchedFavorites = filterFavoritesBySearch(favorites, searchQuery)
+  const lookupBatches = getFavoriteLookupBatches(
+    favorites.map(({ label }) => label),
+  )
+  const lookupQueries = useQueries({
+    queries: lookupBatches.map((names) => ({
+      ...getFavoriteVersionsQueryOptions(names),
+      enabled: version !== null,
+    })),
+  })
+  const indexedVersions = getIndexedFavoriteVersions(
+    lookupQueries.flatMap((query) => query.data ?? []),
+  )
+  const pendingNames = new Set(
+    lookupQueries.flatMap((query, index) =>
+      query.isPending ? (lookupBatches[index] ?? []) : [],
+    ),
+  )
+  const versionFallbacks = getFavoriteVersionFallbacks(
+    searchedFavorites,
+    indexedVersions,
+    pendingNames,
+  )
+  const versionQueries = useQueries({
+    queries: versionFallbacks.map(({ label }) => ({
+      ...profileOwnerQuery(label),
+      ...favoriteReadOptions,
+      enabled: version !== null,
+    })),
+  })
+  const fallbackReads = versionFallbacks.map(({ label }, index) => ({
+    name: label,
+    protocol: versionQueries[index]?.data?.protocol,
+    isPending: versionQueries[index]?.isPending ?? false,
+    isError: versionQueries[index]?.isError ?? false,
+  }))
+  const resolution = getFavoriteResolutionState(
+    searchedFavorites,
+    pendingNames,
+    fallbackReads,
+  )
+  const isVersionPending = version !== null && resolution.isPending
+  const isVersionError = version !== null && resolution.isError
+  const versions = getFavoriteVersions(indexedVersions, fallbackReads)
+
+  const sortedFiltered = sortFavorites(
+    filterFavoritesByVersion(searchedFavorites, version, versions),
+    sortField,
+    sortDirection,
+  )
 
   const totalCount = sortedFiltered.length
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
@@ -132,20 +191,60 @@ export const FavoritesList = ({
   return (
     <div className="w-full">
       <div className="flex w-full flex-col">
-        {match({ isLoading, paginatedFavorites, favoritesCount })
-          .with({ isLoading: true }, () => (
-            <>
-              <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
-                <NameRowSkeleton />
-              </div>
-              <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
-                <NameRowSkeleton />
-              </div>
-              <div className="py-6">
-                <NameRowSkeleton />
-              </div>
-            </>
-          ))
+        {isVersionPending && (
+          <p
+            className="py-4 text-center text-muted-foreground text-sm"
+            role="status"
+          >
+            <Trans>Loading...</Trans>
+          </p>
+        )}
+        {isVersionError && (
+          <p
+            className="py-4 text-center text-muted-foreground text-sm"
+            role="alert"
+          >
+            <Trans>Some names could not be loaded</Trans>
+          </p>
+        )}
+        {match({
+          isLoading,
+          isVersionPending,
+          isVersionError,
+          paginatedFavorites,
+          favoritesCount,
+        })
+          .with(
+            P.union(
+              { isLoading: true },
+              {
+                isVersionPending: true,
+                paginatedFavorites: P.when(
+                  (favorites) => favorites.length === 0,
+                ),
+              },
+            ),
+            () => (
+              <>
+                <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
+                  <NameRowSkeleton />
+                </div>
+                <div className="border-ens-quartz-250 border-b-[0.41px] py-6">
+                  <NameRowSkeleton />
+                </div>
+                <div className="py-6">
+                  <NameRowSkeleton />
+                </div>
+              </>
+            ),
+          )
+          .with(
+            {
+              isVersionError: true,
+              paginatedFavorites: P.when((favorites) => favorites.length === 0),
+            },
+            () => null,
+          )
           .with({ favoritesCount: 0 }, () => (
             <div className="flex flex-col items-center justify-center gap-3 py-16">
               <Mountain
@@ -201,7 +300,7 @@ export const FavoritesList = ({
       {totalCount > 0 && (
         <DashboardPagination
           currentPage={currentPage}
-          disabled={isLoading}
+          disabled={isLoading || isVersionPending}
           onPageChange={setPage}
           rangeEnd={paginatedData.endIndex}
           rangeStart={paginatedData.startIndex}

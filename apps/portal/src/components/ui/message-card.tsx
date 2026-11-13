@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-xl p-6 flex items-start gap-3 relative w-full max-w-lg mx-auto my-4',
+  'rounded-xl p-6 flex items-start gap-3 relative w-full max-w-lg mx-auto my-4 dark:ring-1 dark:ring-current dark:ring-inset',
   {
     variants: {
       variant: {
@@ -90,7 +90,7 @@ export function MessageCard({
         <h2
           data-slot="title"
           className={cn(
-            'font-serif text-3xl font-normal leading-none tracking-[-0.02em]',
+            'font-serif text-3xl font-normal leading-none tracking-[-0.02em] max-w-full wrap-anywhere',
             titleClassName,
           )}
         >

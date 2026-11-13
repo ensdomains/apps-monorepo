@@ -704,14 +704,24 @@ export const executeGraceRenewal = (params: ExecuteGraceRenewalParameters) =>
         if (approvalRequired) {
           params.onStatus?.('approving')
           await assertWallet(params)
-          const approvalHash = await walletClient.writeContract({
-            account: quote.ownerAddress,
-            chain: publicClient.chain,
-            address: quote.paymentToken,
-            abi: erc20Abi,
-            functionName: 'approve',
-            args: [quote.renewerAddress, quote.totalAmount],
-          })
+          const approvalHash = await walletClient.request(
+            {
+              method: 'eth_sendTransaction',
+              params: [
+                {
+                  from: quote.ownerAddress,
+                  to: quote.paymentToken,
+                  chainId: numberToHex(quote.chainId),
+                  data: encodeFunctionData({
+                    abi: erc20Abi,
+                    functionName: 'approve',
+                    args: [quote.renewerAddress, quote.totalAmount],
+                  }),
+                },
+              ],
+            },
+            { retryCount: 0 },
+          )
           params.onStatus?.('approval-confirming')
           const status = await waitForReceiptStatus(params, {
             hash: approvalHash,

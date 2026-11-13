@@ -8,7 +8,6 @@
  * still missing, so a swap that landed is never bought twice.
  */
 
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, fromPromise, ok, okAsync, ResultAsync } from 'neverthrow'
 import {
@@ -32,7 +31,8 @@ import {
   buildEthSwapCall,
   ETH_SWAP_DISPLAYED_DRIFT_BPS,
   type EthSwapQuote,
-  type EthSwapUnavailableError,
+  EthSwapUnavailableError,
+  getEthSwapUsdc,
   quoteEthSwap,
   withBps,
 } from '../../helpers/eth-usdc-swap'
@@ -115,9 +115,18 @@ export const quoteEthPaymentActor = ResultFn(async function* (input: {
   readonly publicClient: PublicClient
   readonly chainId: number
 }) {
+  // What the swap buys, which on Sepolia is not the manifest's USDC.
+  const usdc = getEthSwapUsdc(input.chainId)
+  if (!usdc) {
+    return err(
+      new EthSwapUnavailableError({
+        message: 'Paying with ETH is not available on this network.',
+      }),
+    )
+  }
   const walletUsdc = yield* fromPromise(
     readContract(input.publicClient, {
-      address: getDestinationContracts(input.chainId).usdc,
+      address: usdc,
       abi: erc20Abi,
       functionName: 'balanceOf',
       args: [input.owner],

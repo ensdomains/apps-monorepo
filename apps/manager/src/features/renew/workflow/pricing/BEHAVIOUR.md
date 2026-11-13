@@ -44,7 +44,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 | Rule | Held by |
 | --- | --- |
-| The fee shown and funded for an intent is the rail's quote plus 5% (`HCA_INTENT_FEE_MARGIN_BPS`), on the sheet and at signing alike, so the orchestrator's re-quote at submit still finds the account covered. What the fill doesn't use stays in the account. The fee is refused above a ceiling sized for mainnet gas (37.5 USDC for one name, 25 USDC more per million gas declared). | `packages/transaction-manager/src/helpers/hca-intent-funding.test.ts` "funds the fee above the quote by the margin a caller asks for", "adds only the per-million-gas rate above the anchor"; `renew/service/hcaRenewal.test.ts` "funds the price on top of the fee, since both come out of the HCA" |
+| The fee shown and funded for an intent is the rail's quote plus 5% (`HCA_INTENT_FEE_MARGIN_BPS`), on the sheet and at signing alike, so the orchestrator's re-quote at submit still finds the account covered. What the fill doesn't use stays in the account. The fee is refused above a ceiling sized for mainnet gas (30.75 USDC for one name on mainnet and 36 on Sepolia, from each chain's average renewal gas; 25 USDC more per million gas declared). | `packages/transaction-manager/src/helpers/hca-intent-funding.test.ts` "funds the fee above the quote by the margin a caller asks for", "adds only the per-million-gas rate above the anchor"; `renew/service/hcaRenewal.test.ts` "funds the price on top of the fee, since both come out of the HCA" |
 
 ## Paying from an L2
 
@@ -88,6 +88,7 @@ Paths are relative to `apps/manager/src/features`. "Sheet tests" means `register
 
 - Bulk renewal has no in-sheet review of an increased amount: a batch quoted above what the sheet showed stops the run, and Try again goes back through the sheet.
 - On Sepolia, paying from an L2 fails above about 8 USDC (Across caps transfers into Sepolia), as in registration.
+- On Sepolia, ETH buys and an L2 bridges Circle's USDC, and the renewal and its fee are paid in it, counted against what the account holds of it; renewal is owner-signed, so no extra session. A chosen L2 with nothing left to bridge still pays in it, from the account.
 - Prices are slightly above round numbers ($8.01 for a year): a year is charged as at least 365.25 days.
 - The renewal failure screen can show the wallet's raw rejection text.
 

@@ -23,8 +23,8 @@ export const readTestUsdc = (holder: Address) =>
 
 /**
  * Fund an isolated local wallet in the USDC the apps pay with: the manifest's
- * (Circle's on Sepolia since #1395), not ensjs's MockUSDC. Unlike account zero
- * it has none seeded. Circle's FiatTokenV2_2 keeps balances in slot 9, as in
+ * (ensjs's MockUSDC on Sepolia). Unlike account zero it has none seeded.
+ * MockUSDC is an OZ ERC20 and keeps balances in slot 0, as in
  * `infra/scripts/fund-rhinestone-account.sh`. `balance` is in base units
  * (6 decimals); pass 0n to empty the holder.
  */
@@ -37,7 +37,7 @@ export async function fundTestUsdc(
     index: keccak256(
       encodeAbiParameters(
         [{ type: 'address' }, { type: 'uint256' }],
-        [holder, 9n],
+        [holder, 0n],
       ),
     ),
     value: toHex(balance, { size: 32 }),

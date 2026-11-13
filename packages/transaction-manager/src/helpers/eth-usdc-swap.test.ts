@@ -1,4 +1,3 @@
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import { decodeFunctionData, parseAbi } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
@@ -126,12 +125,21 @@ describe('buildEthSwapCall', () => {
     fee: 500 as const,
   }
 
+  // Circle's USDC on both chains: Sepolia's manifest MockUSDC has no pool.
   it.each([
-    [sepolia.id, '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E'],
-    [mainnet.id, '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45'],
+    [
+      sepolia.id,
+      '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E',
+      '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    ],
+    [
+      mainnet.id,
+      '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',
+      '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    ],
   ])(
     'buys exactly the USDC for the wallet on chain %i, then refunds unused ETH',
-    (chainId, router) => {
+    (chainId, router, usdc) => {
       const call = buildEthSwapCall({
         quote,
         chainId,
@@ -147,7 +155,7 @@ describe('buildEthSwapCall', () => {
       expect(deadline).toBe(NOW + 1_200n)
       const inner = decodeFunctionData({ abi: routerAbi, data: swap ?? '0x' })
       expect(inner.args?.[0]).toMatchObject({
-        tokenOut: getDestinationContracts(chainId).usdc,
+        tokenOut: usdc,
         recipient: OWNER,
         amountOut: AMOUNT_OUT,
         amountInMaximum: quote.maximumEth,

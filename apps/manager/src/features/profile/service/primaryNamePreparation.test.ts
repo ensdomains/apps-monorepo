@@ -1,3 +1,4 @@
+import { getResolver } from '@ensdomains/ensjs/public'
 import { err, ok } from 'neverthrow'
 import {
   ContractFunctionRevertedError,
@@ -12,6 +13,7 @@ import {
   hasPrimaryNameForwardAddress,
 } from './primaryNameForwardAddress'
 import {
+  answersAsResolver,
   classifyV1Reachability,
   getPrimaryNamePreparation,
   isUnreachableV1Name,
@@ -33,8 +35,10 @@ vi.mock('viem/actions', () => ({ getEnsResolver: vi.fn() }))
 vi.mock('./resolverRecordCalls', () => ({
   isOffchainResolver: vi.fn(async () => false),
 }))
+vi.mock('@ensdomains/ensjs/public', () => ({ getResolver: vi.fn() }))
 
-const client = {} as PublicClient
+// The chain carries the UniversalResolver the resolver-pointer read needs.
+const client: PublicClient = { ...({} as PublicClient), chain: envConfig.chain }
 const owner = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as const
 const name = 'pookie.eth'
 const RESOLVER = '0x1234567890123456789012345678901234567890' as const
@@ -69,6 +73,7 @@ describe('getPrimaryNamePreparation', () => {
       existingEthAddress: null,
       hasResolver: false,
       hasOffchainResolver: false,
+      isResolverInvalid: false,
     })
     expect(getResolverWriteState).toHaveBeenCalledWith(name, owner)
   })
@@ -120,6 +125,7 @@ describe('getPrimaryNamePreparation', () => {
       existingEthAddress: null,
       hasResolver: false,
       hasOffchainResolver: false,
+      isResolverInvalid: false,
     })
   })
 
@@ -136,7 +142,25 @@ describe('getPrimaryNamePreparation', () => {
     )
   })
 
-  it('flags a foreign resolver as being replaced', async () => {
+  // Only `multicall` (the ERC-165 probe) is read off the client.
+  const clientAnswering = (isResolver: boolean) =>
+    ({
+      chain: envConfig.chain,
+      multicall: vi.fn(async () => [
+        { status: 'failure', error: new Error('reverted') },
+        { status: 'success', result: false },
+        { status: 'success', result: false },
+        { status: 'success', result: false },
+        { status: 'success', result: isResolver },
+      ]),
+    }) as unknown as PublicClient
+
+  // A resolver the wallet cannot write is either someone else's working
+  // resolver or not a resolver at all, such as an EOA; only the second is invalid.
+  it.each([
+    { label: 'a foreign resolver', isResolver: true },
+    { label: 'an address that is not a resolver', isResolver: false },
+  ])('flags $label as being replaced', async ({ isResolver }) => {
     vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
     vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
     vi.mocked(getResolverWriteState).mockResolvedValue(
@@ -144,13 +168,100 @@ describe('getPrimaryNamePreparation', () => {
     )
 
     await expect(
-      getPrimaryNamePreparation(client, name, owner),
+      getPrimaryNamePreparation(clientAnswering(isResolver), name, owner),
     ).resolves.toEqual({
       kind: 'setup-resolver',
       existingEthAddress: null,
       hasResolver: true,
       hasOffchainResolver: false,
+      isResolverInvalid: !isResolver,
     })
+  })
+
+  it('stops on a failed resolver-validity read instead of guessing', async () => {
+    vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
+    vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+    vi.mocked(getResolverWriteState).mockResolvedValue(
+      ok({ resolverAddress: RESOLVER, canWrite: false }),
+    )
+    const rpcDown = new Error('rpc down')
+    const failingClient = {
+      multicall: vi.fn(async () => {
+        throw rpcDown
+      }),
+    } as unknown as PublicClient
+
+    await expect(
+      getPrimaryNamePreparation(failingClient, name, owner),
+    ).rejects.toBe(rpcDown)
+  })
+
+  // The UniversalResolver reports no resolver when the pointer is not a
+  // contract (an ENSv1 name pointing at an EOA), so the raw pointer decides.
+  it.each([
+    { label: 'an EOA pointer', pointer: owner, isResolverInvalid: true },
+    { label: 'no pointer', pointer: null, isResolverInvalid: false },
+  ])(
+    'reads the resolver pointer behind no reachable resolver: $label',
+    async ({ pointer, isResolverInvalid }) => {
+      vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
+      vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+      vi.mocked(getResolverWriteState).mockResolvedValue(
+        ok({ resolverAddress: undefined, canWrite: false }),
+      )
+      vi.mocked(getResolver).mockResolvedValue(pointer)
+
+      await expect(
+        getPrimaryNamePreparation(clientAnswering(false), name, owner),
+      ).resolves.toEqual({
+        kind: 'setup-resolver',
+        existingEthAddress: null,
+        hasResolver: false,
+        hasOffchainResolver: false,
+        isResolverInvalid,
+      })
+    },
+  )
+
+  it('stops on a failed resolver-pointer read instead of guessing', async () => {
+    vi.mocked(getPrimaryNameForwardAddress).mockResolvedValue(null)
+    vi.mocked(hasPrimaryNameForwardAddress).mockReturnValue(false)
+    vi.mocked(getResolverWriteState).mockResolvedValue(
+      ok({ resolverAddress: undefined, canWrite: false }),
+    )
+    const rpcDown = new Error('rpc down')
+    vi.mocked(getResolver).mockRejectedValue(rpcDown)
+
+    await expect(
+      getPrimaryNamePreparation(clientAnswering(true), name, owner),
+    ).rejects.toBe(rpcDown)
+  })
+})
+
+describe('answersAsResolver', () => {
+  const yes = { status: 'success', result: true } as const
+  const no = { status: 'success', result: false } as const
+  const reverted = { status: 'failure' } as const
+
+  it.each([
+    {
+      case: 'an EOA or non-ERC-165 contract (every probe reverts)',
+      results: [reverted, reverted],
+      want: false,
+    },
+    {
+      case: 'a contract that supports none of the ids',
+      results: [no, no, no],
+      want: false,
+    },
+    {
+      case: 'a resolver that supports one id',
+      results: [no, reverted, yes],
+      want: true,
+    },
+    { case: 'no answers at all', results: [], want: false },
+  ] as const)('$case is $want', ({ results, want }) => {
+    expect(answersAsResolver(results)).toBe(want)
   })
 })
 
