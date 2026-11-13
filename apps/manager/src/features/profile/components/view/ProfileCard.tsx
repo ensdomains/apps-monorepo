@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils'
 
+// Copy icon stays visible on touch and below xl; on desktop fine pointers it
+// appears on hover or focus-within of the card (CopyableButton is `group`).
 export const profileCardCopyIconClassName =
-  'ml-0 shrink-0 text-ens-quartz-400 xl:text-ens-quartz-700'
+  'ml-0 shrink-0 text-ens-quartz-400 xl:text-ens-quartz-700 xl:pointer-fine:opacity-0 xl:pointer-fine:group-hover:opacity-100 xl:pointer-fine:group-focus-within:opacity-100'
 
 // Material arrow_outward from the profile frame: 24px, light weight, quartz-900.
 export const profileCardArrowClassName =

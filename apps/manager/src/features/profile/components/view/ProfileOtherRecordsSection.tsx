@@ -23,7 +23,8 @@ const recordKeyClassName = cn(
 )
 const recordValueClassName = cn(
   profileFieldValueClassName,
-  'wrap-anywhere line-clamp-3 whitespace-normal',
+  // Slightly tighter than shared field values so multi-line records don't look sparse.
+  'wrap-anywhere line-clamp-3 whitespace-normal leading-[18px] xl:leading-5',
 )
 
 // The value is only ever rendered as text: a custom record is never turned into a link.
@@ -34,7 +35,7 @@ const OtherRecordCard = ({ record }: { readonly record: TextRecordValue }) => (
       value={record.value}
       variant="ghost"
     >
-      <span className="flex min-w-0 flex-1 flex-col">
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className={recordKeyClassName}>{record.key}</span>
         <span className={recordValueClassName}>{record.value}</span>
       </span>
