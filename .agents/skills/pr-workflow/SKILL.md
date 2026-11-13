@@ -44,12 +44,16 @@ When you see them in code this task touches:
 - Add `## Design notes` naming the signs and the pattern that fits.
 - For a large module, propose a plan as a ticket: target design, steps that each ship behind the existing tests, and what must not change. Do not do that rewrite in this PR.
 
-## Before opening the PR
+## Before committing
 
-Read `git diff origin/main...HEAD` the way a reviewer will.
+Run the reviewer in a fresh context before you commit. It is advisory. Mention its questions in the PR body or your final message, and do not change code because of a question. If a finding conflicts with the ticket text, the ticket wins.
 
-- In Claude Code, hand the diff to the `greptile-reviewer` subagent. It reads `.greptile/config.json` in a fresh context and returns findings.
-- In other agents, do that review yourself: `.greptile/config.json` (high rules first), then `.greptile/rules.md`. Open a STYLEGUIDE section only when a rule points at it.
+- Claude Code: Agent tool, `subagent_type` `greptile-reviewer` (`.claude/agents/greptile-reviewer.md`).
+- pi: `subagent({ agent: "greptile-reviewer", task: "..." })` from the pi-subagents extension (`.pi/agents/greptile-reviewer.md`).
+- Codex: spawn the project agent named `greptile-reviewer` (`.codex/agents/greptile-reviewer.toml`) in a fresh thread. If the spawn tool has no agent-name field, pass that file's `developer_instructions` as the child prompt.
+- If you cannot spawn a subagent, run the checklist in `.agents/agents/greptile-reviewer.md` yourself.
+
+The canonical text is `.agents/agents/greptile-reviewer.md`. Scope comes from the ticket title and the full description. Acceptance criteria are examples, not the boundary of the change.
 
 Also check:
 

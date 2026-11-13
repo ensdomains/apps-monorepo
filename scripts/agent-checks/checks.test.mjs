@@ -378,6 +378,20 @@ test('a missing hook script is reported once', () => {
   assert.equal(second.stderr, '')
 })
 
+test('greptile-reviewer copies match the canonical prompt', () => {
+  const canonicalPath = path.join(root, '.agents/agents/greptile-reviewer.md')
+  const canonical = readFileSync(canonicalPath, 'utf8')
+  const body = canonical.replace(/^---\n[\s\S]*?\n---\n/, '').trim()
+  for (const relative of ['.claude/agents/greptile-reviewer.md', '.pi/agents/greptile-reviewer.md']) {
+    assert.equal(readFileSync(path.join(root, relative), 'utf8'), canonical, relative)
+  }
+  const toml = readFileSync(path.join(root, '.codex/agents/greptile-reviewer.toml'), 'utf8')
+  const instructions = toml.match(/developer_instructions = """\n([\s\S]*?)\n"""/)
+  assert.ok(instructions)
+  assert.equal(instructions[1].trim(), body)
+  assert.match(toml, /name = "greptile-reviewer"/)
+})
+
 test('skill files are linked where each agent looks', () => {
   for (const name of ['writing-tests', 'pr-workflow', 'debug-hca-intent', 'add-signer']) {
     for (const folder of ['.agents/skills', '.claude/skills', '.pi/skills', '.opencode/skills']) {
