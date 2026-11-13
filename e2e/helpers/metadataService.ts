@@ -77,28 +77,28 @@ export const routes = {
 export type MigrationStatus = 'unmigrated' | 'migrated' | 'native'
 
 export interface MigrationStatusResponse {
-  name: string
-  status: MigrationStatus
-  owner?: string
-  migrationDate?: string
-  expirationDate?: string
+  readonly name: string
+  readonly status: MigrationStatus
+  readonly owner?: string
+  readonly migrationDate?: string
+  readonly expirationDate?: string
 }
 
 export interface MetadataAttribute {
-  trait_type: string
-  value: string | number
-  display_type?: string
+  readonly trait_type: string
+  readonly value: string | number
+  readonly display_type?: string
 }
 
 export interface MetadataResponse {
-  is_normalized: boolean
-  name: string
-  description: string
-  attributes: MetadataAttribute[]
-  url: string
-  last_request_date: number
-  version: number
-  background_image: string
-  image: string
-  image_url: string
+  readonly is_normalized: boolean
+  readonly name: string
+  readonly description: string
+  readonly attributes: readonly MetadataAttribute[]
+  readonly url: string
+  readonly last_request_date: number
+  readonly version: number
+  readonly background_image: string
+  readonly image: string
+  readonly image_url: string
 }

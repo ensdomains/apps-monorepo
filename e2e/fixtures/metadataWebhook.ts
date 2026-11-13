@@ -23,17 +23,17 @@ const DEFAULT_WEBHOOK_SECRET =
 export type EnsProtocol = 'v1' | 'v2'
 
 export interface EnsNameEvent {
-  event_type: string
+  readonly event_type: string
   /** ENS *version*, not the chain: `v2` → sepolia, `v1` → mainnet. */
-  protocol: EnsProtocol
-  name: string | null
-  namehash: string | null
-  block_number: number
-  tx_hash: string
-  log_index: number
-  contract_address: string
-  data: string
-  timestamp: number
+  readonly protocol: EnsProtocol
+  readonly name: string | null
+  readonly namehash: string | null
+  readonly block_number: number
+  readonly tx_hash: string
+  readonly log_index: number
+  readonly contract_address: string
+  readonly data: string
+  readonly timestamp: number
 }
 
 function hmacKey(secret: string): Buffer {
@@ -62,8 +62,8 @@ export function makeNameEvent(
 }
 
 export interface SignedWebhookRequest {
-  rawBody: string
-  headers: Record<string, string>
+  readonly rawBody: string
+  readonly headers: Record<string, string>
 }
 
 /** Serialize + sign an event once — the same bytes must be sent as were signed. */
