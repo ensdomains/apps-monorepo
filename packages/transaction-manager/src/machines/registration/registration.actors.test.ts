@@ -44,7 +44,13 @@ import {
 
 const mocks = vi.hoisted(() => ({
   startTransaction: vi.fn(
-    (_intent: { readonly request: { readonly data: Hex } }) => 'tx-register',
+    (_intent: {
+      readonly request: {
+        readonly type: string
+        readonly data?: Hex
+        readonly calls?: readonly { readonly to: Address }[]
+      }
+    }) => 'tx-register',
   ),
 }))
 
@@ -257,6 +263,37 @@ describe('submitRegistrationActor', () => {
       data: intent?.request.data ?? '0x',
     })
     expect(args?.[6]).toBe(mockUsdc)
+  })
+
+  it('bundles the ETH address after register when asked', async () => {
+    const owner = '0x1111111111111111111111111111111111111111' as Address
+    const resolver = '0xcccc000000000000000000000000000000000003' as Address
+    const chain = extendChainWithEns(sepolia)
+
+    await submitRegistrationActor({
+      name: 'alice.eth',
+      commitment: {
+        commitment: `0x${'44'.repeat(32)}` as Hash,
+        secret: `0x${'55'.repeat(32)}` as Hex,
+      },
+      signer: {
+        type: 'eoa',
+        walletClient: { account: { address: owner } } as WalletClient,
+      } satisfies EOASigner,
+      duration: 31_536_000n,
+      selectedToken: 'USDC',
+      owner,
+      publicClient: { chain } as PublicClient,
+      resolverAddress: resolver,
+      shouldSetEthAddress: true,
+    })
+
+    const [intent] = mocks.startTransaction.mock.calls.at(-1) ?? []
+    expect(intent?.request.type).toBe('eoa-batch')
+    expect(intent?.request.calls?.map(({ to }) => to)).toEqual([
+      getChainContractAddress({ chain, contract: 'ensEthRegistrar' }),
+      resolver,
+    ])
   })
 })
 
