@@ -20,6 +20,7 @@ import {
   normalizeConnectError,
   WALLETCONNECT_ID,
 } from './connect.helpers'
+import { ReadOnlyWalletTrigger } from './ReadOnlyWalletTrigger'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
 
 type WalletRowProps = {
@@ -296,6 +297,10 @@ export const ConnectWalletDialog = ({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="gap-5 p-8 sm:max-w-100">
+        <ReadOnlyWalletTrigger
+          enabled={open && !isConnecting}
+          onError={setError}
+        />
         <DialogHeader>
           <DialogTitle>Connect a wallet</DialogTitle>
         </DialogHeader>
