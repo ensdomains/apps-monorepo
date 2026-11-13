@@ -16,6 +16,7 @@ import type {
   AddressName,
   AddressNamesQuery,
   Authority,
+  EnsV1Facts,
   GrantScope,
 } from './types'
 
@@ -25,6 +26,13 @@ const SORT_FIELDS = {
   registered: 'registered_at',
   created: 'created_at',
 } as const
+
+// The live NameWrapper states; `lapsed`, `unwrapped` and `unknown` are not wrapped.
+const WRAPPED_STATES: readonly EnsV1Facts['wrapper_state'][] = [
+  'wrapped',
+  'emancipated',
+  'locked',
+]
 
 // `ens_v0` is an ENSv1 name whose record still sits in the 2017 registry.
 const AUTHORITIES: Record<'v1' | 'v2', readonly Authority[]> = {
@@ -91,6 +99,7 @@ const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   relations: toRelations(row.relations),
   isPrimary: row.is_primary,
   isMigrated: row.migrated_at !== undefined,
+  isWrapped: WRAPPED_STATES.includes(row.ens_v1?.wrapper_state),
   registrationStatus: row.status,
   expiresAt: toExpiresAt(row),
   servedExpiry: toExactSeconds(row.expires_at),

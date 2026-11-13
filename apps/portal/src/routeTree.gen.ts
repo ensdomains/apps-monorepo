@@ -32,6 +32,7 @@ import { Route as TldTldRouteImport } from './routes/tld/$tld'
 import { Route as NameFusesIndexRouteImport } from './routes/$name/fuses/index'
 import { Route as NameFusesBurnRouteImport } from './routes/$name/fuses/burn'
 import { Route as NameOwnershipIndexRouteImport } from './routes/$name/ownership/index'
+import { Route as NameOwnershipChangeManagerRouteImport } from './routes/$name/ownership/change-manager'
 import { Route as NameOwnershipTransferRouteImport } from './routes/$name/ownership/transfer'
 import { Route as NameRolesIndexRouteImport } from './routes/$name/roles/index'
 import { Route as AddrAddrIndexRouteImport } from './routes/addr/$addr/index'
@@ -166,6 +167,12 @@ const NameOwnershipIndexRoute = NameOwnershipIndexRouteImport.update({
   path: '/ownership/',
   getParentRoute: () => NameRoute,
 } as any)
+const NameOwnershipChangeManagerRoute =
+  NameOwnershipChangeManagerRouteImport.update({
+    id: '/ownership/change-manager',
+    path: '/ownership/change-manager',
+    getParentRoute: () => NameRoute,
+  } as any)
 const NameOwnershipTransferRoute = NameOwnershipTransferRouteImport.update({
   id: '/ownership/transfer',
   path: '/ownership/transfer',
@@ -282,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
+  '/$name/ownership/change-manager': typeof NameOwnershipChangeManagerRoute
   '/$name/ownership/transfer': typeof NameOwnershipTransferRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -320,6 +328,7 @@ export interface FileRoutesByTo {
   '/$name': typeof NameIndexRoute
   '/register': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
+  '/$name/ownership/change-manager': typeof NameOwnershipChangeManagerRoute
   '/$name/ownership/transfer': typeof NameOwnershipTransferRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -364,6 +373,7 @@ export interface FileRoutesById {
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
+  '/$name/ownership/change-manager': typeof NameOwnershipChangeManagerRoute
   '/$name/ownership/transfer': typeof NameOwnershipTransferRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
@@ -409,6 +419,7 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
+    | '/$name/ownership/change-manager'
     | '/$name/ownership/transfer'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -447,6 +458,7 @@ export interface FileRouteTypes {
     | '/$name'
     | '/register'
     | '/$name/fuses/burn'
+    | '/$name/ownership/change-manager'
     | '/$name/ownership/transfer'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -490,6 +502,7 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
+    | '/$name/ownership/change-manager'
     | '/$name/ownership/transfer'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
@@ -686,6 +699,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameOwnershipIndexRouteImport
       parentRoute: typeof NameRoute
     }
+    '/$name/ownership/change-manager': {
+      id: '/$name/ownership/change-manager'
+      path: '/ownership/change-manager'
+      fullPath: '/$name/ownership/change-manager'
+      preLoaderRoute: typeof NameOwnershipChangeManagerRouteImport
+      parentRoute: typeof NameRoute
+    }
     '/$name/ownership/transfer': {
       id: '/$name/ownership/transfer'
       path: '/ownership/transfer'
@@ -829,6 +849,7 @@ interface NameRouteChildren {
   NameTokenRoute: typeof NameTokenRoute
   NameIndexRoute: typeof NameIndexRoute
   NameFusesBurnRoute: typeof NameFusesBurnRoute
+  NameOwnershipChangeManagerRoute: typeof NameOwnershipChangeManagerRoute
   NameOwnershipTransferRoute: typeof NameOwnershipTransferRoute
   NameFusesIndexRoute: typeof NameFusesIndexRoute
   NameOwnershipIndexRoute: typeof NameOwnershipIndexRoute
@@ -849,6 +870,7 @@ const NameRouteChildren: NameRouteChildren = {
   NameTokenRoute: NameTokenRoute,
   NameIndexRoute: NameIndexRoute,
   NameFusesBurnRoute: NameFusesBurnRoute,
+  NameOwnershipChangeManagerRoute: NameOwnershipChangeManagerRoute,
   NameOwnershipTransferRoute: NameOwnershipTransferRoute,
   NameFusesIndexRoute: NameFusesIndexRoute,
   NameOwnershipIndexRoute: NameOwnershipIndexRoute,
