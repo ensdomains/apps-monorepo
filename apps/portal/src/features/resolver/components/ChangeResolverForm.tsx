@@ -1,4 +1,5 @@
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
@@ -22,7 +23,7 @@ import {
   prepareDeployPermissionedResolverTransaction,
   useDeployPermissionedResolver,
 } from '@/features/resolver/hooks/useDeployPermissionedResolver'
-import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserPermissionedResolvers'
+import { getUserPermissionedResolversQueryOptions } from '@/features/resolver/hooks/useUserPermissionedResolvers'
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
 import { getResolverAddressError } from '@/features/resolver/utils/getResolverAddressError'
 import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
@@ -126,9 +127,9 @@ export const ChangeResolverForm = ({
     data: existingResolvers = [],
     isLoading: isLoadingExistingResolvers,
     error: existingResolversError,
-  } = useUserPermissionedResolvers({
-    senderAddress: connectedAddress,
-  })
+  } = useQuery(
+    getUserPermissionedResolversQueryOptions({ account: connectedAddress }),
+  )
 
   const {
     changeResolver,
