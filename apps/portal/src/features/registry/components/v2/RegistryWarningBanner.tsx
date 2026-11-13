@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getIsUntrustedRegistryQueryOptions } from '@/features/registry/hooks/useIsUntrustedRegistry'
@@ -20,18 +21,14 @@ export const RegistryWarningBanner = ({
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress: address }),
   )
 
-  const warning = selectRegistryWarning({ isUntrusted, isPendingUpgrade })
-
-  if (warning === 'untrusted')
-    return (
+  return match(selectRegistryWarning({ isUntrusted, isPendingUpgrade }))
+    .with('untrusted', () => (
       <UntrustedRegistryAlert address={address}>
         If a name of yours uses it, keep the roles that let you change that
         name's registry, so you can move it to a new one.
       </UntrustedRegistryAlert>
-    )
-
-  if (warning === 'affected')
-    return (
+    ))
+    .with('affected', () => (
       <Alert className="p-5 gap-2" variant="warning">
         <TriangleAlert className="size-4" />
         <AlertTitle>Avoid using this registry in production</AlertTitle>
@@ -40,7 +37,7 @@ export const RegistryWarningBanner = ({
           If you wish to create subnames, deploy to a new registry.
         </AlertDescription>
       </Alert>
-    )
-
-  return null
+    ))
+    .with(null, () => null)
+    .exhaustive()
 }

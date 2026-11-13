@@ -2,10 +2,7 @@ import { match } from 'ts-pattern'
 
 export type RegistryWarning = 'untrusted' | 'affected'
 
-/**
- * The one warning a registry page shows. Untrusted outranks affected, and a
- * check that is still loading or failed shows nothing.
- */
+/** The one warning a registry page shows: untrusted outranks affected; a loading or failed check shows nothing. */
 export const selectRegistryWarning = ({
   isUntrusted,
   isPendingUpgrade,
