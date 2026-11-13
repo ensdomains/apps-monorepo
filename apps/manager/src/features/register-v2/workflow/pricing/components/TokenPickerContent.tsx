@@ -15,6 +15,7 @@ import {
   type SmartAccountContextValue,
   useSmartAccountContext,
 } from '@/lib/smart-account/SmartAccountContext'
+import { SESSION_SIGNER_MISMATCH_MESSAGE } from '@/lib/smart-account/sessionMessages'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import {
   getRunPaymentToken,
@@ -118,9 +119,9 @@ class BudgetQuoteUnavailableError extends TaggedError(
   cause: unknown
 }> {}
 
-/** The session an ETH or L2 payment signs with was declined or could not be authorized. */
+/** The session an ETH or L2 payment signs with was declined, signed by another key, or could not be authorized. */
 class PaymentSessionError extends TaggedError('PaymentSessionError')<{
-  readonly isDeclined: boolean
+  readonly reason: 'declined' | 'signer-mismatch' | 'failed'
 }> {}
 
 /** The session an ETH or L2 payment in Circle's USDC signs with, reused or signed; none for any other payment. */
@@ -132,9 +133,7 @@ const enableCirclePaymentSession = async (
   if (!refundToken) return undefined
   const outcome = await account.enableSession({ refundToken })
   if (outcome.status === 'enabled') return outcome.session
-  throw new PaymentSessionError({
-    isDeclined: outcome.status === 'declined',
-  })
+  throw new PaymentSessionError({ reason: outcome.status })
 }
 
 /** The signer and session proof a run signs with: a Circle payment's own, else the active session's. */
@@ -652,9 +651,14 @@ export const TokenPickerContent = () => {
     .with(
       { mutationError: P.instanceOf(PaymentSessionError) },
       ({ mutationError }) =>
-        mutationError.isDeclined
-          ? t`Signature cancelled. You can try again.`
-          : t`We couldn't set up this payment. Please try again.`,
+        match(mutationError.reason)
+          .with('declined', () => t`Signature cancelled. You can try again.`)
+          .with('signer-mismatch', () => t(SESSION_SIGNER_MISMATCH_MESSAGE))
+          .with(
+            'failed',
+            () => t`We couldn't set up this payment. Please try again.`,
+          )
+          .exhaustive(),
     )
     .with(
       {

@@ -1,6 +1,6 @@
 'use client'
 
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { BrainCircuit, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,7 +10,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { SESSION_SIGNER_MISMATCH_MESSAGE } from '@/lib/smart-account/sessionMessages'
 import { cn } from '@/lib/utils'
+
+/** Why the last attempt in this dialog failed. */
+export type EnableSessionFailure = 'failed' | 'signer-mismatch'
 
 type EnableSessionModalProps = {
   readonly open: boolean
@@ -19,8 +23,8 @@ type EnableSessionModalProps = {
   readonly onEnableSession: () => Promise<void>
   /** True while the ENABLE signature is in flight. */
   readonly isEnabling?: boolean
-  /** True when the last attempt in this dialog failed. */
-  readonly hasError?: boolean
+  /** Set when the last attempt in this dialog failed. */
+  readonly failure?: EnableSessionFailure | null
 }
 
 export const EnableSessionModal = ({
@@ -28,11 +32,12 @@ export const EnableSessionModal = ({
   onDismiss,
   onEnableSession,
   isEnabling = false,
-  hasError = false,
+  failure = null,
 }: EnableSessionModalProps) => {
+  const { t } = useLingui()
   const status: 'idle' | 'signing' | 'error' = (() => {
     if (isEnabling) return 'signing'
-    if (hasError) return 'error'
+    if (failure) return 'error'
     return 'idle'
   })()
 
@@ -82,10 +87,14 @@ export const EnableSessionModal = ({
                   <Trans>The session wasn&apos;t enabled.</Trans>
                 </p>
                 <p className="text-ens-gray text-sm">
-                  <Trans>
-                    You can keep browsing, but registering or managing names
-                    needs a session. Try again when you&apos;re ready.
-                  </Trans>
+                  {failure === 'signer-mismatch' ? (
+                    t(SESSION_SIGNER_MISMATCH_MESSAGE)
+                  ) : (
+                    <Trans>
+                      You can keep browsing, but registering or managing names
+                      needs a session. Try again when you&apos;re ready.
+                    </Trans>
+                  )}
                 </p>
               </div>
             ) : status === 'signing' ? (

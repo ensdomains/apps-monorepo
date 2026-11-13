@@ -1,7 +1,15 @@
-import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { Account, Address, Chain } from 'viem'
+import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
+import {
+  type Account,
+  type Address,
+  type Chain,
+  concat,
+  zeroAddress,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { buildStandaloneAccountConfig } from './initialize-account'
 import {
   getDestinationContracts,
   MAX_REFUND_AMOUNT,
@@ -15,6 +23,7 @@ import {
   createDestinationSession,
   rebuildDestinationSession,
 } from './session'
+import { getSessionAuthorizationDigest } from './session-authorization'
 
 const USDC = getDestinationContracts(sepolia.id).usdc
 
@@ -23,6 +32,8 @@ const RESOLVER = '0x3333333333333333333333333333333333333333' as const
 const SESSION_KEY = '0x9999999999999999999999999999999999999999' as const
 const REFUND_TOKEN = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const
 const SESSION_PRIVATE_KEY = `0x${'01'.repeat(32)}` as const
+const OWNER = privateKeyToAccount(`0x${'02'.repeat(32)}`)
+const NON_OWNER = privateKeyToAccount(`0x${'03'.repeat(32)}`)
 
 /** Caps a session would be sized with from a ~3M-gas overhead quote. */
 const QUOTED_CAPS: RefundCaps = {
@@ -152,17 +163,26 @@ describe('buildHcaSessionConfig', () => {
 })
 
 describe('createDestinationSession', () => {
+  const hashesAndChainIds = [
+    { chainId: 11155111n, sessionDigest: `0x${'5'.repeat(64)}` },
+  ] as const
+
+  // The SDK returns the wallet's signature behind a zero validator address.
+  const signOwnerAuthorization = async () =>
+    concat([
+      zeroAddress,
+      await OWNER.sign({
+        hash: getSessionAuthorizationDigest(hashesAndChainIds),
+      }),
+    ])
+
   function mockAccount() {
     const experimental_getSessionDetails = vi.fn().mockResolvedValue({
       nonces: [0n],
-      hashesAndChainIds: [
-        { chainId: 11155111n, sessionDigest: `0x${'5'.repeat(64)}` },
-      ],
+      hashesAndChainIds,
       data: { message: { sessionsAndChainIds: [] } },
     })
-    const experimental_signEnableSession = vi
-      .fn()
-      .mockResolvedValue(`0x${'ab'.repeat(65)}`)
+    const experimental_signEnableSession = vi.fn(() => signOwnerAuthorization())
     return {
       account: {
         experimental_getSessionDetails,
@@ -186,6 +206,7 @@ describe('createDestinationSession', () => {
       publicClient,
       chain: sepolia as Chain,
       hca: HCA,
+      owner: OWNER.address,
       resolver: RESOLVER,
       sessionAccount,
       validUntil: 1_800_000_000n,
@@ -209,6 +230,7 @@ describe('createDestinationSession', () => {
       publicClient,
       chain: sepolia as Chain,
       hca: HCA,
+      owner: OWNER.address,
       resolver: RESOLVER,
       sessionAccount,
       validUntil: 1_800_000_000n,
@@ -228,6 +250,7 @@ describe('createDestinationSession', () => {
         publicClient,
         chain: sepolia as Chain,
         hca: HCA,
+        owner: OWNER.address,
         resolver: RESOLVER,
         sessionAccount,
         validUntil: 1_800_000_000n,
@@ -263,6 +286,7 @@ describe('createDestinationSession', () => {
       publicClient,
       chain: sepolia as Chain,
       hca: HCA,
+      owner: OWNER.address,
       resolver: RESOLVER,
       sessionAccount,
       validUntil: 1_800_000_000n,
@@ -270,6 +294,77 @@ describe('createDestinationSession', () => {
     })
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr()._tag).toBe('SessionEnableError')
+  })
+
+  it("rejects the authorization when the deployed HCA's on-chain owner didn't sign it", async () => {
+    const { account } = mockAccount()
+    const result = await createDestinationSession({
+      rhinestoneAccount: account,
+      publicClient: {
+        readContract: vi.fn().mockResolvedValue([NON_OWNER.address, 0n]),
+      } as never,
+      chain: sepolia as Chain,
+      hca: HCA,
+      owner: OWNER.address,
+      resolver: RESOLVER,
+      sessionAccount,
+      validUntil: 1_800_000_000n,
+      alreadyDeployed: true,
+    })
+    expect(result._unsafeUnwrapErr()._tag).toBe(
+      'SessionAuthorizationSignerError',
+    )
+  })
+
+  describe('with the SDK signing for a standalone HCA', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    const validator = getDestinationContracts(
+      sepolia.id,
+    ).hcaOwnerAndSessionValidator
+    const sdkAccount = (signer: typeof OWNER) =>
+      new RhinestoneSDK({ apiKey: 'test' }).createAccount({
+        account: buildStandaloneAccountConfig(sepolia.id),
+        owners: { type: 'ecdsa', accounts: [signer], module: validator },
+        experimental_sessions: { enabled: true, module: validator },
+      })
+
+    it.each([
+      ['the owner', OWNER, true],
+      ['another key', NON_OWNER, false],
+    ] as const)(
+      'accepts the authorization only when the SDK signs it with the owner key (%s)',
+      async (_, signer, isAccepted) => {
+        // The SDK reads the emissary nonce over RPC; answer it with zero.
+        vi.stubGlobal(
+          'fetch',
+          vi.fn(async (_url: unknown, init: { readonly body: string }) => {
+            const { id } = JSON.parse(init.body) as { readonly id: number }
+            return new Response(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                id,
+                result: `0x${'0'.repeat(64)}`,
+              }),
+            )
+          }),
+        )
+        const result = await createDestinationSession({
+          rhinestoneAccount: (await sdkAccount(signer)) as RhinestoneAccount,
+          publicClient,
+          chain: sepolia as Chain,
+          hca: HCA,
+          owner: OWNER.address,
+          resolver: RESOLVER,
+          sessionAccount,
+          validUntil: 1_800_000_000n,
+          alreadyDeployed: false,
+        })
+        expect(result.isOk()).toBe(isAccepted)
+      },
+    )
   })
 
   it('authorizes the caps it is given and returns them', async () => {
@@ -280,6 +375,7 @@ describe('createDestinationSession', () => {
         publicClient,
         chain: sepolia as Chain,
         hca: HCA,
+        owner: OWNER.address,
         resolver: RESOLVER,
         sessionAccount,
         validUntil: 1_800_000_000n,

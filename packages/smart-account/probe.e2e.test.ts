@@ -96,6 +96,7 @@ it.skipIf(!enabled)(
       publicClient,
       chain: sepolia,
       hca,
+      owner: owner.address,
       resolver,
       sessionAccount: privateKeyToAccount(generatePrivateKey()),
       validUntil: BigInt(Math.floor(Date.now() / 1000) + 3600),

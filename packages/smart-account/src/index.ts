@@ -22,6 +22,7 @@
 export {
   AccountInitError,
   AccountVerificationError,
+  SessionAuthorizationSignerError,
   SessionEnableError,
   SessionRestoreError,
   SessionRevokeError,
@@ -71,6 +72,7 @@ export {
   getValidSession,
   getValidSessionByOwner,
   getValidSessionForAccount,
+  getVerifiedSessionForAccount,
   HCA_ACCOUNT_DEPLOY_GAS,
   HCA_ADDR_REVERSE_CLEAR_GAS,
   HCA_LEG_GAS_LIMITS,

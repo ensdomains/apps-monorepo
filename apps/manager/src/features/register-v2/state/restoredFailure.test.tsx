@@ -299,4 +299,18 @@ describe('a failed registration, after a reload', () => {
 
     page.unmount()
   })
+
+  it('keeps the signer explanation after a reload', async () => {
+    storeFailedRun({
+      registerSent: false,
+      failureReason: 'sessionSignerMismatch',
+    })
+    const page = renderPage()
+
+    expect(
+      await screen.findByText(/your wallet signed a different request/i),
+    ).toBeVisible()
+
+    page.unmount()
+  })
 })
