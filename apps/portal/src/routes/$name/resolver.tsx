@@ -6,7 +6,7 @@ import type { GetEnsResolverErrorType } from '@wagmi/core'
 import { ClockIcon } from 'lucide-react'
 import type { ReactElement } from 'react'
 import { ExternalLink } from 'react-external-link'
-import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
+import { type Address, namehash, zeroAddress } from 'viem'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -43,7 +43,7 @@ import {
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
 import {
-  officialPublicResolverAddress,
+  isOfficialPublicResolver,
   universalResolverAddress,
 } from '@/lib/constants/universalResolver'
 import { wagmiConfig } from '@/lib/wagmi'
@@ -286,10 +286,7 @@ const ResolverView = ({
     getIsPermissionedResolverQueryOptions({ resolverAddress }),
   )
 
-  const isOfficialPublicResolver = isAddressEqual(
-    resolverAddress,
-    officialPublicResolverAddress,
-  )
+  const isPublicResolver = isOfficialPublicResolver(resolverAddress)
 
   if (permissionedResolverQuery.isLoading) {
     return <LoadingSpinner title="Loading resolver info..." />
@@ -320,7 +317,7 @@ const ResolverView = ({
           docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
           isPermissioned
         />
-      ) : isOfficialPublicResolver ? (
+      ) : isPublicResolver ? (
         <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
