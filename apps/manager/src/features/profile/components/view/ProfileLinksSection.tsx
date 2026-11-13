@@ -57,7 +57,7 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
               {link.displayHost}
             </span>
             <MSymbol
-              className="ms-opsz-16 ms-wght-300 shrink-0 text-[16px] text-ens-quartz-500 leading-none"
+              className="ms-opsz-16 ms-wght-300 shrink-0 text-[16px] text-ens-quartz-500 leading-none xl:pointer-fine:opacity-0 xl:pointer-fine:group-hover:opacity-100 xl:pointer-fine:group-focus-within:opacity-100"
               symbol="arrow_outward"
             />
           </div>
