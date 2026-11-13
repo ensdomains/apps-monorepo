@@ -20,6 +20,7 @@ const needsSessionBeforeRegistration = vi.fn(() => false)
 const useSmartAccountContext = vi.fn()
 const useConnection = vi.fn(() => ({ isDisconnected: false }))
 const toast = vi.fn()
+const toastError = vi.fn()
 
 // Mocked wholesale rather than via `importOriginal`: the real module pulls in
 // the pricing query and the wagmi client, none of which this hook's behaviour
@@ -64,7 +65,11 @@ vi.mock('@/lib/wagmi', () => ({
   publicClient: { chain: { id: 11155111 } },
 }))
 
-vi.mock('sonner', () => ({ toast: (...a: unknown[]) => toast(...a) }))
+vi.mock('sonner', () => ({
+  toast: Object.assign((...a: unknown[]) => toast(...a), {
+    error: (...a: unknown[]) => toastError(...a),
+  }),
+}))
 
 /** What a session enabled mid-resume hands back, to use before any re-render. */
 const enabledSession = () => ({
@@ -422,6 +427,20 @@ describe('useRegistrationResume', () => {
     await waitFor(() => expect(result.current.status).toBe('idle'))
     expect(send).not.toHaveBeenCalled()
     expect(clearStoredWrite).not.toHaveBeenCalled()
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it('explains a session the wallet signed for another key, and keeps the record', async () => {
+    needsSessionBeforeRegistration.mockReturnValue(true)
+    enableSession.mockResolvedValue({ status: 'signer-mismatch' } as never)
+
+    const { result } = render()
+
+    await waitFor(() => expect(result.current.status).toBe('idle'))
+    expect(toastError).toHaveBeenCalledOnce()
+    expect(toastError.mock.calls[0]?.[0]).toMatch(/signed a different request/)
+    expect(send).not.toHaveBeenCalled()
+    expect(clearStoredWrite).not.toHaveBeenCalled()
   })
 
   it('recovers when the resume check throws instead of parking at checking', async () => {
@@ -559,6 +578,24 @@ describe('useRegistrationResume', () => {
 
       pressTryAgain(result.current)
       await waitFor(() => expect(result.current.status).toBe('resumed'))
+    })
+
+    it('explains a signer mismatch on Try Again and keeps the failure screen', async () => {
+      enableSession.mockResolvedValueOnce({
+        status: 'signer-mismatch',
+      } as never)
+      const { result } = render()
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+
+      pressTryAgain(result.current)
+      await waitFor(() => expect(toastError).toHaveBeenCalledOnce())
+      await act(async () => {})
+
+      expect(toastError.mock.calls[0]?.[0]).toMatch(
+        /signed a different request/,
+      )
+      expect(result.current.status).toBe('failed')
+      expect(send).toHaveBeenCalledOnce()
     })
 
     it('keeps Try Again here when the machine turns the resume down', async () => {

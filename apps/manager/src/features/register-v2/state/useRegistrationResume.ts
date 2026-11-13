@@ -33,6 +33,7 @@ import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
+import { SESSION_SIGNER_MISMATCH_MESSAGE } from '@/lib/smart-account/sessionMessages'
 import { translateMessage } from '@/utils/i18n/translateMessage'
 import { getResumeAssessmentQueryOptions } from '../data/queries/resumeAssessment.query'
 import {
@@ -209,7 +210,10 @@ async function enableSessionAndDispatch(params: {
   if (outcome && outcome.status !== 'enabled') {
     // Declined or failed. Leave the record in place and stay un-latched so
     // a reconnect can still resume.
-    return isCancelled() ? null : { status: 'idle' }
+    if (isCancelled()) return null
+    if (outcome.status === 'signer-mismatch')
+      toast.error(translateMessage(SESSION_SIGNER_MISMATCH_MESSAGE))
+    return { status: 'idle' }
   }
   const enabled = outcome?.session
 
