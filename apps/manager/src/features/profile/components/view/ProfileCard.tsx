@@ -1,13 +1,16 @@
 import { cn } from '@/lib/utils'
 
-// Copy icon stays visible on touch and below xl; on desktop fine pointers it
-// appears on hover or focus-within of the card (CopyableButton is `group`).
-export const profileCardCopyIconClassName =
-  'ml-0 shrink-0 text-ens-quartz-400 xl:text-ens-quartz-700 xl:pointer-fine:opacity-0 xl:pointer-fine:group-hover:opacity-100 xl:pointer-fine:group-focus-within:opacity-100'
+// Copy / link-out icons stay visible on touch and below xl; on desktop fine
+// pointers they appear on hover or focus-within of the card. Dense record grids
+// make a always-on icon per tile repetitive; revealing on hover teaches that
+// the tile itself is the action (copy or open).
+const profileCardActionIconHoverClassName =
+  'xl:pointer-fine:opacity-0 xl:pointer-fine:group-hover:opacity-100 xl:pointer-fine:group-focus-within:opacity-100'
+
+export const profileCardCopyIconClassName = `ml-0 shrink-0 text-ens-quartz-400 xl:text-ens-quartz-700 ${profileCardActionIconHoverClassName}`
 
 // Material arrow_outward from the profile frame: 24px, light weight, quartz-900.
-export const profileCardArrowClassName =
-  'ms-opsz-24 ms-wght-280 shrink-0 text-[24px] leading-5 tracking-[0.2px] text-ens-quartz-900'
+export const profileCardArrowClassName = `ms-opsz-24 ms-wght-280 shrink-0 text-[24px] leading-5 tracking-[0.2px] text-ens-quartz-900 ${profileCardActionIconHoverClassName}`
 
 export const profileRecordGridClassName =
   'grid grid-cols-2 gap-3 xl:grid-cols-3 xl:gap-6'
