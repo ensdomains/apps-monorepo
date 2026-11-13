@@ -194,7 +194,10 @@ function RouteComponent() {
 
   const canLink = Boolean(hasLinkRole)
 
-  const links = resolver?.links ?? []
+  const links = useMemo(
+    () => Array.from(resolver?.links ?? []),
+    [resolver?.links],
+  )
 
   const columns = useMemo(
     () => (canLink ? [...baseColumns, deleteColumn] : baseColumns),
@@ -216,7 +219,7 @@ function RouteComponent() {
   }
 
   const table = useReactTable({
-    data: Array.from(links),
+    data: links,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
