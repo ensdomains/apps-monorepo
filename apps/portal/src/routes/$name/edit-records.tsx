@@ -31,6 +31,7 @@ import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
+import { canAddRecord } from '@/features/records/helpers/canAddRecord'
 import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
 import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
@@ -250,6 +251,7 @@ const EditRecordsContent = ({
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
   const [addRecordError, setAddRecordError] = useState<string | null>(null)
+  const canAddNewRecord = canAddRecord(selectedType, keyInput, valueInput)
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
@@ -417,8 +419,7 @@ const EditRecordsContent = ({
   const valueInputId = useId()
 
   const handleAddRecord = () => {
-    if (!selectedType) return
-    if (selectedType === 'text' && !keyInput) return
+    if (!selectedType || !canAddNewRecord) return
 
     const error = addRecord(selectedType, keyInput, valueInput)
     setAddRecordError(error)
@@ -565,7 +566,7 @@ const EditRecordsContent = ({
             <Button
               variant="default"
               onClick={handleAddRecord}
-              disabled={!selectedType || (selectedType === 'text' && !keyInput)}
+              disabled={!canAddNewRecord}
               className="flex items-center gap-2 whitespace-nowrap"
             >
               Add record
