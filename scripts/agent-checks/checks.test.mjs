@@ -442,6 +442,13 @@ test('repository checks use the git root and the diff contents', () => {
     verificationKey(['sha', 'diff\n+const days = 30\n']),
     verificationKey(['sha', 'diff\n+const days = 60\n']),
   )
+  const dead = spawnSync(
+    process.execPath,
+    [path.join(root, 'scripts/agent-checks/run.mjs'), 'dead-exports', '--report-only'],
+    { encoding: 'utf8', cwd: path.join(root, 'apps/manager') },
+  )
+  assert.equal(dead.status, 0, dead.stderr)
+  assert.equal(verdictFrom(dead.stdout).decision, 'feedback')
 })
 
 test('pi does not latch the stop check', () => {

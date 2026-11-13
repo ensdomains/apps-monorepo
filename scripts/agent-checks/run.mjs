@@ -39,6 +39,20 @@ import {
   writeSessionStart,
 } from './lib.mjs'
 
+function repoRoot() {
+  try {
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    return top || process.cwd()
+  } catch {
+    return process.cwd()
+  }
+}
+
+const REPO_ROOT = repoRoot()
+
 const { positionals, values } = parseArgs({
   args: process.argv.slice(2),
   allowPositionals: true,
@@ -403,20 +417,6 @@ function git(args) {
     })
   } catch {
     return ''
-  }
-}
-
-const REPO_ROOT = repoRoot()
-
-function repoRoot() {
-  try {
-    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    return top || process.cwd()
-  } catch {
-    return process.cwd()
   }
 }
 
