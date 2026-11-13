@@ -12,6 +12,7 @@ const caller = '0x9999999999999999999999999999999999999999' as Address
 
 let kind: RoleContractKind = 'unsupported'
 let isPendingUpgrade = false
+let pendingUpgradeError: Error | null = null
 
 const navigate = vi.fn()
 vi.mock('@tanstack/react-router', () => ({
@@ -44,7 +45,11 @@ vi.mock('@tanstack/react-query', async () => {
       if (key === 'role-contract-kind')
         return { data: kind, isLoading: false, error: null }
       if (key === 'is-registry-pending-upgrade')
-        return { data: isPendingUpgrade, isLoading: false, error: null }
+        return {
+          data: isPendingUpgrade,
+          isLoading: false,
+          error: pendingUpgradeError,
+        }
       if (key === 'get-registry-info')
         return { data: { address }, isLoading: false, error: null }
       if (key === 'resolver-overview')
@@ -106,6 +111,7 @@ const renderRoute = (route: unknown) => {
 beforeEach(() => {
   navigate.mockClear()
   isPendingUpgrade = false
+  pendingUpgradeError = null
 })
 
 describe('/registry/$address/roles', () => {
@@ -154,6 +160,15 @@ describe('/registry/$address/roles', () => {
     expect(screen.getByText('registry roles table')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
     expect(screen.getByText('Update required')).toBeInTheDocument()
+  })
+
+  it('stays read-only when the update check fails after an earlier answer', () => {
+    kind = 'registry'
+    pendingUpgradeError = new Error('rpc down')
+    renderRoute(RegistryRolesRoute)
+
+    expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
+    expect(screen.queryByText('Update required')).toBeNull()
   })
 })
 

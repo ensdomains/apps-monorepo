@@ -1,5 +1,5 @@
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual } from 'viem'
+import type { RegistryOccupants } from '../hooks/useRegistryOccupants'
 
 /** How the connected account relates to a registry that needs an update, which decides the notice it sees. */
 export type RegistryRepairCase =
@@ -7,37 +7,29 @@ export type RegistryRepairCase =
   | 'unknown'
   | 'owns-all'
   | 'shared'
-  | 'subname-owner'
   | 'viewer'
 
 export const getRegistryRepairCase = ({
   isPendingUpgrade,
-  account,
+  isConnected,
   canRepair,
-  subnameOwners,
+  occupants,
 }: {
   readonly isPendingUpgrade: boolean | undefined
-  readonly account: Address | undefined
+  readonly isConnected: boolean
   /** The account can point the parent name at a replacement registry. */
   readonly canRepair: boolean | undefined
-  /** The owner of every live subname in the registry. */
-  readonly subnameOwners: readonly Address[] | undefined
+  /** The registry's subnames relative to the account; null when bigname can't count them. */
+  readonly occupants: RegistryOccupants | null | undefined
 }): RegistryRepairCase =>
-  match({ isPendingUpgrade, account, canRepair, subnameOwners })
+  match({ isPendingUpgrade, isConnected, canRepair, occupants })
     .with({ isPendingUpgrade: false }, () => 'unaffected' as const)
     .with({ isPendingUpgrade: undefined }, () => 'unknown' as const)
-    .with({ account: undefined }, () => 'viewer' as const)
+    .with({ isConnected: false }, () => 'viewer' as const)
+    .with({ canRepair: false }, () => 'viewer' as const)
     .with(
-      P.union({ canRepair: undefined }, { subnameOwners: undefined }),
+      P.union({ canRepair: undefined }, { occupants: P.nullish }),
       () => 'unknown' as const,
     )
-    .with(
-      { account: P.string, canRepair: P.boolean, subnameOwners: P.array() },
-      ({ account, canRepair, subnameOwners }) => {
-        const isOwner = (owner: Address) => isAddressEqual(owner, account)
-        if (canRepair)
-          return subnameOwners.every(isOwner) ? 'owns-all' : 'shared'
-        return subnameOwners.some(isOwner) ? 'subname-owner' : 'viewer'
-      },
-    )
-    .exhaustive()
+    .with({ occupants: { thirdPartyCount: 0 } }, () => 'owns-all' as const)
+    .otherwise(() => 'shared' as const)

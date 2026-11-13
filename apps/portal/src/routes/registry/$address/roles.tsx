@@ -61,10 +61,12 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
     }),
   )
 
-  const { data: isPendingUpgrade } = useQuery(
+  const pendingUpgrade = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress: address }),
   )
-  const roleEditLock = getRoleEditLock(isPendingUpgrade)
+  const roleEditLock = getRoleEditLock(
+    pendingUpgrade.error ? undefined : pendingUpgrade.data,
+  )
   const canEditRoles = isAdmin && roleEditLock === 'open'
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />

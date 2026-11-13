@@ -213,10 +213,12 @@ export const NameRolesOverviewTable = ({
     account: address,
   })
 
-  const { data: isPendingUpgrade } = useQuery(
+  const pendingUpgrade = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
   )
-  const roleEditLock = getRoleEditLock(isPendingUpgrade)
+  const roleEditLock = getRoleEditLock(
+    pendingUpgrade.error ? undefined : pendingUpgrade.data,
+  )
   const isRoleAdmin = callerAdminRoles.size > 0
 
   // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
