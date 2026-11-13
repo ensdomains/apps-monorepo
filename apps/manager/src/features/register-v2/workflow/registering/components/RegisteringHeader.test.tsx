@@ -30,7 +30,7 @@ describe('RegisteringHeader', () => {
     })
 
     expect(header).toHaveTextContent(
-      'Keep this browser open while your name is registered',
+      'Keep this browser open while your name is being registered',
     )
   })
 
