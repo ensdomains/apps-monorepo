@@ -1,4 +1,5 @@
 import { swapEthForUsdcActor } from '@ens-apps/transaction-manager'
+import { getEthSwapUsdc } from '@ens-apps/transaction-manager/helpers/eth-usdc-swap'
 import { readHcaUsdcBalanceAtLeastActor } from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, PublicClient, WalletClient } from 'viem'
@@ -60,6 +61,8 @@ export const swapEthForRenewal = ({
           hca: ownerAddress,
           publicClient,
           chainId,
+          // What the swap bought, which on Sepolia is not the deployment's USDC.
+          token: getEthSwapUsdc(chainId),
           atLeast: ethFunding.usdcAmount,
           ...(signal ? { signal } : {}),
         }).map(() => bought)

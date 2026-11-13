@@ -53,6 +53,7 @@ import {
   erc20Abi,
   getChainContractAddress,
   isAddressEqual,
+  labelhash,
   parseAbi,
   toHex,
   zeroAddress,
@@ -1025,8 +1026,6 @@ export function verifyRegistrationActor(
     publicClient: PublicClient
     /** The commitment this flow's registration consumed. */
     commitment: Hex
-    /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
-    registrarAddress?: Address
   } & VerifyPollOptions,
 ): ResultAsync<
   {
@@ -1037,12 +1036,15 @@ export function verifyRegistrationActor(
   },
   Error
 > {
-  const registrarAddress =
-    input.registrarAddress ??
-    getChainContractAddress({
-      chain: requireEnsChain(input.publicClient, 'registration'),
-      contract: 'ensEthRegistrar',
-    })
+  const chain = requireEnsChain(input.publicClient, 'registration')
+  const registrarAddress = getChainContractAddress({
+    chain,
+    contract: 'ensEthRegistrar',
+  })
+  const registryAddress = getChainContractAddress({
+    chain,
+    contract: 'ensRegistry',
+  })
   const cleanName = input.name.replace('.eth', '')
 
   const readRegistryEntry = async (): Promise<{
@@ -1051,17 +1053,9 @@ export function verifyRegistrationActor(
     isUnregistered: boolean
     reason?: string
   }> => {
-    // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
-    // entries are stored. Read the registry, then look up the resolver.
-    const registryAddress = (await readContract(input.publicClient, {
-      address: registrarAddress,
-      abi: parseAbi(['function REGISTRY() view returns (address)']),
-      functionName: 'REGISTRY',
-    })) as Address
-
-    // ensjs-abi ships no owner-by-label snippet, so that one stays local.
+    // ensjs-abi ships no `getOwner` snippet, so that one stays local.
     const registryOwnerAbi = parseAbi([
-      'function getOwner(string label) view returns (address)',
+      'function getOwner(uint256 anyId) view returns (address)',
     ])
     const [[resolver, owner, subregistry], commitTime] = await Promise.all([
       multicall(input.publicClient, {
@@ -1077,7 +1071,7 @@ export function verifyRegistrationActor(
             address: registryAddress,
             abi: registryOwnerAbi,
             functionName: 'getOwner',
-            args: [cleanName],
+            args: [BigInt(labelhash(cleanName))],
           },
           {
             address: registryAddress,

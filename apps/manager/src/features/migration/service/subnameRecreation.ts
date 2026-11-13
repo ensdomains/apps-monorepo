@@ -36,6 +36,7 @@ import {
 } from './classifyNames'
 import {
   type RpcSubnameInventory,
+  type RpcSubnameSource,
   readRpcSubnameInventory,
 } from './readRpcSubnameInventory'
 import { readRpcSubnameMigrationImpact } from './readRpcSubnameMigrationImpact'
@@ -43,7 +44,10 @@ import {
   getKnownSubnamePreimages,
   getProvenSubnameName,
 } from './rpcSubnameInventory'
-import { isEmptyRpcSubnameTombstone } from './rpcSubnameMigrationImpact'
+import {
+  isEmptyRpcSubnameTombstone,
+  isResourceFreeRpcSubname,
+} from './rpcSubnameMigrationImpact'
 import { readSubnameMigrationImpactWithRetry } from './subnameMigrationImpactRetry'
 import {
   assertSubnameRecreationSnapshotCurrent,
@@ -67,9 +71,17 @@ export type SubnameRecreationSnapshot = {
 
 const SOURCE_MAX_AGE_SECONDS = 300n
 const MAX_DIRECT_CHILDREN = 200
+const LIVE_SCAN_DEPTH = 2
 // Fits a full direct tree's owner/resolver reads; larger selections split at the same checkpoint.
 const SOURCE_MULTICALL_BATCH_BYTES = 24_576
 const SOURCE_LOG_BATCH_SIZE = 200
+
+/** Live branches stop at grandchildren; a deleted one is followed until it is proven empty. */
+const scanRecreationDescendants = (
+  source: RpcSubnameSource,
+  _checkpoint: RpcSubnameInventory['checkpoint'],
+  depth: number,
+): boolean => depth < LIVE_SCAN_DEPTH || isResourceFreeRpcSubname(source)
 const newOwnerEvent = parseAbi([
   'event NewOwner(bytes32 indexed node, bytes32 indexed label, address owner)',
 ])[0]
@@ -505,7 +517,7 @@ const readRecreationInventory = async (params: {
           params.candidates.map(({ name }) => ({ node: namehash(name), name })),
         previousInventory: previous,
         knownNames: params.names,
-        maxDepth: previous ? undefined : 2,
+        scanDescendants: previous ? undefined : scanRecreationDescendants,
         signal,
       })
   if (

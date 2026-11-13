@@ -7,6 +7,7 @@ interface ImportMetaEnv extends Readonly<Cloudflare.Env> {
   readonly VITE_ENS_NETWORK?: string
   readonly VITE_RPC_URL?: string
   readonly VITE_RPC_URL_SERVER?: string
+  readonly VITE_L2_RPC_URLS?: string
   readonly VITE_BIGNAME_API_URL?: string
 }
 

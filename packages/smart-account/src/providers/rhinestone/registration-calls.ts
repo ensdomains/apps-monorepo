@@ -195,13 +195,15 @@ export async function readRegisterPrice(params: {
   readonly label: string
   /** Registration duration (seconds) — same value as the commitment. */
   readonly duration: bigint
+  /** The token paid in. Defaults to the deployment's USDC. */
+  readonly paymentToken?: Address
 }): Promise<bigint> {
   const c = getDestinationContracts(params.chainId)
   const [base, premium] = await params.publicClient.readContract({
     address: c.ethRegistrar,
     abi: ethRegistrarAbi,
     functionName: 'getRegisterPrice',
-    args: [params.label, params.duration, c.usdc],
+    args: [params.label, params.duration, params.paymentToken ?? c.usdc],
   })
   return base + premium
 }
@@ -226,6 +228,8 @@ export interface RevealBatchParams {
   /** Registration duration (seconds). MUST equal the commitment's duration. */
   readonly duration: bigint
   readonly referrer?: Hex
+  /** The token the registrar is paid in. Defaults to the deployment's USDC. */
+  readonly paymentToken?: Address
   /** Optional resolver records to write (addr for the wallet is added by default). */
   readonly records?: readonly ResolverRecord[]
   /** When set, adds the primary-name (default.reverse) call. */
@@ -244,6 +248,7 @@ export interface RevealBatchParams {
  */
 export function buildRevealBatch(params: RevealBatchParams): Call[] {
   const c = getDestinationContracts(params.chainId)
+  const paymentToken = params.paymentToken ?? c.usdc
   const name = `${params.label}.eth`
   const calls: Call[] = []
 
@@ -325,7 +330,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
 
   // 2. approve(price)
   calls.push({
-    to: c.usdc,
+    to: paymentToken,
     value: 0n,
     data: encodeFunctionData({
       abi: erc20Abi,
@@ -349,7 +354,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
         zeroAddress,
         params.resolver,
         params.duration,
-        c.usdc,
+        paymentToken,
         normalizeReferrer(params.referrer),
       ],
     }),

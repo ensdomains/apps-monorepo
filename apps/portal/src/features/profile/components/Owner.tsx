@@ -77,6 +77,7 @@ export const Owner = ({
             variant={variant}
             name={ownerName ?? undefined}
             address={owner}
+            format="truncate"
           >
             {ownerName || shortenedAddress}
           </EntityBadge>

@@ -22,7 +22,7 @@ export const ParentName = ({
       )
     return (
       <InfoRow icon={SupervisorAccountIcon} label="Parent">
-        <EntityBadge variant="name" name={parent}>
+        <EntityBadge variant="name" name={parent} format="truncate">
           {parent}
         </EntityBadge>
       </InfoRow>
