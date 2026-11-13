@@ -33,6 +33,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useActiveTransactionState } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { ensChain } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/fuses/burn')({
@@ -143,9 +144,11 @@ function RouteComponent() {
     )
   }
 
-  const isOwner = address && wrapperData.owner === address
+  if (!address) {
+    return <ConnectWalletAlert className="mx-auto my-4 max-w-lg" />
+  }
 
-  if (!isOwner) {
+  if (wrapperData.owner !== address) {
     return <NotOwnerMessage />
   }
 
@@ -289,20 +292,12 @@ function RouteComponent() {
           <Button
             variant="default"
             onClick={handleBurn}
-            disabled={
-              !hasChanges || !address || !walletClient || isCannotBurnFusesBurnt
-            }
+            disabled={!hasChanges || !walletClient || isCannotBurnFusesBurnt}
             className="flex items-center justify-center gap-2 h-10 w-fit"
           >
             <CheckCircle className="w-5 h-5" />
             {isPending ? 'Burning fuses...' : 'Save changes'}
           </Button>
-
-          {!address && (
-            <p className="text-muted-foreground text-p">
-              Connect your wallet to burn fuses
-            </p>
-          )}
         </div>
       </div>
 

@@ -115,6 +115,12 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return <Trans>Upgrade details: {error.message}</Trans>
+    case 'copy-read-failed':
+      return (
+        <Trans>
+          Could not check copy readiness: {error.message}. Try again.
+        </Trans>
+      )
     case 'insufficient-eth':
       return (
         <Trans>
@@ -268,6 +274,7 @@ export const MigrationPage = () => {
     (snapshot) => snapshot.context.renewalDiscardConfirmation,
   )
   const migrationPlan = useSelector(uiActor, (state) => state.context.plan)
+  const canRetry = useSelector(uiActor, (state) => state.can({ type: 'retry' }))
   const retryRenewal = useSelector(uiActor, (state) => state.context.renewal)
   const renewedDomains = useSelector(
     uiActor,
@@ -630,23 +637,25 @@ export const MigrationPage = () => {
               >
                 <Trans>Back</Trans>
               </button>
-              <MigrationPrimaryButton
-                aria-disabled={confirmation.isChecking}
-                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                onClick={() => {
-                  if (confirmation.isChecking) return
-                  if (shouldCheckImpactBeforeRetry)
-                    void confirmation.request('retry')
-                  else uiActor.send({ type: 'retry' })
-                }}
-                type="button"
-              >
-                {lastError?.type === 'cleanup-failed' ? (
-                  <Trans>Retry upgrade and cleanup</Trans>
-                ) : (
-                  <Trans>Try again</Trans>
-                )}
-              </MigrationPrimaryButton>
+              {canRetry && (
+                <MigrationPrimaryButton
+                  aria-disabled={confirmation.isChecking}
+                  className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                  onClick={() => {
+                    if (confirmation.isChecking) return
+                    if (shouldCheckImpactBeforeRetry)
+                      void confirmation.request('retry')
+                    else uiActor.send({ type: 'retry' })
+                  }}
+                  type="button"
+                >
+                  {lastError?.type === 'cleanup-failed' ? (
+                    <Trans>Retry upgrade and cleanup</Trans>
+                  ) : (
+                    <Trans>Try again</Trans>
+                  )}
+                </MigrationPrimaryButton>
+              )}
             </motion.div>
           </ResultLayout>
         ))

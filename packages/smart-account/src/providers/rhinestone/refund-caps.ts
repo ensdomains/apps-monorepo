@@ -278,8 +278,12 @@ export type SessionRefundCapsQuote =
 export async function quoteSessionRefundCaps(params: {
   readonly rhinestoneAccount: RhinestoneAccount
   readonly chain: Chain
+  /** The session's refund token. Defaults to the deployment's USDC. */
+  readonly refundToken?: Address
 }): Promise<SessionRefundCapsQuote> {
   const { rhinestoneAccount, chain } = params
+  const refundToken =
+    params.refundToken ?? getDestinationContracts(chain.id).usdc
   try {
     const call = buildCommitCall({
       chainId: chain.id,
@@ -294,9 +298,7 @@ export async function quoteSessionRefundCaps(params: {
       tokenRequests: [],
       gasLimit: HCA_LEG_GAS_LIMITS.commit,
       auxiliaryFunds: {
-        [chain.id]: {
-          [getDestinationContracts(chain.id).usdc]: HCA_MAX_LEG_FEES_USDC,
-        },
+        [chain.id]: { [refundToken]: HCA_MAX_LEG_FEES_USDC },
       } as Transaction['auxiliaryFunds'],
     } as Transaction)
     const quoted = maxQuotedGasOverhead(

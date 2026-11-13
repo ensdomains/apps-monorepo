@@ -2,7 +2,7 @@ import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -24,6 +24,7 @@ import {
 } from '@/features/resolver/hooks/useDeployPermissionedResolver'
 import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserPermissionedResolvers'
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
+import { getResolverAddressError } from '@/features/resolver/utils/getResolverAddressError'
 import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -49,6 +50,39 @@ function useAutoSelectFirstResolver(
     existingResolvers,
     setSelectedExistingResolver,
   ])
+}
+
+const CustomResolverAddressInput = ({
+  value,
+  onChange,
+}: {
+  readonly value: string
+  readonly onChange: (value: string) => void
+}) => {
+  // The value outlives this input when custom resolver is toggled off and on,
+  // so a remount with a value already in it starts touched.
+  const [isTouched, setIsTouched] = useState(value !== '')
+  const errorId = useId()
+  const error = getResolverAddressError({ value, isTouched })
+
+  return (
+    <div>
+      <Input
+        id="resolver-address"
+        placeholder="0x..."
+        value={value}
+        aria-invalid={error !== null}
+        aria-describedby={error ? errorId : undefined}
+        onChange={(event) => onChange(event.target.value.trim())}
+        onBlur={() => setIsTouched(true)}
+      />
+      {error ? (
+        <p id={errorId} className="text-p mt-1.5 text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 interface ChangeResolverFormProps {
@@ -263,11 +297,9 @@ export const ChangeResolverForm = ({
           >
             Contract address
           </Label>
-          <Input
-            id="resolver-address"
-            placeholder="0x..."
+          <CustomResolverAddressInput
             value={resolverAddress}
-            onChange={(event) => setResolverAddress(event.target.value)}
+            onChange={setResolverAddress}
           />
         </div>
       ) : (

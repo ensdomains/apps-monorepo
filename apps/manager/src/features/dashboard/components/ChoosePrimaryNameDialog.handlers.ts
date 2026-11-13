@@ -4,7 +4,9 @@
  * Business logic kept outside the React component for testability.
  */
 
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
+import type { ResolverSetupReplacement } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import type { PrimaryNamePreparation } from '@/features/profile/service/primaryNamePreparation'
 import { getCanonicalPrimaryName } from '@/features/profile/service/profileName'
 import { resolveDomainLabel } from '../utils'
@@ -29,13 +31,20 @@ export const isConfirmationForSelection = (
   confirmation.name === name &&
   confirmation.ownerAddress.toLowerCase() === ownerAddress.toLowerCase()
 
-/** Resolver setup replaces something unless the name has neither a resolver nor an address. */
-export const isResolverSetupReplacing = (
+/** What resolver setup replaces: nothing only when the name has neither a resolver nor an address. */
+export const getResolverSetupReplacement = (
   confirmation: PrimaryNameConfirmation | null,
-): boolean =>
-  confirmation?.kind !== 'setup-resolver' ||
-  confirmation.hasResolver ||
-  confirmation.existingEthAddress !== null
+): ResolverSetupReplacement =>
+  match(confirmation)
+    .with(
+      { kind: 'setup-resolver', isResolverInvalid: true },
+      () => 'invalid-resolver' as const,
+    )
+    .with(
+      { kind: 'setup-resolver', hasResolver: false, existingEthAddress: null },
+      () => 'nothing' as const,
+    )
+    .otherwise(() => 'resolver' as const)
 
 export const needsPrimaryNameConfirmation = (
   preparation: PrimaryNamePreparation,
@@ -48,7 +57,8 @@ export const needsPrimaryNameConfirmation = (
       preparation.existingEthAddress?.toLowerCase() ||
     (preparation.kind === 'setup-resolver' &&
       confirmed.kind === 'setup-resolver' &&
-      confirmed.hasResolver !== preparation.hasResolver))
+      (confirmed.hasResolver !== preparation.hasResolver ||
+        confirmed.isResolverInvalid !== preparation.isResolverInvalid)))
 
 export function getPrimaryNamePage<
   TDomain extends Parameters<typeof resolveDomainLabel>[0],

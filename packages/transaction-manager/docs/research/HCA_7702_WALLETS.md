@@ -105,7 +105,7 @@ Once the EOA has a delegation, its code is the 23-byte designator `0xef0100 || d
 - **Delegate:** `EIP7702StatelessDeleGator` (`MetaMask/delegation-framework`, `src/EIP7702/`), mainnet `0x63c0c19a282a1b52b07dd5a65b58948a07dae32b`. Its documented signer is the EOA itself.
 - **`_isValidSignature`:** returns the magic value when `ECDSA.recover(hash, sig) == address(this)`.
 - **Receivers:** `EIP7702DeleGatorCore` implements `onERC721Received`, `onERC1155Received` and `onERC1155BatchReceived`. Their `onlyProxy` check passes under 7702.
-- **Gas caveat:** in smart-account mode MetaMask wraps owner transactions in its delegation redemption, and a forwarded gas estimate can run out two `delegatecall`s deep. `REVOKE_SESSIONS_GAS_LIMIT` in `packages/smart-account/src/providers/rhinestone/revoke-sessions.ts` exists because of this. Expect the same on other direct owner calls that rely on estimation.
+- **Gas caveat:** with "Added protection" on, MetaMask wraps owner transactions in `DelegationManager.redeemDelegations` and replaces the dapp's `gas` with its own unbuffered estimate of the wrapped call (extension `app/scripts/lib/transaction/containers/util.ts`). Up to extension 13.55 (transaction-controller ≤72.2.1) that estimate runs about 43k short when the same transaction upgrades the EOA, so the inner call runs out of gas (WEB-1913). A gas limit set by the dapp can't fix this.
 
 ### Coinbase / Base app
 
@@ -189,6 +189,6 @@ The apps currently never trigger an upgrade: only EIP-5792 `atomic.status === 's
 1. **Verified delegates:** Calibur (both Rainbow's and Uniswap's deployments) and MetaMask's `EIP7702StatelessDeleGator` meet them. Coinbase's `EIP7702Proxy` meets them on-chain.
 2. **Unknown delegates:** a wallet can install any delegate. To gate on known-good delegates, read the account's code and compare the address after `0xef0100` with an allowlist.
 3. **Contract accounts that are not 7702:** non-empty code that doesn't start with `0xef0100` means a contract wallet that can't own an HCA: any ERC-4337 account, a Safe, or another multisig. This generalises the Safe-only detection from apps-monorepo#1478. An undeployed (counterfactual) 4337 account has no code yet, so the code check misses it. If its wallet returns a wrapped signature (ERC-6492 or similar), the SDK's "unexpected shape" error catches it at signing, and that error could open the same dialog instead of a generic failure. If the wallet instead returns a bare 65-byte signature from the signer key, the shape check passes and validation later fails with `InvalidSigner`, because the signature recovers to the signer, not the account.
-4. **Gas estimation:** wallets that wrap owner transactions in their delegate, as MetaMask does, may need fixed gas limits on direct owner calls (see `REVOKE_SESSIONS_GAS_LIMIT`).
+4. **Gas estimation:** don't set fixed gas limits on direct owner calls for wallets that wrap them in their delegate: MetaMask overwrites the limit when it wraps (see the gas caveat above).
 5. **Coinbase legacy EOAs:** confirm on a live wallet that `eth_signTypedData_v4` returns 65 bytes after the account is upgraded.
 6. **Testnet coverage:** Rainbow's Calibur has no Sepolia deployment, so testnet runs won't exercise it. Use a mainnet fork, as above.

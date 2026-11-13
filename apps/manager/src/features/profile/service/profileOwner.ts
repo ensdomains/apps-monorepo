@@ -24,8 +24,7 @@ import { getGraceEndDate } from '@/features/grace/utils/gracePeriod'
 import { getNameDetail } from '@/features/shared/service/nameDetail'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { isDebugProfileName } from '@/utils/debug-features'
-import { DEBUG_PROFILE_OWNER } from '../MOCK'
+import { isMaybeDebugName, loadDebugProfiles } from '@/utils/debug-features'
 import { normalizeDnsName, normalizeEthName } from './profileName'
 
 class GetOwnerError extends TaggedError('GetOwnerError')<{
@@ -139,11 +138,15 @@ const getV1ProfileOwner = ResultFn(async function* (
 })
 
 export const getOwner = ResultFn(async function* (params: { name: string }) {
-  if (isDebugProfileName(params.name)) {
-    return ok({
-      owner: DEBUG_PROFILE_OWNER,
-      protocol: 'v2',
-    } satisfies ProfileOwnerResult)
+  if (loadDebugProfiles && isMaybeDebugName(params.name)) {
+    const { DEBUG_PROFILE_OWNER, getDebugProfileRecords } =
+      await loadDebugProfiles()
+    if (getDebugProfileRecords(params.name)) {
+      return ok({
+        owner: DEBUG_PROFILE_OWNER,
+        protocol: 'v2',
+      } satisfies ProfileOwnerResult)
+    }
   }
 
   const ethName = normalizeEthName(params.name)

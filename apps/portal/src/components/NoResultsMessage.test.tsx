@@ -65,6 +65,13 @@ describe('NoResultsMessage', () => {
     )
   })
 
+  it('should render compact mode with description only, as a status', () => {
+    render(<NoResultsMessage compact description="No history yet." />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('No history yet.')
+    expect(screen.queryByText('No results found')).not.toBeInTheDocument()
+  })
+
   it('should render MessageCard with correct structure', () => {
     const { container } = render(<NoResultsMessage />)
 

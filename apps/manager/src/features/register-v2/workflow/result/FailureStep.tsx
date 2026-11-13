@@ -1,16 +1,24 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
+import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import type { RegistrationFailureReason } from '../../service/registrationFailure'
+import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import {
+  isSessionRevokedFailure,
+  type RegistrationFailureReason,
+} from '../../service/registrationFailure'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 
 export const FailureStep = () => {
   const { uiActor, label, resume } = RegisterV2Context.use()
   const navigate = useNavigate()
+  const { isSessionAccessReset } = useSmartAccountContext()
+  // As at open: a new session clears the live flag, and a later reset didn't cause this failure.
+  const [wasSessionAccessReset] = useState(isSessionAccessReset)
   const message = RegisterV2Context.useSelector(
     (state) => state.context.lastErrorMessage,
   )
@@ -23,6 +31,10 @@ export const FailureStep = () => {
   // screen waits on that run rather than offering to retry this one.
   const isWalletBusy = RegisterV2Context.useSelector(
     (state) => state.context.isWalletBusy,
+  )
+  // After a reset, the run still holds the revoked session, so retrying fails the same way.
+  const isSignatureRejected = RegisterV2Context.useSelector(
+    (state) => state.context.isSignatureRejected,
   )
   const failureReason = RegisterV2Context.useSelector(
     (state) => state.context.failureReason,
@@ -44,6 +56,10 @@ export const FailureStep = () => {
   return (
     <FailureStepView
       failureReason={failureReason}
+      isSessionRevoked={isSessionRevokedFailure({
+        wasSessionAccessReset,
+        isSignatureRejected,
+      })}
       isWalletBusy={isWalletBusy}
       label={label}
       message={message}
@@ -65,6 +81,8 @@ interface FailureStepViewProps {
   /** This run was refused because the wallet is busy, rather than failing. */
   readonly isWalletBusy?: boolean
   readonly failureReason?: RegistrationFailureReason
+  /** Smart session access was reset mid-run, so the run can't be signed. */
+  readonly isSessionRevoked?: boolean
   readonly onRetry: () => void
   readonly onCancel: () => void
   /** The name is gone, so send them to search for another one. */
@@ -77,6 +95,7 @@ export const FailureStepView = ({
   nameUnavailable,
   isWalletBusy = false,
   failureReason,
+  isSessionRevoked = false,
   onRetry,
   onCancel,
   onFindAnotherName,
@@ -84,6 +103,9 @@ export const FailureStepView = ({
   const { t } = useLingui()
   // The reveal pays from the emptied account, so retrying it fails the same way.
   const isInsufficientFunds = failureReason === 'insufficientFunds'
+  // Back to Quote leads when Try Again can't help yet, or can't help at all.
+  const shouldLeadWithCancel =
+    isWalletBusy || isSessionRevoked || isInsufficientFunds
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
@@ -92,7 +114,12 @@ export const FailureStepView = ({
         variant="destructive"
       >
         <AlertTitle>
-          {match({ nameUnavailable, isWalletBusy, isInsufficientFunds })
+          {match({
+            nameUnavailable,
+            isWalletBusy,
+            isInsufficientFunds,
+            isSessionRevoked,
+          })
             .with({ nameUnavailable: true }, () => (
               <Trans>Name No Longer Available</Trans>
             ))
@@ -102,12 +129,21 @@ export const FailureStepView = ({
             .with({ isInsufficientFunds: true }, () => (
               <Trans>Not Enough Funds to Finish</Trans>
             ))
+            .with({ isSessionRevoked: true }, () => (
+              <Trans>Smart Session Access Reset</Trans>
+            ))
             .otherwise(() => (
               <Trans>Registration Failed</Trans>
             ))}
         </AlertTitle>
         <AlertDescription className="max-h-32 overflow-y-auto">
-          {match({ nameUnavailable, isInsufficientFunds, message })
+          {match({
+            nameUnavailable,
+            isWalletBusy,
+            isInsufficientFunds,
+            isSessionRevoked,
+            message,
+          })
             .with(
               { nameUnavailable: true },
               () =>
@@ -117,6 +153,11 @@ export const FailureStepView = ({
               { isInsufficientFunds: true },
               () =>
                 t`Your smart account no longer has enough funds to finish registering ${label}.eth. This can happen if funds are withdrawn in another tab or browser while a registration is running.`,
+            )
+            .with(
+              { isWalletBusy: false, isSessionRevoked: true },
+              () =>
+                t`Smart session access was reset while ${label}.eth was registering, so this registration can't continue with the old session.`,
             )
             .with({ message: P.string.minLength(1) }, ({ message }) => message)
             .otherwise(
@@ -137,7 +178,12 @@ export const FailureStepView = ({
               <Trans>What would you like to do?</Trans>
             </h3>
             <p className="text-ens-gray text-sm">
-              {match({ nameUnavailable, isWalletBusy, isInsufficientFunds })
+              {match({
+                nameUnavailable,
+                isWalletBusy,
+                isInsufficientFunds,
+                isSessionRevoked,
+              })
                 .with({ nameUnavailable: true }, () => (
                   <Trans>
                     Another address registered this name first, so it can no
@@ -156,6 +202,13 @@ export const FailureStepView = ({
                     approve the payment again.
                   </Trans>
                 ))
+                .with({ isSessionRevoked: true }, () => (
+                  <Trans>
+                    Trying again would use the old session and fail the same
+                    way. Go back to the quote to start the registration again
+                    with a new smart session.
+                  </Trans>
+                ))
                 .otherwise(() => (
                   <Trans>
                     Retrying will attempt the registration again from where it
@@ -172,7 +225,7 @@ export const FailureStepView = ({
                 onClick={onRetry}
                 size="xl"
                 type="button"
-                variant={isWalletBusy ? 'lightBlue' : 'blue'}
+                variant={shouldLeadWithCancel ? 'lightBlue' : 'blue'}
               >
                 <Trans>Try Again</Trans>
               </Button>
@@ -193,9 +246,7 @@ export const FailureStepView = ({
                 onClick={onCancel}
                 size="xl"
                 type="button"
-                variant={
-                  isWalletBusy || isInsufficientFunds ? 'blue' : 'lightBlue'
-                }
+                variant={shouldLeadWithCancel ? 'blue' : 'lightBlue'}
               >
                 <Trans>Back to Quote</Trans>
               </Button>

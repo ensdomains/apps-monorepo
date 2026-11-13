@@ -90,6 +90,7 @@ export const revokeMigrationApproval = ResultFn(async function* (params: {
       }),
       (cause) => cause,
     )
+  // A Safe{Wallet} answers with its safeTxHash; a failed Safe execution counts as a revert.
   const receipt = yield* fromPromise(
     withRequestDeadline(
       async (signal) =>
@@ -111,15 +112,24 @@ export const revokeMigrationApproval = ResultFn(async function* (params: {
     .mapErr(toRevokeMigrationApprovalError)
   yield* verifyMigrationApprovalRevocationReceipt(receipt)
 
+  // Trust the receipt: a latest-block read from a lagging node still lists the approval.
+  const approvalsKey = migrationOperatorApprovalsQueryKey({
+    owner,
+    hca,
+    chainId,
+  })
   yield* fromPromise(
-    Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: migrationOperatorApprovalsQueryKey({ owner, hca, chainId }),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
-      }),
-    ]),
+    queryClient.cancelQueries({ queryKey: approvalsKey, exact: true }),
+    toRevokeMigrationApprovalError,
+  )
+  queryClient.setQueryData<readonly MigrationOperatorApproval[]>(
+    approvalsKey,
+    (approvals) => approvals?.filter(({ id }) => id !== approval.id),
+  )
+  yield* fromPromise(
+    queryClient.invalidateQueries({
+      queryKey: migrationHcaApprovalQueryKey({ owner, hca, chainId }),
+    }),
     toRevokeMigrationApprovalError,
   )
   return ok(undefined)

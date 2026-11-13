@@ -1,9 +1,9 @@
 /**
  * #1494 subname recreation, shared by the manager and portal specs.
  *
- * `recreateTree` drives the manager's real `/upgrade` flow with the
- * `migration-subname-recreation` flag on, so the V2 state the portal specs
- * read is what the product writes, not a hand-built approximation of it.
+ * `recreateTree` drives the manager's real `/upgrade` flow, so the V2 state
+ * the portal specs read is what the product writes, not a hand-built
+ * approximation of it.
  *
  * V1 children are created by the parent's registry owner and then configured
  * by their OWN holder, as on mainnet: a parent cannot set a resolver on a node
@@ -109,11 +109,10 @@ export async function registryChild(params: {
   return name
 }
 
-/** Connect the manager with `migration` on and the recreation flag pinned either way. */
+/** Connect the manager with `migration` on. */
 export async function connectWithFlags(
   page: Page,
   wallet: Web3ProviderBackend,
-  flags: { readonly recreation: boolean },
 ): Promise<void> {
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning')
@@ -122,7 +121,6 @@ export async function connectWithFlags(
   await overrideManagerFeatureFlags(page, {
     migration: true,
     'profile-view-new': true,
-    'migration-subname-recreation': flags.recreation,
   })
   await connectHeadless(page, wallet)
   await dismissBackendAuthModal(page)
@@ -151,7 +149,7 @@ export async function recreateTree(params: {
   await mockSubnameInventory(page, [
     { name: parent, children: children.map((name) => ({ name })) },
   ])
-  await connectWithFlags(page, wallet, { recreation: true })
+  await connectWithFlags(page, wallet)
   await openMigrationFlow(page)
   await selectOnlyRoots(page, [parent])
   await confirmAndAuthorize(page, wallet)
