@@ -339,6 +339,22 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
   return null
 }
 
+const matchRecipientFailure = (err: unknown): MigrationError | null => {
+  const failure = walkCauseChain(err).find(
+    (cause) => cause instanceof MigrationRecipientCheckError,
+  )
+  return failure
+    ? { type: `recipient-${failure.reason}`, recipient: failure.recipient }
+    : null
+}
+
+const matchCopyReadFailure = (err: unknown): MigrationError | null => {
+  const failure = findNamedError(err, 'CopyMigrationReadinessError')
+  return failure && 'reason' in failure && failure.reason === 'read-failed'
+    ? { type: 'copy-read-failed', message: extractErrorMessage(err) }
+    : null
+}
+
 export const canRetryMigration = (error: MigrationError | undefined): boolean =>
   error?.type !== 'plan-changed'
 
@@ -346,23 +362,8 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
   if (isUserRejection(err)) return { type: 'user-rejected' }
   if (isWalletOutOfEth(err)) return { type: 'insufficient-eth' }
 
-  const recipientFailure = walkCauseChain(err).find(
-    (cause) => cause instanceof MigrationRecipientCheckError,
-  )
-  if (recipientFailure)
-    return {
-      type: `recipient-${recipientFailure.reason}`,
-      recipient: recipientFailure.recipient,
-    }
-
-  const copyReadinessError = findNamedError(err, 'CopyMigrationReadinessError')
-  if (
-    copyReadinessError &&
-    'reason' in copyReadinessError &&
-    copyReadinessError.reason === 'read-failed'
-  ) {
-    return { type: 'copy-read-failed', message: extractErrorMessage(err) }
-  }
+  const failedCheck = matchRecipientFailure(err) ?? matchCopyReadFailure(err)
+  if (failedCheck) return failedCheck
 
   if (
     hasNamedError(err, 'MigrationPlanChangedError') ||
