@@ -5,7 +5,10 @@ import type { Address } from 'viem'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { getIsUntrustedRegistryQueryOptions } from '@/features/registry/hooks/useIsUntrustedRegistry'
 import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
-import { selectRegistryWarning } from '@/features/registry/utils/registryWarning'
+import {
+  selectRegistryWarning,
+  toRegistryCheck,
+} from '@/features/registry/utils/registryWarning'
 import { UntrustedRegistryAlert } from './UntrustedRegistryWarning'
 
 /** The single warning at the top of every registry page, shown to every visitor. */
@@ -14,14 +17,19 @@ export const RegistryWarningBanner = ({
 }: {
   readonly address: Address
 }) => {
-  const { data: isUntrusted } = useQuery(
+  const untrustedQuery = useQuery(
     getIsUntrustedRegistryQueryOptions({ address }),
   )
-  const { data: isPendingUpgrade } = useQuery(
+  const affectedQuery = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress: address }),
   )
 
-  return match(selectRegistryWarning({ isUntrusted, isPendingUpgrade }))
+  return match(
+    selectRegistryWarning({
+      untrusted: toRegistryCheck(untrustedQuery),
+      affected: toRegistryCheck(affectedQuery),
+    }),
+  )
     .with('untrusted', () => (
       <UntrustedRegistryAlert address={address}>
         If a name of yours uses it, keep the roles that let you change that

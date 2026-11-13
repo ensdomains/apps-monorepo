@@ -50,4 +50,15 @@ describe('RegistryWarningBanner', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.queryByText(AFFECTED_TITLE)).not.toBeInTheDocument()
   })
+
+  it('still warns about an affected registry when the untrusted check fails', async () => {
+    // The untrusted query is declared first, so its read is the first call.
+    getStorageAt
+      .mockRejectedValueOnce(new Error('rpc down'))
+      .mockResolvedValue(pad(AFFECTED_IMPLEMENTATION))
+    renderBanner()
+
+    expect(await screen.findByText(AFFECTED_TITLE)).toBeVisible()
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+  })
 })
