@@ -41,6 +41,7 @@ ExactFuseDerivedRolesAssumption ==
   contractState.actualRoles = contractState.fuseDerivedRoles
 
 \* Requires contracts-level FV proof before callers may rely on this assumption.
+\* Proof stub: CertifiedRegistryPathProof.tla (owner and artifact TBD).
 CertifiedRegistryPathAssumption == contractState.registryPathCertified
 
 EnvironmentAssumptions ==
