@@ -23,7 +23,8 @@ Last synchronized production commit:
 
 The model covers 37 promises from A1 through G5. E7 requires one ordered,
 chained simulation of setup and every batch before the first wallet prompt. The
-selected defaults are recorded in `formal/migration-context/RESULTS.md`.
+behaviors, contract assumptions, and decisions are recorded in
+`apps/manager/verification/migration/BEHAVIORS.md`.
 
 Covered production paths are enumerated and enforced by
 `apps/manager/verification/migration/verify-source-map.mjs`. They include:
@@ -100,8 +101,8 @@ A8, C4, C5, D1, D2, D3, E6, E7, and G5. The other 26 promises hold in the
 abstraction. B5 now checks only roles required by later frontend work. Exact
 fuse-derived roles and certified registry traversal are contract assumptions,
 and the latter requires contracts-level formal verification. See
-`formal/migration-context/RESULTS.md` for traces, source locations, and
-judgments.
+`apps/manager/verification/migration/BEHAVIORS.md` for source locations and
+decisions, and the verifier logs (`FORMAL_OUT_DIR`) for traces.
 
 Keep these as findings. Do not weaken a user promise or change a current-model
 constant only to make TLC pass.

@@ -7,8 +7,8 @@ model checks. The model follows this document.
 
 To change a promise, edit the behavior here first. Then update `Model.tla`,
 `MigrationContract.tla` when the contract boundary changes, the matching
-`No<Guard>.cfg` mutation, and the real-code tests. Record the decision in
-`formal/migration-context/decisions.tsv`.
+`No<Guard>.cfg` mutation, and the real-code tests. Record the decision in that
+behavior's decision history here.
 
 ### Frontend scoping rule
 
