@@ -1,7 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin'
-import posthog from '@posthog/rollup-plugin'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
@@ -11,6 +10,7 @@ import {
   assertDeploymentEnvironment,
   assertNetworkConfig,
 } from '../../packages/config/src/index.ts'
+import { sourceMapsPlugin } from '../../packages/utils/src/posthog/sourceMapsPlugin.ts'
 import { MANAGER_ENDPOINTS } from './src/endpoints.ts'
 
 // https://vitejs.dev/config/
@@ -76,7 +76,7 @@ export default defineConfig(({ mode, command }) => {
       env.POSTHOG_PROJECT_ID &&
       env.VITE_PUBLIC_POSTHOG_KEY
         ? [
-            posthog({
+            sourceMapsPlugin({
               personalApiKey: env.POSTHOG_API_KEY,
               projectId: env.POSTHOG_PROJECT_ID,
               host: env.POSTHOG_HOST,

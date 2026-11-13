@@ -394,6 +394,55 @@ describe('PostHog consent', () => {
     )
   })
 
+  it.each([true, false])(
+    'renews a saved consent answer on SDK load (granted: %s)',
+    (isGranted) => {
+      const { client } = initClient()
+      setAnalyticsConsent(client, isGranted)
+      const optIn = vi.spyOn(client, 'opt_in_capturing')
+      const optOut = vi.spyOn(client, 'opt_out_capturing')
+      POSTHOG_CONFIG.loaded(client)
+      expect(isGranted ? optIn : optOut).toHaveBeenCalledOnce()
+      expect(client.get_explicit_consent_status()).toBe(
+        isGranted ? 'granted' : 'denied',
+      )
+    },
+  )
+
+  it('preserves Manager identity and attribution when a disconnected sibling resets shared cookies', () => {
+    const { client } = initClient()
+    setAnalyticsConsent(client, true)
+    client.identify(WALLET)
+    client.register({ utm_campaign: 'manager-campaign' })
+    const session = client.get_session_id()
+    const savedLocal = Object.keys(localStorage).map(
+      (key) => [key, localStorage.getItem(key)] as const,
+    )
+    const savedSession = Object.keys(sessionStorage).map(
+      (key) => [key, sessionStorage.getItem(key)] as const,
+    )
+    localStorage.clear()
+    sessionStorage.clear()
+    vi.mocked(getConnectedWalletAddress).mockReturnValue(null)
+    resetKeepingConsent(initClient().client)
+    expect(client.get_distinct_id()).toBe(WALLET)
+    expect(client.get_explicit_consent_status()).toBe('granted')
+    localStorage.clear()
+    sessionStorage.clear()
+    for (const [key, value] of savedLocal)
+      if (value !== null) localStorage.setItem(key, value)
+    for (const [key, value] of savedSession)
+      if (value !== null) sessionStorage.setItem(key, value)
+    vi.mocked(getConnectedWalletAddress).mockReturnValue(WALLET)
+    const restored = initClient().client
+    expect(restored.get_distinct_id()).toBe(WALLET)
+    expect(restored.get_session_id()).toBe(session)
+    expect(restored.get_property('utm_campaign')).toBe('manager-campaign')
+    expect(restored.capture('wallet:connect')?.properties.distinct_id).toBe(
+      WALLET,
+    )
+  })
+
   it('contains errors in the SDK loaded callback', () => {
     const { client } = initClient()
     vi.spyOn(client, 'set_config').mockImplementation(() => {

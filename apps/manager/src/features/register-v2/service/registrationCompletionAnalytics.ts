@@ -27,10 +27,15 @@ const waitForCompletion = async (
   txId: string,
   verification: RegistrationVerification | undefined,
   complete: () => void,
+  transaction: ReturnType<typeof transactionManager.getTransaction>,
 ): Promise<void> => {
   const receipt = await pollTransactionStatusActor({ txId })
   if (receipt.isOk()) return complete()
-  if (!verification) return
+  if (
+    !verification ||
+    (transaction && transaction.getSnapshot().status !== 'stopped')
+  )
+    return
   const result = await (verification.mode === 'hca'
     ? verifyHcaRegistrationActor(verification.input)
     : verifyRegistrationActor(verification.input))
@@ -65,7 +70,7 @@ export const createRegistrationCompletion = (
         const observations = verification ? verifications : receipts
         if (observations.has(identity)) return
         observations.add(identity)
-        await waitForCompletion(txId, verification, complete)
+        await waitForCompletion(txId, verification, complete, transaction)
       }
       void run().catch(() => {})
     }

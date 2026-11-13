@@ -184,6 +184,7 @@ export const SHARED_POSTHOG_CONFIG = {
   save_referrer: true,
   capture_pageview: 'history_change',
   capture_pageleave: true,
+  // The SDK needs this listener for rageclicks; before_send drops ordinary clicks.
   autocapture: { dom_event_allowlist: ['click'], capture_copied_text: false },
   rageclick: true,
   capture_dead_clicks: false,

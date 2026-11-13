@@ -4,7 +4,6 @@ import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import i18nextLoader from '@ensdomains/vite-plugin-i18next-loader'
-import posthog from '@posthog/rollup-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -13,6 +12,7 @@ import {
   assertDeploymentEnvironment,
   assertNetworkConfig,
 } from '../../packages/config/src/index'
+import { sourceMapsPlugin } from '../../packages/utils/src/posthog/sourceMapsPlugin.ts'
 import { PORTAL_ENDPOINTS } from './src/endpoints'
 
 const locales = dirname(
@@ -76,7 +76,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
       env.POSTHOG_PROJECT_ID &&
       env.VITE_PUBLIC_POSTHOG_KEY
         ? [
-            posthog({
+            sourceMapsPlugin({
               personalApiKey: env.POSTHOG_API_KEY,
               projectId: env.POSTHOG_PROJECT_ID,
               host: env.POSTHOG_HOST,

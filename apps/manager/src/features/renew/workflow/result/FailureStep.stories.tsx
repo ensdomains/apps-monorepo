@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
+import { WagmiProvider } from 'wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import { RenewalUiProvider } from '../../state/renewalUi.context'
 import { RenewFailureStep } from './FailureStep'
 
@@ -13,15 +15,17 @@ const meta = {
     (Story) => (
       // The provider starts a fresh machine, so no error message is set and
       // the fallback copy shows. Revert reasons are covered in UI/Alert.
-      <RenewalUiProvider
-        currentExpiry={CURRENT_EXPIRY}
-        label="mymind"
-        protocol="v2"
-      >
-        <div className="min-h-screen bg-white px-4 py-1 sm:px-8">
-          <Story />
-        </div>
-      </RenewalUiProvider>
+      <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
+        <RenewalUiProvider
+          currentExpiry={CURRENT_EXPIRY}
+          label="mymind"
+          protocol="v2"
+        >
+          <div className="min-h-screen bg-white px-4 py-1 sm:px-8">
+            <Story />
+          </div>
+        </RenewalUiProvider>
+      </WagmiProvider>
     ),
   ],
 } satisfies Meta<typeof RenewFailureStep>

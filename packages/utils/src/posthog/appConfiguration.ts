@@ -4,6 +4,7 @@ import {
   prepareAnalyticsEvent,
   protectStoredAnalyticsCredentials,
   SHARED_POSTHOG_CONFIG,
+  writeAnalyticsConsent,
 } from './analyticsConfiguration'
 import {
   ANALYTICS_CONSENT_COOKIE,
@@ -47,6 +48,7 @@ export const getAppPostHogConfig = (context: {
         context.getWalletAddress(),
         canCaptureAnalytics(context.environment),
       )
+      writeAnalyticsConsent(client, client.get_explicit_consent_status())
     } catch (error) {
       console.warn('[posthog] loaded synchronization failed', error)
     }

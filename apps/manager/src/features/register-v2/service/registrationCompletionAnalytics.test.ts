@@ -51,8 +51,8 @@ describe('registration completion observation', () => {
   it.each([
     ['eoa', 'CONFIRMED'],
     ['hca', 'CONFIRMED'],
-    ['eoa', 'FAILED'],
-    ['hca', 'FAILED'],
+    ['eoa', 'STOPPED'],
+    ['hca', 'STOPPED'],
   ] as const)(
     'completes detached %s submission on %s receipt using pinned verification when needed',
     async (mode, outcome) => {
@@ -110,7 +110,8 @@ describe('registration completion observation', () => {
         expect(getTransaction).toHaveBeenCalledWith('queued-after-unmount'),
       )
       expect(capture).not.toHaveBeenCalled()
-      transaction.send({ type: outcome })
+      if (outcome === 'STOPPED') transaction.stop()
+      else transaction.send({ type: outcome })
       await vi.waitFor(() =>
         expect(capture).toHaveBeenCalledWith(
           'registration:flow_complete',
@@ -118,10 +119,37 @@ describe('registration completion observation', () => {
         ),
       )
       expect(capture).toHaveBeenCalledOnce()
-      expect(verify.mock.calls).toEqual(outcome === 'FAILED' ? [[input]] : [])
+      expect(verify.mock.calls).toEqual(outcome === 'STOPPED' ? [[input]] : [])
       transaction.stop()
     },
   )
+
+  it('does not launch another verification poll for a live actor failure', async () => {
+    const transaction = createActor(transactionMachine).start()
+    getTransaction.mockReturnValue(transaction)
+    const capture = vi.fn()
+    const analytics = { ...createAnalyticsFlow(), capture }
+    const completion = createRegistrationCompletion({
+      analytics,
+      properties: { flow_id: analytics.flow_id },
+    })
+    completion.observe('tx', {
+      mode: 'eoa',
+      input: {
+        name: 'example.eth',
+        owner: '0x1111111111111111111111111111111111111111',
+        resolverAddress: '0x2222222222222222222222222222222222222222',
+        publicClient,
+        commitment: '0x1234',
+      },
+    })
+    transaction.send({ type: 'FAILED' })
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    expect(verifyEoa).not.toHaveBeenCalled()
+    expect(verifyHca).not.toHaveBeenCalled()
+    expect(capture).not.toHaveBeenCalled()
+    transaction.stop()
+  })
 
   it('retries a replaced transaction under the same ID and deduplicates rebound observers', async () => {
     const failed = createActor(transactionMachine).start()

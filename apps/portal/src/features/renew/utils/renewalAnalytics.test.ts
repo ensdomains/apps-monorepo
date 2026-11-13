@@ -244,12 +244,7 @@ describe('renewal analytics', () => {
     })
     await expect(waitForTransaction('v2')).rejects.toThrow()
     expect(run.calls('flow_complete')).toEqual([])
-    expect(run.calls('stage_fail')).toEqual([
-      [
-        'renewal:stage_fail',
-        expect.objectContaining({ stage: 'execution', is_retryable: true }),
-      ],
-    ])
+    expect(run.calls('stage_fail')).toEqual([])
     run.start('v2')
     await waitForTransaction('v2')
     expect(run.calls('flow_retry')).toHaveLength(1)

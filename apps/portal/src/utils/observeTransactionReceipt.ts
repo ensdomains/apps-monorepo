@@ -42,7 +42,15 @@ export const observeTransactionReceipt = (
       const snapshot = transaction.getSnapshot()
       if (snapshot.matches({ error: 'cancelled' }))
         return settle({ status: 'unobserved' })
-      if (snapshot.status !== 'stopped') return settle({ status: 'failed' })
+      if (snapshot.status !== 'stopped')
+        return settle({
+          status:
+            snapshot.matches({ error: 'timeout' }) ||
+            snapshot.matches({ error: 'unknown' }) ||
+            snapshot.status === 'error'
+              ? 'unobserved'
+              : 'failed',
+        })
       const { hash, callsId, publicClient } = snapshot.context
       if ((!hash && !callsId) || !publicClient)
         return settle({ status: 'unobserved' })
