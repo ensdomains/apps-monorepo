@@ -1,4 +1,4 @@
-import { supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { describe, expect, it } from 'vitest'
 import { isKnownPublicResolver } from './knownResolvers'
 
@@ -59,6 +59,19 @@ describe('isKnownPublicResolver', () => {
     ).toBe(true)
     expect(isKnownPublicResolver(olderMainnetResolver, SEPOLIA)).toBe(false)
   })
+
+  // An ensjs bump that moves `ensPublicResolver` must add the new resolver to this list.
+  it.each(Object.values(supportedL1Chains))(
+    "includes ensjs's ensPublicResolver on chain %i",
+    (chainId) => {
+      expect(
+        isKnownPublicResolver(
+          ensL1Contracts[chainId].ensPublicResolver.address,
+          chainId,
+        ),
+      ).toBe(true)
+    },
+  )
 
   it('recognizes PublicResolverV4 only on mainnet', () => {
     const resolver = '0xF29100983E058B709F3D539b0c765937B804AC15'

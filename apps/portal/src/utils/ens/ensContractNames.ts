@@ -1,3 +1,4 @@
+import { PREVIOUS_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration/known-resolvers'
 import {
   ensL1Contracts,
   type SupportedL1Contract,
@@ -5,7 +6,6 @@ import {
   supportedL1Contracts,
 } from '@ensdomains/ensjs/chain'
 import { type Address, zeroAddress } from 'viem'
-import { PREVIOUS_V1_PUBLIC_RESOLVERS } from '@/lib/constants/publicResolvers'
 
 /** Human-readable display names for known ENS L1 contracts */
 const contractDisplayNames: Record<SupportedL1Contract, string> = {
