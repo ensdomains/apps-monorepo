@@ -280,6 +280,25 @@ describe('SelectNamesStep', () => {
     expect(onNamesChange).not.toHaveBeenCalled()
   })
 
+  it('titles the loading list as a check until the names are known', () => {
+    impactState.status = 'loading'
+    const { getByRole, rerenderGasEstimate } = renderStep()
+    expect(
+      getByRole('heading', {
+        level: 1,
+        name: 'Checking which names can be upgraded',
+      }),
+    ).toBeInTheDocument()
+    impactState.status = 'ready'
+    rerenderGasEstimate({ status: 'idle' })
+    expect(
+      getByRole('heading', {
+        level: 1,
+        name: 'Your names are ready to upgrade',
+      }),
+    ).toBeInTheDocument()
+  })
+
   it('offers a sync for names whose wrapper expiry is behind the registrar', () => {
     const stale = eligibleFixture[0]
     if (!stale) throw new Error('Missing fixture')

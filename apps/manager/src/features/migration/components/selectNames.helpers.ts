@@ -1,3 +1,4 @@
+import { match, P } from 'ts-pattern'
 import type { CopyClassifiedName } from '../service/classifyNames'
 import type { NameTreeNode } from '../service/groupByParent'
 
@@ -41,6 +42,50 @@ export const shouldShowSmartTransactionsNotice = ({
 }): boolean =>
   isMetaMaskWallet &&
   (totalSelected > 0 || isFinishingRecovery || hasWrapperSyncNames)
+
+type SelectNamesTitle =
+  | 'recovery-stale'
+  | 'finishing-recovery'
+  | 'eligibility-error'
+  | 'checking-eligibility'
+  | 'needs-renewal'
+  | 'needs-wrapper-sync'
+  | 'unavailable'
+  | 'ready'
+
+export type SelectNamesTitleInput = {
+  readonly isRecoveryStale: boolean
+  readonly isFinishingRecovery: boolean
+  readonly isEligibilityError: boolean
+  readonly isPending: boolean
+  readonly eligibleCount: number
+  readonly graceCount: number
+  readonly wrapperSyncCount: number
+  readonly unavailableCount: number
+}
+
+export const getSelectNamesTitle = (
+  input: SelectNamesTitleInput,
+): SelectNamesTitle =>
+  match<SelectNamesTitleInput, SelectNamesTitle>(input)
+    .with({ isRecoveryStale: true }, () => 'recovery-stale')
+    .with({ isFinishingRecovery: true }, () => 'finishing-recovery')
+    .with({ isEligibilityError: true }, () => 'eligibility-error')
+    // A failed check outranks loading; partial counts must not title a result.
+    .with({ isPending: true }, () => 'checking-eligibility')
+    .with(
+      { eligibleCount: 0, graceCount: P.number.gt(0) },
+      () => 'needs-renewal',
+    )
+    .with(
+      { eligibleCount: 0, wrapperSyncCount: P.number.gt(0) },
+      () => 'needs-wrapper-sync',
+    )
+    .with(
+      { eligibleCount: 0, unavailableCount: P.number.gt(0) },
+      () => 'unavailable',
+    )
+    .otherwise(() => 'ready')
 
 export const collectAllSelectable = (
   groups: readonly NameTreeNode[],
