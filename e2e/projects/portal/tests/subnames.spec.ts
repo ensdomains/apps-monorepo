@@ -68,13 +68,15 @@ test.describe('Portal subnames', () => {
 
   for (const { title, label, ancestors, scenario } of [
     {
-      title: 'redirects 3LD creation and disables the action on its parent',
+      title:
+        'offers 3LD creation on a registry from the current implementation',
       label: 'sub-d2',
       ancestors: [],
       scenario: '@scenario:D2',
     },
     {
-      title: 'redirects 4LD creation and disables the action on its 3LD parent',
+      title:
+        'offers 4LD creation on a 3LD registry from the current implementation',
       label: 'sub-d3',
       ancestors: ['mid'],
       scenario: '@scenario:D3',
@@ -98,24 +100,18 @@ test.describe('Portal subnames', () => {
       const name = [...ancestors, parent].join('.')
 
       await waitForIndexedBlock()
+      await page.goto(`${PORTAL_APP_URL}/${name}/subnames`, {
+        waitUntil: 'domcontentloaded',
+      })
+      await expect(
+        page.getByRole('link', { name: 'Create subname' }),
+      ).toHaveAttribute('href', /create-subname/)
+
       await page.goto(`${PORTAL_APP_URL}/${name}/create-subname`, {
         waitUntil: 'domcontentloaded',
       })
-      await expect(page).toHaveURL(`${PORTAL_APP_URL}/${name}/subnames`)
-
-      const createAction = page.getByRole('button', { name: 'Create subname' })
-      await expect(createAction).toBeVisible()
-      await expect(createAction).toBeDisabled()
-      await expect(
-        page.getByRole('link', { name: 'Create subname' }),
-      ).toHaveCount(0)
-      await createAction.hover()
-      await expect(page.getByRole('tooltip')).toHaveText(
-        'This registry must be updated before new subnames can be created.',
-      )
-      await createAction.click({ force: true })
-      await expect(page).toHaveURL(`${PORTAL_APP_URL}/${name}/subnames`)
-      await expect(page.locator('#label')).toHaveCount(0)
+      await expect(page).toHaveURL(`${PORTAL_APP_URL}/${name}/create-subname`)
+      await expect(page.locator('#label')).toBeVisible()
     })
   }
 
