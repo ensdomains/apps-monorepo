@@ -12,6 +12,9 @@ import path from 'node:path'
 const TSC_REASON =
   'Do not run `npx tsc`, `pnpx tsc`, `pnpm exec tsc`, or `node_modules/.bin/tsc`. Run `pnpm typecheck` from the app or package directory.'
 
+const ROOT_TYPECHECK_REASON =
+  'The repo root has no `typecheck` script. Do not probe `pnpm typecheck` there. Inspect the app and run `(cd apps/<app> && pnpm typecheck)` directly.'
+
 const TEST_REASON =
   'Do not run the full suite (`pnpm test`, `pnpm test:all`, `pnpm -r test`, or `vitest run` with no paths). Run `pnpm exec vitest run --maxWorkers=4 <paths>` for the files this change affects.'
 
@@ -28,9 +31,10 @@ const SKIP_PATTERN = /\b(?:it|test|describe)\.(?:skip|only|todo)\(|\bxit\(|\bxde
 
 /**
  * @param {string} command
+ * @param {{ cwd?: string }} [options]
  * @returns {{ decision: 'allow' | 'block', reason: string }}
  */
-export function guardCommand(command) {
+export function guardCommand(command, options = {}) {
   const text = command ?? ''
   if (
     /(npx|pnpx)\s+tsc\b/.test(text) ||
@@ -41,11 +45,19 @@ export function guardCommand(command) {
     return { decision: 'block', reason: TSC_REASON }
   }
 
+  let dir = options.cwd ?? ''
   for (const segment of splitSegments(text)) {
     const tokens = commandTokens(segment)
     if (tokens.length === 0) continue
     if (isBannedTsc(tokens)) return { decision: 'block', reason: TSC_REASON }
     if (isBannedTest(tokens)) return { decision: 'block', reason: TEST_REASON }
+    if (tokens[0] === 'cd' && tokens[1]) {
+      dir = nextDir(dir, tokens[1])
+      continue
+    }
+    if (isBarePnpmTypecheck(tokens) && isRepoRoot(dir)) {
+      return { decision: 'block', reason: ROOT_TYPECHECK_REASON }
+    }
   }
   return { decision: 'allow', reason: '' }
 }
@@ -105,9 +117,6 @@ function isBannedTsc(tokens) {
   return index === 0
 }
 
-/**
- * @param {readonly string[]} tokens
- */
 function isBannedTest(tokens) {
   if (tokens[0] === 'pnpm') {
     const args = tokens.slice(1)
@@ -130,6 +139,49 @@ function isBannedTest(tokens) {
   if (runAt === -1) return false
   const paths = tokens.slice(runAt + 1).filter((token) => !token.startsWith('-'))
   return paths.length === 0
+}
+
+/**
+ * Bare `pnpm typecheck` has no --filter, -C, or --dir. `pnpm run typecheck` counts too.
+ * @param {readonly string[]} tokens
+ */
+function isBarePnpmTypecheck(tokens) {
+  if (tokens[0] !== 'pnpm') return false
+  const args = tokens.slice(1)
+  const scoped = args.some(
+    (arg) =>
+      arg === '--filter' ||
+      arg.startsWith('--filter=') ||
+      arg === '-F' ||
+      arg === '-C' ||
+      arg === '--dir' ||
+      arg.startsWith('--dir='),
+  )
+  if (scoped) return false
+  const positional = args.filter((arg) => !arg.startsWith('-'))
+  if (positional[0] === 'run') return positional[1] === 'typecheck'
+  return positional[0] === 'typecheck'
+}
+
+/**
+ * @param {string} dir
+ * @param {string} next
+ */
+function nextDir(dir, next) {
+  const target = next.replace(/^['"]|['"]$/g, '')
+  if (!dir) return target
+  if (target.startsWith('/')) return target
+  return path.posix.normalize(path.posix.join(dir.replaceAll('\\', '/'), target))
+}
+
+/**
+ * Unknown cwd is not treated as the root, so a missing cwd does not block.
+ * @param {string} dir
+ */
+function isRepoRoot(dir) {
+  if (!dir) return false
+  const normalized = dir.replaceAll('\\', '/').replace(/\/+$/, '')
+  return !/(^|\/)(apps|packages|workers)\/[^/]+/.test(normalized)
 }
 
 /**

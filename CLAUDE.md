@@ -3,7 +3,7 @@
 pnpm monorepo: apps in `apps/`, shared code in `packages/` (used by every app), workers in `workers/`.
 
 ## Commands (run from the app or package directory)
-- Typecheck: `pnpm typecheck`. Never `npx tsc`, `pnpx tsc`, `pnpm exec tsc`, or `node_modules/.bin/tsc`.
+- Typecheck: `(cd apps/<app> && pnpm typecheck)` in the app you changed or the app CI reported. The repo root has no `typecheck` script. Never run `pnpm typecheck` there, and do not probe the root first when re-checking CI. Never `npx tsc`, `pnpx tsc`, `pnpm exec tsc`, or `node_modules/.bin/tsc`.
 - Tests: `pnpm exec vitest run --maxWorkers=4 <paths>`. Only the files your change affects; never the full suite.
 - Changed `packages/`? Also typecheck what changed since `origin/main`, and its dependents: `pnpm --filter "...[origin/main]" --filter "!{.}" typecheck`. The root package has no `typecheck` script; the `!{.}` filter is what CI uses.
 

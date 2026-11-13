@@ -51,7 +51,7 @@ test('guard-command blocks the banned typecheck and full-suite forms', () => {
 
 test('guard-command allows the documented commands', () => {
   const allowed = [
-    'pnpm typecheck',
+    'cd apps/manager && pnpm typecheck',
     'pnpm --filter "...[origin/main]" --filter "!{.}" typecheck',
     'pnpm exec vitest run --maxWorkers=4 src/features/renew',
     'pnpm --filter portal test',
@@ -62,6 +62,24 @@ test('guard-command allows the documented commands', () => {
   }
   assert.match(guardCommand('npx tsc').reason, /pnpm typecheck/)
   assert.match(guardCommand('pnpm test').reason, /vitest run/)
+})
+
+test('root pnpm typecheck is rejected before it runs', () => {
+  const rootDir = '/repo/apps-monorepo'
+  const blocked = guardCommand('pnpm typecheck', { cwd: rootDir })
+  assert.equal(blocked.decision, 'block')
+  assert.match(blocked.reason, /\(cd apps\/<app> && pnpm typecheck\)/)
+  assert.equal(guardCommand('pnpm run typecheck', { cwd: rootDir }).decision, 'block')
+  assert.equal(
+    guardCommand('cd apps/manager && pnpm typecheck', { cwd: rootDir }).decision,
+    'allow',
+  )
+  assert.equal(guardCommand('pnpm typecheck', { cwd: `${rootDir}/apps/manager` }).decision, 'allow')
+  assert.equal(
+    guardCommand('pnpm --filter manager typecheck', { cwd: rootDir }).decision,
+    'allow',
+  )
+  assert.equal(guardCommand('pnpm -C apps/portal typecheck', { cwd: rootDir }).decision, 'allow')
 })
 
 test('diff review flags added violations and ignores context, comments, and prefix bangs', () => {

@@ -52,6 +52,7 @@ const { positionals, values } = parseArgs({
     agent: { type: 'string', default: 'cli' },
     event: { type: 'string', default: 'cli' },
     session: { type: 'string', default: '' },
+    cwd: { type: 'string', default: '' },
   },
 })
 
@@ -90,7 +91,9 @@ process.exit(verdict.decision === 'block' && !reportOnly ? 2 : 0)
  * @param {Record<string, string | boolean | undefined>} options
  */
 function run(name, options) {
-  if (name === 'guard-command') return guardCommand(String(options.command ?? ''))
+  if (name === 'guard-command') {
+    return guardCommand(String(options.command ?? ''), { cwd: String(options.cwd ?? '') })
+  }
   if (name === 'session-start') return sessionStart(options)
   if (name === 'check-diff') return checkDiff(options)
   if (name === 'pr-body') return prBody(options)

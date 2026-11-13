@@ -72,6 +72,8 @@ function verdict(eventName: string, args: readonly string[]): Verdict {
       eventName,
       "--session",
       sessionId,
+      "--cwd",
+      process.cwd(),
     ],
     { cwd: root, encoding: "utf8" },
   )

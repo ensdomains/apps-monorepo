@@ -102,7 +102,7 @@ process.exit(0)
 function call(agent, eventName, args) {
   const result = spawnSync(
     process.execPath,
-    [runner, ...args, '--agent', agent, '--event', eventName, '--session', sessionId],
+    [runner, ...args, '--agent', agent, '--event', eventName, '--session', sessionId, '--cwd', stringField(input, 'cwd') || process.cwd()],
     { encoding: 'utf8' },
   )
   const stdout = result.stdout ?? ''
