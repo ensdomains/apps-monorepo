@@ -43,6 +43,15 @@ export const isListedName = (name: NameSummary): boolean =>
   name.protocol !== null &&
   isNormalizedName(name.name)
 
+/** A third-level name or deeper, such as `pay.alice.eth`. */
+const isSubname = (name: string): boolean => name.split('.').length > 2
+
+/** Whether a list limited to subnames when `isSubnamesOnly` includes the name. */
+export const isInSubnamesScope = (
+  name: string,
+  isSubnamesOnly: boolean,
+): boolean => !isSubnamesOnly || isSubname(name)
+
 // bigname's `owner` is the token holder; a registry controller or an ENSv2
 // role holder manages.
 const toNameRoles = (

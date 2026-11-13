@@ -3352,6 +3352,10 @@ msgstr "Submitting token approval"
 msgid "Subname records aren't copied. Each subname keeps its current resolver, so its addresses, avatar and other records keep working."
 msgstr "Subname records aren't copied. Each subname keeps its current resolver, so its addresses, avatar and other records keep working."
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Subnames"
+msgstr "Subnames"
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Subnames included"
 msgstr "Subnames included"

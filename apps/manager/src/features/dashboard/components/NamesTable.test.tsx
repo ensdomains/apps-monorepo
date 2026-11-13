@@ -10,26 +10,47 @@ import { NamesTable } from './NamesTable'
 const io = vi.hoisted(() => ({
   owner: vi.fn(),
   favorites: vi.fn(),
+  isAuthed: { current: true },
+  subnamesTotal: { current: 2 },
 }))
 beforeEach(() => {
   vi.clearAllMocks()
   io.favorites.mockReset()
   io.owner.mockResolvedValue({ protocol: 'v1' })
+  io.isAuthed.current = true
+  io.subnamesTotal.current = 2
 })
 
 vi.mock(import('@xstate/store-react'), async (importOriginal) => ({
   ...(await importOriginal()),
-  useAtom: () => true,
+  useAtom: () => io.isAuthed.current,
 }))
 vi.mock('../useDashboardNames', () => ({
   useDashboardAddresses: () => [],
-  useDashboardNames: () => ({ total: 0, isComplete: true }),
+  useDashboardNames: ({
+    isSubnamesOnly,
+  }: {
+    readonly isSubnamesOnly?: boolean
+  } = {}) => ({
+    total: isSubnamesOnly ? io.subnamesTotal.current : 5,
+    isPending: false,
+    isError: false,
+    isComplete: true,
+  }),
 }))
 vi.mock('@/features/bulk-renew', () => ({ BulkRenewDialog: () => null }))
-vi.mock('./MyNamesList', () => ({ MyNamesList: () => null }))
+vi.mock('./MyNamesList', () => ({
+  MyNamesList: ({ isSubnamesOnly }: { readonly isSubnamesOnly?: boolean }) => (
+    <div data-testid="my-names">
+      {isSubnamesOnly ? 'subnames only' : 'every name'}
+    </div>
+  ),
+}))
 vi.mock('../service/queries/getFavorites', () => ({
   favoritesQueryOptions: {
     queryKey: [{ service: 'test-favorites' }],
+    // As the real options: an empty list until the first read lands.
+    placeholderData: [],
     queryFn: async () =>
       io.favorites() ?? [
         ...Array.from({ length: 6 }, (_, index) => ({
@@ -108,23 +129,32 @@ describe('NamesTable version controls', () => {
         resolveOwner.mockImplementation(resolve),
       ),
     )
+    // More than a page of favorites, so the version change must leave page 2.
+    io.favorites.mockReturnValue([
+      ...Array.from({ length: 31 }, (_, index) => ({
+        name: `old-${index}.eth`,
+        created_at: '2026-01-01',
+      })),
+      { name: 'v2.eth', created_at: '2026-01-01' },
+    ])
     render(<NamesTable />)
     expect(bigname.lookup).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /^Favorites/ }))
-    await screen.findByText('Showing 1-5 of 7')
+    await screen.findByText('Showing 1-25 of 32')
     expect(bigname.lookup).not.toHaveBeenCalled()
     expect(io.owner).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
-    expect(screen.getByText('Showing 6-7 of 7')).toBeInTheDocument()
-    expect(screen.getByText('old-5.eth')).toBeInTheDocument()
+    expect(screen.getByText('Showing 26-32 of 32')).toBeInTheDocument()
+    expect(screen.getByText('v2.eth')).toBeInTheDocument()
+    expect(screen.queryByText('old-0.eth')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'V1' }))
     expect(await screen.findByText('old-0.eth')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Loading...')
     resolveOwner({ protocol: 'v1' })
-    expect(await screen.findByText('Showing 1-5 of 6')).toBeInTheDocument()
+    expect(await screen.findByText('Showing 1-25 of 31')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'V1' }))
-    expect(screen.getByText('Showing 1-5 of 7')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1-25 of 32')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'V2' }))
     expect(await screen.findByText('v2.eth')).toBeInTheDocument()
     expect(screen.getByText('Showing 1-1 of 1')).toBeInTheDocument()
@@ -135,12 +165,13 @@ describe('NamesTable version controls', () => {
     expect(
       await screen.findByText('No favorites to display'),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Owned' }))
-    expect(screen.getByRole('button', { name: 'V1' })).toHaveAttribute(
+    // Under Owned the chips carry their counts.
+    fireEvent.click(screen.getByRole('button', { name: /^Owned/ }))
+    expect(screen.getByRole('button', { name: /^V1/ })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
-    expect(screen.getByRole('button', { name: 'V2' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^V2/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -163,9 +194,59 @@ describe('NamesTable version controls', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Favorites/ }))
     fireEvent.click(screen.getByRole('button', { name: 'V2' }))
     expect(await screen.findByText('a-v2-0.eth')).toBeInTheDocument()
-    expect(screen.getByText('Showing 1-5 of 1000')).toBeInTheDocument()
+    expect(screen.getByText('Showing 1-25 of 1000')).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Some names could not be loaded',
     )
+  })
+})
+
+describe('NamesTable filters', () => {
+  it('keeps the Favorites chip while favorites are still loading', () => {
+    io.favorites.mockReturnValue(new Promise(() => undefined))
+    render(<NamesTable />)
+
+    expect(screen.getByRole('button', { name: /^Favorites/ })).toBeVisible()
+  })
+
+  it('hides Favorites while signed out, as it has nothing to show', () => {
+    io.isAuthed.current = false
+    render(<NamesTable />)
+
+    expect(screen.queryByRole('button', { name: /^Favorites/ })).toBeNull()
+  })
+
+  it('offers select-all for every name but not under Subnames', () => {
+    render(<NamesTable />)
+    expect(
+      screen.getByRole('button', { name: 'Select all names' }),
+    ).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Subnames/ }))
+    expect(
+      screen.queryByRole('button', { name: 'Select all names' }),
+    ).toBeNull()
+  })
+
+  it('does not reopen a filter that emptied once it has names again', () => {
+    const { rerender } = render(<NamesTable />)
+    fireEvent.click(screen.getByRole('button', { name: /^Subnames/ }))
+    expect(screen.getByTestId('my-names')).toHaveTextContent('subnames only')
+
+    io.subnamesTotal.current = 0
+    rerender(<NamesTable />)
+    expect(screen.getByTestId('my-names')).toHaveTextContent('every name')
+
+    io.subnamesTotal.current = 1
+    rerender(<NamesTable />)
+    expect(screen.getByTestId('my-names')).toHaveTextContent('every name')
+  })
+
+  it('offers Subnames on the owned list only', () => {
+    render(<NamesTable />)
+    fireEvent.click(screen.getByRole('button', { name: /^Favorites/ }))
+
+    expect(screen.queryByRole('button', { name: /^Subnames/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'V1' })).toBeVisible()
   })
 })

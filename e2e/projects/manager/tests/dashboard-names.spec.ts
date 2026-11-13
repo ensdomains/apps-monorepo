@@ -29,6 +29,9 @@ const openDashboard = async (page: Page, search: string) => {
 // More than one bigname read (50 rows), so the last page needs the cursor.
 const NAME_COUNT = 55
 const LAST_PAGE = 11
+// The dashboard pages 25 names; someone else's profile still pages five.
+const DASHBOARD_PAGE_SIZE = 25
+const DASHBOARD_LAST_PAGE = 3
 const numberedNames = (prefix: string) =>
   Array.from(
     { length: NAME_COUNT },
@@ -98,14 +101,17 @@ test.describe('Names read from bigname', () => {
     })
 
     await openDashboard(page, prefix)
-    await expectRows(page, prefix, names.slice(0, 5))
+    await expectRows(page, prefix, names.slice(0, DASHBOARD_PAGE_SIZE))
 
-    await page.getByRole('button', { name: `Go to page ${LAST_PAGE}` }).click()
+    await page
+      .getByRole('button', { name: `Go to page ${DASHBOARD_LAST_PAGE}` })
+      .click()
     await expectRows(page, prefix, names.slice(50))
 
     await page.getByRole('button', { name: /^Sort by/ }).click()
     await page.getByRole('menuitemradio', { name: 'Expiry Date' }).click()
-    await expectRows(page, prefix, names.slice(50).reverse())
+    // Sorting returns to the first page, soonest expiry first.
+    await expectRows(page, prefix, names.slice(-DASHBOARD_PAGE_SIZE).reverse())
   })
 
   test('the version chips list only ENSv1 or only ENSv2 names', {

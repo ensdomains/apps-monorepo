@@ -1,6 +1,7 @@
 import {
   type BignameClient,
   type BignameError,
+  MAX_PAGE_SIZE,
   readGraceNames,
   readNamesForAddress,
 } from '@ens-apps/indexer/bigname'
@@ -25,6 +26,7 @@ import { toBulkRenewName, toSelectableDomain } from '../../bulkRenewSelection'
 import {
   type AddressNamesChunk,
   type DashboardName,
+  isInSubnamesScope,
   isListedName,
   mergeDashboardNames,
   type NameVersion,
@@ -87,8 +89,8 @@ const getGraceNames = (
     .map((rows) => rows.flatMap((row) => toGraceName(row) ?? []))
     .mapErr((error) => new GetDashboardNamesError({ cause: error }))
 
-export const DASHBOARD_PAGE_SIZE = 5
-// Rows per read: a page of the dashboard is five, so this covers several pages.
+export const DASHBOARD_PAGE_SIZE = 25
+// Rows per read: a page of the dashboard is 25, so this covers two pages.
 export const DASHBOARD_CHUNK_SIZE = 50
 
 const SORTS: Readonly<Record<SortField, NamesForAddressQuery['sort']>> = {
@@ -105,6 +107,8 @@ export type DashboardNamesQuery = {
   readonly search: string
   /** Only ENSv1 or only ENSv2 names; `null` lists both. */
   readonly version: NameVersion | null
+  /** Only third-level names and deeper, which bigname cannot filter on. */
+  readonly isSubnamesOnly?: boolean
   /** The wallet that signs profile record writes, not the smart account. */
   readonly recordEditorAddress?: Address
 }
@@ -123,13 +127,18 @@ const readChunk = (
     address,
     sort: SORTS[query.sortField],
     order: query.sortDir,
-    pageSize: DASHBOARD_CHUNK_SIZE,
+    // A subnames read scans every name the address has, so it reads the most.
+    pageSize: query.isSubnamesOnly ? MAX_PAGE_SIZE : DASHBOARD_CHUNK_SIZE,
     ...(query.search && { contains: query.search }),
     ...(query.version && { protocol: query.version }),
     ...(cursor === undefined ? { includeTotal: true } : { cursor }),
   })
     .andThen((page) => {
-      const listed = page.items.filter(isListedName)
+      const listed = page.items.filter(
+        (name) =>
+          isListedName(name) &&
+          isInSubnamesScope(name.name, query.isSubnamesOnly ?? false),
+      )
       const last = page.items.at(-1)
       return ResultAsync.combine(listed.map(isVisible)).map((visibility) => {
         const visible = listed.filter((_, index) => visibility[index])
@@ -159,6 +168,7 @@ const readChunk = (
 
 // Reads on while a chunk lists less than a page, so every read releases at
 // least a page of names and a page is short only once the names run out.
+// bigname cannot filter subnames, so their read goes to the end for a count.
 const readListedChunk = ResultFn(async function* (
   readNames: ReadNamesForAddress,
   query: DashboardNamesQuery,
@@ -168,7 +178,7 @@ const readListedChunk = ResultFn(async function* (
 ) {
   let chunk = yield* readChunk(readNames, query, address, cursor, isVisible)
   while (
-    chunk.names.length < DASHBOARD_PAGE_SIZE &&
+    (query.isSubnamesOnly || chunk.names.length < DASHBOARD_PAGE_SIZE) &&
     chunk.nextCursor !== null
   ) {
     const next: AddressNamesChunk = yield* readChunk(
@@ -233,6 +243,7 @@ export const getDashboardNamesInfiniteQueryOptions = (
       sortDir: query.sortDir,
       search: query.search,
       version: query.version,
+      isSubnamesOnly: query.isSubnamesOnly ?? false,
       recordEditorAddress: query.recordEditorAddress?.toLowerCase() ?? null,
     }),
     initialPageParam: START,

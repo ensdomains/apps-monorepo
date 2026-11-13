@@ -3357,6 +3357,10 @@ msgstr ""
 msgid "Subname records aren't copied. Each subname keeps its current resolver, so its addresses, avatar and other records keep working."
 msgstr ""
 
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Subnames"
+msgstr ""
+
 #: src/features/migration/components/SubnameMigrationDialog.tsx
 msgid "Subnames included"
 msgstr ""

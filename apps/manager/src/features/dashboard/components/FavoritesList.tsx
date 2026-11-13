@@ -21,6 +21,7 @@ import {
   sortFavorites,
   toLocalEntry,
 } from '../service/queries/favorites.helpers'
+import { DASHBOARD_PAGE_SIZE } from '../service/queries/getDashboardNames'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import {
   favoriteReadOptions,
@@ -40,7 +41,8 @@ interface FavoritesListProps {
   readonly isAuthenticated: boolean
 }
 
-const PAGE_SIZE = 5
+// Favorites page like the rest of My Names.
+const PAGE_SIZE = DASHBOARD_PAGE_SIZE
 
 const NameRowSkeleton = () => (
   <div className="flex items-center gap-4">
