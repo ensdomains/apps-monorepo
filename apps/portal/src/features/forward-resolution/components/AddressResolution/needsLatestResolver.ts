@@ -1,8 +1,8 @@
+import { isKnownPublicResolver } from '@ens-apps/migration'
 import {
-  isKnownPublicResolver,
-  LATEST_V1_PUBLIC_RESOLVERS,
-} from '@ens-apps/migration'
-import type { SupportedL1ChainId } from '@ensdomains/ensjs/chain'
+  ensL1Contracts,
+  type SupportedL1ChainId,
+} from '@ensdomains/ensjs/chain'
 import { type Address, isAddressEqual } from 'viem'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import type { AddressResolutionRow } from './types'
@@ -20,4 +20,7 @@ export const getNeedsLatestResolver = ({
   !!v1ResolverAddress &&
   (row.coinType === DEFAULT_EVM_COIN_TYPE || row.addressSource === 'default') &&
   isKnownPublicResolver(v1ResolverAddress, chainId) &&
-  !isAddressEqual(v1ResolverAddress, LATEST_V1_PUBLIC_RESOLVERS[chainId])
+  !isAddressEqual(
+    v1ResolverAddress,
+    ensL1Contracts[chainId].ensPublicResolver.address,
+  )

@@ -1,4 +1,3 @@
-import { LATEST_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -42,6 +41,7 @@ import { generateResolverSalt } from '@/features/resolver/utils/permissionedReso
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { officialPublicResolverAddress } from '@/lib/constants/universalResolver'
 import { ensChain } from '@/lib/wagmi'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 
@@ -217,12 +217,11 @@ export const ChangeResolverForm = ({
   const [deployNewResolver, setDeployNewResolver] = useState(false)
   const [resolverAddress, setResolverAddress] = useState('')
   const [pickedChoice, setPickedChoice] = useState<ResolverChoice | null>(null)
-  const latestResolverAddress = LATEST_V1_PUBLIC_RESOLVERS[ensChain.id]
   const resolverChoice = getResolverChoice({
     isV1,
     pickedChoice,
     typedAddress: resolverAddress,
-    latestAddress: latestResolverAddress,
+    latestAddress: officialPublicResolverAddress,
     currentAddress: currentResolverAddress,
   })
   const [selectedExistingResolver, setSelectedExistingResolver] = useState('')
@@ -415,7 +414,7 @@ export const ChangeResolverForm = ({
       {useCustomResolver ? (
         <ResolverAddressField
           isV1={isV1}
-          latestAddress={latestResolverAddress}
+          latestAddress={officialPublicResolverAddress}
           resolverChoice={resolverChoice}
           onChoiceChange={setPickedChoice}
           typedAddress={resolverAddress}

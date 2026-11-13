@@ -46,8 +46,7 @@ export const V1_NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
 // bigname mock.
 export const V1_BASE_REGISTRAR_OWNER =
   '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
-export const V1_PUBLIC_RESOLVER =
-  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
+export const V1_PUBLIC_RESOLVER = ensjsSepolia.ensPublicResolver.address
 
 // V2 contracts — sourced from the same ensjs Sepolia manifest as Manager's
 // destination contract table so fixture reservations cannot drift to a retired

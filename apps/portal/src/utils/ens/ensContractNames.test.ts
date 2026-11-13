@@ -44,6 +44,7 @@ describe('getEnsContractName', () => {
       ['0x253553366Da8546fC250F225fe3d25d0C782303b', 'ETHRegistrarController'],
       ['0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401', 'NameWrapper'],
       ['0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63', 'PublicResolver'],
+      ['0xF29100983E058B709F3D539b0c765937B804AC15', 'PublicResolver'],
     ]
     for (const [address, expected] of cases) {
       expect(getEnsContractName(address)).toBe(expected)

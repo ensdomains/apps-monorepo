@@ -69,8 +69,8 @@ const NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
 const V2_REGISTRY = ensjsSepolia.ensRegistry.address
 const V2_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 const MIGRATION_HELPER = ensjsSepolia.ensMigrationHelper.address
-/** V2 PublicResolver — what `LockedMigrationController.PUBLIC_RESOLVER()` writes. */
-const V2_PUBLIC_RESOLVER = ensjsSepolia.ensPublicResolver.address
+/** The newest V1 PublicResolver, from ensjs. */
+const PUBLIC_RESOLVER = ensjsSepolia.ensPublicResolver.address
 
 const ONE_YEAR = 365 * 24 * 60 * 60
 const ETH_NODE = namehash('eth')
@@ -203,7 +203,7 @@ async function reserveInV2(label: string, expiry: bigint) {
     encodeFunctionData({
       abi: userRegistryRegisterSnippet,
       functionName: 'register',
-      args: [label, zeroAddress, zeroAddress, V2_PUBLIC_RESOLVER, 0n, expiry],
+      args: [label, zeroAddress, zeroAddress, PUBLIC_RESOLVER, 0n, expiry],
     }),
   )
 }
@@ -298,7 +298,7 @@ export function createMakeMigratedName({ accounts }: Dependencies) {
       label,
       owner: ownerAddress,
       subregistry: zeroAddress,
-      resolver: V2_PUBLIC_RESOLVER,
+      resolver: PUBLIC_RESOLVER,
     }
     const migrateArgs =
       type === 'unwrapped'
