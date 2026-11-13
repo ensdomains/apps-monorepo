@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { CircleArrowDown, ExternalLink } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -8,6 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { SubnameUpgradeExplanation } from '@/features/migration/components/SubnameUpgradeExplanation'
 
 const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
   {
@@ -30,13 +31,11 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
       <div className="space-y-3">
         <p>
           <Trans>
-            Supported direct subnames, such as alice.example.eth, can be
-            included when you upgrade an unwrapped or unlocked example.eth. Each
-            keeps the owner and resolver shown in your review. Existing subname
-            records stay on that resolver, and you keep control of the parent
-            name.
+            Supported direct subnames, such as alice.example.eth, upgrade with
+            an unwrapped or unlocked example.eth:
           </Trans>
         </p>
+        <SubnameUpgradeExplanation />
         <p>
           <Trans>
             The review uses a saved point in time. We check for changes again
@@ -113,44 +112,65 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
   },
 ]
 
-export const FaqSection = () => (
-  <Card className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8">
-    <h2 className="mb-3 text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
-      <Trans>Frequently Asked Questions</Trans>
-    </h2>
-    <div className="flex flex-col">
-      {faqItems.map(({ id, question, answer }) => (
-        <Collapsible id={id} key={id}>
-          <div className="border-ens-gray-two border-b-[0.4px] last:border-b-0">
-            <CollapsibleTrigger className="group flex min-h-14 w-full items-center justify-between gap-3 py-3 text-left font-sans text-[16px] text-foreground leading-[20px] md:text-[20px] md:leading-[22px]">
-              <span>{question}</span>
-              <CircleArrowDown
-                className="size-6 text-foreground transition-transform duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-data-[state=open]:rotate-180 motion-reduce:transition-none"
-                strokeWidth={1}
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="overflow-hidden text-muted-foreground text-sm data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none">
-              <div className="pb-4">{answer}</div>
-            </CollapsibleContent>
-          </div>
-        </Collapsible>
-      ))}
-    </div>
-    {/* has-[>svg]:px-0 neutralises the default button size's has-[>svg]:px-3,
+export const FaqSection = ({
+  linkedQuestionId,
+}: {
+  readonly linkedQuestionId?: string
+}) => {
+  const linkedQuestionRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (linkedQuestionId) linkedQuestionRef.current?.scrollIntoView()
+  }, [linkedQuestionId])
+
+  return (
+    <Card className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8">
+      <h2 className="mb-3 text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
+        <Trans>Frequently Asked Questions</Trans>
+      </h2>
+      <div className="flex flex-col">
+        {/* A linked question scrolls in below the sticky notice banner
+          (--notice-bar-h) and header. 6rem is the tallest header (md:h-20 in
+          Desktop.tsx) plus 1rem of space; no token covers this offset. */}
+        {faqItems.map(({ id, question, answer }) => (
+          <Collapsible
+            className="scroll-mt-[calc(var(--notice-bar-h,0px)+6rem)]"
+            defaultOpen={id === linkedQuestionId}
+            id={id}
+            key={`${id}-${id === linkedQuestionId}`}
+            ref={id === linkedQuestionId ? linkedQuestionRef : undefined}
+          >
+            <div className="border-ens-gray-two border-b-[0.4px] last:border-b-0">
+              <CollapsibleTrigger className="group flex min-h-14 w-full items-center justify-between gap-3 py-3 text-left font-sans text-[16px] text-foreground leading-[20px] md:text-[20px] md:leading-[22px]">
+                <span>{question}</span>
+                <CircleArrowDown
+                  className="size-6 text-foreground transition-transform duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+                  strokeWidth={1}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="overflow-hidden text-muted-foreground text-sm data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none">
+                <div className="pb-4">{answer}</div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        ))}
+      </div>
+      {/* has-[>svg]:px-0 neutralises the default button size's has-[>svg]:px-3,
         which p-0 can't override, so the link sits flush-left with the FAQ text. */}
-    <Button
-      asChild
-      className="mt-4 h-auto w-auto gap-[4.92px] bg-transparent p-0 font-sans text-[13px] text-ens-blue leading-[1.6] tracking-normal hover:bg-transparent hover:text-ens-blue-hover has-[>svg]:px-0 md:text-sm md:leading-[1.8]"
-      variant="link"
-    >
-      <a
-        href="https://support.ens.domains"
-        rel="noopener noreferrer"
-        target="_blank"
+      <Button
+        asChild
+        className="mt-4 h-auto w-auto gap-[4.92px] bg-transparent p-0 font-sans text-[13px] text-ens-blue leading-[1.6] tracking-normal hover:bg-transparent hover:text-ens-blue-hover has-[>svg]:px-0 md:text-sm md:leading-[1.8]"
+        variant="link"
       >
-        <Trans>Need more help? Visit ENS Support Docs</Trans>
-        <ExternalLink className="size-3 md:size-4" strokeWidth={2} />
-      </a>
-    </Button>
-  </Card>
-)
+        <a
+          href="https://support.ens.domains"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <Trans>Need more help? Visit ENS Support Docs</Trans>
+          <ExternalLink className="size-3 md:size-4" strokeWidth={2} />
+        </a>
+      </Button>
+    </Card>
+  )
+}

@@ -3,9 +3,9 @@ name: E2E Nightly
 # The full e2e suites — everything e2e.yml no longer runs on every push
 # because it takes too long: every manager, portal and cross-app spec, where
 # e2e.yml runs only the `@smoke` subset (see e2e/docs/smoke-suite.md).
-# manager-migration runs every migration spec here. Later projects
-# (manager-premium, the V1 shape matrix, metadata) join this matrix with the
-# batches that land their specs.
+# manager-migration runs every migration spec here; metadata runs the ENS
+# Metadata Service V2 against the forks. Later projects (manager-premium, the
+# V1 shape matrix) join this matrix with the batches that land their specs.
 #
 # Unlike e2e.yml's `changes` job, this always runs every project regardless
 # of what changed — nightly's whole point is not to depend on path-filtering
@@ -39,6 +39,7 @@ jobs:
           - { project: portal, shardIndex: 1, shardTotal: 2 }
           - { project: portal, shardIndex: 2, shardTotal: 2 }
           - { project: cross-app, shardIndex: 1, shardTotal: 1 }
+          - { project: metadata, shardIndex: 1, shardTotal: 1 }
 
     steps:
       # ── checkout & toolchain ──────────────────────────────────────
@@ -99,8 +100,13 @@ jobs:
           SERVICES="anvil alto paymaster"
 
           # Manager and cross-app jobs use Rhinestone and need the mockestrator
-          if [[ "${{ matrix.config.project }}" != "portal" ]]; then
+          if [[ "${{ matrix.config.project }}" != "portal" && "${{ matrix.config.project }}" != "metadata" ]]; then
             SERVICES="$SERVICES mockestrator"
+          fi
+
+          # The metadata service reads both forks.
+          if [[ "${{ matrix.config.project }}" == "metadata" ]]; then
+            SERVICES="$SERVICES anvil-mainnet"
           fi
 
           echo "Starting: $SERVICES"
@@ -127,6 +133,15 @@ jobs:
             > /dev/null 2>&1; do sleep 2; done'
           echo "✅ Paymaster ready"
 
+          if [[ "${{ matrix.config.project }}" == "metadata" ]]; then
+            # Pulls the prebuilt, digest-pinned image from GHCR (see the
+            # metadata-service entry in docker-compose.yml); nothing is built.
+            docker compose -f e2e/infra/docker-compose.yml --profile metadata up -d --no-build metadata-service
+            echo "Waiting for the metadata service..."
+            timeout 300 bash -c 'until curl -sf http://127.0.0.1:8787/health > /dev/null 2>&1; do sleep 5; done'
+            echo "✅ Metadata service ready"
+          fi
+
       # ── write .env from checked-in CI templates ─────────────────
       - name: Copy CI env files
         run: |
@@ -136,6 +151,7 @@ jobs:
 
       # ── fund test accounts ──────────────────────────────────────
       - name: Fund Rhinestone smart accounts
+        # The metadata project's V2 fixtures send from one of these EOAs too.
         if: matrix.config.project != 'portal'
         run: bash e2e/infra/scripts/fund-rhinestone-account.sh
 
@@ -149,8 +165,12 @@ jobs:
         run: |
           case "${{ matrix.config.project }}" in
             portal) APPS="portal:3001" ;;
-            manager|manager-migration) APPS="manager:3000" ;;
+            manager) APPS="manager:3000" ;;
+            # offchain-migration checks the migrated name resolves in the explorer.
+            manager-migration) APPS="manager:3000 portal:3001" ;;
             cross-app) APPS="manager:3000 portal:3001" ;;
+            # The metadata project calls the service's HTTP API; no app.
+            metadata) APPS="" ;;
           esac
 
           # One app at a time: two cold vite starts at once compete for the

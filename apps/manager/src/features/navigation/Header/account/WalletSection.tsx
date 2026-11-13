@@ -1,16 +1,26 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
-import { ShieldAlert, ShieldCheck, WalletIcon } from 'lucide-react'
+import {
+  ArrowDownToLine,
+  ShieldAlert,
+  ShieldCheck,
+  WalletIcon,
+} from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import { useAccount } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { RevokeSessionsModal } from '@/features/wallet/components/RevokeSessionsModal'
+import { WithdrawLeftoverFundsModal } from '@/features/wallet/components/WithdrawLeftoverFundsModal'
+import { useLeftoverFunds } from '@/features/wallet/hooks/useLeftoverFunds'
+import { formatLeftoverFunds } from '@/features/wallet/service/leftoverFunds'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
 import { useWalletDisconnect } from '@/lib/wallet'
+import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import { backendAuthStore } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { AccountMenuItemButton, AccountMenuItemStatus } from './AccountMenuItem'
@@ -35,7 +45,17 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     isSessionAccessReset,
   } = useSmartAccountContext()
   const [isRevokeOpen, setIsRevokeOpen] = useState(false)
-  const { address: connectedAddress } = useAccount()
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false)
+  const leftoverFunds = useLeftoverFunds()
+  const leftoverFundsLabel = leftoverFunds.leftover?.funds.length
+    ? formatLeftoverFunds(leftoverFunds.leftover.funds)
+    : null
+  const { address: connectedAddress, connector } = useAccount()
+  // A Safe can't sign for its HCA, so it gets no smart-session controls.
+  const { data: isSafeWallet } = useQuery({
+    ...getIsSafeWalletQueryOptions({ connector, address: connectedAddress }),
+    enabled: !!connector,
+  })
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -48,6 +68,31 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
   const handleDisconnect = async () => {
     await disconnect()
     onAction()
+  }
+
+  // Revoke first: it is the urgent step, and funds left behind can still be
+  // withdrawn from the menu. Only a failed reset keeps the dialog open.
+  // Withdraw unconditionally: the label may still be loading, and the
+  // withdrawal re-reads the balance and sends nothing for an empty account,
+  // or while a pending registration still needs the funds.
+  const handleRevokeSessions = async (options?: { deployFirst?: boolean }) => {
+    const revoked = await revokeSession(options)
+    if (!revoked) return false
+    const outcome = await leftoverFunds.withdraw()
+    match(outcome)
+      .with({ status: 'withdrawn' }, () => {})
+      .with({ status: 'held' }, ({ registrationName }) =>
+        toast.info(
+          t`Smart session access was reset. Your smart account's funds stay there until your registration of ${registrationName} completes.`,
+        ),
+      )
+      .otherwise(() =>
+        toast.error(
+          t`Smart session access was reset, but your leftover funds are still in your smart account. Use "Withdraw leftover funds" to get them back.`,
+        ),
+      )
+    onAction()
+    return true
   }
 
   // The one ENABLE signature. A decline leaves the row as is; a failure says why.
@@ -124,7 +169,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           another device, so a fresh browser is where its owner revokes it.
           Right after a reset there is nothing left to revoke until a new
           session is signed, so a second one would only spend gas. */}
-      {accountAddress && !isFeatureEnabled('USE_EOA') && (
+      {accountAddress && !isFeatureEnabled('USE_EOA') && !isSafeWallet && (
         <>
           <AccountMenuItemStatus
             className="text-ens-quartz-400"
@@ -170,6 +215,13 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               <Trans>Reset smart session access</Trans>
             )}
           </AccountMenuItemButton>
+          <AccountMenuItemButton
+            disabled={leftoverFunds.isWithdrawing}
+            onClick={() => setIsWithdrawOpen(true)}
+            prefix={<ArrowDownToLine className="size-5" />}
+          >
+            <Trans>Withdraw leftover funds</Trans>
+          </AccountMenuItemButton>
         </>
       )}
 
@@ -177,13 +229,35 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         errorMessage={revokeError}
         isRevoking={isRevokingSession}
         isUndeployed={revokeErrorReason === 'not-deployed'}
+        isWithdrawing={leftoverFunds.isWithdrawing}
+        leftoverFunds={leftoverFundsLabel}
+        leftoverFundsHeldFor={
+          leftoverFunds.leftover?.heldForRegistration ?? null
+        }
         onOpenChange={setIsRevokeOpen}
-        onRevokeSessions={async (options) => {
-          const revoked = await revokeSession(options)
-          if (revoked) onAction()
-          return revoked
-        }}
+        onRevokeSessions={handleRevokeSessions}
         open={isRevokeOpen}
+      />
+
+      <WithdrawLeftoverFundsModal
+        errorMessage={leftoverFunds.withdrawError}
+        isError={leftoverFunds.isError}
+        isLoading={leftoverFunds.isLoading}
+        isWithdrawing={leftoverFunds.isWithdrawing}
+        leftover={leftoverFunds.leftover}
+        onContinueRegistration={() => {
+          setIsWithdrawOpen(false)
+          onAction()
+        }}
+        onOpenChange={setIsWithdrawOpen}
+        onWithdraw={async () => {
+          const outcome = await leftoverFunds.withdraw()
+          if (outcome.status !== 'withdrawn') return false
+          toast.success(t`Your leftover funds are back in your wallet.`)
+          onAction()
+          return true
+        }}
+        open={isWithdrawOpen}
       />
 
       <AccountMenuItemButton

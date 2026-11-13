@@ -1,15 +1,19 @@
 import type { V1Domain } from '@ens-apps/migration'
+import type { Config as WagmiConfig } from '@wagmi/core'
 import {
   type Address,
   ChainMismatchError,
   createWalletClient,
   custom,
   decodeFunctionData,
+  encodeFunctionData,
+  erc20Abi,
   type Hex,
   InsufficientFundsError,
   InvalidInputRpcError,
   NonceTooLowError,
   type PublicClient,
+  TransactionReceiptNotFoundError,
   toEventSelector,
   WaitForTransactionReceiptTimeoutError,
   type WalletClient,
@@ -19,23 +23,35 @@ import {
 import { labelhash, namehash } from 'viem/ens'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Connector } from 'wagmi'
+import { createActor, fromPromise } from 'xstate'
 import { chain } from '@/config'
+import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { V1_CONTRACTS } from '../contracts/addresses'
+import { migrationUiMachine } from '../state/migrationUi.machine'
 import { classifyNames } from './classifyNames'
+import { decodeMigrationError } from './decodeMigrationError'
 import {
   encodeGraceRenewal,
   executeGraceRenewal,
   GRACE_RENEWAL_ABI,
   GRACE_RENEWAL_EXTENSION,
+  type GraceRenewalQuote,
   type GraceRenewalStatus,
   getGraceRenewalDuration,
   getGraceRenewalQuote,
 } from './graceRenewal'
+import { observeGraceRenewalOperation } from './graceRenewalOperation'
 import {
   pendingGraceRenewalForQuote,
   readPendingGraceRenewal,
   writePendingGraceRenewal,
 } from './graceRenewalPending'
+
+const network = vi.hoisted(() => ({ publicClient: {} }))
+vi.mock('@/lib/wagmi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/wagmi')>()),
+  publicClient: network.publicClient,
+}))
 
 const OWNER = '0x1111111111111111111111111111111111111111' as const
 const OTHER = '0x2222222222222222222222222222222222222222' as const
@@ -157,6 +173,12 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     }
     return { status: state.renewalStatus }
   })
+  // Only the hashes the wallet returned were mined; a safeTxHash never is.
+  const getTransactionReceipt = vi.fn(async ({ hash }: { hash: Hex }) => {
+    if (hash !== APPROVAL_HASH && hash !== RENEWAL_HASH)
+      throw new TransactionReceiptNotFoundError({ hash })
+    return {}
+  })
   const getLogs = vi.fn(async (): Promise<readonly unknown[]> => [])
   const publicClient = {
     chain,
@@ -164,6 +186,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     getBlockNumber: vi.fn(async () => 100n),
     getLogs,
     readContract,
+    getTransactionReceipt,
     waitForTransactionReceipt,
     simulateContract: vi.fn(async () => ({})),
   } as unknown as PublicClient
@@ -191,7 +214,7 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     request: vi.fn(
       async ({ params }: { params: readonly [{ readonly data: Hex }] }) => {
         const { functionName, args } = decodeFunctionData({
-          abi: GRACE_RENEWAL_ABI,
+          abi: [...GRACE_RENEWAL_ABI, ...erc20Abi],
           data: params[0].data,
         })
         return writeContract({ functionName, args: args ?? [] })
@@ -219,6 +242,55 @@ const setup = (domains = [domain('alice.eth'), domain('bob.eth', true)]) => {
     getLogs,
   }
 }
+
+const deferred = <T>() => {
+  let resolve: (value: T) => void = () => {}
+  let reject: (cause: unknown) => void = () => {}
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+const startRenewalActor = (
+  s: ReturnType<typeof setup>,
+  quote: GraceRenewalQuote,
+) => {
+  Object.assign(network.publicClient, s.publicClient)
+  const actor = createActor(
+    migrationUiMachine.provide({
+      actors: {
+        prepareRenewedMigration: fromPromise(() => new Promise(() => {})),
+      },
+    }),
+    { input: { wagmiConfig: {} as WagmiConfig } },
+  ).start()
+  actor.send({
+    type: 'migration.renewAndStart',
+    renewal: { quote, domains: s.domains, hcaAddress: OTHER },
+    signer: { type: 'eoa', walletClient: s.walletClient },
+    hcaClient: { getAddress: vi.fn(), getInitData: vi.fn() },
+    refreshAccount: async () => {},
+  })
+  return actor
+}
+
+const observe = (
+  s: ReturnType<typeof setup>,
+  quote: GraceRenewalQuote,
+  callbacks: Partial<Parameters<typeof executeGraceRenewal>[0]> = {},
+) =>
+  observeGraceRenewalOperation(
+    {
+      quote,
+      selection: s.domains.map(({ id }) => id),
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      ...callbacks,
+    },
+    executeGraceRenewal,
+  )
 
 describe('grace renewal duration', () => {
   it('covers elapsed expiry and seven additional days', () => {
@@ -520,8 +592,8 @@ describe('bulk grace renewal', () => {
       functionName: 'renewBatch',
       args: [
         [
-          { label: 'alice', duration: 37n * DAY, referrer: zeroHash },
-          { label: 'bob', duration: 8n * DAY, referrer: zeroHash },
+          { label: 'alice', duration: 37n * DAY, referrer: ENS_LABS_REFERRER },
+          { label: 'bob', duration: 8n * DAY, referrer: ENS_LABS_REFERRER },
         ],
         quote.paymentToken,
       ],
@@ -594,7 +666,28 @@ describe('bulk grace renewal', () => {
       s.writeContract.mock.calls.map(([call]) => call.functionName),
     ).toEqual(['approve', 'renewBatch'])
     expect(s.writeContract.mock.calls[0]?.[0].args[1]).toBe(200n)
-    expect(s.walletClient.request).toHaveBeenCalledExactlyOnceWith(
+    expect(s.walletClient.request).toHaveBeenCalledTimes(2)
+    expect(s.walletClient.request).toHaveBeenNthCalledWith(
+      1,
+      {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: OWNER,
+            to: quote.paymentToken,
+            chainId: `0x${quote.chainId.toString(16)}`,
+            data: encodeFunctionData({
+              abi: erc20Abi,
+              functionName: 'approve',
+              args: [quote.renewerAddress, 200n],
+            }),
+          },
+        ],
+      },
+      { retryCount: 0 },
+    )
+    expect(s.walletClient.request).toHaveBeenNthCalledWith(
+      2,
       {
         method: 'eth_sendTransaction',
         params: [
@@ -622,6 +715,41 @@ describe('bulk grace renewal', () => {
         ([read]) => read.functionName === 'ownerOf',
       ),
     ).toBe(true)
+  })
+
+  it.each([
+    { name: 'InvalidInput', code: -32000 },
+    { name: 'InvalidParams', code: -32602 },
+    { name: 'MethodNotFound', code: -32601 },
+    { name: 'MethodNotSupported', code: -32004 },
+  ])('does not resend an approval after $name', async ({ code }) => {
+    const s = setup()
+    const quote = await s.quote()
+    const request = vi.fn(async ({ method }: { readonly method: string }) => {
+      if (method === 'eth_chainId') return `0x${chain.id.toString(16)}`
+      if (method === 'eth_accounts') return [OWNER]
+      if (method === 'eth_sendTransaction')
+        throw Object.assign(new Error('Wallet submission failed'), { code })
+      if (method === 'wallet_sendTransaction') return APPROVAL_HASH
+      throw new Error(`Unexpected wallet request: ${method}`)
+    })
+    const walletClient = createWalletClient({
+      chain,
+      transport: custom({ request }),
+    })
+
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient,
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(
+      request.mock.calls
+        .map(([{ method }]) => method)
+        .filter((method) => method.endsWith('sendTransaction')),
+    ).toEqual(['eth_sendTransaction'])
   })
 
   it('skips approval when allowance is sufficient', async () => {
@@ -767,6 +895,29 @@ describe('bulk grace renewal', () => {
     expect(readPendingGraceRenewal(quote)).toBeNull()
   })
 
+  it('confirms a Safe{Wallet} renewal that executed before the log lookback', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    const safeTxHash: Hex = `0x${'d'.repeat(64)}`
+    writePendingGraceRenewal(pendingGraceRenewalForQuote(quote, safeTxHash))
+    for (const item of quote.items)
+      s.state.expiry.set(item.domain.labelhash, item.targetExpiry)
+    s.waitForTransactionReceipt.mockRejectedValue(
+      new WaitForTransactionReceiptTimeoutError({ hash: safeTxHash }),
+    )
+
+    const result = await executeGraceRenewal({
+      quote,
+      publicClient: s.publicClient,
+      walletClient: s.walletClient,
+      connector: SAFE_CONNECTOR,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    expect(s.writeContract).not.toHaveBeenCalled()
+  })
+
   it('resumes a known transaction after a timeout without submitting again', async () => {
     const s = setup()
     s.state.allowance = 1_000n
@@ -804,6 +955,382 @@ describe('bulk grace renewal', () => {
     })
     expect(result.isErr()).toBe(true)
     expect(s.writeContract).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'approval wallet',
+    'approval receipt',
+    'renewal wallet',
+    'renewal receipt',
+  ] as const)(
+    'reconnects the real renewal actor after leaving during %s',
+    async (stage) => {
+      const s = setup()
+      const quote = await s.quote()
+      const isApproval = stage.startsWith('approval')
+      const isReceipt = stage.endsWith('receipt')
+      s.state.allowance = isApproval ? 0n : 1000n
+      const gate = deferred<void>()
+      const write = s.writeContract.getMockImplementation()
+      const wait = s.waitForTransactionReceipt.getMockImplementation()
+      if (!write || !wait) throw new Error('Missing wallet fixture')
+      s.writeContract.mockImplementation(async (request) => {
+        if (
+          !isReceipt &&
+          request.functionName === (isApproval ? 'approve' : 'renewBatch')
+        )
+          await gate.promise
+        return write(request)
+      })
+      s.waitForTransactionReceipt.mockImplementation(async (request) => {
+        if (
+          isReceipt &&
+          request.hash === (isApproval ? APPROVAL_HASH : RENEWAL_HASH)
+        )
+          await gate.promise
+        return wait(request)
+      })
+      const first = startRenewalActor(s, quote)
+      await vi.waitFor(() => {
+        if (isReceipt)
+          expect(s.waitForTransactionReceipt).toHaveBeenCalledWith(
+            expect.objectContaining({
+              hash: isApproval ? APPROVAL_HASH : RENEWAL_HASH,
+            }),
+          )
+        else
+          expect(s.writeContract).toHaveBeenCalledWith(
+            expect.objectContaining({
+              functionName: isApproval ? 'approve' : 'renewBatch',
+            }),
+          )
+      })
+      first.stop()
+      const reopened = startRenewalActor(s, quote)
+      try {
+        await vi.waitFor(() => {
+          expect(reopened.getSnapshot().context.lastError).toBeUndefined()
+          expect(
+            reopened.getSnapshot().context.progress?.isAwaitingConfirmation,
+          ).toBe(isReceipt)
+          expect(
+            reopened
+              .getSnapshot()
+              .context.stepDescriptors.some(
+                ({ type }) => type === 'renewal-approval',
+              ),
+          ).toBe(isApproval)
+          expect(reopened.getSnapshot().context.renewalHash).toBe(
+            stage === 'renewal receipt' ? RENEWAL_HASH : undefined,
+          )
+        })
+        gate.resolve()
+        await vi.waitFor(() =>
+          expect(
+            reopened
+              .getSnapshot()
+              .context.renewedDomains?.map(
+                ({ registration }) => registration?.expiryDate,
+              ),
+          ).toEqual(['2000604800', '2000604800']),
+        )
+        expect(
+          s.writeContract.mock.calls.map(([request]) => request.functionName),
+        ).toEqual(isApproval ? ['approve', 'renewBatch'] : ['renewBatch'])
+        expect(readPendingGraceRenewal(quote)).toBeNull()
+      } finally {
+        gate.resolve()
+        reopened.stop()
+      }
+    },
+  )
+
+  it('adopts the original quote when the same selection reopens with a refreshed quote', async () => {
+    const s = setup()
+    s.state.allowance = 1000n
+    const original = await s.quote()
+    const receipt = deferred<void>()
+    const wait = s.waitForTransactionReceipt.getMockImplementation()
+    if (!wait) throw new Error('Missing receipt fixture')
+    s.waitForTransactionReceipt.mockImplementationOnce(async (request) => {
+      await receipt.promise
+      return wait(request)
+    })
+    const first = startRenewalActor(s, original)
+    await vi.waitFor(() =>
+      expect(first.getSnapshot().context.renewalHash).toBe(RENEWAL_HASH),
+    )
+    first.stop()
+    s.state.now += 20n
+    const refreshed = await s.quote()
+    expect(refreshed.items[0]?.targetExpiry).toBe(2_000_604_820n)
+    const reopened = startRenewalActor(s, refreshed)
+    try {
+      await vi.waitFor(() => {
+        expect(reopened.getSnapshot().context.lastError).toBeUndefined()
+        expect(reopened.getSnapshot().context.renewal?.quote).toBe(original)
+      })
+      receipt.resolve()
+      await vi.waitFor(() =>
+        expect(reopened.getSnapshot().value).toEqual({ migrate: 'preparing' }),
+      )
+      expect(reopened.getSnapshot().context.renewal?.quote).toBe(original)
+      expect(
+        reopened
+          .getSnapshot()
+          .context.renewedDomains?.map(
+            ({ registration }) => registration?.expiryDate,
+          ),
+      ).toEqual(['2000604800', '2000604800'])
+      expect(s.walletClient.request).toHaveBeenCalledTimes(1)
+    } finally {
+      receipt.resolve()
+      reopened.stop()
+    }
+  })
+
+  it('persists a late wallet hash while detached and replays it on reopen', async () => {
+    const s = setup()
+    s.state.allowance = 1000n
+    const quote = await s.quote()
+    const wallet = deferred<void>()
+    const receipt = deferred<void>()
+    const send = s.writeContract.getMockImplementation()
+    const wait = s.waitForTransactionReceipt.getMockImplementation()
+    if (!send || !wait) throw new Error('Missing wallet fixture')
+    s.writeContract.mockImplementationOnce(async (request) => {
+      await wallet.promise
+      return send(request)
+    })
+    s.waitForTransactionReceipt.mockImplementationOnce(async (request) => {
+      await receipt.promise
+      return wait(request)
+    })
+    const first = startRenewalActor(s, quote)
+    await vi.waitFor(() =>
+      expect(readPendingGraceRenewal(quote)).toEqual(
+        pendingGraceRenewalForQuote(quote),
+      ),
+    )
+    first.stop()
+    wallet.resolve()
+    await vi.waitFor(() =>
+      expect(readPendingGraceRenewal(quote)?.hash).toBe(RENEWAL_HASH),
+    )
+    const reopened = startRenewalActor(s, quote)
+    try {
+      await vi.waitFor(() =>
+        expect(reopened.getSnapshot().context.renewalHash).toBe(RENEWAL_HASH),
+      )
+      expect(
+        reopened.getSnapshot().context.progress?.isAwaitingConfirmation,
+      ).toBe(true)
+      receipt.resolve()
+      await vi.waitFor(() =>
+        expect(reopened.getSnapshot().context.renewedDomains).toHaveLength(2),
+      )
+      expect(
+        s.writeContract.mock.calls.map(([request]) => request.functionName),
+      ).toEqual(['renewBatch'])
+    } finally {
+      receipt.resolve()
+      reopened.stop()
+    }
+  })
+
+  it('does not renew again after confirmation completes with no screen attached', async () => {
+    const s = setup()
+    s.state.allowance = 1000n
+    const quote = await s.quote()
+    const receipt = deferred<void>()
+    const wait = s.waitForTransactionReceipt.getMockImplementation()
+    if (!wait) throw new Error('Missing receipt fixture')
+    s.waitForTransactionReceipt.mockImplementationOnce(async (request) => {
+      await receipt.promise
+      return wait(request)
+    })
+    const controller = new AbortController()
+    const first = observe(s, quote, { signal: controller.signal })
+    await vi.waitFor(() =>
+      expect(readPendingGraceRenewal(quote)?.hash).toBe(RENEWAL_HASH),
+    )
+    controller.abort()
+    receipt.resolve()
+    expect((await first).isOk()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    const refreshed = await s.quote()
+    expect(refreshed.totalAmount).toBe(0n)
+    const reopened = startRenewalActor(s, refreshed)
+    try {
+      await vi.waitFor(() =>
+        expect(reopened.getSnapshot().value).toEqual({ migrate: 'preparing' }),
+      )
+      expect(
+        reopened
+          .getSnapshot()
+          .context.renewedDomains?.map(
+            ({ registration }) => registration?.expiryDate,
+          ),
+      ).toEqual(['2000604800', '2000604800'])
+      expect(s.walletClient.request).toHaveBeenCalledTimes(1)
+    } finally {
+      reopened.stop()
+    }
+  })
+
+  it('stops at the approval boundary while detached and reuses allowance on explicit retry', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    const receipt = deferred<void>()
+    const wait = s.waitForTransactionReceipt.getMockImplementation()
+    if (!wait) throw new Error('Missing receipt fixture')
+    s.waitForTransactionReceipt.mockImplementationOnce(async (request) => {
+      await receipt.promise
+      return wait(request)
+    })
+    const controller = new AbortController()
+    const first = observe(s, quote, { signal: controller.signal })
+    await vi.waitFor(() =>
+      expect(s.waitForTransactionReceipt).toHaveBeenCalledWith(
+        expect.objectContaining({ hash: APPROVAL_HASH }),
+      ),
+    )
+    controller.abort()
+    receipt.resolve()
+    expect((await first).isErr()).toBe(true)
+    expect(
+      s.writeContract.mock.calls.map(([request]) => request.functionName),
+    ).toEqual(['approve'])
+    expect((await observe(s, quote)).isOk()).toBe(true)
+    expect(
+      s.writeContract.mock.calls.map(([request]) => request.functionName),
+    ).toEqual(['approve', 'renewBatch'])
+  })
+
+  it('releases ownership after a definite wallet rejection so an explicit retry can submit', async () => {
+    const s = setup()
+    s.state.allowance = 1000n
+    const quote = await s.quote()
+    const wallet = deferred<Hex>()
+    vi.mocked(s.walletClient.request).mockImplementationOnce(
+      () => wallet.promise,
+    )
+    const controller = new AbortController()
+    const first = observe(s, quote, { signal: controller.signal })
+    await vi.waitFor(() =>
+      expect(readPendingGraceRenewal(quote)).toEqual(
+        pendingGraceRenewalForQuote(quote),
+      ),
+    )
+    controller.abort()
+    const reopened = observe(s, quote)
+    wallet.reject({ code: 4001, message: 'User rejected request' })
+    expect((await reopened).isErr()).toBe(true)
+    expect((await first).isErr()).toBe(true)
+    expect(readPendingGraceRenewal(quote)).toBeNull()
+    expect((await observe(s, quote)).isOk()).toBe(true)
+    expect(s.walletClient.request).toHaveBeenCalledTimes(2)
+    expect(
+      s.writeContract.mock.calls.map(([request]) => request.functionName),
+    ).toEqual(['renewBatch'])
+  })
+
+  it('refuses a different full selection while the original operation owns the wallet request', async () => {
+    const s = setup()
+    s.state.allowance = 1000n
+    const quote = await s.quote()
+    const receipt = deferred<{ status: 'reverted' }>()
+    s.waitForTransactionReceipt.mockImplementationOnce(() => receipt.promise)
+    const controller = new AbortController()
+    const first = observe(s, quote, { signal: controller.signal })
+    await vi.waitFor(() =>
+      expect(readPendingGraceRenewal(quote)?.hash).toBe(RENEWAL_HASH),
+    )
+    controller.abort()
+    const decision = observeGraceRenewalOperation(
+      {
+        quote,
+        selection: [
+          namehash('alice.eth'),
+          namehash('bob.eth'),
+          namehash('charlie.eth'),
+        ],
+        publicClient: s.publicClient,
+        walletClient: s.walletClient,
+      },
+      executeGraceRenewal,
+    )
+    let result: Awaited<typeof decision> | undefined
+    void decision.then((value) => {
+      result = value
+    })
+    try {
+      await vi.waitFor(() => expect(result?.isErr()).toBe(true))
+      expect(result?._unsafeUnwrapErr().message).toContain(
+        'different selection',
+      )
+      expect(s.walletClient.request).toHaveBeenCalledTimes(1)
+    } finally {
+      receipt.resolve({ status: 'reverted' })
+      expect((await first).isErr()).toBe(true)
+    }
+  })
+
+  it('cancels detached discard confirmation without releasing an unresolved reservation', async () => {
+    const s = setup()
+    const quote = await s.quote()
+    const pending = pendingGraceRenewalForQuote(quote)
+    writePendingGraceRenewal(pending)
+    const confirmation = deferred<boolean>()
+    const confirmDiscardUnsubmittedRenewal = vi.fn(() => confirmation.promise)
+    const controller = new AbortController()
+    const first = observe(s, quote, {
+      signal: controller.signal,
+      confirmDiscardUnsubmittedRenewal,
+    })
+    let result: Awaited<typeof first> | undefined
+    void first.then((value) => {
+      result = value
+    })
+    await vi.waitFor(() =>
+      expect(confirmDiscardUnsubmittedRenewal).toHaveBeenCalledWith(pending),
+    )
+    controller.abort()
+    try {
+      await vi.waitFor(() => expect(result?.isErr()).toBe(true))
+      expect(readPendingGraceRenewal(quote)).toEqual(pending)
+      expect(s.walletClient.request).not.toHaveBeenCalled()
+    } finally {
+      confirmation.resolve(false)
+      await first
+    }
+  })
+
+  it('excludes a second document with an independent operation registry', async () => {
+    const s = setup()
+    s.state.allowance = 1000n
+    const quote = await s.quote()
+    const receipt = deferred<{ status: 'reverted' }>()
+    s.waitForTransactionReceipt.mockImplementationOnce(() => receipt.promise)
+    const first = observe(s, quote)
+    await vi.waitFor(() =>
+      expect(readPendingGraceRenewal(quote)?.hash).toBe(RENEWAL_HASH),
+    )
+    vi.resetModules()
+    const secondDocument = await import('./graceRenewalOperation')
+    const second = await secondDocument.observeGraceRenewalOperation(
+      {
+        quote,
+        selection: s.domains.map(({ id }) => id),
+        publicClient: s.publicClient,
+        walletClient: s.walletClient,
+      },
+      executeGraceRenewal,
+    )
+    expect(second._unsafeUnwrapErr().message).toContain('another tab')
+    expect(s.walletClient.request).toHaveBeenCalledTimes(1)
+    receipt.resolve({ status: 'reverted' })
+    expect((await first).isErr()).toBe(true)
   })
 
   it('blocks another tab while a renewal is awaiting its receipt', async () => {
@@ -983,6 +1510,39 @@ describe('bulk grace renewal', () => {
       expect(sendTransaction).toHaveBeenCalledTimes(2)
       expect(s.waitForTransactionReceipt).toHaveBeenCalledOnce()
       expect(readPendingGraceRenewal(quote)).toBeNull()
+    },
+  )
+
+  it.each([
+    { code: -32603, expected: 'generic' },
+    { code: -32000, expected: 'insufficient-eth' },
+  ])(
+    'asks for ETH only when the provider refused for funds ($code)',
+    async ({ code, expected }) => {
+      const s = setup()
+      const quote = await s.quote()
+      s.state.allowance = 1000n
+      const walletClient = createWalletClient({
+        chain,
+        transport: custom({
+          request: async ({ method }) => {
+            if (method === 'eth_chainId') return `0x${chain.id.toString(16)}`
+            if (method === 'eth_accounts') return [OWNER]
+            throw Object.assign(
+              new Error('insufficient funds for gas * price + value'),
+              { code },
+            )
+          },
+        }),
+      })
+      const result = await executeGraceRenewal({
+        quote,
+        publicClient: s.publicClient,
+        walletClient,
+      })
+      expect(result.isErr() && decodeMigrationError(result.error).type).toBe(
+        expected,
+      )
     },
   )
 

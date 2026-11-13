@@ -1,5 +1,4 @@
 import {
-  getSubnameMigrationImpact,
   type SubnameMigrationImpact,
   SubnameMigrationImpactError,
 } from '@ens-apps/migration'
@@ -7,10 +6,20 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient } from '@tanstack/react-query'
 import { fromPromise } from 'neverthrow'
-import type { PublicClient } from 'viem'
-import { bigname } from '@/lib/bigname'
+import type { Address, PublicClient } from 'viem'
 import { publicClient } from '@/lib/wagmi'
-import { getMigrationInventoryIndexer } from './migrationInventoryIndexer'
+import { V1_CONTRACTS } from '../contracts/addresses'
+import type { RpcSubnameInventory } from './readRpcSubnameInventory'
+import { readRpcSubnameMigrationImpact } from './readRpcSubnameMigrationImpact'
+import {
+  getReusableRpcSubnameInventory,
+  getRpcSubnameInventoryCacheKey,
+} from './rpcSubnameInventoryCache'
+import {
+  getSubnameMigrationImpactRetryDelay,
+  shouldRetrySubnameMigrationImpact,
+} from './subnameMigrationImpactQuery.helpers'
+import type { UpgradeReadCoordinator } from './upgradeReadCoordinator'
 
 type Scope = {
   readonly ownerAddress?: string | null
@@ -18,6 +27,8 @@ type Scope = {
   readonly migratingNames: readonly string[]
   readonly copiedNames: readonly string[]
   readonly renewingNames: readonly string[]
+  /** Unknown-label subnames eligibility proved; a leaf among them is dropped rather than lost. */
+  readonly unknownLabelNames?: readonly string[]
 }
 
 const FRESH_FOR_MS = 60_000
@@ -27,6 +38,7 @@ const getImpactInputs = (scope: Scope) => ({
   migratingNames: normalizedNames(scope.migratingNames),
   copiedNames: normalizedNames(scope.copiedNames),
   renewingNames: normalizedNames(scope.renewingNames),
+  unknownLabelNames: normalizedNames(scope.unknownLabelNames ?? []),
 })
 const getImpactQueryKey = (scope: Scope) =>
   qk('migration', 'subname_impact', {
@@ -37,6 +49,7 @@ const getImpactQueryKey = (scope: Scope) =>
 
 export const getSubnameMigrationImpactQueryOptions = (
   params: Scope & {
+    readonly coordinator?: UpgradeReadCoordinator
     readonly isEnabled: boolean
     readonly isPrepared: boolean
     readonly hasSelectedNames: boolean
@@ -51,36 +64,60 @@ export const getSubnameMigrationImpactQueryOptions = (
   } = params
   return resultQueryOptions({
     queryKey: getImpactQueryKey(params),
-    queryFn: ({ signal }) => {
+    queryFn: ({ signal, client: queryClient }) => {
       const requestSignal = AbortSignal.any([
         signal,
         AbortSignal.timeout(120_000),
       ])
       const inputs = getImpactInputs(params)
-      return fromPromise(
-        getMigrationInventoryIndexer({
-          indexer: bigname,
-          ownerAddress: params.ownerAddress,
-          names: inputs.migratingNames,
-          chainId: params.chainId,
-          signal: requestSignal,
-        }),
-        (cause) => new SubnameMigrationImpactError({ cause }),
-      ).andThen((indexer) =>
-        getSubnameMigrationImpact({
-          indexer,
-          publicClient: publicClient as PublicClient,
-          shouldSkipEmptySubtrees: true,
+      const state = queryClient.getQueryState(getImpactQueryKey(params))
+      // Only initial display may reuse preparation. Every subsequent decision
+      // refetches without inventory, preserving the strict pre-start checks.
+      const inventory =
+        params.coordinator &&
+        params.ownerAddress &&
+        state?.dataUpdatedAt === 0 &&
+        state.errorUpdatedAt === 0
+          ? getReusableRpcSubnameInventory({
+              inventory: queryClient.getQueryData<RpcSubnameInventory>(
+                getRpcSubnameInventoryCacheKey({
+                  ownerAddress: params.ownerAddress,
+                  chainId: params.chainId,
+                  registryAddress: V1_CONTRACTS.LegacyRegistry,
+                  nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+                }),
+              ),
+              chainId: params.chainId,
+              registryAddress: V1_CONTRACTS.LegacyRegistry,
+              nameWrapperAddress: V1_CONTRACTS.NameWrapper,
+              names: inputs.migratingNames,
+            })
+          : undefined
+      const read = (client: PublicClient) =>
+        readRpcSubnameMigrationImpact({
+          publicClient: client,
+          verificationClient: client,
+          inventory,
           ...inputs,
           signal: requestSignal,
-        }),
+        })
+      return fromPromise(
+        params.coordinator && params.ownerAddress
+          ? params.coordinator.run(
+              { owner: params.ownerAddress as Address, signal: requestSignal },
+              ({ verificationClient }) => read(verificationClient),
+            )
+          : read(publicClient as PublicClient),
+        (cause) => new SubnameMigrationImpactError({ cause }),
       )
     },
     enabled: isEnabled && isPrepared && hasSelectedNames,
     staleTime: FRESH_FOR_MS,
     refetchInterval: isEnabled && isRefetchEnabled ? FRESH_FOR_MS : false,
     refetchOnWindowFocus: isRefetchEnabled ? 'always' : false,
-    retry: false,
+    retry: (failureCount, error) =>
+      shouldRetrySubnameMigrationImpact({ failureCount, cause: error.cause }),
+    retryDelay: getSubnameMigrationImpactRetryDelay,
   })
 }
 

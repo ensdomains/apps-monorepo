@@ -11,6 +11,7 @@ import {
 import { transactionManager } from '../../providers/transactionManager'
 import type { L2FundingSource, Signer } from '../../types/signer.types'
 import type { TransactionRequest } from '../../types/transaction.types'
+import type { EthFunding, PendingEthSwap } from './registration.eth.actors'
 import {
   type HcaSessionEnableParams,
   L2_BRIDGE_CLAIMABLE_MS,
@@ -76,6 +77,13 @@ const startHcaRegistration = (overrides: {
   unsettledL2Bridge?: UnsettledL2Bridge
   submitL2Bridge?: ReturnType<typeof vi.fn>
   awaitL2Bridge?: ReturnType<typeof vi.fn>
+  /** Funds the HCA with the wallet's ETH instead of with a permit. */
+  ethFunding?: EthFunding
+  /** An ETH swap an abandoned run sent, as read back from storage. */
+  pendingEthSwap?: PendingEthSwap
+  swapEthForUsdc?: ReturnType<typeof vi.fn>
+  /** The USDC the run pays in, when not the deployment's. */
+  paymentTokenAddress?: Address
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -98,6 +106,8 @@ const startHcaRegistration = (overrides: {
   const submitL2Bridge =
     overrides.submitL2Bridge ?? vi.fn(async () => 'tx-reg-l2-bridge')
   const awaitL2Bridge = overrides.awaitL2Bridge ?? vi.fn(async () => 'landed')
+  const swapEthForUsdc =
+    overrides.swapEthForUsdc ?? vi.fn(async () => 1_000_000n)
 
   const balances = overrides.balances ?? [0n]
   let fundingChecks = 0
@@ -119,6 +129,7 @@ const startHcaRegistration = (overrides: {
         submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
         submitL2Bridge: fromPromise(submitL2Bridge) as never,
         awaitL2Bridge: fromPromise(awaitL2Bridge) as never,
+        swapEthForUsdc: fromPromise(swapEthForUsdc) as never,
         ...(overrides.pollTransactionStatus && {
           pollTransactionStatus: fromPromise(
             overrides.pollTransactionStatus,
@@ -161,6 +172,11 @@ const startHcaRegistration = (overrides: {
         ? { displayedL2Charge: overrides.displayedL2Charge }
         : {}),
       unsettledL2Bridge: overrides.unsettledL2Bridge,
+      ...(overrides.ethFunding ? { ethFunding: overrides.ethFunding } : {}),
+      ...(overrides.pendingEthSwap
+        ? { pendingEthSwap: overrides.pendingEthSwap }
+        : {}),
+      paymentTokenAddress: overrides.paymentTokenAddress,
     })
   start()
 
@@ -173,6 +189,7 @@ const startHcaRegistration = (overrides: {
     submitFundingAndCommit,
     submitL2Bridge,
     awaitL2Bridge,
+    swapEthForUsdc,
   }
 }
 
@@ -360,7 +377,7 @@ describe('registrationMachine — standalone-HCA funding', () => {
   })
 
   it('passes no consent bound when checkout had no figure to show', async () => {
-    // A failed budget quote leaves the confirm screen showing the rent alone.
+    // A failed budget quote leaves the confirm screen showing the price alone.
     // There is nothing the user consented to, so only the independent ceiling
     // applies — inventing a bound here would block a legitimate registration.
     const { actor, signFundingPermit } = startHcaRegistration({
@@ -439,6 +456,132 @@ describe('registrationMachine — standalone-HCA funding', () => {
   })
 })
 
+describe('registrationMachine — paid with ETH', () => {
+  const ethFunding: EthFunding = { displayedCharge: 10n ** 16n }
+  const SWAP: PendingEthSwap = {
+    hash: `0x${'de'.repeat(32)}` as Hash,
+    deadline: 1_800_000_000n,
+  }
+
+  it('buys the USDC with ETH, then funds the HCA with the usual permit', async () => {
+    const balance = 1_000_000n
+    const { actor, swapEthForUsdc, signFundingPermit, submitFundingAndCommit } =
+      startHcaRegistration({ balances: [balance], ethFunding })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(swapEthForUsdc.mock.calls[0][0].input).toMatchObject({
+      permitValue: BUDGET - balance,
+      funding: ethFunding,
+    })
+    expect(signFundingPermit.mock.calls[0][0].input.value).toBe(
+      BUDGET - balance,
+    )
+    expect(swapEthForUsdc.mock.invocationCallOrder[0]).toBeLessThan(
+      signFundingPermit.mock.invocationCallOrder[0] ?? 0,
+    )
+    expect(submitFundingAndCommit.mock.calls[0][0].input.permit).toBe(permit)
+  })
+
+  it('budgets, funds and commits in the token the swap buys', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    const readHcaUsdcBalance = vi.fn(async () => 0n)
+    const {
+      actor,
+      estimateHcaBudget,
+      signFundingPermit,
+      submitFundingAndCommit,
+    } = startHcaRegistration({
+      ethFunding,
+      paymentTokenAddress: circleUsdc,
+      readHcaUsdcBalance,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(estimateHcaBudget.mock.calls[0][0].input.paymentToken).toBe(
+      circleUsdc,
+    )
+    expect(readHcaUsdcBalance.mock.calls[0]?.[0]).toMatchObject({
+      input: { token: circleUsdc },
+    })
+    expect(signFundingPermit.mock.calls[0][0].input.token).toMatchObject({
+      address: circleUsdc,
+    })
+    expect(submitFundingAndCommit.mock.calls[0][0].input.paymentToken).toBe(
+      circleUsdc,
+    )
+  })
+
+  it('swaps nothing when the HCA already holds the budget', async () => {
+    const { actor, swapEthForUsdc, signFundingPermit } = startHcaRegistration({
+      balances: [BUDGET],
+      ethFunding,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(swapEthForUsdc).not.toHaveBeenCalled()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
+  it('counts a swap an abandoned run sent before buying again', async () => {
+    const { actor, swapEthForUsdc } = startHcaRegistration({
+      balances: [0n],
+      ethFunding,
+      pendingEthSwap: SWAP,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(swapEthForUsdc.mock.calls[0][0].input.pendingSwap).toBe(SWAP)
+    expect(actor.getSnapshot().context.pendingEthSwap).toBeUndefined()
+  })
+
+  it('counts a sent swap on retry instead of swapping again', async () => {
+    const { actor, swapEthForUsdc } = startHcaRegistration({
+      balances: [0n],
+      ethFunding,
+      swapEthForUsdc: vi
+        .fn()
+        .mockImplementationOnce(
+          async ({
+            input,
+          }: {
+            input: { onSwapSent: (swap: PendingEthSwap) => void }
+          }) => {
+            input.onSwapSent(SWAP)
+            throw new Error('lost track of the receipt')
+          },
+        )
+        .mockResolvedValue(0n),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.pendingEthSwap).toBe(SWAP)
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(swapEthForUsdc.mock.calls[1][0].input.pendingSwap).toBe(SWAP)
+    expect(actor.getSnapshot().context.pendingEthSwap).toBeUndefined()
+  })
+
+  it('stops for a retry when the swap fails, without asking for the permit', async () => {
+    const { actor, signFundingPermit } = startHcaRegistration({
+      balances: [0n],
+      ethFunding,
+      swapEthForUsdc: vi.fn(async () => {
+        throw new Error('The ETH exchange rate is too high.')
+      }),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.retryTarget).toBe('signingFundingPermit')
+  })
+})
+
 describe('registrationMachine — paid from an L2', () => {
   const l2Funding = { chain: { id: 84532 } } as unknown as L2FundingSource
 
@@ -468,6 +611,20 @@ describe('registrationMachine — paid from an L2', () => {
     const { input } = submitFundingAndCommit.mock.calls[0][0]
     expect(input.permit).toBeUndefined()
     expect(input.sessionEnable).toBe(SESSION_ENABLE)
+  })
+
+  it('bridges in the token the run pays in', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n],
+      l2Funding,
+      paymentTokenAddress: circleUsdc,
+      pollTransactionStatus: vi.fn(async () => undefined),
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(submitL2Bridge.mock.calls[0][0].input.paymentToken).toBe(circleUsdc)
   })
 
   it('bridges nothing when the HCA already holds the budget', async () => {

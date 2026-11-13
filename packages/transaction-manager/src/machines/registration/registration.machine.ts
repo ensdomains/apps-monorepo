@@ -9,6 +9,7 @@ import {
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../../errors/transaction.errors'
+import type { HcaFundingApprovalCapability } from '../../helpers/hca-funding-approval'
 import { isUpgradeDeclineError } from '../../helpers/wallet-errors.helpers'
 import { transactionManager } from '../../providers/transactionManager'
 import type { L2FundingSource, Signer } from '../../types/signer.types'
@@ -31,12 +32,18 @@ import {
   verifyRegistrationActor,
 } from './registration.actors'
 import {
+  type EthFunding,
+  type PendingEthSwap,
+  swapEthForUsdcActor,
+} from './registration.eth.actors'
+import {
   awaitL2BridgeActor,
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
   L2_BRIDGE_CLAIMABLE_MS,
   type L2BridgePayment,
+  type PermitToken,
   type PermitValueBounds,
   readHcaUsdcBalanceActor,
   readHcaUsdcBalanceAtLeastActor,
@@ -69,13 +76,17 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *
  * Standalone-HCA (manager; new deployment, user-paid USDC, NO gas sponsorship):
  * 1. `checkingHcaFunding` — read HCA USDC balance; skip permit when funded
- * 2. `signingFundingPermit` — EIP-2612 permit (wallet → HCA budget); the 2nd
- *    and last wallet prompt (the 1st was the session authorization, signed in
+ * 2. `signingFundingPermit` — EIP-2612 permit (wallet → HCA budget); normally
+ *    the last wallet prompt (the 1st was the session authorization, signed in
  *    the app BEFORE the machine starts). Paid from an L2, `bridgingFromL2`
  *    instead: the wallet signs an intent there delivering the same shortfall
- *    to the HCA, and every later step is unchanged
+ *    to the HCA, and every later step is unchanged. Paid with ETH,
+ *    `swappingEth` first: the wallet buys the USDC it is short on Uniswap,
+ *    then signs the permit as usual
  * 3. `submittingSetupBundle` — ONE session-signed request: permit +
- *    transferFrom + commit; deploys the HCA lazily
+ *    transferFrom + commit; deploys the HCA lazily. A proven mainnet USDC
+ *    permit incompatibility uses an explicitly approved exact allowance and
+ *    an owner-signed setup intent; the reveal keeps its original session.
  * 4. Shared cooldown spine (against the standalone registrar)
  * 5. `submittingRhinestoneBundle` — price re-read + exact-ordered reveal batch
  *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA? →
@@ -103,11 +114,12 @@ export interface SessionReauthorization {
 
 /**
  * Authorize a new session whose gas-overhead cap allows at least
- * `minGasOverhead`. Costs the owner one wallet signature. Rejects when the
- * owner declines or no session can be authorized.
+ * `minGasOverhead`, refunding in `refundToken` (default the deployment's USDC).
+ * Costs one wallet signature; rejects when declined or unauthorizable.
  */
 export type ReauthorizeSession = (request: {
   readonly minGasOverhead: bigint
+  readonly refundToken?: Address
 }) => Promise<SessionReauthorization>
 
 /**
@@ -247,13 +259,16 @@ export type RegistrationContext = {
   // Account & client
   signer?: Signer
   /**
-   * EOA signer used ONLY to produce the EIP-2612 FUNDING permit signature
-   * (standalone-HCA route): `owner = wallet`, `spender = HCA`,
+   * Owner wallet used for the EIP-2612 funding permit and, when explicitly
+   * configured, a delegated-wallet approval fallback. On the HCA route: `owner = wallet`, `spender = HCA`,
    * `value = hcaBudget`. The permit + `transferFrom` pair is carried inside
-   * the session-signed commit request, so the wallet never sends a
-   * transaction or needs ETH. Everything else is session-signed on `signer`.
+   * the session-signed commit request. A compatible permit needs no ETH; the
+   * explicit fallback approves USDC with wallet gas and owner-signs setup.
+   * The machine retains `signer` for the session-signed reveal.
    */
   approvalSigner?: Signer
+  /** Explicit consent capability for delegated-wallet USDC approval recovery. */
+  readonly approvalFallback?: HcaFundingApprovalCapability
   /** Keep EOA payment approval ahead of resolver deployment and commitment. */
   approveBeforeCommit?: boolean
   /**
@@ -273,7 +288,7 @@ export type RegistrationContext = {
   duration: bigint
   readonly referrer?: Hex
   selectedToken: TOKEN_SYMBOL
-  /** Token the caller showed; unset, `selectedToken` resolves via the manifest (Circle USDC on Sepolia). */
+  /** Token the caller showed; unset, `selectedToken` resolves via the manifest (MockUSDC on Sepolia). */
   readonly paymentTokenAddress?: Address
   tokenPrice: bigint
   /**
@@ -351,6 +366,16 @@ export type RegistrationContext = {
   hcaBalanceFloor?: bigint
   /** USDC (6dp) checkout showed the L2 being charged, fee included. */
   displayedL2Charge?: bigint
+  /**
+   * Standalone-HCA: the wallet buys the USDC the permit needs with its ETH
+   * first. Persisted, so a resumed run keeps paying with ETH.
+   */
+  ethFunding?: EthFunding
+  /**
+   * The wallet's ETH swap, from when it was sent until it confirmed.
+   * Persisted, so a resumed run counts it instead of swapping again.
+   */
+  pendingEthSwap?: PendingEthSwap
   /**
    * Standalone-HCA: asks the host app for a new session when a leg's quoted
    * gas refund outgrows the current one's caps. Runtime dep injected on
@@ -461,6 +486,7 @@ export type RegistrationEvent =
        * for pure-EOA flows (which use a plain on-chain `approve`).
        */
       approvalSigner?: Signer
+      readonly approvalFallback?: HcaFundingApprovalCapability
       /** Standalone-HCA: USDC funding budget override. */
       hcaBudget?: bigint
       /**
@@ -475,6 +501,10 @@ export type RegistrationEvent =
       l2Funding?: L2FundingSource
       /** See `RegistrationContext.displayedL2Charge`. */
       displayedL2Charge?: bigint
+      /** Standalone-HCA: fund with ETH. See `RegistrationContext.ethFunding`. */
+      ethFunding?: EthFunding
+      /** An ETH swap an abandoned run sent; this run counts it before buying. */
+      pendingEthSwap?: PendingEthSwap
       /**
        * A bridge an abandoned run sent that may not have settled yet; this run
        * waits for it before paying. See `isL2BridgeFromPriorRun`.
@@ -519,6 +549,7 @@ export type RegistrationEvent =
         canBatchAtomically?: boolean
         /** EOA that signs the EIP-2612 funding permit on the HCA path. */
         approvalSigner?: Signer
+        readonly approvalFallback?: HcaFundingApprovalCapability
         publicClient: PublicClient
         /** Rebuilt from the app's session store, never persisted. */
         hcaSessionEnable?: HcaSessionEnableParams
@@ -552,6 +583,11 @@ export type RegistrationEvent =
       intentId: bigint
       /** The balance the bridge was sized to bring the HCA up to. */
       fundsHcaTo: bigint
+    }
+  | {
+      /** The wallet sent the ETH swap; see `pendingEthSwap`. */
+      type: 'ETH_SWAP_SENT'
+      swap: PendingEthSwap
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -588,6 +624,7 @@ export const registrationMachine = setup({
         sessionEnable?: HcaSessionEnableParams
         apiKey?: string
         primaryName?: string
+        paymentToken?: Address
       }) => {
         return estimateHcaBudgetActor(input)
       },
@@ -598,6 +635,7 @@ export const registrationMachine = setup({
           hca: Address
           publicClient: PublicClient
           chainId: number
+          token?: Address
           atLeast?: bigint
         },
         { signal }: { signal: AbortSignal },
@@ -617,6 +655,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         chainId: number
         bounds?: PermitValueBounds
+        token?: PermitToken
       }) => {
         return signFundingPermitActor(input)
       },
@@ -629,6 +668,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         id?: string
         onIntentSubmitted?: (intentId: bigint) => void
+        paymentToken?: Address
       }) => {
         return submitL2BridgeActor(input)
       },
@@ -646,20 +686,23 @@ export const registrationMachine = setup({
         { signal }: { signal: AbortSignal },
       ) => awaitL2BridgeActor({ ...input, signal }),
     ),
+    swapEthForUsdc: fromResultAsync(
+      (
+        input: Parameters<typeof swapEthForUsdcActor>[0],
+        { signal }: { signal: AbortSignal },
+      ) => swapEthForUsdcActor({ ...input, signal }),
+    ),
     submitFundingAndCommit: fromResultAsync(
-      (input: {
-        name: string
-        wallet: Address
-        hca: Address
-        duration: bigint
-        readonly referrer?: Hex
-        permit?: PermitSignature
-        sessionEnable?: HcaSessionEnableParams
-        signer: Signer
-        publicClient: PublicClient
-        id?: string
-      }) => {
-        return submitFundingAndCommitActor(input)
+      (
+        input: Parameters<typeof submitFundingAndCommitActor>[0],
+        { signal }: { signal: AbortSignal },
+      ) => {
+        const close = () => input.approvalFallback?.onState?.({ kind: 'idle' })
+        signal.addEventListener('abort', close, { once: true })
+        const cleanup = () => signal.removeEventListener('abort', close)
+        return submitFundingAndCommitActor({ ...input, signal })
+          .andTee(cleanup)
+          .orTee(cleanup)
       },
     ),
     submitRevealBatch: fromResultAsync(
@@ -676,6 +719,7 @@ export const registrationMachine = setup({
         primaryName?: string
         id?: string
         onIntentSubmitted?: (intentId: bigint) => void
+        paymentToken?: Address
       }) => {
         return submitRevealBatchActor(input)
       },
@@ -787,8 +831,13 @@ export const registrationMachine = setup({
         input: {
           readonly reauthorize: ReauthorizeSession
           readonly minGasOverhead: bigint
+          readonly refundToken?: Address
         }
-      }) => input.reauthorize({ minGasOverhead: input.minGasOverhead }),
+      }) =>
+        input.reauthorize({
+          minGasOverhead: input.minGasOverhead,
+          ...(input.refundToken ? { refundToken: input.refundToken } : {}),
+        }),
     ),
     waitAfterCommitment: fromPromise(
       async ({
@@ -888,6 +937,8 @@ export const registrationMachine = setup({
     shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
     isL2Funded: ({ context }) =>
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
+    isEthFunded: ({ context }) =>
+      context.signer?.type === 'rhinestone' && context.ethFunding !== undefined,
     // A landed bridge kept for the balance read is not awaited again.
     hasPriorL2BridgeTx: ({ context }) => context.priorL2BridgeTx !== undefined,
     hasUnsettledL2Bridge: ({ context }) =>
@@ -936,6 +987,7 @@ export const registrationMachine = setup({
         referrer: normalizeReferrer(restored.referrer),
         signer: event.deps.signer,
         approvalSigner: event.deps.approvalSigner,
+        approvalFallback: event.deps.approvalFallback,
         approveBeforeCommit: event.deps.approveBeforeCommit,
         canBatchAtomically: event.deps.canBatchAtomically,
         isResolverDeployed: undefined,
@@ -1077,6 +1129,9 @@ export const registrationMachine = setup({
           context.priorL2BridgeTx !== undefined,
       }),
     },
+    ETH_SWAP_SENT: {
+      actions: assign({ pendingEthSwap: ({ event }) => event.swap }),
+    },
     // Accepted from anywhere, since the owning wallet can go away at any point
     // of the run. Leaving the state stops whatever it had invoked, as closing
     // the tab would; the flow fields stay for the RESUME that picks it back up.
@@ -1108,6 +1163,7 @@ export const registrationMachine = setup({
               tokenPrice: ({ event }) => event.price,
               signer: ({ event }) => event.signer,
               approvalSigner: ({ event }) => event.approvalSigner,
+              approvalFallback: ({ event }) => event.approvalFallback,
               approveBeforeCommit: ({ event }) => event.approveBeforeCommit,
               canBatchAtomically: ({ event }) => event.canBatchAtomically,
               isResolverDeployed: () => undefined,
@@ -1133,6 +1189,8 @@ export const registrationMachine = setup({
                 event.unsettledL2Bridge !== undefined,
               hcaBalanceFloor: () => undefined,
               displayedL2Charge: ({ event }) => event.displayedL2Charge,
+              ethFunding: ({ event }) => event.ethFunding,
+              pendingEthSwap: ({ event }) => event.pendingEthSwap,
               primaryName: ({ event }) => event.primaryName,
               resolverAddress: () => undefined,
               resolverTxId: () => undefined,
@@ -1237,6 +1295,7 @@ export const registrationMachine = setup({
           // Sizes the permit for the batch that will actually be submitted:
           // the primary-name opt-in adds a call to the reveal leg.
           primaryName: context.primaryName,
+          paymentToken: context.paymentTokenAddress,
         }),
         onDone: {
           target: 'checkingHcaFunding',
@@ -1278,6 +1337,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
+          token: context.paymentTokenAddress,
           atLeast: context.hcaBalanceFloor,
         }),
         onDone: [
@@ -1319,6 +1379,17 @@ export const registrationMachine = setup({
             ],
           },
           {
+            // Paid with ETH: buy the USDC the permit needs first.
+            guard: 'isEthFunded',
+            target: 'swappingEth',
+            actions: [
+              assign({
+                hcaUsdcBalance: ({ event }) => event.output as bigint,
+              }),
+              'settleLandedL2Bridge',
+            ],
+          },
+          {
             target: 'signingFundingPermit',
             actions: [
               assign({
@@ -1343,6 +1414,14 @@ export const registrationMachine = setup({
           {
             guard: 'isL2Funded',
             target: 'bridgingFromL2',
+            actions: [
+              assign({ hcaUsdcBalance: () => 0n }),
+              'settleLandedL2Bridge',
+            ],
+          },
+          {
+            guard: 'isEthFunded',
+            target: 'swappingEth',
             actions: [
               assign({ hcaUsdcBalance: () => 0n }),
               'settleLandedL2Bridge',
@@ -1380,6 +1459,15 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           chainId: context.chainId,
           bounds: fundingBounds(context),
+          ...(context.paymentTokenAddress
+            ? {
+                token: {
+                  address: context.paymentTokenAddress,
+                  symbol: 'USDC',
+                  decimals: 6,
+                },
+              }
+            : {}),
         }),
         onDone: {
           target: 'submittingSetupBundle',
@@ -1433,6 +1521,7 @@ export const registrationMachine = setup({
             id: REGISTRATION_TX_IDS.l2Bridge,
             onIntentSubmitted: (intentId: bigint) =>
               self.send({ type: 'L2_BRIDGE_SUBMITTED', intentId, fundsHcaTo }),
+            paymentToken: context.paymentTokenAddress,
           }
         },
         onDone: {
@@ -1569,6 +1658,43 @@ export const registrationMachine = setup({
       },
     },
 
+    // Paid with ETH: the wallet buys the USDC it is short of the permit on
+    // Uniswap, then signs the permit as if it had held the USDC all along.
+    swappingEth: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'swapEthForUsdc',
+        input: ({ context, self }) => ({
+          permitValue: fundingShortfall(context),
+          funding: context.ethFunding,
+          // The swap is the wallet's own transaction, like the permit.
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          approvalSigner: context.approvalSigner ?? context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          pendingSwap: context.pendingEthSwap,
+          onSwapSent: (swap: PendingEthSwap) =>
+            self.send({ type: 'ETH_SWAP_SENT', swap }),
+        }),
+        onDone: {
+          target: 'signingFundingPermit',
+          actions: assign({ pendingEthSwap: () => undefined }),
+        },
+        // Retried like the permit: the wallet's USDC is read again, so a swap
+        // that landed is counted rather than bought twice.
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+            retryTarget: () => 'signingFundingPermit' as const,
+          }),
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
     submittingSetupBundle: {
       entry: ['logTransition'],
       invoke: {
@@ -1582,6 +1708,16 @@ export const registrationMachine = setup({
           duration: context.duration,
           referrer: context.referrer,
           permit: context.permit,
+          approvalFallback:
+            context.approvalFallback &&
+            context.approvalSigner?.type === 'eoa' &&
+            context.hcaBudget !== undefined
+              ? {
+                  ...context.approvalFallback,
+                  walletClient: context.approvalSigner.walletClient,
+                  targetBalance: context.hcaBudget,
+                }
+              : undefined,
           // Always attach the proof: the validator rejects any session
           // signature without it (see `hcaSessionEnable`). It costs no wallet
           // prompt, since it is rebuilt from the stored authorization.
@@ -1591,6 +1727,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           id: REGISTRATION_TX_IDS.commit,
+          paymentToken: context.paymentTokenAddress,
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -2190,6 +2327,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           primaryName: context.primaryName,
           id: REGISTRATION_TX_IDS.register,
+          paymentToken: context.paymentTokenAddress,
           // Fires from the transport once the orchestrator accepts the
           // intent — typically AFTER this invoke has already resolved (the
           // submit actor returns as soon as the tx is queued), so the id is
@@ -2299,6 +2437,8 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: guarded on entry
           reauthorize: context.reauthorizeSession!,
           minGasOverhead: context.requiredGasOverhead ?? 0n,
+          // The new session must refund in the token this run pays in.
+          refundToken: context.paymentTokenAddress,
         }),
         onDone: [
           {

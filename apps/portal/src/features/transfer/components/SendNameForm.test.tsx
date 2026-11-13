@@ -17,6 +17,14 @@ vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
   TransactionModal: () => null,
 }))
 
+// Role holders render as entity badges, whose links need a router.
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-router')>()),
+  Link: ({ children }: { readonly children: React.ReactNode }) => (
+    <a href="/">{children}</a>
+  ),
+}))
+
 const OWNER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
 const REGISTRY = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Address
 
@@ -477,6 +485,37 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
 
     expect(await screen.findByText(/0x1111/)).toBeInTheDocument()
     expect(screen.getByText(/Set Resolver/)).toBeInTheDocument()
+  })
+
+  // Shortened on screen, so the full address has to be one click away.
+  it('copies the delegate’s full address', async () => {
+    renderWithRoles(ONE_DELEGATE)
+    const user = await enterRecipient()
+
+    await user.click(await screen.findByRole('button', { name: 'Copy' }))
+
+    expect(await navigator.clipboard.readText()).toBe(DELEGATE)
+  })
+
+  // Unheaded, "Set Resolver" reads as something the transfer will set.
+  it('heads the list with what the transfer does to those accounts', async () => {
+    renderWithRoles(ONE_DELEGATE)
+    const user = await enterRecipient()
+
+    expect(
+      await screen.findByText(/these accounts will lose the permissions/i),
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('switch', { name: /revoke everyone else/i }),
+    )
+
+    expect(
+      screen.getByText(/these accounts will still have permissions/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(/will lose the permissions/i),
+    ).not.toBeInTheDocument()
   })
 
   it('warns, and sends no grants, when the sender turns it off', async () => {

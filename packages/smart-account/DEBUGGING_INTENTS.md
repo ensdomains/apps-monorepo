@@ -230,13 +230,18 @@ So the overhead cap is no longer a constant (`refund-caps.ts`):
   A miss on `refundAmount` or `exchangeRate` is a fixed bound and is refused.
 
 The same mismatch under-funds the HCA. `intentCost.tokensSpent` prices about
-`(destinationGasUnits + ~880k) × gasPrice` and does **not** include the relay
+`(destinationGasUnits + ~880k) × gasPrice` (2026-10-07, at Sepolia's ~1 Mwei gas
+price; on 2026-11-05 the added term was ~104k on Sepolia at 1 gwei and ~109k on
+mainnet at 0.36 gwei) and does **not** include the relay
 fee in `gasOverhead`: on 2026-10-07 a first commit pulled 0.010017 USDC while
 both legs had been quoted at 0.007681 together, and the reveal then failed
 simulation with `ERC20InsufficientBalance` 0.0023 USDC short of the price.
 `legFeeUsdc` (`budget.ts`) therefore budgets each leg at the larger of the
 spend and `(gasLimit + 2 × gasOverhead) × gasPrice × exchangeRate`, capped at
 the signed `refundAmount`. Reported to Rhinestone.
+
+A fill whose `pulled` exceeds the signed `refundAmount` reverts
+`ExcessiveGasRefund()` (§9).
 
 To see what the orchestrator would quote right now, `POST /intents/route` with
 the API key and read
@@ -359,3 +364,105 @@ error resurfaces, check that gate first.
 Note that `checkingHcaFunding` reads the **HCA's** balance, not the wallet's —
 it decides whether a permit is needed at all, and never validated that the
 wallet could honour one.
+
+## 9. `ExcessiveGasRefund()` — the gas price moved after the quote
+
+```
+Simulation failed: ExcessiveGasRefund()
+  errorSelector: 0xda334754  category: EXECUTION_FAILED  retryable: false
+```
+
+This comes from Rhinestone's IntentExecutor, not from our contracts. The check
+lives in `StandaloneIntent.sol` of the implementation behind
+`0x00000000005ad9ce…` (`0x194DE341…`, verified on Sourcify; the public
+`warp-router` repo predates it). After running the ops, the executor prices the
+refund and caps it at what was signed:
+
+```solidity
+uint256 gasAmount = getCostInToken(gasUsed * tx.gasprice, tx.gasprice, exchangeRate, overhead);
+require(gasAmount <= maxGasRefund, ExcessiveGasRefund());
+```
+
+`overhead` packs `maxGasRefund << 128 | gasOverhead`, the same packing as the
+quote's `refundAmount` (§6). Read both from the fill's calldata:
+
+```bash
+cast decode-calldata \
+  'executeSinglechainOpsWithGasRefund_ERC20((address,uint256,(bytes),bytes),(address,uint256,uint256),address)' \
+  "$(cat calldata.hex)"
+# second tuple: (token, exchangeRate, overhead)
+# maxGasRefund = overhead >> 128, gasOverhead = overhead & (2^128 - 1)
+```
+
+`maxGasRefund ≈ 1.8 × (1.5M + gasOverhead) × quotedGasPrice × exchangeRate`
+(§6), so the gas price the intent was quoted at is
+`maxGasRefund ÷ (1.8 × (1.5M + gasOverhead) × exchangeRate)`. Quoted at 1 Mwei,
+`gasOverhead` is ~3.3M (the relay fee in gas units), and the fill trips the cap
+once the relayer's gas price is about 2.5× the quoted one.
+
+A `cast call` replay (§2) does not reproduce it. The call runs at `tx.gasprice`
+0 even with `--gas-price`, so the refund is 0 and the fill passes. Compare gas
+prices instead. The relayer (`0x46565eed…`) fills at exactly the gas price it
+quoted, so its recent fills show what it is quoting:
+
+```bash
+TOPIC=$(cast keccak 'IntentExecuted(address,uint256)')
+cast logs --from-block <n-5000> --to-block <n> \
+  --address 0x00000000005ad9ce1f5035fd62ca96cef16adaaf "$TOPIC" \
+  --rpc-url "$RPC" --json \
+  | jq -r '.[].transactionHash' \
+  | while read -r h; do cast receipt "$h" effectiveGasPrice --rpc-url "$RPC"; done
+```
+
+On 2026-11-03 these jumped between 1 Mwei, 50 Mwei and 1 gwei from one intent to
+the next. A renewal quoted at ~1 Mwei (`maxGasRefund` 19830, `gasOverhead`
+3.34M) failed while the fills just before it paid 50 Mwei, and Try again failed
+the same way once before a third attempt filled. Rhinestone confirmed the cause:
+the gas cost rose above the limit set when the user approved, and the rise is
+not necessarily temporary.
+
+`retryable: false` only means the same signed intent fails again. The
+orchestrator refused it at submit (HTTP 400), so nothing was accepted that could
+still fill, and a new quote is priced at the current gas price. The transaction
+machine therefore resends it (`isStaleGasQuoteError` in `retry-policy.ts`),
+which runs `prepareTransaction` again, up to the transaction's `retryCount`.
+An owner-signed intent (a renewal, a primary name) asks the wallet to sign again
+on each resend; a session-signed one does not. A failure at fill time never
+matches: the SDK reports it as `IntentFailedError`, which carries only the
+intent id.
+
+## 10. Same-chain swaps: why Pay with ETH does not use Rhinestone
+
+Paying for a registration with ETH (`helpers/eth-usdc-swap.ts` in
+transaction-manager) does **not** go through an intent. The wallet buys the
+USDC it is short on Uniswap v3 in one transaction (wrap, exact-output swap,
+refund of unused ETH), held to the Chainlink ETH/USD feed, and the HCA is then
+funded with the usual EIP-2612 permit. Rhinestone was tried first and ruled
+out for testnets; the findings are kept here for whoever tries again.
+
+**No testnet offers a same-chain swap.** On Sepolia, Base Sepolia, Arbitrum
+Sepolia and OP Sepolia, every pair (ETH, WETH, USDC either way) and every venue
+(`1inch`, `0x`, `velora`, `kyberswap`, `fynd`, `fynd-hosted`, `bebop`,
+`relay`) answers `SWAP_INPUTS_REJECTED` / `chain_not_available`, although
+`/chains` lists the tokens (checked 2026-11-03). The venues are DEX
+aggregators, and none of them serves ETH → USDC on Sepolia: Relay is the only
+one with a testnet deployment, and there it only wraps and unwraps ETH. LI.FI,
+not a Rhinestone venue, has no Sepolia quote either. Uniswap does route it, but
+is a single DEX, not a venue Rhinestone offers. Cross-chain testnet routes do
+quote, ETH in and USDC out (e.g. Base Sepolia ETH → Sepolia USDC), because
+Across fills them: `ACROSS` / `PERMIT2`, paid from a wallet on the other chain,
+with a `wrap` and a WETH `approval` requirement on that chain.
+
+**On mainnet a same-chain swap from the HCA does quote** (2026-11-03): one
+`INTENT_EXECUTOR` element (`fundingMethod: NO_FUNDING`) delivering to the HCA,
+with the gas refund in native ETH (`token` zero, `exchangeRate` 1e18). The swap
+itself is the HCA's **destination op**: a call to the venue's router carrying
+the ETH as value, with the HCA as recipient. `preClaimOps` holds the
+orchestrator's Permit2 approval of the input token, which for native ETH is an
+`approve` sent to the zero address and does nothing. `tokenRequirements` lists
+a `wrap` for the ETH, which the SDK only acts on for EOA accounts. Exact input
+is honoured, and the fee comes out of the ETH. Only the owner can sign such an
+intent: the session policy (`_checkRegistrationExecutions`) rejects any
+execution with value or outside the registration allowlist, while a 65-byte
+owner signature skips the policy entirely, so the quote must be checked in
+full before it is signed.

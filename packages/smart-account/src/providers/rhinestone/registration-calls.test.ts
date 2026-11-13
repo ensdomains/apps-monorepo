@@ -256,6 +256,21 @@ describe('buildRevealBatch ordering', () => {
     expect((decoded.args as any)[6].toLowerCase()).toBe(C.usdc.toLowerCase())
   })
 
+  it('approves and pays the registrar in the given payment token', () => {
+    const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    const [approve, register] = buildRevealBatch({
+      ...base,
+      resolverDeployed: true,
+      paymentToken: circleUsdc,
+    })
+    expect(approve?.to).toBe(circleUsdc)
+    const decoded = decodeFunctionData({
+      abi: ethRegistrarAbi,
+      data: register?.data ?? '0x',
+    })
+    expect(decoded.args?.[6]).toBe(circleUsdc)
+  })
+
   it('sets value 0 on every inner call', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: false })
     for (const c of calls) expect(c.value).toBe(0n)

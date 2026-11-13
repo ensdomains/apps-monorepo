@@ -5,6 +5,7 @@ import type {
   MigrationApprovalId,
   MigrationRegistrationApprovalStrategy,
 } from './migrationApprovals'
+import { settleMigrationRecoveryProgress } from './migrationRecoveryProgress'
 import type { SubnameRecreationSnapshot } from './subnameRecreation'
 
 const JOURNAL_VERSION = 1 as const
@@ -528,6 +529,10 @@ const parseRecovery = (value: unknown): StoredRecoverySnapshot | null => {
       !Array.isArray(recreation.roots) ||
       !recreation.roots.length ||
       !Array.isArray(recreation.names) ||
+      (recreation.skipped !== undefined &&
+        (!Array.isArray(recreation.skipped) ||
+          !recreation.skipped.length ||
+          !recreation.skipped.every((name) => typeof name === 'string'))) ||
       !recreation.names.length ||
       !recreation.names.every((name) => typeof name === 'string') ||
       new Set(recreation.names).size !== recreation.names.length ||
@@ -1171,3 +1176,45 @@ export const hasMigrationRecoveryAttempt = (
   (journal.recovery?.completedOperations.length ?? 0) > 0 ||
   journal.pending.length > 0 ||
   journal.submitted.length > 0
+
+/** Commit verified progress and remove its retry protection in one storage write. */
+export const settleConfirmedMigrationBatch = (
+  scope: MigrationBatchJournalScope,
+  confirmed: SubmittedAtomicMigrationBatch,
+  storage: StorageLike | null = getBrowserStorage(),
+): void => {
+  const journal = readJournal(storage)
+  const key = scopeKey(scope)
+  const current = journal.entries.find((entry) => entry.scope === key)
+  if (!current) return
+  const result = settleMigrationRecoveryProgress({
+    journal: {
+      pending: current.intents,
+      submitted: current.submissions,
+      recovery: current.recovery ? hydrateRecovery(current.recovery) : null,
+    },
+    confirmed,
+  })
+  if (result.status === 'unchanged') return
+  const { pending: intents, submitted: submissions, recovery } = result.journal
+  writeJournal(
+    storage,
+    {
+      version: JOURNAL_VERSION,
+      entries: [
+        ...journal.entries.filter((entry) => entry.scope !== key),
+        ...(recovery || intents.length > 0 || submissions.length > 0
+          ? [
+              {
+                scope: key,
+                intents,
+                submissions,
+                ...(recovery ? { recovery: storeRecovery(recovery) } : {}),
+              },
+            ]
+          : []),
+      ],
+    },
+    key,
+  )
+}

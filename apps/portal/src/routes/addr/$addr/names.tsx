@@ -21,6 +21,7 @@ import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { STICKY_BELOW_MOBILE_HEADER_CLASS } from '@/components/MobileHeader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
@@ -63,6 +64,7 @@ import {
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { cn } from '@/lib/utils'
 import { queryClient } from '@/utils/queryClient'
 
 const NO_NAMES: NameRow[] = []
@@ -212,7 +214,12 @@ const NamesList = ({
 
   return (
     <>
-      <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
+      <header
+        className={cn(
+          'bg-background flex flex-col gap-4 sticky z-20',
+          STICKY_BELOW_MOBILE_HEADER_CLASS,
+        )}
+      >
         <div className="flex flex-row justify-between">
           <PageHeading parent={{ type: 'addr', addr: address }}>
             {match({ hasActiveFilters, isSearching })
@@ -366,7 +373,12 @@ function RouteComponent() {
   if (allNames.length === 0)
     return (
       <>
-        <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
+        <header
+          className={cn(
+            'bg-background flex flex-col gap-4 sticky z-20',
+            STICKY_BELOW_MOBILE_HEADER_CLASS,
+          )}
+        >
           <PageHeading parent={{ type: 'addr', addr: address }}>
             Names
           </PageHeading>

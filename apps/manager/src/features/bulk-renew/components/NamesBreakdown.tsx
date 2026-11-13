@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { ArrowRight } from 'lucide-react'
+import { ExistingBalanceLabel } from '@/features/register-v2/workflow/pricing/components/ExistingBalanceLabel'
 import type { SummaryRow } from '../types'
 import { formatUsdAmount } from '../utils/pricing'
 import { NameAvatar } from './NameAvatar'
@@ -9,9 +10,13 @@ import { NameAvatar } from './NameAvatar'
 export const NamesBreakdown = ({
   rows,
   total,
+  existingBalance = 0,
 }: {
   readonly rows: readonly SummaryRow[]
-  readonly total: number
+  /** Less any existing balance; `undefined` shows a placeholder while it loads. */
+  readonly total: number | undefined
+  /** The account's balance taken off the names' subtotals, shown above the total. */
+  readonly existingBalance?: number
 }) => (
   <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-ens-quartz-150">
     <div className="flex max-h-[280px] flex-col gap-0 overflow-y-auto">
@@ -51,9 +56,26 @@ export const NamesBreakdown = ({
         </div>
       ))}
     </div>
-    <div className="flex items-center justify-between border-ens-quartz-150 border-t px-4 py-3 font-medium font-sans text-ens-lapis-900 text-xl">
-      <Trans>Total:</Trans>
-      <span className="block">{formatUsdAmount(total)} USD</span>
+    <div className="border-ens-quartz-150 border-t">
+      {existingBalance > 0 && (
+        <div className="flex items-center justify-between px-4 pt-3 font-sans text-ens-quartz-700 text-sm">
+          <ExistingBalanceLabel />
+          <span>-{formatUsdAmount(existingBalance)} USD</span>
+        </div>
+      )}
+      <div className="flex items-center justify-between px-4 py-3 font-medium font-sans text-ens-lapis-900 text-xl">
+        <Trans>Total:</Trans>
+        {total === undefined ? (
+          <span
+            aria-hidden="true"
+            className="block animate-pulse rounded bg-ens-quartz-75 text-transparent"
+          >
+            $00.00 USD
+          </span>
+        ) : (
+          <span className="block">{formatUsdAmount(total)} USD</span>
+        )}
+      </div>
     </div>
   </div>
 )

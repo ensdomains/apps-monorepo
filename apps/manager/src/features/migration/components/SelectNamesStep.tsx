@@ -1,8 +1,10 @@
+import { MAX_UNRECOVERABLE_SUBNAMES } from '@ens-apps/migration'
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
 import { Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { useDefaultMigrationSelection } from '@/features/migration/hooks/useDefaultMigrationSelection'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -22,8 +24,10 @@ import {
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
   shouldUseSmallSelectionCard,
+  unrecoverableSubnamesOf,
 } from './selectNames.helpers'
 import { UnavailableMigrationNames } from './UnavailableMigrationNames'
+import { UnrecoverableSubnamesNotice } from './UnrecoverableSubnamesNotice'
 import { WrapperSyncNotice } from './WrapperSyncNotice'
 
 const SubnameBlockReason = ({
@@ -40,13 +44,6 @@ const SubnameBlockReason = ({
         </Trans>
       )
     }
-    case 'imports-disabled':
-      return (
-        <Trans>
-          Subname copying is not available in this session. Keep this parent on
-          ENSv1 so its subnames keep working.
-        </Trans>
-      )
     case 'unsupported-parent':
       return (
         <Trans>
@@ -87,6 +84,14 @@ const SubnameBlockReason = ({
           ENSv1 until it can be recovered.
         </Trans>
       )
+    case 'too-many-unknown-labels':
+      return (
+        <Trans>
+          This name has more than {MAX_UNRECOVERABLE_SUBNAMES} subnames with
+          unknown labels. Upgrading it would leave them all behind, so keep it
+          on ENSv1 for now.
+        </Trans>
+      )
     case 'incomplete-inventory':
       return (
         <Trans>
@@ -116,9 +121,11 @@ type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasAffordability: GasAffordability
   readonly gasFundingStatus: MigrationGasFundingStatus
+  readonly isMetaMaskWallet?: boolean
   readonly onNamesChange: (names: string[]) => void
   readonly onManagerRestorationChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
+  readonly onBack: () => void
   readonly renewal?: GraceRenewalQuoteState
   readonly renewalGasEstimate?: GraceRenewalGasEstimateState
 }
@@ -160,9 +167,11 @@ export const SelectNamesStep = ({
   gasEstimate,
   gasAffordability,
   gasFundingStatus,
+  isMetaMaskWallet = false,
   onNamesChange,
   onManagerRestorationChange,
   onNext,
+  onBack,
   renewal = { status: 'idle' },
   renewalGasEstimate = { status: 'idle' },
 }: SelectNamesStepProps) => {
@@ -172,6 +181,7 @@ export const SelectNamesStep = ({
     unavailableNames,
     blockedSubnames = [],
     verifiedSubnames,
+    unrecoverableSubnames = [],
     isEligibilityError = false,
     retryEligibility,
     wrapperSyncNames,
@@ -185,6 +195,7 @@ export const SelectNamesStep = ({
   const { isPending, excludedNames } = useDefaultMigrationSelection({
     eligible,
     gracePeriodNames,
+    unknownLabelNames: unrecoverableSubnames,
     ownerAddress,
     isPending: isEligibilityPending,
     shouldSkip: recoveryState.status !== 'none',
@@ -310,7 +321,8 @@ export const SelectNamesStep = ({
     <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
       <div
         className={cn(
-          'flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 pt-6 pb-6 md:pb-5',
+          // Below md the title is left-aligned, so clear the absolute Back button.
+          'relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 pt-16 pb-6 md:pb-5',
           isContentHeightCard
             ? 'md:justify-center md:pt-0 md:pb-0'
             : isCompactOuterSpacing
@@ -318,6 +330,17 @@ export const SelectNamesStep = ({
               : 'md:pt-16',
         )}
       >
+        <button
+          aria-label="Back"
+          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
+          onClick={onBack}
+          type="button"
+        >
+          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
+          <span className="max-xl:hidden">
+            <Trans>Back</Trans>
+          </span>
+        </button>
         <div
           className={cn(
             'flex min-h-0 w-full max-w-215 flex-1 flex-col items-center gap-6 md:gap-7',
@@ -427,6 +450,9 @@ export const SelectNamesStep = ({
             names={wrapperSyncNames}
             onSync={() => wrapperSync.mutate()}
           />
+          <UnrecoverableSubnamesNotice
+            names={unrecoverableSubnamesOf(unrecoverableSubnames, selected)}
+          />
           <UnavailableMigrationNames names={unavailableNames} />
           {blockedSubnames.length > 0 && (
             <section className="w-full max-w-189 text-ens-garnet-900 text-sm leading-5">
@@ -460,8 +486,10 @@ export const SelectNamesStep = ({
         gasAffordability={gasAffordability}
         gasEstimate={gasEstimate}
         hasUnselectedEligibleNames={hasUnselectedEligibleNames}
+        hasWrapperSyncNames={wrapperSyncNames.length > 0}
         isEstimatingGas={isEstimatingGas}
         isFinishingRecovery={isFinishingRecovery}
+        isMetaMaskWallet={isMetaMaskWallet}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}

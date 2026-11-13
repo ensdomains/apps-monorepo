@@ -42,23 +42,18 @@ export const forceFetchRecords = {
 
 export const alwaysProbeAddressRecords = ['60']
 
-// ensjs batches a CCIP-Read name's records into one gateway GET, which Coinbase
-// rejects (414) at 60 records, so an offchain name the indexer has no keys for
-// reads the records ens-app-v3 shows.
-export const offchainProfileRecords = {
+// Read on every profile load; any other key is read only when bigname indexes it.
+// ensjs sends a CCIP-Read name's reads in one gateway GET, which Coinbase rejects (414) at 60.
+export const mainProfileRecords = {
   texts: [
-    'name',
-    'avatar',
-    'header',
-    'description',
-    'url',
-    'location',
-    'timezone',
-    'email',
-    'com.twitter',
-    'com.github',
-    'com.discord',
-    'org.telegram',
+    ...new Set([
+      ...forceFetchRecords.always,
+      ...forceFetchRecords.whenNotIndexed,
+      'location',
+      'timezone',
+      // Newly saved links must be readable before the indexer discovers the key.
+      'links',
+    ]),
   ],
   coins: [
     coinNameToTypeMap.eth,

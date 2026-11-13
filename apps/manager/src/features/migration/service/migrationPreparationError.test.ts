@@ -1,9 +1,11 @@
 import { setupI18n } from '@lingui/core'
+import { TimeoutError } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   migrationPreparationFailure,
   migrationPreparationMessage,
   runMigrationPreparationStage,
+  shouldRetryMigrationPreparation,
 } from './migrationPreparationError'
 
 const i18n = setupI18n({ locale: 'en', messages: { en: {} } })
@@ -17,6 +19,30 @@ const message = (
   stage: Parameters<typeof migrationPreparationFailure>[1] = 'preflight',
 ) =>
   i18n._(migrationPreparationMessage(migrationPreparationFailure(error, stage)))
+
+describe('migration preparation retry policy', () => {
+  const timeout = new TimeoutError({ url: 'https://rpc.example', body: {} })
+
+  it('allows only one retry for direct and stage-wrapped transport failures', async () => {
+    const error = await runMigrationPreparationStage('preflight', () =>
+      Promise.reject(timeout),
+    ).catch((error: unknown) => error)
+    expect(shouldRetryMigrationPreparation(0, timeout)).toBe(true)
+    expect(shouldRetryMigrationPreparation(0, error)).toBe(true)
+    expect(shouldRetryMigrationPreparation(1, error)).toBe(false)
+  })
+
+  it('does not retry a semantic failure with a transient diagnostic cause', async () => {
+    const cause = failure('DirectMigrationRouteError', {
+      reason: 'conflicting-wrapper',
+      cause: timeout,
+    })
+    const error = await runMigrationPreparationStage('plan', () =>
+      Promise.reject(cause),
+    ).catch((error: unknown) => error)
+    expect(shouldRetryMigrationPreparation(0, error)).toBe(false)
+  })
+})
 
 describe('migration preparation errors', () => {
   it.each([
@@ -115,6 +141,31 @@ describe('migration preparation errors', () => {
       })
     },
   )
+
+  it.each(['plan', 'fee'] as const)(
+    'identifies an oversized atomic tree during %s and names what to deselect',
+    (stage) => {
+      const cause = failure('AtomicMigrationNameGasLimitExceededError', {
+        ensName: 'walletmail.eth',
+        estimatedGas: 25_125_000n,
+        maxOuterGas: 15_000_000n,
+      })
+      const wrapped = failure('OuterError', { cause })
+      expect(migrationPreparationFailure(wrapped, stage).reason).toBe(
+        'atomic-name-gas-limit',
+      )
+      expect(message(wrapped, stage)).toBe(
+        'The estimated gas for walletmail.eth and its subnames exceeds the per-transaction limit. Deselect this name to upgrade the rest.',
+      )
+      expect(message(wrapped, stage)).not.toMatch(/secret|deadbeef/)
+    },
+  )
+
+  it('keeps oversized-plan diagnostics private when the name is unavailable', () => {
+    expect(message(failure('AtomicMigrationNameGasLimitExceededError'))).toBe(
+      'The estimated gas for a name and its subnames exceeds the per-transaction limit. Deselect the name to upgrade the rest.',
+    )
+  })
 
   it('reserves the fee message for failed fee lookups', () => {
     const cause = failure('HttpRequestError')

@@ -2,7 +2,6 @@ import type { V1Domain } from '@ens-apps/migration'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import posthog from 'posthog-js/dist/module.full.no-external'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
   assign,
@@ -17,6 +16,7 @@ import {
 } from '@/features/migration/service/buildMigrationPlan'
 import type { MigrationWalletRequestDescriptor } from '@/features/migration/service/buildStepDescriptors'
 import {
+  canRetryMigration,
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
@@ -26,13 +26,13 @@ import {
   type MigrationProgress,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import {
   executeGraceRenewal,
   type GraceRenewalQuote,
   type GraceRenewalStatus,
 } from '../service/graceRenewal'
+import { observeGraceRenewalOperation } from '../service/graceRenewalOperation'
 import type { PendingGraceRenewal } from '../service/graceRenewalPending'
 import { prepareGraceRenewalMigration } from '../service/prepareGraceRenewalMigration'
 import {
@@ -125,6 +125,7 @@ type Events =
       type: 'renewal.discardConfirmation'
       confirmation: NonNullable<Context['renewalDiscardConfirmation']>
     }
+  | { type: 'renewal.recovered'; quote: GraceRenewalQuote }
   | { type: 'renewal.submitted'; hash: Hex }
   | { type: 'renewal.approvalRequired'; required: boolean }
   | { type: 'renewal.status'; status: GraceRenewalStatus }
@@ -200,29 +201,39 @@ export const migrationUiMachine = setup({
         })
         return
       }
-      void executeGraceRenewal({
-        quote: input.renewal.quote,
-        walletClient: input.signer.walletClient,
-        connector: input.signer.connector,
-        publicClient: defaultPublicClient as PublicClient,
-        renewalHash: input.renewalHash,
-        signal: controller.signal,
-        confirmDiscardUnsubmittedRenewal: (pending) =>
-          new Promise<boolean>((resolve) => {
-            controller.signal.addEventListener('abort', () => resolve(false), {
-              once: true,
-            })
-            sendBack({
-              type: 'renewal.discardConfirmation',
-              confirmation: { pending, resolve },
-            })
-          }),
-        onRenewalSubmitted: (hash) =>
-          sendBack({ type: 'renewal.submitted', hash }),
-        onApprovalRequired: (required) =>
-          sendBack({ type: 'renewal.approvalRequired', required }),
-        onStatus: (status) => sendBack({ type: 'renewal.status', status }),
-      }).then((result) => {
+      void observeGraceRenewalOperation(
+        {
+          quote: input.renewal.quote,
+          selection: input.renewal.domains.map(({ id }) => id),
+          onQuoteRecovered: (quote) =>
+            sendBack({ type: 'renewal.recovered', quote }),
+          walletClient: input.signer.walletClient,
+          connector: input.signer.connector,
+          publicClient: defaultPublicClient as PublicClient,
+          renewalHash: input.renewalHash,
+          signal: controller.signal,
+          confirmDiscardUnsubmittedRenewal: (pending) =>
+            new Promise<boolean>((resolve) => {
+              controller.signal.addEventListener(
+                'abort',
+                () => resolve(false),
+                {
+                  once: true,
+                },
+              )
+              sendBack({
+                type: 'renewal.discardConfirmation',
+                confirmation: { pending, resolve },
+              })
+            }),
+          onRenewalSubmitted: (hash) =>
+            sendBack({ type: 'renewal.submitted', hash }),
+          onApprovalRequired: (required) =>
+            sendBack({ type: 'renewal.approvalRequired', required }),
+          onStatus: (status) => sendBack({ type: 'renewal.status', status }),
+        },
+        executeGraceRenewal,
+      ).then((result) => {
         if (controller.signal.aborted) return
         if (result.isErr()) {
           sendBack({
@@ -253,10 +264,6 @@ export const migrationUiMachine = setup({
         wagmiConfig: input.wagmiConfig,
         managerRestorationNames: input.managerRestorationNames,
         canBatchAtomically: input.renewal.canBatchAtomically,
-        isSubnameRecreationEnabled:
-          posthog.isFeatureEnabled(
-            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-          ) === true,
         signal,
       }),
     ),
@@ -298,10 +305,6 @@ export const migrationUiMachine = setup({
       executeMigration({
         plan: input.plan,
         submissionGate: { signal: controller.signal },
-        canRecreateSubnames: () =>
-          posthog.isFeatureEnabled(
-            POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-          ) === true,
         wagmiConfig: input.wagmiConfig,
         publicClient: defaultPublicClient as PublicClient,
         signer: input.signer,
@@ -432,9 +435,19 @@ export const migrationUiMachine = setup({
         ),
       }
     }),
-    setProgress: assign({
-      progress: ({ event, context }) =>
-        event.type === 'migration.progress' ? event.progress : context.progress,
+    setProgress: assign(({ event, context }) => {
+      if (event.type !== 'migration.progress') return {}
+      return {
+        progress: event.progress,
+        stepDescriptors: event.progress.stepDescriptors
+          ? [
+              ...(context.renewedDomains
+                ? renewalStepsOf(context.stepDescriptors)
+                : []),
+              ...event.progress.stepDescriptors,
+            ]
+          : context.stepDescriptors,
+      }
     }),
     appendBatchComplete: assign(({ event, context }) => {
       if (event.type !== 'migration.batchComplete') return {}
@@ -592,11 +605,18 @@ export const migrationUiMachine = setup({
                 renewalDiscardConfirmation: ({ event }) => event.confirmation,
               }),
             },
-            'migration.progress': { actions: 'setProgress' },
             'renewal.approvalRequired': {
               actions: 'setRenewalApprovalRequired',
             },
             'renewal.status': { actions: 'setRenewalStatus' },
+            'renewal.recovered': {
+              actions: assign({
+                renewal: ({ context, event }) =>
+                  context.renewal
+                    ? { ...context.renewal, quote: event.quote }
+                    : undefined,
+              }),
+            },
             'renewal.submitted': {
               actions: assign({ renewalHash: ({ event }) => event.hash }),
             },
@@ -735,17 +755,20 @@ export const migrationUiMachine = setup({
       on: {
         retry: [
           {
-            guard: ({ context }) => !!context.plan,
+            guard: ({ context }) =>
+              !!context.plan && canRetryMigration(context.lastError),
             target: 'migrate.running',
             actions: 'resetForRetry',
           },
           {
-            guard: ({ context }) => !!context.renewedDomains,
+            guard: ({ context }) =>
+              !!context.renewedDomains && canRetryMigration(context.lastError),
             target: 'migrate.preparing',
             actions: assign({ lastError: undefined }),
           },
           {
-            guard: ({ context }) => !!context.renewal,
+            guard: ({ context }) =>
+              !!context.renewal && canRetryMigration(context.lastError),
             target: 'migrate.renewing',
             actions: assign({ lastError: undefined }),
           },

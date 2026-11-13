@@ -21,15 +21,18 @@ import type {
   TransactionResult,
 } from '@rhinestone/sdk'
 import { errAsync, okAsync } from 'neverthrow'
-import type { Address, Hash, Hex } from 'viem'
+import type { Address, Hash, Hex, PublicClient } from 'viem'
+import { zeroHash } from 'viem'
 import { baseSepolia, mainnet, sepolia } from 'viem/chains'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ChainIdMismatchError,
   L2PaymentNotSentError,
   SessionRefundCapExceededError,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
+import { waitForTransaction } from '../helpers/waitForTransaction'
+import { transactionManager } from '../providers/transactionManager'
 import type { L2FundingSource, RhinestoneSigner } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -494,6 +497,105 @@ describe('submitWarpTransaction — session refund caps', () => {
   })
 })
 
+describe('submitWarpTransaction — constrained owner setup', () => {
+  const HCA = '0x1111111111111111111111111111111111111111' as const
+  const USDC = getDestinationContracts(mainnet.id).usdc
+  const calls = [
+    { to: USDC, data: '0xdeadbeef', value: 0n },
+    {
+      to: '0x2222222222222222222222222222222222222222',
+      data: '0xabcdef01',
+      value: 0n,
+    },
+  ] as const
+  const request = {
+    type: 'rhinestone-intent',
+    from: HCA,
+    chainId: 1,
+    rhinestoneParams: {
+      calls,
+      ownerIntentLimits: {
+        refundToken: USDC,
+        refundCaps: {
+          maxRefundExchangeRate: 3_000_000_000n,
+          maxRefundGasOverhead: 500_000n,
+          maxRefundAmount: 1_000_000n,
+        },
+      },
+    },
+  } as const
+  const setup = (
+    ops: readonly (typeof calls)[number][] = calls,
+    overhead = 100_000n,
+  ) => {
+    const signer = { ...createMockSigner(), config: { chain: mainnet } }
+    const prepared = {
+      intentRoute: {
+        intentOp: {
+          sponsor: HCA,
+          elements: [
+            {
+              chainId: '1',
+              idsAndAmounts: [],
+              spendTokens: [],
+              mandate: {
+                recipient: HCA,
+                destinationChainId: '1',
+                tokenOut: [],
+                preClaimOps: { vt: zeroHash, ops: [] },
+                destinationOps: { vt: `0x0201${'00'.repeat(30)}`, ops },
+                qualifier: {
+                  settlementContext: {
+                    settlementLayer: 'INTENT_EXECUTOR',
+                    fundingMethod: 'NO_FUNDING',
+                    using7579: true,
+                    gasRefund: {
+                      token: USDC,
+                      exchangeRate: '2568073614',
+                      overhead: ((20_660n << 128n) | overhead).toString(),
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    }
+    vi.mocked(signer.account.prepareTransaction).mockResolvedValue(
+      prepared as never,
+    )
+    return { signer, prepared }
+  }
+
+  it('rejects an owner setup fee above its independent cap before signing', async () => {
+    const { signer } = setup(calls, 500_001n)
+    const result = await submitWarpTransaction({ request, signer })
+    expect(result._unsafeUnwrapErr().message).toContain('refund')
+    expect(signer.account.signTransaction).not.toHaveBeenCalled()
+    expect(signer.account.submitTransaction).not.toHaveBeenCalled()
+  })
+
+  it('rejects substituted owner operations before signing', async () => {
+    const { signer } = setup([calls[1], calls[0]])
+    const result = await submitWarpTransaction({ request, signer })
+    expect(result._unsafeUnwrapErr().message).toContain('calls')
+    expect(signer.account.signTransaction).not.toHaveBeenCalled()
+    expect(signer.account.submitTransaction).not.toHaveBeenCalled()
+  })
+
+  it('signs the exact owner calls below the retained caps without an unsupported planner filter', async () => {
+    const { signer, prepared } = setup()
+    expect(
+      (await submitWarpTransaction({ request, signer }))._unsafeUnwrap(),
+    ).toBe(MOCK_TX_HASH)
+    expect(signer.account.prepareTransaction).not.toHaveBeenCalledWith(
+      expect.objectContaining({ settlementLayers: expect.anything() }),
+    )
+    expect(signer.account.signTransaction).toHaveBeenCalledWith(prepared)
+  })
+})
+
 describe('submitWarpTransaction — paid from an L2', () => {
   const OWNER = '0xd509C22482895c538D302556756630520677b76f' as Address
   const HCA = '0xcD5d6F82dbFDfAdf0f944EE7c0AD9eD9c8e4961d' as Address
@@ -742,5 +844,48 @@ describe('submitWarpTransaction — paid from an L2', () => {
 
     expect(error).toBeInstanceOf(TransactionSubmissionError)
     expect(error).not.toBeInstanceOf(L2PaymentNotSentError)
+  })
+})
+
+describe('warp intents through the transaction machine', () => {
+  afterEach(() => {
+    transactionManager.clear()
+  })
+
+  const publicClient = {
+    waitForTransactionReceipt: async ({ hash }: { hash: Hash }) => ({
+      status: 'success',
+      transactionHash: hash,
+      blockNumber: 1n,
+    }),
+  } as unknown as PublicClient
+
+  // The relayer's gas price rose after the quote: the orchestrator refuses the
+  // fill and marks it non-retryable, though a fresh quote prices it again.
+  it('re-quotes an intent whose gas refund the gas price outgrew', async () => {
+    const signer = createMockSigner()
+    const account = vi.mocked(signer.account)
+    account.submitTransaction.mockRejectedValueOnce(
+      Object.assign(new Error('Simulation failed: ExcessiveGasRefund()'), {
+        errorType: 'Bad Request',
+        statusCode: 400,
+        context: {
+          category: 'EXECUTION_FAILED',
+          errorName: 'ExcessiveGasRefund()',
+          retryable: false,
+        },
+      }),
+    )
+
+    const txId = transactionManager.startTransaction(
+      { type: 'custom', request: createRhinestoneRequest() },
+      signer,
+      { id: 'tx-warp-requote', publicClient, retryDelay: 1 },
+    )
+
+    await expect(waitForTransaction(txId)).resolves.toMatchObject({
+      hash: MOCK_TX_HASH,
+    })
+    expect(account.prepareTransaction).toHaveBeenCalledTimes(2)
   })
 })

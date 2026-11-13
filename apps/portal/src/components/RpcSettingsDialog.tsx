@@ -6,7 +6,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from './ui/dialog'
@@ -70,29 +69,27 @@ export const RpcSettingsDialog = ({
           </DialogDescription>
         </DialogHeader>
         <form
+          className="flex flex-col gap-2"
           onSubmit={(event) => {
             event.preventDefault()
             void save()
           }}
         >
-          <Input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="https://…"
-            aria-label="RPC URL"
-            aria-invalid={error !== null}
-            disabled={isSaving}
-          />
-          {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-            </p>
-          )}
-          <DialogFooter>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              className="flex-1"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="https://…"
+              aria-label="RPC URL"
+              aria-invalid={error !== null}
+              disabled={isSaving}
+            />
             {current && (
               <Button
                 variant="ghost"
                 type="button"
+                className="order-last basis-full sm:order-none sm:basis-auto"
                 onClick={() => void reset()}
               >
                 Reset to default
@@ -101,7 +98,12 @@ export const RpcSettingsDialog = ({
             <Button type="submit" disabled={isSaving}>
               {isSaving ? 'Saving…' : 'Save'}
             </Button>
-          </DialogFooter>
+          </div>
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
         </form>
       </DialogContent>
     </Dialog>

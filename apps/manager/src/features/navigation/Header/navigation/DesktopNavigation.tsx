@@ -2,6 +2,7 @@ import { useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import type React from 'react'
 import { useState } from 'react'
+import { match, P } from 'ts-pattern'
 import ensLogo from '@/assets/icons/ens.svg'
 import {
   Popover,
@@ -15,6 +16,8 @@ import { NavigationContent } from './NavigationContent'
 type DesktopNavigationProps = {
   readonly anchorRef?: React.RefObject<HTMLElement | null>
   readonly isConnected: boolean
+  /** Connected wallet theme. Swaps the static mark for the themed logo. */
+  readonly landingThemeColor?: string
   readonly profileHeader?: boolean
   readonly profileThemeColor?: string
 }
@@ -42,6 +45,7 @@ const ProfileThemeEnsLogo = ({ color }: { readonly color?: string }) => (
 export const DesktopNavigation = ({
   anchorRef,
   isConnected,
+  landingThemeColor,
   profileHeader = false,
   profileThemeColor,
 }: DesktopNavigationProps) => {
@@ -59,11 +63,20 @@ export const DesktopNavigation = ({
           className="flex shrink-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2"
           to={isConnected ? '/dashboard' : '/'}
         >
-          {profileHeader ? (
-            <ProfileThemeEnsLogo color={profileThemeColor} />
-          ) : (
-            <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
-          )}
+          {/* Connected-wallet theme replaces the static mark. The chevron follows profileHeader. */}
+          {match({ profileHeader, landingThemeColor })
+            .with({ profileHeader: true }, () => (
+              <ProfileThemeEnsLogo color={profileThemeColor} />
+            ))
+            .with(
+              { landingThemeColor: P.string.minLength(1) },
+              ({ landingThemeColor }) => (
+                <ProfileThemeEnsLogo color={landingThemeColor} />
+              ),
+            )
+            .otherwise(() => (
+              <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
+            ))}
         </Link>
         <PopoverTrigger
           aria-label={t`Open navigation`}
@@ -83,7 +96,7 @@ export const DesktopNavigation = ({
       <PopoverContent
         align="start"
         anchor={anchorRef}
-        className="w-97.5 max-w-(--available-width) bg-white p-6"
+        className="w-fit max-w-(--available-width) bg-white p-6"
         sideOffset={4}
       >
         <NavigationContent onAction={handleAction} />

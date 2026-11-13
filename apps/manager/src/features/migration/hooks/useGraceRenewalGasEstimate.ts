@@ -2,19 +2,20 @@ import type { V1Domain } from '@ens-apps/migration'
 import { useAtomicBatchSupport } from '@ens-apps/transaction-manager'
 import { formatGasEth } from '@ens-apps/utils/formatGasEth'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { hashKey, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useConfig } from 'wagmi'
 import { chain } from '@/config'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import {
   estimateGraceRenewalMigrationGas,
   type GraceRenewalMigrationGasEstimate,
 } from '../service/estimateGraceRenewalMigrationGas'
 import { migrationPreparationFailure } from '../service/migrationPreparationError'
+import type { UpgradeReadClients } from '../service/upgradeReadCoordinator'
+import { useUpgradeReadCoordinator } from '../state/upgradeReadCoordinator.context'
 import type { GraceRenewalQuoteState } from './useGraceRenewalQuote'
+import { useMigrationEstimateProgress } from './useMigrationEstimateProgress'
 import type { MigrationGasEstimateState } from './useMigrationGasEstimate'
 
 export type GraceRenewalGasEstimateState =
@@ -34,7 +35,6 @@ const graceRenewalGasEstimateQueryKey = createQueryKey<
       readonly selectedNames: readonly string[]
       readonly managerRestorationNames: readonly string[]
       readonly canBatchAtomically: boolean
-      readonly isSubnameRecreationEnabled: boolean
       readonly domains: readonly V1Domain[]
       readonly renewal:
         | {
@@ -84,11 +84,6 @@ export const useGraceRenewalGasEstimate = ({
 }): GraceRenewalGasEstimateState => {
   const wagmiConfig = useConfig()
   const canBatchAtomically = useAtomicBatchSupport(chain.id)
-  const isSubnameRecreationEnabled =
-    useFeatureFlagEnabled(
-      POSTHOG_FEATURE_FLAGS.MIGRATION_SUBNAME_RECREATION,
-      false,
-    ) === true
   const quote = renewal.status === 'ready' ? renewal.quote : undefined
   const domains = useMemo(() => {
     const selected = new Set(selectedNames)
@@ -101,7 +96,6 @@ export const useGraceRenewalGasEstimate = ({
     selectedNames: [...selectedNames].sort(),
     managerRestorationNames: [...managerRestorationNames].sort(),
     canBatchAtomically,
-    isSubnameRecreationEnabled,
     domains,
     renewal: quote && {
       chainId: quote.chainId,
@@ -114,26 +108,32 @@ export const useGraceRenewalGasEstimate = ({
       })),
     },
   }
+  const queryKey = graceRenewalGasEstimateQueryKey({
+    estimateIdentity,
+    quote: {
+      quotedAtMs: quote?.quotedAtMs,
+      expiresAt: quote?.expiresAt.toString(),
+      totalAmount: quote?.totalAmount.toString(),
+      items: quote?.items.map((item) => ({
+        duration: item.duration.toString(),
+        targetExpiry: item.targetExpiry.toString(),
+        registrationExpiry: item.registrationExpiry.toString(),
+        amount: item.amount.toString(),
+      })),
+    },
+  })
+  const { progress, start: startProgress } = useMigrationEstimateProgress(
+    queryKey,
+    selectedNames,
+  )
+  const coordinator = useUpgradeReadCoordinator()
   const query = useQuery<
     GraceRenewalMigrationGasEstimate,
     Error,
     GraceRenewalMigrationGasEstimate,
     ReturnType<typeof graceRenewalGasEstimateQueryKey>
   >({
-    queryKey: graceRenewalGasEstimateQueryKey({
-      estimateIdentity,
-      quote: {
-        quotedAtMs: quote?.quotedAtMs,
-        expiresAt: quote?.expiresAt.toString(),
-        totalAmount: quote?.totalAmount.toString(),
-        items: quote?.items.map((item) => ({
-          duration: item.duration.toString(),
-          targetExpiry: item.targetExpiry.toString(),
-          registrationExpiry: item.registrationExpiry.toString(),
-          amount: item.amount.toString(),
-        })),
-      },
-    }),
+    queryKey,
     // Keep the requests dialog open while this selection's quote refreshes.
     // Prices and durations may drift; another wallet, selection, or renewal
     // route must never inherit the previous estimate or request descriptors.
@@ -154,17 +154,25 @@ export const useGraceRenewalGasEstimate = ({
           'Could not estimate the network fee for every selected name.',
         )
       }
-      return estimateGraceRenewalMigrationGas({
-        quote,
-        domains,
-        hcaAddress,
-        publicClient,
-        wagmiConfig,
-        managerRestorationNames,
-        canBatchAtomically,
-        isSubnameRecreationEnabled,
-        signal,
-      })
+      const read = (clients?: UpgradeReadClients) =>
+        estimateGraceRenewalMigrationGas({
+          ...startProgress(signal),
+          quote,
+          domains,
+          hcaAddress,
+          publicClient,
+          ...clients,
+          wagmiConfig,
+          managerRestorationNames,
+          canBatchAtomically,
+          signal,
+        })
+      return coordinator
+        ? coordinator.run(
+            { owner: quote.ownerAddress, signal, mode: 'after-renewal' },
+            read,
+          )
+        : read()
     },
   })
 
@@ -172,7 +180,7 @@ export const useGraceRenewalGasEstimate = ({
     return { status: 'idle' }
   }
   if (!quote || !hcaAddress) {
-    return { status: 'loading' }
+    return { status: 'loading', ...(progress && { progress }) }
   }
   if (query.isError) {
     return {
@@ -180,7 +188,7 @@ export const useGraceRenewalGasEstimate = ({
       ...migrationPreparationFailure(query.error, 'fee'),
     }
   }
-  if (!query.data) return { status: 'loading' }
+  if (!query.data) return { status: 'loading', ...(progress && { progress }) }
   return {
     status: 'ready',
     ...query.data,

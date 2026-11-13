@@ -5,15 +5,19 @@ import { createContext, use, useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
+import { useHcaFundingPrompt } from '@/lib/smart-account/useHcaFundingPrompt'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { getRegistrationFailureReason } from '../service/registrationFailure'
 import { createRegistrationPersistenceAdapter } from '../service/registrationPersistence'
 import {
   getRegistrationV2ChildActor,
   getSuspendableRunOwner,
   registrationV2UiMachine,
 } from './registrationUi.machine'
+import { usePendingEthSwapPersistence } from './usePendingEthSwapPersistence'
 import { usePendingL2BridgePersistence } from './usePendingL2BridgePersistence'
 import { useRegistrationLockSweep } from './useRegistrationLockSweep'
 import {
@@ -44,9 +48,24 @@ export const RegistrationV2UiProvider = ({
   children: React.ReactNode
   label: string
 }) => {
+  const {
+    confirmApproval,
+    confirmApprovalRecovery,
+    approvalState,
+    onApprovalState,
+    approve,
+    decline,
+  } = useHcaFundingPrompt()
   const chainId = useChainId()
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
-    input: { chainId },
+    input: {
+      chainId,
+      approvalFallback: {
+        confirmApproval,
+        confirmApprovalRecovery,
+        onState: onApprovalState,
+      },
+    },
   })
 
   useRegistrationLockSweep()
@@ -83,6 +102,7 @@ export const RegistrationV2UiProvider = ({
   }, [registrationV2UiActor])
 
   usePendingL2BridgePersistence(registrationActor)
+  usePendingEthSwapPersistence(registrationActor)
 
   // The kill switch gates the writes and the resume together: a record that
   // will never be picked up should not be written either. Orphan cleanup is
@@ -104,6 +124,10 @@ export const RegistrationV2UiProvider = ({
         return {
           confirmedData: context.confirmedData,
           postRegistrationSetup: context.postRegistrationSetup,
+          // From the child's own error: the parent may not have read it yet.
+          failureReason: getRegistrationFailureReason(
+            registrationActor.getSnapshot().context.error,
+          ),
         }
       },
     })
@@ -143,6 +167,12 @@ export const RegistrationV2UiProvider = ({
       }}
     >
       {children}
+      <HcaFundingApprovalDialog
+        onApprove={approve}
+        onDecline={decline}
+        operation="registration"
+        state={approvalState}
+      />
     </RegistrationV2UiContext2.Provider>
   )
 }

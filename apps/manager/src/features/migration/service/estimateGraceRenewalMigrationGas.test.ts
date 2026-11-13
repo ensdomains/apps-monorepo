@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chain } from '@/config'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import { makeDomain } from './_fixtures'
+import { makeRpcSubnameInventory } from './_fixtures/rpcSubnameInventory'
 import { buildMigrationPlan } from './buildMigrationPlan'
 import {
   buildStepDescriptors,
@@ -103,9 +104,29 @@ const params = () => ({
   wagmiConfig: {} as Config,
 })
 
+const withoutRecreation: typeof discoverSubnameRecreation = async ({
+  domains,
+}) => ({
+  inventory: makeRpcSubnameInventory({ domains: [], rootNames: [] }),
+  domains,
+  snapshot: {
+    version: 5,
+    roots: [],
+    names: domains.map(({ name }) => name),
+    blockNumber: '1',
+    blockHash: namehash('no-recreation'),
+    timestamp: '1',
+    chainId: chain.id,
+    inventoryDigest: namehash('no-recreation-inventory'),
+  },
+  unrecoverable: [],
+})
+
 beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(Number(NOW) * 1000)
-  vi.mocked(discoverSubnameRecreation).mockReset()
+  vi.mocked(discoverSubnameRecreation)
+    .mockReset()
+    .mockImplementation(withoutRecreation)
   vi.mocked(computeMigrationPreflight)
     .mockReset()
     .mockResolvedValue({ skipFetchProfilesPhase: true })
@@ -156,7 +177,6 @@ describe('estimateGraceRenewalMigrationGas', () => {
         ...params(),
         domains: selected,
         quote: { ...makeQuote(), items: [makeItem(grace)], totalAmount: 10n },
-        isSubnameRecreationEnabled: true,
       }
       const projected = selected.map((domain) =>
         domain === grace
@@ -182,6 +202,10 @@ describe('estimateGraceRenewalMigrationGas', () => {
         resolverAddress: null,
       })
       const discovery = {
+        inventory: makeRpcSubnameInventory({
+          domains: [...projected, child],
+          rootNames: projected.map(({ name }) => name),
+        }),
         domains: [...projected, child],
         snapshot: {
           version: 5,
@@ -193,6 +217,7 @@ describe('estimateGraceRenewalMigrationGas', () => {
           chainId: chain.id,
           inventoryDigest: namehash('preview-inventory'),
         },
+        unrecoverable: [],
       } satisfies Awaited<ReturnType<typeof discoverSubnameRecreation>>
       vi.mocked(discoverSubnameRecreation).mockResolvedValue(discovery)
       vi.mocked(buildMigrationPlan).mockImplementation(async ({ domains }) => {
@@ -360,6 +385,10 @@ describe('estimateGraceRenewalMigrationGas', () => {
       publicClient: input.publicClient,
       signal: undefined,
     })
+    // The chain cannot measure approvals for names still in grace.
+    expect(estimateMigrationGasCost).toHaveBeenCalledWith(
+      expect.objectContaining({ budgetUnmeasurableApprovals: true }),
+    )
     const projected = vi.mocked(buildMigrationPlan).mock.calls[0]?.[0].domains
     expect(projected).toEqual([
       { ...unwrapped, registration: { expiryDate: TARGET.toString() } },

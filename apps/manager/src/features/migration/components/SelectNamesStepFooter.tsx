@@ -1,18 +1,24 @@
 import type { GasAffordability } from '@ens-apps/utils/gasAffordability'
+import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
 import { useVisibleCommemorativeNftStatus } from '@/features/migration/commemorative-nft/useVisibleCommemorativeNftEligibility'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { namesWithDroppedPubkey } from '@/features/migration/service/buildMigrationPlan'
 import { migrationPreparationMessage } from '@/features/migration/service/migrationPreparationError'
+import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { TOKENS } from '@/lib/tokens'
 import type { GraceRenewalGasEstimateState } from '../hooks/useGraceRenewalGasEstimate'
 import type { GraceRenewalQuoteState } from '../hooks/useGraceRenewalQuote'
+import type { MigrationEstimateStage } from '../service/migrationEstimateProgress'
 import { GrainOverlay } from './GrainOverlay'
 import { MigrationUpgradeButton } from './MigrationUpgradeButton'
+import { SmartTransactionsNotice } from './SmartTransactionsNotice'
+import { shouldShowSmartTransactionsNotice } from './selectNames.helpers'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 const DroppedPubkeyWarning = ({
@@ -32,6 +38,56 @@ const DroppedPubkeyWarning = ({
         </Trans>
       </span>
     </p>
+  )
+}
+
+const PreparationProgress = ({
+  stage,
+  percentage,
+}: {
+  readonly stage: MigrationEstimateStage
+  readonly percentage: number
+}) => {
+  const { _ } = useLingui()
+  const label = match(stage)
+    .with('checking-names', () => <Trans>Checking your names...</Trans>)
+    .with('finding-records', () => (
+      <Trans>Gathering your name details...</Trans>
+    ))
+    .with('reading-records', () => <Trans>Checking your name details...</Trans>)
+    .with('preparing-upgrade', () => <Trans>Preparing your upgrade...</Trans>)
+    .with('checking-upgrade', () => (
+      <Trans>Checking everything is ready...</Trans>
+    ))
+    .with('checking-fee', () => <Trans>Checking the network fee...</Trans>)
+    .exhaustive()
+  return (
+    <div
+      aria-atomic="true"
+      aria-live="polite"
+      className="flex flex-col gap-2"
+      role="status"
+    >
+      <p className="flex items-baseline justify-between gap-3">
+        <span>{label}</span>
+        <span className="shrink-0 whitespace-nowrap tabular-nums">
+          {percentage}%
+        </span>
+      </p>
+      <div
+        aria-label={_(msg`Preparing your upgrade`)}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={percentage}
+        className="h-1 w-full overflow-hidden rounded-full bg-ens-garnet-900/10"
+        role="progressbar"
+      >
+        <div
+          className="h-full origin-left rounded-full bg-ens-garnet-500 motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out"
+          style={{ transform: `scaleX(${percentage / 100})` }}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -65,12 +121,17 @@ const GasEstimateMessage = ({
     )
   }
 
-  return match({ gasEstimate, gasAffordability })
-    .with({ gasEstimate: { status: 'loading' } }, () => (
-      <p>
-        <Trans>Estimating the network fee...</Trans>
-      </p>
-    ))
+  const progress = match(gasEstimate)
+    .with(
+      { status: 'loading' },
+      (estimate) =>
+        estimate.progress ?? {
+          stage: 'checking-names' as const,
+          percentage: 0,
+        },
+    )
+    .otherwise(() => null)
+  const details = match({ gasEstimate, gasAffordability })
     .with({ gasEstimate: { status: 'ready' } }, ({ gasEstimate: estimate }) => (
       <div>
         <p>
@@ -121,6 +182,12 @@ const GasEstimateMessage = ({
       <p>{_(migrationPreparationMessage(estimate))}</p>
     ))
     .otherwise(() => null)
+  return (
+    <div className="flex flex-col gap-3">
+      {progress && <PreparationProgress {...progress} />}
+      {details}
+    </div>
+  )
 }
 
 type UpgradeButtonLabelProps = {
@@ -142,7 +209,7 @@ const UpgradeButtonLabel = ({
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
   if (hasInsufficientUsdc) return <Trans>Insufficient USDC</Trans>
-  if (isEstimatingGas) return <Trans>Estimating...</Trans>
+  if (isEstimatingGas) return <Trans>Preparing...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
   if (isFinishingRecovery) return <Trans>Finish upgrade</Trans>
   return (
@@ -161,6 +228,8 @@ type SelectNamesStepFooterProps = {
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isFinishingRecovery?: boolean
+  readonly isMetaMaskWallet: boolean
+  readonly hasWrapperSyncNames: boolean
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
@@ -210,6 +279,8 @@ export const SelectNamesStepFooter = ({
   isEstimatingGas,
   isStarting,
   isFinishingRecovery = false,
+  isMetaMaskWallet,
+  hasWrapperSyncNames,
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
@@ -220,15 +291,20 @@ export const SelectNamesStepFooter = ({
 }: SelectNamesStepFooterProps) => {
   const { eligibility: nftEligibility, isConfirmedUnclaimed } =
     useVisibleCommemorativeNftStatus()
+  const [bar, setBar] = useState<HTMLElement | null>(null)
+  useIntercomClearance(bar)
   const nftCopyEnabled = !!nftEligibility
   const hasInsufficientUsdc =
     renewal.status === 'ready' &&
     renewal.quote.balance < renewal.quote.totalAmount
 
   return (
-    <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-24 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-4 lg:px-37.5">
+    <div
+      className="sticky inset-x-0 bottom-0 z-20 flex w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-5 pt-4 pb-5 sm:min-h-24 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-4 lg:px-37.5"
+      ref={setBar}
+    >
       <GrainOverlay />
-      <div className="relative flex min-w-0 max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
+      <div className="relative flex w-full min-w-0 max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
         {renewal.status === 'idle' ? (
           <GasEstimateMessage
             gasAffordability={gasAffordability}
@@ -257,6 +333,12 @@ export const SelectNamesStepFooter = ({
             )}
           </>
         )}
+        {shouldShowSmartTransactionsNotice({
+          isMetaMaskWallet,
+          totalSelected,
+          isFinishingRecovery,
+          hasWrapperSyncNames,
+        }) && <SmartTransactionsNotice />}
       </div>
       <div className="relative flex w-full flex-col gap-1 sm:w-auto">
         <MigrationUpgradeButton

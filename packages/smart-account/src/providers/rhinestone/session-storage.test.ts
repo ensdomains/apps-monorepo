@@ -1,6 +1,7 @@
 /**
  * @vitest-environment happy-dom
  */
+import * as fc from 'fast-check'
 import type { Address, Hex } from 'viem'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -24,8 +25,11 @@ import type { RhinestoneStoredSession } from './types'
 const HCA_A: Address = '0xaAaA000000000000000000000000000000000001'
 const HCA_B: Address = '0xbBbB000000000000000000000000000000000002'
 const OWNER: Address = '0x1111111111111111111111111111111111111111'
+const OTHER_OWNER: Address = '0x2222222222222222222222222222222222222222'
 
 const NOW_SEC = Math.floor(Date.now() / 1000)
+const SESSION_STORAGE_KEY = 'ens-sessions-v11'
+const CIRCLE_USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 
 function makeSession(
   overrides: Partial<RhinestoneStoredSession> = {},
@@ -52,6 +56,84 @@ function makeSession(
   }
 }
 
+type SessionOperation =
+  | { readonly type: 'save'; readonly session: RhinestoneStoredSession }
+  | { readonly type: 'remove-account'; readonly accountAddress: Address }
+  | { readonly type: 'remove-owner'; readonly ownerAddress: Address }
+  | { readonly type: 'clear' }
+
+const storedSessionArbitrary: fc.Arbitrary<RhinestoneStoredSession> = fc
+  .record({
+    id: fc.uuid(),
+    smartAccountAddress: fc.constantFrom(HCA_A, HCA_B),
+    ownerAddress: fc.constantFrom(OWNER, OTHER_OWNER),
+    chainId: fc.constantFrom(1, 11155111),
+  })
+  .map((overrides) => makeSession(overrides))
+
+const sessionOperationArbitrary: fc.Arbitrary<SessionOperation> = fc.oneof(
+  storedSessionArbitrary.map((session) => ({
+    type: 'save' as const,
+    session,
+  })),
+  fc.constantFrom(HCA_A, HCA_B).map((accountAddress) => ({
+    type: 'remove-account' as const,
+    accountAddress,
+  })),
+  fc.constantFrom(OWNER, OTHER_OWNER).map((ownerAddress) => ({
+    type: 'remove-owner' as const,
+    ownerAddress,
+  })),
+  fc.constant({ type: 'clear' as const }),
+)
+
+const applyOperationToModel = (
+  sessions: readonly RhinestoneStoredSession[],
+  operation: SessionOperation,
+): readonly RhinestoneStoredSession[] => {
+  switch (operation.type) {
+    case 'save':
+      return [
+        ...sessions.filter(
+          (session) =>
+            session.smartAccountAddress.toLowerCase() !==
+            operation.session.smartAccountAddress.toLowerCase(),
+        ),
+        operation.session,
+      ]
+    case 'remove-account':
+      return sessions.filter(
+        (session) =>
+          session.smartAccountAddress.toLowerCase() !==
+          operation.accountAddress.toLowerCase(),
+      )
+    case 'remove-owner':
+      return sessions.filter(
+        (session) =>
+          session.ownerAddress.toLowerCase() !==
+          operation.ownerAddress.toLowerCase(),
+      )
+    case 'clear':
+      return []
+  }
+}
+
+const applyOperationToStorage = (operation: SessionOperation): void => {
+  switch (operation.type) {
+    case 'save':
+      saveSession(operation.session)
+      return
+    case 'remove-account':
+      removeSession(operation.accountAddress)
+      return
+    case 'remove-owner':
+      removeSessionsByOwner(operation.ownerAddress)
+      return
+    case 'clear':
+      clearAllSessions()
+  }
+}
+
 describe('session-storage', () => {
   beforeEach(() => {
     clearAllSessions()
@@ -68,6 +150,60 @@ describe('session-storage', () => {
     saveSession(s)
     expect(getSession(HCA_A)?.id).toBe(s.id)
     expect(getSession(HCA_A.toUpperCase() as Address)?.id).toBe(s.id)
+  })
+
+  it('ignores generated malformed session rows', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.jsonValue(), { minLength: 1, maxLength: 8 }),
+        (rows) => {
+          localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(rows))
+
+          expect(getAllSessions()).toEqual([])
+          expect(getSession(HCA_A)).toBeNull()
+        },
+      ),
+    )
+  })
+
+  it('keeps a valid session among generated malformed rows', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.jsonValue(), { maxLength: 4 }),
+        fc.array(fc.jsonValue(), { maxLength: 4 }),
+        (before, after) => {
+          const session = makeSession()
+          localStorage.setItem(
+            SESSION_STORAGE_KEY,
+            JSON.stringify([...before, session, ...after]),
+          )
+
+          expect(getAllSessions()).toEqual([session])
+        },
+      ),
+    )
+  })
+
+  it('matches an immutable model across generated operation sequences', () => {
+    fc.assert(
+      fc.property(
+        fc.array(sessionOperationArbitrary, { minLength: 1, maxLength: 40 }),
+        (operations) => {
+          clearAllSessions()
+
+          operations.reduce<readonly RhinestoneStoredSession[]>(
+            (model, operation) => {
+              applyOperationToStorage(operation)
+              const nextModel = applyOperationToModel(model, operation)
+
+              expect(getAllSessions()).toEqual(nextModel)
+              return nextModel
+            },
+            [],
+          )
+        },
+      ),
+    )
   })
 
   it('looks up by owner EOA', () => {
@@ -91,6 +227,19 @@ describe('session-storage', () => {
     saveSession(b)
     expect(getSession(HCA_A)?.id).toBe(a.id)
     expect(getSession(HCA_B)?.id).toBe(b.id)
+  })
+
+  it('keeps one session per refund token for an account', () => {
+    const usdc = makeSession()
+    const circle = makeSession({ refundToken: CIRCLE_USDC })
+    saveSession(usdc)
+    saveSession(circle)
+    expect(getSession(HCA_A)?.id).toBe(usdc.id)
+    expect(getSession(HCA_A, CIRCLE_USDC)?.id).toBe(circle.id)
+
+    // Revocation bumps one nonce for every token, so forgetting drops both.
+    removeSession(HCA_A)
+    expect(getAllSessions()).toEqual([])
   })
 
   it('removes by account and by owner', () => {
@@ -158,8 +307,6 @@ describe('session-storage', () => {
 
   describe('getValidSessionForAccount (owner + chain scoped reuse)', () => {
     const CHAIN_ID = 11155111
-    const OTHER_OWNER: Address = '0x2222222222222222222222222222222222222222'
-
     it('returns the session when account, owner and chain all match', () => {
       const s = makeSession({ chainId: CHAIN_ID })
       saveSession(s)

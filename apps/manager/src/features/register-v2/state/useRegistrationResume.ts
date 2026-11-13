@@ -199,9 +199,13 @@ async function enableSessionAndDispatch(params: {
   // rejects one with too little headroom left to outlive the commitment
   // cooldown — the case that would otherwise strand a paid commitment with an
   // unsignable reveal.
-  const outcome = needsSessionBeforeRegistration(account)
-    ? await account.enableSession()
-    : undefined
+  // A run paid with ETH in another USDC continues on that USDC's own session.
+  const refundToken = verdict.stored.record.context.paymentTokenAddress
+  const outcome = refundToken
+    ? await account.enableSession({ refundToken })
+    : needsSessionBeforeRegistration(account)
+      ? await account.enableSession()
+      : undefined
   if (outcome && outcome.status !== 'enabled') {
     // Declined or failed. Leave the record in place and stay un-latched so
     // a reconnect can still resume.
@@ -436,6 +440,7 @@ export function useRegistrationResume(params: {
         type: 'registration.failure.restore',
         confirmedData,
         run: storedRegistrationKey(stored),
+        failureReason: stored.failureReason,
       })
       decidedForLabel.current = label
       // Dropped unless the page was still on pricing, so nothing is shown.

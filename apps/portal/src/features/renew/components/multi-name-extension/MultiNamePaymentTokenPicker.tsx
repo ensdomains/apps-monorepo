@@ -5,13 +5,16 @@ import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
+import { isSepoliaBuild } from '@/config'
 import {
   type PaymentTokenDisplay,
   PaymentTokenList,
 } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { getPaymentHeading } from '@/features/register/utils/paymentHeading'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import type {
   MultiRenewalEntry,
   RenewerPayment,
@@ -119,6 +122,8 @@ export const MultiNamePaymentTokenPicker = ({
 
   if (isLoading) return <Skeleton />
 
+  if (!hasAddress) return <ConnectWalletAlert />
+
   // A settled-but-errored price read must NOT be treated as 0: that would
   // understate a renewer's approval total (risking an on-chain revert) and make
   // a token look affordable when it isn't. If any name's price failed to resolve,
@@ -203,7 +208,9 @@ export const MultiNamePaymentTokenPicker = ({
 
   return (
     <>
-      <h2 className="text-base font-medium">Select payment method</h2>
+      <h2 className="text-base font-medium">
+        {getPaymentHeading('renew', isSepoliaBuild)}
+      </h2>
       {noSupportedTokenHasSufficientBalance ? (
         <MessageCard
           variant="warning"

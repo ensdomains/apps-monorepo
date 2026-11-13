@@ -3,27 +3,25 @@ import { err, ok, type Result } from 'neverthrow'
 import { normalize } from 'viem/ens'
 
 // ENS names rules:
-// - Minimum 3 characters for the label (excluding .eth)
-// - Allowed: letters, numbers, hyphens, emojis
-// - Not allowed: spaces, special characters like &, *, etc.
+// - Registration's minimum label length is enforced by callers
+// - Character validity and canonical spelling are determined by ENSIP-15
 // - No multiple consecutive dots
 // - Any tld is allowed, if not present, it is assumed to be .eth
-// - Labels must already be in ENSIP-15 normalised form, up to case
-
-const INVALID_LABEL_CHARS = /[&*@#$%^()[\]{}|\\:;"'<>?,=+~`!]/
+// - parseName requires ENSIP-15 normalised form, up to case
+// - parseCanonicalName accepts rewrites for registration redirects
 
 type ParseNameReason =
   | 'SPACE_NOT_ALLOWED'
   | 'MULTIPLE_CONSECUTIVE_DOTS'
   | 'LABEL_NOT_FOUND'
-  | 'INVALID_CHARACTER'
+  | 'INVALID_NAME'
   | 'NOT_NORMALIZED'
 
 const PARSE_NAME_MESSAGES: Record<ParseNameReason, string> = {
   SPACE_NOT_ALLOWED: 'ENS names cannot contain spaces.',
   MULTIPLE_CONSECUTIVE_DOTS: 'ENS names cannot contain consecutive dots.',
   LABEL_NOT_FOUND: 'This name is missing a label.',
-  INVALID_CHARACTER: 'This name contains a character ENS does not allow.',
+  INVALID_NAME: 'This name does not meet ENS naming rules.',
   NOT_NORMALIZED:
     'This name contains characters that are not displayed as written, so it cannot be used. Check the link and type the name yourself.',
 }
@@ -79,17 +77,11 @@ export const parseCanonicalName = (
     return ParseNameError.err('MULTIPLE_CONSECUTIVE_DOTS')
   }
 
-  const rawLabels = trimmed.split('.').filter(Boolean)
-
-  if (rawLabels.some((part) => INVALID_LABEL_CHARS.test(part))) {
-    return ParseNameError.err('INVALID_CHARACTER')
-  }
-
-  const joined = rawLabels.join('.')
+  const joined = trimmed.split('.').filter(Boolean).join('.')
 
   return fromSync(
     () => normalize(joined),
-    () => new ParseNameError({ reason: 'NOT_NORMALIZED' as const }),
+    () => new ParseNameError({ reason: 'INVALID_NAME' as const }),
   ).andThen((normalized) => {
     const labels = normalized.split('.')
     const tld = labels.length > 1 ? labels.pop() : 'eth'

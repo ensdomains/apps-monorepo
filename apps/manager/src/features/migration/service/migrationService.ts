@@ -44,6 +44,10 @@ import {
   assertLockedResolverReplacementRecordSafety,
   type MigrationPlan,
 } from './buildMigrationPlan'
+import {
+  buildStepDescriptors,
+  type MigrationStepDescriptor,
+} from './buildStepDescriptors'
 import type {
   CopyClassifiedName,
   DirectClassifiedName,
@@ -101,12 +105,19 @@ import {
   resolverWriterFor,
 } from './migrationInvariants'
 import {
+  createMigrationProgress,
+  getMigrationProgress,
+  migrationOperationDescriptor,
+  migrationProgressStepId,
+  updateMigrationProgress,
+} from './migrationProgress'
+import {
   describeRecoveredOperations,
   describeUpgradeOperations,
   nameCount,
 } from './migrationProgressCopy'
 import { planSetupBundles } from './planSetupBundles'
-
+import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
   assertSubnameRecreationUnchanged,
@@ -221,6 +232,7 @@ export type MigrationProgress = {
   readonly migratedCount?: number
   readonly copiedCount?: number
   readonly isRecovering?: boolean
+  readonly stepDescriptors?: readonly MigrationStepDescriptor[]
 }
 
 export type MigrationResult = {
@@ -240,16 +252,64 @@ type Tracker = {
     operations?: readonly MigrationJournalOperation[],
     isRecovering?: boolean,
   ) => void
-  next: () => void
+  finishStep: (descriptor: MigrationStepDescriptor) => void
+  registerBatch: (batch: AtomicMigrationBatch) => void
+  finishBatchStep: (
+    batch: AtomicMigrationBatch,
+    type: 'atomic-batch' | 'record-replay',
+  ) => void
+  recover: (operations: readonly MigrationJournalOperation[]) => void
   complete: (description: string, txHash?: Hex) => void
 }
 
+const planStepDescriptors = (
+  plan: MigrationPlan,
+): readonly MigrationStepDescriptor[] =>
+  plan.stepDescriptors.length > 0
+    ? plan.stepDescriptors
+    : buildStepDescriptors({
+        hcaDeploymentRequired: plan.hcaDeploymentRequired,
+        approvals: plan.preflight.migrationApprovals ?? [],
+        atomicBatches: plan.atomicBatches,
+        registrationApprovalTargets: [],
+        canBatchAtomically: plan.canBatchAtomically,
+      })
+
+const progressStep = (
+  descriptor: MigrationStepDescriptor,
+  batch?: AtomicMigrationBatch,
+) => ({
+  descriptor,
+  operations: batch
+    ? batch.operations.filter(
+        ({ name }) =>
+          descriptor.type !== 'record-replay' ||
+          walletReplayNames(batch).includes(name),
+      )
+    : [],
+})
+
+const batchProgressSteps = (batch: AtomicMigrationBatch) =>
+  buildStepDescriptors({
+    hcaDeploymentRequired: false,
+    approvals: [],
+    atomicBatches: [batch],
+    registrationApprovalTargets: [],
+  }).map((descriptor) => progressStep(descriptor, batch))
+
 const createTracker = (
   onProgress: (progress: MigrationProgress) => void,
-  totalSteps: number,
+  plan: MigrationPlan,
 ): Tracker => {
-  let currentStep = 0
-  const normalizedTotal = Math.max(totalSteps, 1)
+  let steps = createMigrationProgress(
+    planStepDescriptors(plan).map((descriptor) => {
+      const batchIndex = migrationOperationDescriptor(descriptor)?.index
+      return progressStep(
+        descriptor,
+        batchIndex === undefined ? undefined : plan.atomicBatches[batchIndex],
+      )
+    }),
+  )
   const emit = (
     description: string,
     txHash?: Hex,
@@ -261,8 +321,7 @@ const createTracker = (
       ({ action }) => action === 'migrate',
     ).length
     onProgress({
-      currentStep,
-      totalSteps: normalizedTotal,
+      ...getMigrationProgress(steps),
       description,
       txHash,
       ...(isAwaitingConfirmation ? { isAwaitingConfirmation } : {}),
@@ -281,12 +340,36 @@ const createTracker = (
     submitted(description, txHash) {
       emit(description, txHash, undefined, false, true)
     },
-    next() {
-      currentStep = Math.min(currentStep + 1, normalizedTotal)
+    finishStep(descriptor) {
+      steps = updateMigrationProgress(steps, {
+        type: 'step-complete',
+        id: migrationProgressStepId(progressStep(descriptor)),
+      })
+    },
+    registerBatch(batch) {
+      steps = updateMigrationProgress(steps, {
+        type: 'batch-built',
+        operations: batch.operations,
+        steps: batchProgressSteps(batch),
+      })
+    },
+    finishBatchStep(batch, type) {
+      for (const step of batchProgressSteps(batch).filter(
+        ({ descriptor }) => descriptor.type === type,
+      ))
+        steps = updateMigrationProgress(steps, {
+          type: 'step-complete',
+          id: migrationProgressStepId(step),
+        })
+    },
+    recover(operations) {
+      steps = updateMigrationProgress(steps, {
+        type: 'operations-recovered',
+        operations,
+      })
     },
     complete(description, txHash) {
-      if (currentStep >= normalizedTotal) return
-      currentStep = normalizedTotal
+      steps = updateMigrationProgress(steps, { type: 'complete' })
       emit(description, txHash)
     },
   }
@@ -572,7 +655,7 @@ const ensureHcaDeployment = async (params: {
         chainId: requireChainId(ctx.publicClient, 'migration'),
       })
       await refreshAccount()
-      ctx.tracker.next()
+      ctx.tracker.finishStep({ type: 'deploy-hca' })
       ctx.tracker.emit('Ready', hash)
       return hash
     } catch (error) {
@@ -590,7 +673,7 @@ const ensureHcaDeployment = async (params: {
   // still contains the deployment descriptor, so consume that planned step
   // even though no second transaction is sent.
   if (plannedDeployment) {
-    ctx.tracker.next()
+    ctx.tracker.finishStep({ type: 'deploy-hca' })
     ctx.tracker.emit('Already set up')
   }
   return null
@@ -1032,7 +1115,7 @@ const assertMigrationApprovalPlanCurrent = async (params: {
   return missing
 }
 
-/** Planned approvals in preview order (with what is still missing), then unplanned ones. */
+/** Planned approvals in preview order, with what is still missing. */
 const orderMigrationApprovals = (
   plan: MigrationPlan,
   missing: readonly MigrationApproval[],
@@ -1043,22 +1126,10 @@ const orderMigrationApprovals = (
   const missingById = new Map(
     missing.map((approval) => [migrationApprovalKey(approval), approval]),
   )
-  const plannedApprovals = plan.preflight.migrationApprovals ?? []
-  return [
-    ...plannedApprovals.map((approval) => ({
-      approval,
-      missing: missingById.get(migrationApprovalKey(approval)),
-    })),
-    ...missing
-      .filter(
-        (approval) =>
-          !plannedApprovals.some(
-            (planned) =>
-              migrationApprovalKey(planned) === migrationApprovalKey(approval),
-          ),
-      )
-      .map((approval) => ({ approval, missing: approval })),
-  ]
+  return (plan.preflight.migrationApprovals ?? []).map((approval) => ({
+    approval,
+    missing: missingById.get(migrationApprovalKey(approval)),
+  }))
 }
 
 /**
@@ -1105,7 +1176,10 @@ const ensureBundledSetup = async (params: {
     })
 
     const hashes: Hex[] = []
-    for (const bundle of bundles) {
+    for (const [index, bundle] of bundles.entries()) {
+      const descriptor = planStepDescriptors(plan).filter(
+        (step) => migrationOperationDescriptor(step) === undefined,
+      )[index]
       const calls = bundle.flatMap((step): Call[] =>
         match(step)
           .with({ type: 'deploy-hca' }, () => [
@@ -1124,7 +1198,7 @@ const ensureBundledSetup = async (params: {
       )
       if (calls.length === 0) {
         // A retry can find setup already done; consume its planned step.
-        ctx.tracker.next()
+        if (descriptor) ctx.tracker.finishStep(descriptor)
         ctx.tracker.emit('Already set up')
         continue
       }
@@ -1134,7 +1208,7 @@ const ensureBundledSetup = async (params: {
         await params.refreshAccount()
       }
       hashes.push(hash)
-      ctx.tracker.next()
+      if (descriptor) ctx.tracker.finishStep(descriptor)
       ctx.tracker.emit('Ready', hash)
     }
     return {
@@ -1151,11 +1225,10 @@ const ensureBundledSetup = async (params: {
 const ensureMigrationApprovals = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
-  readonly currentMissing?: readonly MigrationApproval[]
+  readonly currentMissing: readonly MigrationApproval[]
 }): Promise<readonly Hex[]> => {
   const { ctx, plan } = params
-  const missing =
-    params.currentMissing ?? (await getCurrentMigrationApprovals({ ctx, plan }))
+  const missing = params.currentMissing
 
   const hashes: Hex[] = []
   for (const { approval, missing: missingApproval } of orderMigrationApprovals(
@@ -1163,7 +1236,13 @@ const ensureMigrationApprovals = async (params: {
     missing,
   )) {
     if (!missingApproval) {
-      ctx.tracker.next()
+      ctx.tracker.finishStep({
+        type: 'approval',
+        approvalId: approval.id,
+        ...(approval.kind === 'erc721-token'
+          ? { tokenId: approval.tokenId }
+          : {}),
+      })
       ctx.tracker.emit('Permission already granted')
       continue
     }
@@ -1242,7 +1321,13 @@ const ensureMigrationApprovals = async (params: {
         })
       }
       hashes.push(hash)
-      ctx.tracker.next()
+      ctx.tracker.finishStep({
+        type: 'approval',
+        approvalId: approval.id,
+        ...(approval.kind === 'erc721-token'
+          ? { tokenId: approval.tokenId }
+          : {}),
+      })
       ctx.tracker.emit('Permission granted', hash)
     } catch (error) {
       if (
@@ -1501,7 +1586,6 @@ const reconcileSubmittedAtomicBatch = async (params: {
         domains: params.plan.registryContext
           .filter(({ domain }) => submission.names.includes(domain.name))
           .map(({ domain }) => domain),
-        toBlock: receipt.blockNumber,
         ownTransactionHash: submission.hash,
       })
     await verifyAtomicMigrationBatch({
@@ -2213,7 +2297,7 @@ const prepareExecutionPlan = async (params: {
 
     for (const { names, operations, hash } of recoveredSubmissions) {
       params.onBatchComplete?.(operations, hash)
-      params.ctx.tracker.next()
+      params.ctx.tracker.recover(operations)
       params.ctx.tracker.emit(
         describeRecoveredOperations(names, operations),
         hash,
@@ -2254,7 +2338,7 @@ const prepareExecutionPlan = async (params: {
 
     for (const { names, operations } of completedGroups) {
       params.onBatchComplete?.(operations)
-      params.ctx.tracker.next()
+      params.ctx.tracker.recover(operations)
       params.ctx.tracker.emit(
         describeRecoveredOperations(names, operations),
         undefined,
@@ -2311,7 +2395,7 @@ const replayWalletRecords = async (params: {
   const replayNames = walletReplayNames(batch)
   const description = `Copying records for ${nameCount(replayNames.length)}`
   if (await walletReplayAlreadyApplied(params)) {
-    params.ctx.tracker.next()
+    params.ctx.tracker.finishBatchStep(batch, 'record-replay')
     params.ctx.tracker.emit('Records already copied')
     return
   }
@@ -2323,23 +2407,8 @@ const replayWalletRecords = async (params: {
     undefined,
     withGasBuffer(batch.walletEstimatedGas),
   )
-  params.ctx.tracker.next()
+  params.ctx.tracker.finishBatchStep(batch, 'record-replay')
   params.ctx.tracker.emit('Records copied')
-}
-
-const assertSubnameRecreationEnabled = (
-  plan: MigrationPlan,
-  canRecreateSubnames?: () => boolean,
-): void => {
-  if (
-    plan.subnameRecreation &&
-    (plan.isSubnameRecreationEnabled === false ||
-      canRecreateSubnames?.() === false)
-  ) {
-    throw new Error(
-      'Subname migration is not enabled for this session. Your transaction history has been reconciled; remaining imports are preserved for later.',
-    )
-  }
 }
 
 const executeRemainingAtomicBatches = async (params: {
@@ -2348,15 +2417,14 @@ const executeRemainingAtomicBatches = async (params: {
   readonly publicClient: PublicClient
   readonly onBatchComplete?: OnBatchComplete
   readonly retryPermissionHeadLag: boolean
-  readonly canRecreateSubnames?: () => boolean
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
   let remaining = [...params.plan.classified]
   const journalScope = batchJournalScope(params.ctx)
   let retryPermissionHeadLag = params.retryPermissionHeadLag
+  let subnameInventory: RpcSubnameInventory | undefined
 
   while (remaining.length > 0) {
-    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     const batch = await buildNextAtomicBatch({
       ctx: params.ctx,
       plan: params.plan,
@@ -2376,10 +2444,15 @@ const executeRemainingAtomicBatches = async (params: {
     })
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
-      ownerAddress: params.plan.migrationOwner,
       classified: remaining,
+      signal: params.ctx.submissionGate.signal,
+      inventory: subnameInventory,
+      onInventory: (inventory) => {
+        subnameInventory = inventory
+      },
+      unknownLabelNames: params.plan.subnameRecreation?.skipped,
     })
-    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
+    params.ctx.tracker.registerBatch(batch)
     const description = describeUpgradeOperations(batch.operations)
     try {
       await replayWalletRecords({
@@ -2403,7 +2476,6 @@ const executeRemainingAtomicBatches = async (params: {
       names: batch.names,
       operations: batch.operations,
     }
-    assertSubnameRecreationEnabled(params.plan, params.canRecreateSubnames)
     params.ctx.submissionGate.signal.throwIfAborted()
     persistPendingAtomicMigrationAttempt(journalScope, {
       recovery: recoverySnapshotFor(
@@ -2447,7 +2519,6 @@ const executeRemainingAtomicBatches = async (params: {
           domains: params.plan.registryContext
             .filter(({ domain }) => batch.names.includes(domain.name))
             .map(({ domain }) => domain),
-          toBlock: receipt.blockNumber,
           ownTransactionHash: hash,
         })
       await verifyAtomicMigrationBatch({
@@ -2477,7 +2548,7 @@ const executeRemainingAtomicBatches = async (params: {
       hashes.push(hash)
       params.onBatchComplete?.(batch.operations, hash)
       remaining = nextRemaining
-      params.ctx.tracker.next()
+      params.ctx.tracker.finishBatchStep(batch, 'atomic-batch')
       params.ctx.tracker.emit('Batch confirmed', hash, batch.operations)
     } catch (error) {
       if (!submittedHash && isUserRejection(error)) {
@@ -2528,7 +2599,6 @@ export const executeMigration = async (params: {
   readonly onBatchComplete?: OnBatchComplete
   /** Set on retry to reconcile a receipt whose post-state polling was uncertain. */
   readonly reconcileBeforeSubmit?: boolean
-  readonly canRecreateSubnames?: () => boolean
 }): Promise<MigrationResult> => {
   const {
     plan,
@@ -2569,7 +2639,7 @@ export const executeMigration = async (params: {
     signer,
     walletAddress: plan.migrationOwner,
     hcaAddress: plan.hcaAddress,
-    tracker: createTracker(onProgress, plan.stepDescriptors.length),
+    tracker: createTracker(onProgress, plan),
     canBatchAtomically:
       plan.registrationApprovalStrategy !== 'temporary-operator' &&
       plan.canBatchAtomically === true,
@@ -2597,7 +2667,6 @@ export const executeMigration = async (params: {
     // Reconcile mined work before checking capabilities: completed recovery
     // does not need a wallet bundle and must not resubmit completed migrations.
     await assertAtomicBatchingAvailable(ctx)
-    assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
     // Re-read every destination pointer this plan writes, immediately before
     // the first wallet prompt. Preflight checks it too, but that verdict is as
     // old as the preview the user has been reading — and a retry rebuilds the
@@ -2638,7 +2707,6 @@ export const executeMigration = async (params: {
   })
 
   if (executionPlan.classified.length > 0) {
-    assertSubnameRecreationEnabled(executionPlan, params.canRecreateSubnames)
     const setup = await ensureMigrationSetup({
       ctx,
       plan: executionPlan,
@@ -2660,7 +2728,6 @@ export const executeMigration = async (params: {
         publicClient,
         onBatchComplete,
         retryPermissionHeadLag: setup.hasGrantedApprovals,
-        canRecreateSubnames: params.canRecreateSubnames,
       })),
     )
   }

@@ -1,6 +1,5 @@
-import { existsSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+// First, so helpers that read env at load time (anvil-client, l2-fork) see it.
+import '../helpers/load-e2e-env.js'
 import {
   injectHeadlessWeb3Provider,
   type Web3ProviderBackend,
@@ -18,6 +17,7 @@ import { sepolia } from 'viem/chains'
 import { testClient } from '../helpers/anvil-client.js'
 import { waitForBignameName } from '../helpers/bigname-sync.js'
 import { type CcipGateway, startCcipGateway } from '../helpers/ccip-gateway.js'
+import { L2_FORKS } from '../helpers/l2-fork.js'
 import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
@@ -35,16 +35,6 @@ import {
   type OffchainNameConfig,
 } from './offchainName.js'
 import { createTime, type Time } from './time.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// Load the e2e `.env` natively (replaces `dotenv`). `process.loadEnvFile`
-// throws if the file is missing, so guard on existence to keep the previous
-// silent-when-absent behaviour.
-const envPath = path.resolve(__dirname, '..', '.env')
-if (existsSync(envPath)) {
-  process.loadEnvFile(envPath)
-}
 
 // Override Sepolia chain to point at the local Anvil fork. The headless
 // provider's internal walletClient uses this RPC to sign/submit.
@@ -249,6 +239,14 @@ export const test = base.extend<ManagerFixtures>({
   // Install the bigname mock on every page when E2E_MOCK_BIGNAME=true.
   // Nothing indexes the local chain, so bigname reads are answered from the mock.
   page: async ({ page }, use) => {
+    // Answer the analytics banner up front so it never covers a control.
+    await page.context().addCookies([
+      {
+        name: 'ens_analytics_consent',
+        value: '0',
+        url: process.env.MANAGER_APP_URL ?? 'http://localhost:3000',
+      },
+    ])
     if (process.env.MATRIX_LOCAL_RPC_ONLY === '1') await routeToLocalFork(page)
     await bignameMock.installIfEnabled(page)
     await use(page)
@@ -277,7 +275,9 @@ export const test = base.extend<ManagerFixtures>({
     const wallet = await injectHeadlessWeb3Provider({
       page,
       privateKeys: accounts.getAllPrivateKeys(),
-      chains: [localSepolia],
+      // The opt-in L2 forks a registration can be paid from (`--profile l2`);
+      // the wallet only touches one when a spec pays from it.
+      chains: [localSepolia, ...L2_FORKS.map((fork) => fork.chain)],
       permitted: [...PERMITTED_SIGN_KINDS],
     })
     await use(wallet)

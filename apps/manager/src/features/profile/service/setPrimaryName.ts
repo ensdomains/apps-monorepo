@@ -1,6 +1,7 @@
 import {
   type Call,
   getSmartAccountAddress,
+  HCA_INTENT_FEE_MARGIN_BPS,
   type HcaFundingPrompt,
   planHcaIntentFunding,
   type RhinestoneSigner,
@@ -25,6 +26,7 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
+import type { Connector } from 'wagmi'
 import { envConfig } from '@/config'
 import { assertPrimaryNameForwardResolution } from './primaryNameForwardAddress'
 import { requireCanonicalPrimaryName } from './profileName'
@@ -41,6 +43,8 @@ export interface SetPrimaryNameParams {
   walletClient: WalletClient
   publicClient: PublicClient
   chainId: number
+  /** The wallet's wagmi connector. A Safe{Wallet} one answers with safeTxHashes. */
+  readonly connector?: Connector
   /** Called with each submitted txId so the UI can track it via a selector */
   onTxId?: (txId: string) => void
 }
@@ -198,6 +202,7 @@ export async function setPrimaryNameWithHca(
     publicClient,
     chainId,
     calls,
+    feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
     // The USDC cost is quoted here, not at any earlier screen, so this is the
     // only place it can be shown before the permit signature is requested.
     ...(confirmFunding ? { confirmFunding } : {}),
@@ -317,15 +322,18 @@ export async function submitPrimaryNameReverse(input: {
 }
 
 /**
- * EOA fallback (USE_EOA / no smart account): the owner sends two sequential
- * gas-paying transactions. HCA accounts use `setPrimaryNameWithHca` instead.
+ * EOA fallback (USE_EOA / no smart account / a Safe{Wallet}): the owner sends two
+ * sequential gas-paying transactions. HCA accounts use `setPrimaryNameWithHca` instead.
  */
-export async function setPrimaryName(
-  params: SetPrimaryNameParams,
-): Promise<void> {
-  const { name, ownerAddress, walletClient, publicClient, chainId, onTxId } =
-    params
-
+export async function setPrimaryName({
+  name,
+  ownerAddress,
+  walletClient,
+  publicClient,
+  chainId,
+  connector,
+  onTxId,
+}: SetPrimaryNameParams): Promise<void> {
   // The wallet client and the owner address come from the account context
   // separately and can momentarily diverge while the wallet reconnects or the
   // user switches accounts. Require a bound account that matches the owner:
@@ -340,7 +348,7 @@ export async function setPrimaryName(
     )
   }
 
-  const signer: Signer = { type: 'eoa', walletClient }
+  const signer: Signer = { type: 'eoa', walletClient, connector }
 
   const forwardTxId = await submitPrimaryNameForward({
     name,

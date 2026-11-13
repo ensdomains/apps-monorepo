@@ -27,7 +27,7 @@ import { getReverseNameAddress } from '@/features/profile/service/reverseNameAdd
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
 import { getSearchNameKind } from '@/features/search/getSearchNameKind'
-import { isDebugProfileName } from '@/utils/debug-features'
+import { isMaybeDebugName, loadDebugProfiles } from '@/utils/debug-features'
 import { nameOgImageUrl, seo } from '@/utils/seo'
 
 // `/register/$name` redirects straight back here when the registrar says the
@@ -60,8 +60,8 @@ const isEthName = (parsed: ReturnType<typeof parseName>): boolean =>
 
 const requiresDnssecCheck = (
   parsed: ReturnType<typeof parseName>,
-  name: string,
-): boolean => !isEthName(parsed) && !isDebugProfileName(name)
+  hasDebugProfile: boolean,
+): boolean => !isEthName(parsed) && !hasDebugProfile
 
 const getCanonicalProfileName = (name: string): string => {
   const normalizedName = normalizeProfileName(name)
@@ -157,7 +157,11 @@ export const Route = createFileRoute('/$name/')({
     // Validate the TLD before showing any profile data: a TLD is supported
     // if it's .eth or has DNSSEC enabled. On DoH failure, prefer the profile
     // fallback over a false "unsupported"
-    if (requiresDnssecCheck(parsed, name)) {
+    const debugProfiles = isMaybeDebugName(name)
+      ? await loadDebugProfiles?.()
+      : undefined
+    const debugProfile = debugProfiles?.getDebugProfileRecords(name)
+    if (requiresDnssecCheck(parsed, Boolean(debugProfile))) {
       const dnsSecEnabled = parsed.isOk()
         ? await queryClient
             .ensureQueryData(dnsSecEnabledQuery(parsed.value.tld))
@@ -195,8 +199,15 @@ export const Route = createFileRoute('/$name/')({
         ? null
         : new Date(Number(expiryData.expiry) * 1000)
     const isPastGrace = isPastGracePeriod(expiryDate, ownerData.protocol)
+    // The Graveyard claims expired V1 names, so only the registrar knows they are free.
+    const isV1Eth2ld =
+      ownerData.protocol === 'v1' &&
+      getSearchNameKind(normalizedName).type === 'eth-2ld'
 
-    if (isPastGrace && (await isFreeToRegister(queryClient, normalizedName))) {
+    if (
+      (isPastGrace || isV1Eth2ld) &&
+      (await isFreeToRegister(queryClient, normalizedName))
+    ) {
       throw redirect({
         params: { name: normalizedName },
         to: '/register/$name',

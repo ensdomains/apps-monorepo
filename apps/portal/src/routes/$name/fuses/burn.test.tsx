@@ -16,11 +16,12 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 const OWNER = '0x55e55c649895940826a852820d9e1a076ec47b09'
+let connectedAddress: string | undefined = OWNER
 vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
     ...actual,
-    useConnection: () => ({ address: OWNER }),
+    useConnection: () => ({ address: connectedAddress }),
     useWalletClient: () => ({ data: { account: { address: OWNER } } }),
     usePublicClient: () => ({}),
   }
@@ -125,6 +126,7 @@ const wrapperData = {
 beforeEach(() => {
   wrapperDataResult = { data: wrapperData, error: undefined, isLoading: false }
   graceStatus = ACTIVE_GRACE
+  connectedAddress = OWNER
 })
 
 describe('fuses/burn route', () => {
@@ -219,5 +221,15 @@ describe('fuses/burn route', () => {
     render(<BurnRoute />)
 
     expect(screen.getByText('Not authorized')).toBeInTheDocument()
+  })
+
+  it('asks a disconnected visitor to connect rather than calling them a non-owner', () => {
+    connectedAddress = undefined
+
+    render(<BurnRoute />)
+
+    expect(screen.getByText('Wallet not connected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument()
+    expect(screen.queryByText('Not authorized')).not.toBeInTheDocument()
   })
 })

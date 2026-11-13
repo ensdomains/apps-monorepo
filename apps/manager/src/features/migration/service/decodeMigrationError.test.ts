@@ -1,9 +1,16 @@
-import { encodeErrorResult, type Hex, parseAbi } from 'viem'
+import {
+  encodeErrorResult,
+  type Hex,
+  InsufficientFundsError,
+  parseAbi,
+} from 'viem'
 import { describe, expect, it } from 'vitest'
 import { LIB_MIGRATION_ERRORS_ABI } from '../contracts/abis'
 import {
+  canRetryMigration,
   decodeMigrationError,
   extractErrorMessage,
+  type MigrationError,
 } from './decodeMigrationError'
 import { ProfileFetchError } from './fetchV1Profiles'
 
@@ -12,6 +19,24 @@ const revertWith = (data: Hex) =>
     name: 'ContractFunctionRevertedError',
     data,
   })
+
+describe('canRetryMigration', () => {
+  it.each([
+    { error: { type: 'plan-changed' }, expected: false },
+    {
+      error: { type: 'copy-read-failed', message: 'RPC timeout' },
+      expected: true,
+    },
+    { error: { type: 'user-rejected' }, expected: true },
+    { error: { type: 'cleanup-failed' }, expected: true },
+    { error: { type: 'generic', message: 'RPC unavailable' }, expected: true },
+  ] satisfies readonly {
+    readonly error: MigrationError
+    readonly expected: boolean
+  }[])('allows retry for $error.type: $expected', ({ error, expected }) =>
+    expect(canRetryMigration(error)).toBe(expected),
+  )
+})
 
 const directMigrationErrorsAbi = parseAbi([
   'error CallerNotOwner()',
@@ -85,6 +110,22 @@ describe('decodeMigrationError — direct mappings', () => {
     })
 
     expect(decodeMigrationError(copyChanged)).toEqual({ type: 'plan-changed' })
+  })
+
+  it('keeps retry available for a transient copy-read failure', () => {
+    const readFailed = Object.assign(new Error('RPC timeout'), {
+      name: 'CopyMigrationReadinessError',
+      reason: 'read-failed',
+    })
+
+    expect(
+      decodeMigrationError(
+        new Error('migration failed', { cause: readFailed }),
+      ),
+    ).toEqual({
+      type: 'copy-read-failed',
+      message: 'RPC timeout',
+    })
   })
 
   it('maps an uncertain submitted batch to a fail-closed retry error', () => {
@@ -206,6 +247,36 @@ describe('decodeMigrationError — direct mappings', () => {
     ],
   ] as const)('%s', (_, err, expected) => {
     expect(decodeMigrationError(err)).toEqual(expected)
+  })
+})
+
+describe('decodeMigrationError — wallet out of ETH', () => {
+  it.each([
+    [
+      "viem's insufficient-funds error under the transaction error",
+      Object.assign(new Error('Execution reverted.'), {
+        name: 'TransactionExecutionError',
+        cause: new InsufficientFundsError(),
+      }),
+    ],
+    [
+      'a raw wallet error viem did not wrap',
+      Object.assign(new Error('insufficient funds for gas * price + value'), {
+        code: -32000,
+      }),
+    ],
+  ])('says the wallet needs ETH for %s', (_case, err) => {
+    expect(decodeMigrationError(err)).toEqual({ type: 'insufficient-eth' })
+  })
+
+  it.each([
+    'Your wallet needs more USDC to renew these names.',
+    'ERC20: transfer amount exceeds balance',
+  ])('leaves a token shortfall as it was: %s', (message) => {
+    expect(decodeMigrationError(new Error(message))).toEqual({
+      type: 'generic',
+      message,
+    })
   })
 })
 

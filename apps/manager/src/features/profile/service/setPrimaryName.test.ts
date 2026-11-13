@@ -1,5 +1,6 @@
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Connector } from 'wagmi'
 
 // The service reads contracts off the resolved chain, so the fixture shapes
 // them the way ensjs does.
@@ -28,6 +29,7 @@ vi.mock('@/config', () => ({
 }))
 
 vi.mock('@ens-apps/transaction-manager', () => ({
+  HCA_INTENT_FEE_MARGIN_BPS: 500n,
   getSmartAccountAddress: vi.fn(
     () => '0x1111111111111111111111111111111111111111',
   ),
@@ -209,6 +211,24 @@ describe('setPrimaryName', () => {
     ).rejects.toThrow(/does not control the owner address/)
 
     expect(start).not.toHaveBeenCalled()
+  })
+
+  it('signs both legs with the wallet connector, so a Safe{Wallet} settles each from its execution', async () => {
+    const connector = { id: 'walletConnect' } as Connector
+
+    await setPrimaryName({
+      name: 'leon.eth',
+      ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
+      publicClient,
+      chainId: CHAIN_ID,
+      connector,
+    })
+
+    expect(start.mock.calls.map(([, signer]) => signer)).toEqual([
+      { type: 'eoa', walletClient: ownerWalletClient, connector },
+      { type: 'eoa', walletClient: ownerWalletClient, connector },
+    ])
   })
 })
 

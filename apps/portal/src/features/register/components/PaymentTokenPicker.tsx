@@ -6,12 +6,15 @@ import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
+import { isSepoliaBuild } from '@/config'
 import { PaymentTokenList } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { getPaymentHeading } from '@/features/register/utils/paymentHeading'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { getRenewerAddress } from '@/features/renew/utils/renewer'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { ensChain } from '@/lib/wagmi'
 import {
   buildTokenData,
@@ -165,16 +168,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
     return <Skeleton />
   }
 
-  if (!address) {
-    return (
-      <MessageCard
-        icon={<AlertTriangle className="size-6" />}
-        title="Connect your wallet"
-        className="xl:min-w-none"
-        description="Connect your wallet to view available payment tokens for your ENS registration."
-      />
-    )
-  }
+  if (!address) return <ConnectWalletAlert />
 
   if (!resolvedPrices || isPriceFailed) {
     return (
@@ -223,7 +217,7 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
   return (
     <>
       <h2 id="payment-heading" className="text-h3 leading-7 font-medium">
-        Select payment method
+        {getPaymentHeading(props.mode, isSepoliaBuild)}
       </h2>
       {noSupportedTokenHasSufficientBalance ? (
         <MessageCard

@@ -30,12 +30,13 @@ import type { Address } from 'viem'
 import { type SUPPORTED_TOKEN, SUPPORTED_TOKENS } from '@/lib/tokens'
 import type { RegistrationPostRegistrationSetup } from '../state/registrationAutoSetup'
 import type { RegistrationConfirmedData } from '../state/registrationUi.machine'
+import type { RegistrationFailureReason } from './registrationFailure'
 
 /**
  * Bump when {@link StoredRegistrationEnvelope} changes shape, or when stored
- * runs can no longer complete (v2: the payment token moved to Circle USDC).
+ * runs can no longer complete (v3: the payment token moved to MockUSDC).
  */
-export const REGISTRATION_RESUME_VERSION = 2
+export const REGISTRATION_RESUME_VERSION = 3
 
 /** Exported so the disconnect-time storage sweep can leave the record alone. */
 export const REGISTRATION_RESUME_STORAGE_KEY = 'ens-apps:register-v2:resume:v1'
@@ -61,12 +62,15 @@ export type StoredRegistration = {
    * resume would silently drop the primary name the user asked for.
    */
   readonly postRegistrationSetup?: RegistrationPostRegistrationSetup
+  /** Lets a failure restored after a reload keep its explanation. */
+  readonly failureReason?: RegistrationFailureReason
 }
 
 /** What the adapter reads off the parent UI machine at write time. */
 export type RegistrationAppState = {
   readonly confirmedData?: RegistrationConfirmedData
   readonly postRegistrationSetup?: RegistrationPostRegistrationSetup
+  readonly failureReason?: RegistrationFailureReason
 }
 
 const addressSchema = v.custom<Address>(
@@ -109,6 +113,7 @@ const envelopeSchema = v.object({
   record: v.string(),
   confirmedData: confirmedDataSchema,
   postRegistrationSetup: v.optional(postRegistrationSetupSchema),
+  failureReason: v.optional(v.literal('insufficientFunds')),
 })
 
 type StoredRegistrationEnvelope = v.InferOutput<typeof envelopeSchema>
@@ -195,6 +200,7 @@ export function loadStoredRegistration(
     record: record.value,
     confirmedData: decodeConfirmedData(envelope.output.confirmedData),
     postRegistrationSetup: envelope.output.postRegistrationSetup,
+    failureReason: envelope.output.failureReason,
   }
 }
 
@@ -291,6 +297,7 @@ export function createRegistrationPersistenceAdapter(options: {
         record: serializeRegistrationRecord(record),
         confirmedData: encodeConfirmedData(appState.confirmedData),
         postRegistrationSetup: appState.postRegistrationSetup,
+        failureReason: appState.failureReason,
       }
 
       try {

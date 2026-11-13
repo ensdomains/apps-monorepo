@@ -55,10 +55,27 @@ export const LongRevertReason: Story = {
   },
 }
 
+/** The smart account was emptied mid-run, e.g. a withdrawal in another browser. */
+export const InsufficientFunds: Story = {
+  args: {
+    message: LONG_REVERT_REASON,
+    failureReason: 'insufficientFunds',
+  },
+}
+
 /** Someone else got the name first: nothing to retry. */
 export const NameNoLongerAvailable: Story = {
   args: {
     message: 'name-one.eth was registered by another address.',
     nameUnavailable: true,
+  },
+}
+
+/** Smart session access was reset mid-run; Back to Quote leads, as Try Again reuses the old session. */
+export const SessionAccessReset: Story = {
+  args: {
+    message:
+      'Failed to submit transaction: Simulation failed: InvalidSignature() (errorType=Bad Request statusCode=400)',
+    isSessionRevoked: true,
   },
 }

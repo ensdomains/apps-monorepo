@@ -52,6 +52,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
+import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -328,11 +329,7 @@ const CreateSubnameForm = ({
         </Field>
 
         {match({ isConnected, prepareError })
-          .with({ isConnected: false }, () => (
-            <p className="text-p text-warning">
-              Please connect your wallet to create a subname.
-            </p>
-          ))
+          .with({ isConnected: false }, () => <ConnectWalletAlert />)
           .with({ prepareError: P.string.minLength(1) }, ({ prepareError }) => (
             <p className="text-p text-danger">Error: {prepareError}</p>
           ))

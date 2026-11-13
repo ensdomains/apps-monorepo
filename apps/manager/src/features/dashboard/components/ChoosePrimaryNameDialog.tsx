@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { getAddress } from 'viem'
-import { useChainId, useConnection } from 'wagmi'
+import { type Connector, useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { HcaFundingConfirmDialog } from '@/components/HcaFundingConfirmDialog'
@@ -57,9 +57,9 @@ import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
 import type { PrimaryNameDomain } from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 import {
+  getResolverSetupReplacement,
   isConfirmationForSelection,
   isConfirmBlocked,
-  isResolverSetupReplacing,
   needsPrimaryNameConfirmation,
   PRIMARY_NAME_PAGE_SIZE,
   type PrimaryNameConfirmation,
@@ -337,10 +337,12 @@ const EthAddressConfirmDialog = ({
 const useUpdateEthAddressMutation = ({
   account,
   chainId,
+  connector,
   selectedName,
 }: {
   readonly account: SmartAccountContextValue
   readonly chainId: number
+  readonly connector: Connector | undefined
   readonly selectedName: string | null
 }) =>
   useMutation({
@@ -375,7 +377,7 @@ const useUpdateEthAddressMutation = ({
           texts: [],
           coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
-        signer: { type: 'eoa', walletClient },
+        signer: { type: 'eoa', walletClient, connector },
         accountAddress: walletClient.account.address,
         publicClient: publicClient as PublicClient,
         chainId,
@@ -394,10 +396,12 @@ const useUpdateEthAddressMutation = ({
 const useSetupResolverMutation = ({
   account,
   chainId,
+  connector,
   selectedName,
 }: {
   readonly account: SmartAccountContextValue
   readonly chainId: number
+  readonly connector: Connector | undefined
   readonly selectedName: string | null
 }) => {
   const { t } = useLingui()
@@ -413,7 +417,7 @@ const useSetupResolverMutation = ({
 
       await setupControlledResolver({
         name: selectedName,
-        signer: { type: 'eoa', walletClient },
+        signer: { type: 'eoa', walletClient, connector },
         ownerAddress: account.ownerAddress,
         publicClient: publicClient as PublicClient,
         chainId,
@@ -449,7 +453,7 @@ export const ChoosePrimaryNameDialog = ({
     useState<PrimaryNameConfirmation | null>(null)
   const [isCheckingPreparation, setIsCheckingPreparation] = useState(false)
   const [preparationError, setPreparationError] = useState<Error | null>(null)
-  const { address } = useConnection()
+  const { address, connector } = useConnection()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
   const chainId = useChainId()
@@ -514,11 +518,13 @@ export const ChoosePrimaryNameDialog = ({
   const updateEthAddressMutation = useUpdateEthAddressMutation({
     account,
     chainId,
+    connector,
     selectedName,
   })
   const setupResolverMutation = useSetupResolverMutation({
     account,
     chainId,
+    connector,
     selectedName,
   })
 
@@ -842,12 +848,11 @@ export const ChoosePrimaryNameDialog = ({
         }}
       />
       <HcaFundingConfirmDialog
-        description={<Trans>Setting a primary name is paid in USDC.</Trans>}
-        lines={[
-          {
-            label: <Trans>Network fee</Trans>,
-            amount: fundingPrompt?.quotedFeeUsdc ?? 0n,
-          },
+        description={() => (
+          <Trans>Setting a primary name is paid in USDC.</Trans>
+        )}
+        lines={({ quotedFeeUsdc }) => [
+          { label: <Trans>Network fee</Trans>, amount: quotedFeeUsdc },
         ]}
         onApprove={approveFunding}
         onDecline={declineFunding}
@@ -857,7 +862,6 @@ export const ChoosePrimaryNameDialog = ({
 
       <ResolverSetupConfirmDialog
         intent="primary-name"
-        isReplacing={isResolverSetupReplacing(confirmation)}
         onConfirm={() => {
           if (confirmation) void runConfirm(confirmation)
         }}
@@ -865,6 +869,7 @@ export const ChoosePrimaryNameDialog = ({
           if (!nextOpen) setConfirmation(null)
         }}
         open={confirmation?.kind === 'setup-resolver'}
+        replaces={getResolverSetupReplacement(confirmation)}
       >
         <EthAddressUpdateNotice
           existingEthAddress={confirmation?.existingEthAddress ?? null}
