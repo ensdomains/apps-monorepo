@@ -42,6 +42,7 @@
  * the HCA up front.
  */
 
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { PublicClient } from 'viem'
 import { formatUnits, isAddressEqual, zeroAddress } from 'viem'
 import { getDestinationContracts, SEPOLIA_CHAIN_ID } from './manifest'
@@ -576,6 +577,67 @@ export interface HcaBudgetBreakdown {
    * A fallback silently over-funds, so the reason must be visible.
    */
   readonly fallbackReasons?: readonly string[]
+}
+
+/** Why checkout could not obtain a usable Rhinestone quote. */
+export type HcaBudgetFailureKind = 'gas-coverage' | 'generic'
+
+/** Rhinestone planner copy for destination gas that the HCA cannot cover. */
+const DESTINATION_GAS_COVERAGE_PATTERN =
+  /destination-chain balance can cover execution gas|No available destination-chain balance/i
+
+/** Classify quote failures for display; funding still requires a real quote. */
+export function classifyHcaBudgetFailureReasons(
+  reasons: readonly string[],
+): HcaBudgetFailureKind {
+  return reasons.some((reason) => DESTINATION_GAS_COVERAGE_PATTERN.test(reason))
+    ? 'gas-coverage'
+    : 'generic'
+}
+
+/** Preserve the display estimate at the Promise boundary without permitting funding. */
+export class HcaBudgetUnquotedError extends TaggedError(
+  'HcaBudgetUnquotedError',
+)<{
+  message: string
+  breakdown: HcaBudgetBreakdown
+  kind: HcaBudgetFailureKind
+  cause?: unknown
+}> {
+  constructor(breakdown: HcaBudgetBreakdown) {
+    const reasons = breakdown.fallbackReasons ?? []
+    super({
+      message:
+        `HCA budget could not be quoted (source: ${breakdown.source}). ` +
+        `Refusing to size the funding permit from the fallback model. ` +
+        `Reasons: ${reasons.join('; ') || 'unknown'}`,
+      breakdown,
+      kind: classifyHcaBudgetFailureReasons(reasons),
+    })
+  }
+}
+
+/** Match the error's tag across package copies and preserve its display estimate. */
+export function findHcaBudgetUnquotedError(error: unknown):
+  | {
+      readonly breakdown: HcaBudgetBreakdown
+      readonly kind: HcaBudgetFailureKind
+    }
+  | undefined {
+  let current: unknown = error
+  while (current instanceof Error) {
+    if (
+      '_tag' in current &&
+      current._tag === 'HcaBudgetUnquotedError' &&
+      'breakdown' in current &&
+      'kind' in current
+    ) {
+      const { breakdown, kind } = current as HcaBudgetUnquotedError
+      return { breakdown, kind }
+    }
+    current = current.cause
+  }
+  return undefined
 }
 
 /**

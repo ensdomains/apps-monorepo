@@ -1,9 +1,11 @@
 import '@testing-library/jest-dom'
+import { HcaBudgetUnquotedError } from '@ens-apps/smart-account'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { EXPLORER_URL } from '@/constants'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 
 // Drives the connected `TokenPickerContent`, so the budget-failure flag is
@@ -83,6 +85,7 @@ const mockAccount = (
   overrides: Partial<{
     signer: { type: string } | null
     accountAddress: string | null
+    getSessionEnablePayload: () => Promise<unknown>
   }> = {},
 ) =>
   smartAccountMock.useSmartAccountContext.mockReturnValue({
@@ -99,6 +102,12 @@ const mockAccount = (
       .mockRejectedValue(new Error('orchestrator unavailable')),
     ...overrides,
   })
+
+const receiptRow = (label: string) => {
+  const row = screen.getByText(label).closest('div')
+  if (!row) throw new Error(`No receipt row for ${label}`)
+  return row
+}
 
 const renderConnectedPicker = () => {
   const queryClient = new QueryClient({
@@ -130,6 +139,44 @@ describe('TokenPickerContent budget quote', () => {
       screen.queryByRole('button', { name: /approv|register/i }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
+  })
+
+  it('on a gas-coverage refusal shows the name price, no fee figure, an Explorer link, and still blocks checkout', async () => {
+    mockAccount({
+      // Any failure in the quote pipeline reaches the sheet through the same cause chain.
+      getSessionEnablePayload: vi.fn().mockRejectedValue(
+        new HcaBudgetUnquotedError({
+          total: 340_000_000n,
+          commitCost: 5_000_000n,
+          registerCost: 5_000_000n,
+          registrationPrice: 330_000_000n,
+          expectedMaximum: 400_000_000n,
+          source: 'fallback',
+          fallbackReasons: [
+            'commit: quote threw — No available destination-chain balance can cover execution gas.',
+          ],
+        }),
+      ),
+    })
+    renderConnectedPicker()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Network fees are elevated right now, if you'd still like to register this name, please use the Explorer",
+    )
+    expect(screen.getByRole('link', { name: 'Explorer' })).toHaveAttribute(
+      'href',
+      `${EXPLORER_URL}/register?name=jeff.eth`,
+    )
+    // No quote ever succeeded: the name price fills the total, and the fallback's flat fees never show.
+    expect(receiptRow('Registration total')).toHaveTextContent('$330.00')
+    expect(receiptRow('Estimated network fee')).toHaveTextContent('—')
+    expect(receiptRow('You pay')).toHaveTextContent('—')
+    expect(screen.queryByText(/\$340\.00|\$10\.00/)).toBeNull()
+    expect(screen.queryByText(QUOTE_FAILED_MESSAGE)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+    expect(
+      screen.queryByRole('button', { name: /approv|register/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('does not gate the EOA route, which never quotes a budget', async () => {

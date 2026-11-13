@@ -2047,6 +2047,10 @@ msgstr ""
 msgid "Network fee"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/GasRefusalWarning.tsx
+msgid "Network fees are elevated right now, if you'd still like to register this name, please use the <0>Explorer</0>"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Network fees changed since you authorized this registration. Sign once more in your wallet to continue."
 msgstr ""

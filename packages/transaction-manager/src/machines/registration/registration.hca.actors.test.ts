@@ -6,6 +6,7 @@ import {
   computeResolverAddress,
   getDestinationContracts,
   HCA_ADDR_REVERSE_CLEAR_GAS,
+  HcaBudgetUnquotedError,
   primaryNameGas,
 } from '@ens-apps/smart-account'
 import { RhinestoneSDK } from '@rhinestone/sdk'
@@ -1765,5 +1766,25 @@ describe('estimateHcaBudgetActor', () => {
     expect(result._unsafeUnwrapErr().message).toMatch(/canonical form/)
     // The refusal lands before any leg is priced.
     expect(prepareTransaction).not.toHaveBeenCalled()
+  })
+
+  it('refuses to fund from a fallback and surfaces the higher estimate', async () => {
+    prepareTransaction.mockRejectedValue(
+      new Error(
+        'No available destination-chain balance can cover execution gas. An unsponsored intent must leave a spendable destination-chain token balance for the gas refund.',
+      ),
+    )
+
+    const result = await estimateHcaBudgetActor(input)
+
+    expect(result.isErr()).toBe(true)
+    const error = result._unsafeUnwrapErr()
+    expect(error).toBeInstanceOf(HcaBudgetUnquotedError)
+    const unquoted = error as HcaBudgetUnquotedError
+    expect(unquoted.kind).toBe('gas-coverage')
+    expect(unquoted.breakdown.source).toBe('fallback')
+    expect(unquoted.breakdown.total).toBeGreaterThan(
+      unquoted.breakdown.registrationPrice,
+    )
   })
 })

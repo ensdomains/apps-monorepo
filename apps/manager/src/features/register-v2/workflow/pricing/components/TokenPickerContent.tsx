@@ -1,4 +1,7 @@
+import type { HcaBudgetFailureKind } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import type { MessageDescriptor } from '@lingui/core'
+import { msg } from '@lingui/core/macro'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
@@ -48,6 +51,10 @@ import {
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
+import {
+  getBudgetQuoteFailureUi,
+  getCheckoutReceiptTotalRaw,
+} from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
 import { getEthPaymentDebit, getEthPaymentRow } from '../lib/ethPaymentRow'
 import {
@@ -64,7 +71,10 @@ import {
   getWalletShortfall,
 } from '../lib/paymentReceiptFigures'
 import { getPremiumLabel } from '../lib/premiumLabel'
-import { computeRegistrationFunding } from '../lib/registrationFunding'
+import {
+  computeRegistrationFunding,
+  type RegistrationFunding,
+} from '../lib/registrationFunding'
 import { EthNameText } from './EthNameText'
 import {
   canPayWithEth,
@@ -75,6 +85,7 @@ import {
   getEthSwapGasUsdcRaw,
   isEthShortOfFunds,
 } from './EthPaymentListItem'
+import { GasRefusalWarning } from './GasRefusalWarning'
 import {
   getEstimatedL2AmountIn,
   getL2SelectionMessage,
@@ -89,6 +100,7 @@ import {
 import { NetworkFeeReceipt, PaymentReceipt } from './PaymentReceipt'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { RECEIPT_LABEL } from './receiptTypography'
+import { getExplorerRegisterUrl } from './SafeWalletDialog'
 import { TokenListItem } from './TokenListItem'
 
 const MEDIUM_NAME_CHAR_THRESHOLD = 10
@@ -172,12 +184,114 @@ export type RegistrationFundingSummary = {
   readonly isLoading: boolean
 }
 
+const getFundingSummary = (
+  funding: RegistrationFunding | null,
+  isLoading: boolean,
+): RegistrationFundingSummary | undefined =>
+  funding ? { ...funding, isLoading } : undefined
+
 const getDomainSizeClasses = (domainName: string): string => {
   const charCount = Array.from(domainName).length
   if (charCount > LONG_NAME_CHAR_THRESHOLD) return 'text-[22px]'
   if (charCount >= MEDIUM_NAME_CHAR_THRESHOLD) return 'text-[32px]'
   return 'text-[40px]'
 }
+
+/** Marks the gas refusal, whose warning carries an Explorer link rather than plain text. */
+const GAS_REFUSAL = { kind: 'gas-refusal' } as const
+
+type PricingWarning = MessageDescriptor | string | typeof GAS_REFUSAL | null
+
+/** Sheet-level warning above the CTA. Kept out of the component body for complexity. */
+const getPricingGlobalErrorMessage = ({
+  approvalState,
+  isPaidFromElsewhere,
+  budgetFailureKind,
+  mutationError,
+  isAvailabilityError,
+  domainName,
+}: {
+  readonly approvalState: {
+    readonly approvalOutcome?: string
+    readonly errorMessage?: string
+  }
+  readonly isPaidFromElsewhere: boolean
+  readonly budgetFailureKind: HcaBudgetFailureKind | null
+  readonly mutationError: unknown
+  readonly isAvailabilityError: boolean
+  readonly domainName: string
+}): PricingWarning => {
+  // No amount on a refusal: the fallback fees are a placeholder, not a gas estimate.
+  const budgetFailureMessage = match(budgetFailureKind)
+    .with('gas-coverage', () => GAS_REFUSAL)
+    .with(
+      'generic',
+      () => msg`We couldn't calculate the total. Please try again.`,
+    )
+    .with(null, () => null)
+    .exhaustive()
+
+  return match({
+    approvalState,
+    isPaidFromElsewhere,
+    budgetFailureMessage,
+    mutationError,
+    isAvailabilityError,
+  })
+    .with(
+      { approvalState: { approvalOutcome: 'rejected' } },
+      () => msg`Signature cancelled. You can try again.`,
+    )
+    .with(
+      {
+        isPaidFromElsewhere: true,
+        approvalState: { approvalOutcome: 'failed', errorMessage: P.string },
+      },
+      ({ approvalState }) => approvalState.errorMessage,
+    )
+    .with(
+      { approvalState: { approvalOutcome: 'failed' } },
+      () =>
+        msg`We couldn't approve your payment. Please try again and approve the payment in your wallet.`,
+    )
+    .with(
+      { approvalState: { errorMessage: P.string } },
+      () => msg`We couldn't start your registration. Please try again.`,
+    )
+    .with(
+      { budgetFailureMessage: P.not(null) },
+      ({ budgetFailureMessage }) => budgetFailureMessage,
+    )
+    .with(
+      { mutationError: P.instanceOf(PaymentSessionError) },
+      ({ mutationError }) =>
+        mutationError.isDeclined
+          ? msg`Signature cancelled. You can try again.`
+          : msg`We couldn't set up this payment. Please try again.`,
+    )
+    .with(
+      {
+        isAvailabilityError: true,
+        mutationError: P.not(P.instanceOf(InsufficientFundingError)),
+      },
+      () =>
+        msg`We couldn't confirm that ${domainName} is still available. Please try again.`,
+    )
+    .otherwise(() => null)
+}
+
+const resolvePricingErrorMessage = (
+  value: PricingWarning,
+  i18n: { readonly _: (descriptor: MessageDescriptor) => string },
+  explorerRegisterUrl: string | null,
+): ReactNode =>
+  match(value)
+    .with(null, () => null)
+    .with(P.string, (text) => text)
+    .with(GAS_REFUSAL, () => (
+      <GasRefusalWarning explorerRegisterUrl={explorerRegisterUrl} />
+    ))
+    .otherwise((descriptor) => i18n._(descriptor))
 
 const PaymentMethods = <T extends TOKEN_SYMBOL>({
   showNetworkFeeDetails,
@@ -215,7 +329,7 @@ const PaymentMethods = <T extends TOKEN_SYMBOL>({
 }
 
 export const TokenPickerContent = () => {
-  const { t } = useLingui()
+  const { t, i18n } = useLingui()
   const { label, uiActor, registrationActor } = useRegistrationV2Context()
   const approvalState = useSelector(uiActor, (state) => ({
     isApproving: state.matches({ pricing: 'approving' }),
@@ -354,7 +468,7 @@ export const TokenPickerContent = () => {
   // the price, which is not what the wallet pays.
   const isBudgetRequired = isHcaBudgetQuoteRequired(budgetQueryParams)
 
-  // Absent until the quote lands, and permanently absent if it fails.
+  // Confirmed funding is absent until the quote succeeds.
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
     hcaBalanceRaw: budgetQuery.data?.hcaBalance,
@@ -613,58 +727,33 @@ export const TokenPickerContent = () => {
     revalidatedFundingError?.available,
   )
 
-  const globalErrorMessage = match({
-    approvalState,
-    isPaidFromElsewhere,
-    hasBudgetQuoteFailed,
-    mutationError: availabilityMutation.error,
-    isAvailabilityError: availabilityMutation.isError,
+  const budgetFailureUi = getBudgetQuoteFailureUi({
+    hasFailed: match({
+      hasBudgetQuoteFailed,
+      error: availabilityMutation.error,
+    })
+      .with(
+        P.union(
+          { hasBudgetQuoteFailed: true },
+          { error: P.instanceOf(BudgetQuoteUnavailableError) },
+        ),
+        () => true,
+      )
+      .otherwise(() => false),
+    error: paymentBudgetQuery.error ?? availabilityMutation.error,
   })
-    .with(
-      { approvalState: { approvalOutcome: 'rejected' } },
-      () => t`Signature cancelled. You can try again.`,
-    )
-    // An L2 or ETH payment fails for reasons worth reading, such as one still
-    // settling or a price that moved.
-    .with(
-      {
-        isPaidFromElsewhere: true,
-        approvalState: { approvalOutcome: 'failed', errorMessage: P.string },
-      },
-      ({ approvalState }) => approvalState.errorMessage,
-    )
-    .with(
-      { approvalState: { approvalOutcome: 'failed' } },
-      () =>
-        t`We couldn't approve your payment. Please try again and approve the payment in your wallet.`,
-    )
-    .with(
-      { approvalState: { errorMessage: P.string } },
-      () => t`We couldn't start your registration. Please try again.`,
-    )
-    .with(
-      P.union(
-        { hasBudgetQuoteFailed: true },
-        { mutationError: P.instanceOf(BudgetQuoteUnavailableError) },
-      ),
-      () => t`We couldn't calculate the total. Please try again.`,
-    )
-    .with(
-      { mutationError: P.instanceOf(PaymentSessionError) },
-      ({ mutationError }) =>
-        mutationError.isDeclined
-          ? t`Signature cancelled. You can try again.`
-          : t`We couldn't set up this payment. Please try again.`,
-    )
-    .with(
-      {
-        isAvailabilityError: true,
-        mutationError: P.not(P.instanceOf(InsufficientFundingError)),
-      },
-      () =>
-        t`We couldn't confirm that ${domainName} is still available. Please try again.`,
-    )
-    .otherwise(() => null)
+  const globalErrorMessage = resolvePricingErrorMessage(
+    getPricingGlobalErrorMessage({
+      approvalState,
+      isPaidFromElsewhere,
+      budgetFailureKind: budgetFailureUi.failureKind,
+      mutationError: availabilityMutation.error,
+      isAvailabilityError: availabilityMutation.isError,
+      domainName,
+    }),
+    i18n,
+    getExplorerRegisterUrl(label),
+  )
 
   const isBusy = availabilityMutation.isPending || approvalState.isApproving
   const isPaymentApprovalRequired =
@@ -729,21 +818,18 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       checkoutReceipt={
-        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
-      }
-      ethPayment={ethPayment}
-      funding={
-        paymentFunding
+        isBudgetRequired
           ? {
-              registration: paymentFunding.registration,
-              networkFee: paymentFunding.networkFee,
-              total: paymentFunding.total,
-              walletDebit: paymentFunding.walletDebit,
-              hcaCredit: paymentFunding.hcaCredit,
-              isLoading: paymentBudgetQuery.isFetching,
+              totalRaw: getCheckoutReceiptTotalRaw({
+                hasBudgetQuoteFailed,
+                registrationPriceRaw: budgetFailureUi.registrationPriceRaw,
+                totalRaw: registrationTotalRaw,
+              }),
             }
           : undefined
       }
+      ethPayment={ethPayment}
+      funding={getFundingSummary(paymentFunding, paymentBudgetQuery.isFetching)}
       globalErrorMessage={globalErrorMessage}
       hasBudgetQuoteFailed={hasBudgetQuoteFailed}
       helpMessage={helpMessage}
@@ -1125,7 +1211,7 @@ const PaymentPicker = <T extends TOKEN_SYMBOL>({
   readonly pricingData: number | undefined
   readonly isInPriceCooldown?: boolean
   readonly selectedToken: T | undefined
-  readonly globalErrorMessage?: string | null
+  readonly globalErrorMessage?: ReactNode
   /** A shortfall found at click time, shown when the render saw none. */
   readonly revalidatedShortfall?: number | undefined
   readonly helpMessage?: ReactNode
