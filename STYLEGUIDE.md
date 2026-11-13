@@ -3750,7 +3750,7 @@ import { Button } from '@/components/ui/button'
 
 ### Key Linting Rules
 
-An agent treats every lint warning as an error, through the `agent:lint` command once it is merged. Each project decides for now how it enforces lint rules for people. The direction is every rule an error.
+An agent treats every lint warning on a line it adds or changes as an error, through the `lint:agent` command once it is merged; until then, `npx biome lint` on the changed files. Each project decides for now how it enforces lint rules for people. The direction is every rule an error.
 
 | Rule                           | Purpose                                       | Fix                               |
 | ------------------------------ | --------------------------------------------- | --------------------------------- |
