@@ -11,6 +11,8 @@ const address = '0x1111111111111111111111111111111111111111' as Address
 const caller = '0x9999999999999999999999999999999999999999' as Address
 
 let kind: RoleContractKind = 'unsupported'
+let isPendingUpgrade = false
+let pendingUpgradeError: Error | null = null
 
 const navigate = vi.fn()
 vi.mock('@tanstack/react-router', () => ({
@@ -42,6 +44,12 @@ vi.mock('@tanstack/react-query', async () => {
       const key = options.queryKey[0]
       if (key === 'role-contract-kind')
         return { data: kind, isLoading: false, error: null }
+      if (key === 'is-registry-pending-upgrade')
+        return {
+          data: isPendingUpgrade,
+          isLoading: false,
+          error: pendingUpgradeError,
+        }
       if (key === 'get-registry-info')
         return { data: { address }, isLoading: false, error: null }
       if (key === 'resolver-overview')
@@ -100,7 +108,11 @@ const renderRoute = (route: unknown) => {
   return render(<Component />)
 }
 
-beforeEach(() => navigate.mockClear())
+beforeEach(() => {
+  navigate.mockClear()
+  isPendingUpgrade = false
+  pendingUpgradeError = null
+})
 
 describe('/registry/$address/roles', () => {
   it('refuses a permissioned resolver and points at its own roles page', async () => {
@@ -138,6 +150,25 @@ describe('/registry/$address/roles', () => {
     expect(
       screen.getByRole('button', { name: /Add User/i }),
     ).toBeInTheDocument()
+  })
+
+  it('keeps an outdated registry read-only and says it must be updated', () => {
+    kind = 'registry'
+    isPendingUpgrade = true
+    renderRoute(RegistryRolesRoute)
+
+    expect(screen.getByText('registry roles table')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
+    expect(screen.getByText('Update required')).toBeInTheDocument()
+  })
+
+  it('stays read-only when the update check fails after an earlier answer', () => {
+    kind = 'registry'
+    pendingUpgradeError = new Error('rpc down')
+    renderRoute(RegistryRolesRoute)
+
+    expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
+    expect(screen.queryByText('Update required')).toBeNull()
   })
 })
 

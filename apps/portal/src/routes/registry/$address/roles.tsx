@@ -11,8 +11,11 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { RegistryAddUserSheet } from '@/features/registry/components/v2/RegistryAddUserSheet'
+import { RegistryRolesLockedNotice } from '@/features/registry/components/v2/RegistryRolesLockedNotice'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
+import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
+import { getRoleEditLock } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
@@ -58,6 +61,14 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
     }),
   )
 
+  const pendingUpgrade = useQuery(
+    getIsRegistryPendingUpgradeQueryOptions({ registryAddress: address }),
+  )
+  const roleEditLock = getRoleEditLock(
+    pendingUpgrade.error ? undefined : pendingUpgrade.data,
+  )
+  const canEditRoles = isAdmin && roleEditLock === 'open'
+
   if (isLoading) return <LoadingSpinner title="Loading registry" />
 
   if (error)
@@ -88,7 +99,7 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
           <PageHeading parent={{ type: 'registry', address }}>
             Roles
           </PageHeading>
-          {isAdmin && (
+          {canEditRoles && (
             <Button
               variant="default"
               className="flex items-center gap-2"
@@ -103,8 +114,14 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
           {truncateAddress(address)}
         </EntityBadge>
       </div>
-      <RegistryRolesTable address={address} />
-      {isAdmin && (
+      {isAdmin && roleEditLock === 'needs-update' && (
+        <RegistryRolesLockedNotice />
+      )}
+      <RegistryRolesTable
+        address={address}
+        disableEdit={roleEditLock !== 'open'}
+      />
+      {canEditRoles && (
         <RegistryAddUserSheet
           open={isAddUserOpen}
           onOpenChange={setIsAddUserOpen}
