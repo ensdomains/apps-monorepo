@@ -75,6 +75,7 @@ const NO_ROLES: readonly ResolverRole[] = []
 const NO_REVOCATIONS: readonly ResolverRevocation[] = []
 
 const EditPermissionList = ({
+  originalPermissions,
   editedPermissions,
   onChange,
   canManageRoles,
@@ -82,6 +83,8 @@ const EditPermissionList = ({
   canGrant,
   disabled,
 }: {
+  /** The row's roles as loaded, before this draft's edits. */
+  readonly originalPermissions: ReadonlyMap<string, Permission>
   readonly editedPermissions: Map<string, Permission>
   readonly onChange: (
     roleKey: string,
@@ -145,8 +148,11 @@ const EditPermissionList = ({
               <Checkbox
                 id={`${permission.key}-admin`}
                 checked={rolePerms.admin}
+                // Revoke-only: Add user can't grant an admin, so neither can this.
                 disabled={
-                  !canSetRole || disabled || (!canGrant && !rolePerms.admin)
+                  !canSetRole ||
+                  disabled ||
+                  !originalPermissions.get(permission.key)?.admin
                 }
                 onCheckedChange={(checked) =>
                   onChange(permission.key, 'admin', checked as boolean)
@@ -601,6 +607,7 @@ export const ResolverRolesSidebar = ({
                 )}
 
                 <EditPermissionList
+                  originalPermissions={originalPermissions}
                   editedPermissions={editedPermissions}
                   onChange={handlePermissionChange}
                   canManageRoles={canManageRoles}

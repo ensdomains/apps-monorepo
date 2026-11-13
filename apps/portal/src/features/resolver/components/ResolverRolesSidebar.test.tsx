@@ -311,19 +311,38 @@ describe('ResolverRolesSidebar revoking roles and admins', () => {
     expect(adminCheckbox('ROLE_SET_ADDRESS')).toBeDisabled()
   })
 
-  it('only revokes an admin on a scoped row, never grants one', () => {
-    renderSidebar(
-      group({
+  // Feedback on #1627: Add user can't grant an admin, so the edit sheet can't either.
+  it.each([
+    ['an All names', {}],
+    [
+      'a scoped',
+      {
         isRoot: false,
         resource: avatar.toString(),
         resourceId: avatar,
         resourceLabel: 'text "avatar"',
+      },
+    ],
+  ])('only revokes an admin on %s row, never grants one', (_, scope) => {
+    renderSidebar(
+      group({
+        ...scope,
         decodedRoles: ['ROLE_SET_TEXT', 'ROLE_SET_TEXT_ADMIN'],
       }),
     )
 
     expect(adminCheckbox('ROLE_SET_TEXT')).toBeEnabled()
     expect(adminCheckbox('ROLE_SET_ADDRESS')).toBeDisabled()
+  })
+
+  it('lets an unticked admin be ticked again before saving', async () => {
+    renderSidebar(group({ decodedRoles: ['ROLE_SET_ADDRESS_ADMIN'] }))
+
+    await userEvent.click(adminCheckbox('ROLE_SET_ADDRESS'))
+    expect(adminCheckbox('ROLE_SET_ADDRESS')).toBeEnabled()
+    await userEvent.click(adminCheckbox('ROLE_SET_ADDRESS'))
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
   it('revokes the admin role when its box is unticked', async () => {
