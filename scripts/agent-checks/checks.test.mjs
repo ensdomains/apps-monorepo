@@ -100,7 +100,7 @@ test('diff review flags added violations and ignores context, comments, and pref
   ].join('\n')
   const review = reviewDiff(diff)
   const rules = review.findings.map((finding) => finding.rule)
-  assert.deepEqual(rules, ['R13', 'R14'])
+  assert.deepEqual(rules, ['no-any', 'no-non-null'])
   assert.equal(review.decision, 'feedback')
 })
 
@@ -128,13 +128,14 @@ test('diff review flags result, effect, client, and test-weakening patterns', ()
     '',
   ].join('\n')
   const rules = reviewDiff(diff).findings.map((finding) => finding.rule)
-  assert.ok(rules.includes('R19'))
-  assert.ok(rules.includes('R20'))
-  assert.ok(rules.includes('R21'))
-  assert.ok(rules.includes('R17'))
-  assert.ok(rules.includes('T08'))
-  assert.ok(rules.includes('R38'))
-  assert.ok(rules.includes('R39'))
+  assert.ok(rules.includes('no-effect-fetch'))
+  assert.ok(rules.includes('no-effect-tx'))
+  assert.ok(rules.includes('no-viem-client'))
+  assert.ok(rules.includes('no-result-try'))
+  assert.ok(rules.includes('no-promise-wrap'))
+  assert.ok(rules.includes('no-loose-matcher'))
+  assert.ok(rules.includes('no-focused-test'))
+  assert.ok(rules.includes('no-suppression'))
 })
 
 test('a clean diff that touches transaction-manager asks for its AGENTS.md', () => {
@@ -390,6 +391,62 @@ test('greptile-reviewer copies match the canonical prompt', () => {
   assert.ok(instructions)
   assert.equal(instructions[1].trim(), body)
   assert.match(toml, /name = "greptile-reviewer"/)
+})
+
+test('command bans look at the executable, not quoted text', () => {
+  assert.equal(guardCommand("rg 'npx tsc' .").decision, 'allow')
+  assert.equal(guardCommand('npx tsc --noEmit').decision, 'block')
+  assert.equal(guardCommand('pnpm run test').decision, 'block')
+  assert.equal(guardCommand('pnpm exec vitest run --maxWorkers 4').decision, 'block')
+  assert.equal(
+    guardCommand('pnpm exec vitest run --maxWorkers=4 src/a.test.ts').decision,
+    'allow',
+  )
+})
+
+test('comment suppressions are reported and duplicate hunks collapse', () => {
+  const line = [
+    'diff --git a/src/a.ts b/src/a.ts',
+    '--- a/src/a.ts',
+    '+++ b/src/a.ts',
+    '@@ -0,0 +1 @@',
+    '+// @ts-expect-error third-party type',
+    '',
+  ].join('\n')
+  const once = reviewDiff(line)
+  assert.ok(once.findings.some((finding) => finding.rule === 'no-suppression'))
+  const twice = reviewDiff(`${line}${line}`)
+  assert.equal(twice.findings.filter((finding) => finding.rule === 'no-suppression').length, 1)
+})
+
+test('spec files run and deleted tests do not', () => {
+  const spec = (file) => file === 'apps/manager/src/price.spec.ts'
+  assert.deepEqual(
+    vitestTargets('apps/manager', ['apps/manager/src/price.ts'], spec),
+    ['src/price.spec.ts'],
+  )
+  const live = (file) => file === 'apps/manager/src/price.test.ts'
+  assert.deepEqual(
+    vitestTargets('apps/manager', ['apps/manager/src/gone.test.ts', 'apps/manager/src/price.test.ts'], live),
+    ['src/price.test.ts'],
+  )
+})
+
+test('repository checks use the git root and the diff contents', () => {
+  const source = readFileSync(path.join(root, 'scripts/agent-checks/run.mjs'), 'utf8')
+  assert.match(source, /inRepo\(pkg\)/)
+  assert.match(source, /cwd: REPO_ROOT/)
+  assert.equal(source.includes('--numstat'), false)
+  assert.equal(source.includes("git(['diff', '--cached'])"), false)
+  assert.notEqual(
+    verificationKey(['sha', 'diff\n+const days = 30\n']),
+    verificationKey(['sha', 'diff\n+const days = 60\n']),
+  )
+})
+
+test('pi does not latch the stop check', () => {
+  const source = readFileSync(path.join(root, '.pi/extensions/agent-checks.ts'), 'utf8')
+  assert.equal(source.includes('continued'), false)
 })
 
 test('skill files are linked where each agent looks', () => {

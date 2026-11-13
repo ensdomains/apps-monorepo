@@ -124,10 +124,9 @@ function checkDiff(options) {
   } else {
     diff += git(['diff', 'HEAD'])
   }
-  diff += git(['diff', '--cached'])
   for (const file of untrackedSource()) {
-    if (!existsSync(file)) continue
-    const stat = readFileSync(file)
+    if (!existsSync(inRepo(file))) continue
+    const stat = readFileSync(inRepo(file))
     if (stat.length > 200_000) continue
     diff += syntheticAddedDiff(file, stat.toString('utf8'))
   }
@@ -140,8 +139,8 @@ function prBody(options) {
     body = readFileSync(options['body-file'], 'utf8')
   }
   if (typeof body !== 'string' && process.env.PR_BODY) body = process.env.PR_BODY
-  if (typeof body !== 'string' && existsSync('PR_BODY.md')) {
-    body = readFileSync('PR_BODY.md', 'utf8')
+  if (typeof body !== 'string' && existsSync(inRepo('PR_BODY.md'))) {
+    body = readFileSync(inRepo('PR_BODY.md'), 'utf8')
   }
   noteSession(options, false)
   const choice = resolveBase(options)
@@ -174,9 +173,8 @@ function verify(options) {
   const cacheDir = verificationCacheDir()
   const key = verificationKey([
     git(['rev-parse', 'HEAD']).trim(),
-    choice.base ? git(['diff', '--numstat', ...choice.range]) : '',
-    git(['diff', '--numstat', 'HEAD']),
-    git(['diff', '--numstat', '--cached']),
+    choice.base ? git(['diff', ...choice.range]) : '',
+    git(['diff', 'HEAD']),
     untrackedFingerprint(),
   ])
   if (cacheDir) {
@@ -213,7 +211,7 @@ function verifyTypecheck(ref, sourceFiles) {
   const typecheck = ref
     ? ['pnpm', '--filter', `...[${ref}]`, '--filter', '!{.}', 'typecheck']
     : ['pnpm', '--filter', '!{.}', 'typecheck']
-  const typecheckResult = runLogged(typecheck, process.cwd())
+  const typecheckResult = runLogged(typecheck, REPO_ROOT)
   if (typecheckResult.timedOut) {
     return {
       decision: 'feedback',
@@ -228,11 +226,11 @@ function verifyTypecheck(ref, sourceFiles) {
   }
 
   for (const pkg of packagesFor(sourceFiles)) {
-    const targets = vitestTargets(pkg, sourceFiles, existsSync)
+    const targets = vitestTargets(pkg, sourceFiles, (file) => existsSync(inRepo(file)))
     if (targets.length === 0) continue
     const result = runLogged(
       ['pnpm', 'exec', 'vitest', 'run', '--maxWorkers=4', ...targets],
-      path.resolve(pkg),
+      inRepo(pkg),
     )
     if (result.timedOut) {
       return {
@@ -251,18 +249,19 @@ function verifyTypecheck(ref, sourceFiles) {
 }
 
 function deadExports() {
-  if (!existsSync('node_modules/knip')) {
+  if (!existsSync(inRepo('node_modules/knip'))) {
     return {
       decision: 'feedback',
       reason:
         'knip is not installed here. .github/workflows/test.yml still has the knip step commented out ("not configured for all packages"), so this check does not fail CI.',
     }
   }
-  const result = spawnSync(
-    'pnpm',
-    ['knip', '--include', 'files,exports'],
-    { encoding: 'utf8', timeout: 150_000, maxBuffer: 10_000_000 },
-  )
+  const result = spawnSync('pnpm', ['knip', '--include', 'files,exports'], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: 150_000,
+    maxBuffer: 10_000_000,
+  })
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim()
   return {
     decision: 'feedback',
@@ -280,7 +279,6 @@ function allChangedFiles(choice) {
     }
   }
   for (const line of git(['diff', '--name-only', 'HEAD']).split('\n')) if (line) names.add(line)
-  for (const line of git(['diff', '--name-only', '--cached']).split('\n')) if (line) names.add(line)
   for (const line of untrackedSource()) names.add(line)
   return [...names]
 }
@@ -326,10 +324,15 @@ function resolveBase(options) {
   return { base, range: base ? (twoDot ? [base, 'HEAD'] : [`${base}...HEAD`]) : [] }
 }
 
-function agentStateDir() {
+function absGitDir() {
   const gitDir = git(['rev-parse', '--git-dir']).trim()
   if (!gitDir) return ''
-  return path.resolve(gitDir, 'agent-checks')
+  return path.isAbsolute(gitDir) ? gitDir : path.resolve(REPO_ROOT, gitDir)
+}
+
+function agentStateDir() {
+  const gitDir = absGitDir()
+  return gitDir ? path.join(gitDir, 'agent-checks') : ''
 }
 
 function upstreamMergeBase() {
@@ -347,9 +350,8 @@ function originMain() {
  * @returns {string[]}
  */
 function verificationCacheDir() {
-  const gitDir = git(['rev-parse', '--git-dir']).trim()
-  if (!gitDir) return ''
-  return path.resolve(gitDir, 'agent-checks-cache')
+  const gitDir = absGitDir()
+  return gitDir ? path.join(gitDir, 'agent-checks-cache') : ''
 }
 
 /**
@@ -360,9 +362,9 @@ function recordLog(record) {
   const line = formatLogRecord(record)
   let file = process.env.AGENT_CHECKS_LOG
   if (!file) {
-    const gitDir = git(['rev-parse', '--git-dir']).trim()
+    const gitDir = absGitDir()
     if (!gitDir) return
-    file = path.resolve(gitDir, 'agent-checks.log')
+    file = path.join(gitDir, 'agent-checks.log')
   }
   try {
     appendFileSync(file, `${line}\n`)
@@ -381,7 +383,7 @@ function untrackedFingerprint() {
   return untrackedSource()
     .map((file) => {
       try {
-        return `${file}:${createHash('sha256').update(readFileSync(file)).digest('hex')}`
+        return `${file}:${createHash('sha256').update(readFileSync(inRepo(file))).digest('hex')}`
       } catch {
         return file
       }
@@ -395,12 +397,34 @@ function untrackedFingerprint() {
 function git(args) {
   try {
     return execFileSync('git', args, {
+      cwd: REPO_ROOT,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     })
   } catch {
     return ''
   }
+}
+
+const REPO_ROOT = repoRoot()
+
+function repoRoot() {
+  try {
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    return top || process.cwd()
+  } catch {
+    return process.cwd()
+  }
+}
+
+/**
+ * @param {string} file
+ */
+function inRepo(file) {
+  return path.resolve(REPO_ROOT, file)
 }
 
 /**

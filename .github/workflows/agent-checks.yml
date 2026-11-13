@@ -1,7 +1,7 @@
 name: Agent instruction checks
 
-# Experimental. Findings are warnings. This job does not fail the PR:
-# the diff checks allow justified exceptions, and knip is not configured
+# Findings are warnings. This job does not fail the pull request:
+# diff checks allow a justified exception, and knip is not configured
 # for every package (see the commented step in test.yml).
 on:
   pull_request:

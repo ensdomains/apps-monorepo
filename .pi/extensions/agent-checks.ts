@@ -45,8 +45,6 @@ type Extension = {
   ): void
 }
 
-let continued = false
-
 function repoRoot(): string {
   const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
     encoding: "utf8",
@@ -125,10 +123,8 @@ export default function agentChecks(pi: Extension) {
   })
 
   pi.on("agent_before_settle", (event) => {
-    if (continued) return undefined
     const checked = verdict("agent_before_settle", ["verify"])
     if (checked.decision !== "block" || !checked.reason) return undefined
-    continued = true
     return {
       continue: true,
       entries: [

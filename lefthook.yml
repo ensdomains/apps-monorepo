@@ -27,8 +27,7 @@ pre-push:
   commands:
     biome-ci:
       run: pnpm biome ci --formatter-enabled=true --linter-enabled=true
-    # Experimental agent checks. Report-only: STYLEGUIDE allows justified
-    # exceptions, and a crash here must not block a push. The same scripts
-    # can block inside an agent Stop hook. See scripts/agent-checks/run.mjs.
+    # Report-only. A justified exception stays a warning, and a crash here
+    # must not block a push. Stop can still block. See scripts/agent-checks/run.mjs.
     agent-checks:
       run: node scripts/agent-checks/run.mjs check-diff --report-only --agent lefthook --event pre-push >/dev/null; node scripts/agent-checks/run.mjs branch-name --report-only --agent lefthook --event pre-push >/dev/null; true

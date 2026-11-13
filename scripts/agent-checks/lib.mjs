@@ -36,15 +36,6 @@ const SKIP_PATTERN = /\b(?:it|test|describe)\.(?:skip|only|todo)\(|\bxit\(|\bxde
  */
 export function guardCommand(command, options = {}) {
   const text = command ?? ''
-  if (
-    /(npx|pnpx)\s+tsc\b/.test(text) ||
-    /pnpm\s+exec\s+tsc\b/.test(text) ||
-    /pnpm\s+dlx\s+tsc\b/.test(text) ||
-    /node_modules\/\.bin\/tsc\b/.test(text)
-  ) {
-    return { decision: 'block', reason: TSC_REASON }
-  }
-
   let dir = options.cwd ?? ''
   for (const segment of splitSegments(text)) {
     const tokens = commandTokens(segment)
@@ -104,24 +95,21 @@ export function splitSegments(command) {
  * @param {readonly string[]} tokens
  */
 function isBannedTsc(tokens) {
-  const index = tokens.findIndex(
-    (token) => token === 'tsc' || token.endsWith('/tsc'),
-  )
-  if (index === -1) return false
-  const previous = tokens[index - 1]
-  const before = tokens[index - 2]
-  if (previous === 'npx' || previous === 'pnpx') return true
-  if (previous === 'dlx' && before === 'pnpm') return true
-  if (previous === 'exec' && before === 'pnpm') return true
-  if (previous === 'node' && tokens[index]?.endsWith('/tsc')) return true
-  return index === 0
+  const command = tokens[0]
+  if (!command) return false
+  if (command === 'tsc' || command.endsWith('/tsc')) return true
+  if ((command === 'npx' || command === 'pnpx') && tokens[1] === 'tsc') return true
+  if (command === 'pnpm' && tokens[1] === 'dlx' && tokens[2] === 'tsc') return true
+  if (command === 'pnpm' && tokens[1] === 'exec' && tokens[2] === 'tsc') return true
+  if (command === 'node' && (tokens[1]?.endsWith('/tsc') ?? false)) return true
+  return false
 }
 
 function isBannedTest(tokens) {
   if (tokens[0] === 'pnpm') {
     const args = tokens.slice(1)
     const positional = args.filter((arg) => !arg.startsWith('-'))
-    const script = positional[0]
+    const script = positional[0] === 'run' ? positional[1] : positional[0]
     const recursive = args.includes('-r') || args.includes('--recursive')
     const filtered = args.some(
       (arg) => arg === '--filter' || arg.startsWith('--filter=') || arg === '-F',
@@ -137,8 +125,41 @@ function isBannedTest(tokens) {
       (tokens[index - 1] === 'vitest' || tokens[index - 1]?.endsWith('/vitest') === true),
   )
   if (runAt === -1) return false
-  const paths = tokens.slice(runAt + 1).filter((token) => !token.startsWith('-'))
-  return paths.length === 0
+  return vitestPaths(tokens.slice(runAt + 1)).length === 0
+}
+
+const VITEST_VALUE_FLAGS = new Set([
+  '--maxWorkers',
+  '--minWorkers',
+  '--maxConcurrency',
+  '--testTimeout',
+  '--hookTimeout',
+  '--reporter',
+  '--config',
+  '-c',
+  '--dir',
+  '--shard',
+  '--testNamePattern',
+  '-t',
+  '--project',
+  '--pool',
+])
+
+/**
+ * @param {readonly string[]} tokens
+ * @returns {string[]}
+ */
+function vitestPaths(tokens) {
+  const paths = []
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index] ?? ''
+    if (!token.startsWith('-')) {
+      paths.push(token)
+      continue
+    }
+    if (!token.includes('=') && VITEST_VALUE_FLAGS.has(token)) index += 1
+  }
+  return paths
 }
 
 /**
@@ -242,7 +263,15 @@ export function reviewDiff(diff) {
     if (!isCheckedSource(file.path)) continue
     findings.push(...findingsForFile(file))
   }
-  const capped = findings.slice(0, 40)
+  const seen = new Set()
+  const unique = []
+  for (const item of findings) {
+    const id = `${item.path}:${item.line}:${item.rule}`
+    if (seen.has(id)) continue
+    seen.add(id)
+    unique.push(item)
+  }
+  const capped = unique.slice(0, 40)
   const context = files.some((file) =>
     file.path.startsWith('packages/transaction-manager/'),
   )
@@ -325,45 +354,45 @@ function findingsForFile(file) {
   for (const line of file.added) {
     const code = stripLineComment(line.text)
     if (ANY_PATTERN.test(code)) {
-      findings.push(finding(file.path, line.line, 'R13', '`any` (use `unknown`)'))
+      findings.push(finding(file.path, line.line, 'no-any', '`any` (use `unknown`)'))
     }
     if (NON_NULL_PATTERN.test(code)) {
-      findings.push(finding(file.path, line.line, 'R14', 'non-null assertion `!`'))
+      findings.push(finding(file.path, line.line, 'no-non-null', 'non-null assertion `!`'))
     }
-    if (SUPPRESSION_PATTERN.test(code)) {
+    if (SUPPRESSION_PATTERN.test(line.text)) {
       findings.push(
-        finding(file.path, line.line, 'R39', 'new suppression (`biome-ignore`, `@ts-expect-error`, `as unknown as`, or eslint-disable)'),
+        finding(file.path, line.line, 'no-suppression', 'new suppression (`biome-ignore`, `@ts-expect-error`, `as unknown as`, or eslint-disable)'),
       )
     }
     if (UNWRAP_PATTERN.test(code)) {
-      findings.push(finding(file.path, line.line, 'R18', 'Result unwrapped by throwing'))
+      findings.push(finding(file.path, line.line, 'no-result-throw', 'Result unwrapped by throwing'))
     }
     if (isTest && SKIP_PATTERN.test(code)) {
-      findings.push(finding(file.path, line.line, 'R38', 'skipped, exclusive, or todo test'))
+      findings.push(finding(file.path, line.line, 'no-focused-test', 'skipped, exclusive, or todo test'))
     }
     if (isTsx && /create(?:Public|Wallet)?Client\s*\(/.test(code)) {
-      findings.push(finding(file.path, line.line, 'R21', 'viem client created in a component file'))
+      findings.push(finding(file.path, line.line, 'no-viem-client', 'viem client created in a component file'))
     }
   }
 
   if (/\btry\s*\{/.test(addedText) && /\b(ResultAsync|Result|errAsync|okAsync)\b|\berr\(|\bok\(/.test(addedText)) {
-    findings.push(finding(file.path, firstAddedLine(file), 'R17', 'try/catch in a diff that also builds a Result'))
+    findings.push(finding(file.path, firstAddedLine(file), 'no-result-try', 'try/catch in a diff that also builds a Result'))
   }
   if (/Promise\.resolve\(\)\s*\.then/.test(addedText)) {
     findings.push(
-      finding(file.path, firstAddedLine(file), 'T08', '`Promise.resolve().then` around sync work; use `fromSync`'),
+      finding(file.path, firstAddedLine(file), 'no-promise-wrap', '`Promise.resolve().then` around sync work; use `fromSync`'),
     )
   }
   if (isTsx && /\buseEffect\s*\(/.test(addedText)) {
     if (/fetch\(|readContract|queryClient\.fetchQuery/.test(addedText)) {
-      findings.push(finding(file.path, firstAddedLine(file), 'R19', '`useEffect` that looks like data fetching'))
+      findings.push(finding(file.path, firstAddedLine(file), 'no-effect-fetch', '`useEffect` that looks like data fetching'))
     }
     if (/startTransaction|writeContract|sendTransaction|\.mutate\(/.test(addedText)) {
-      findings.push(finding(file.path, firstAddedLine(file), 'R20', '`useEffect` that looks like it chains a transaction'))
+      findings.push(finding(file.path, firstAddedLine(file), 'no-effect-tx', '`useEffect` that looks like it chains a transaction'))
     }
   }
   if (isTest && loosenedMatcher(file.removed, file.added.map((line) => line.text))) {
-    findings.push(finding(file.path, firstAddedLine(file), 'R38', 'matcher loosened (`toEqual`/`toBe` toward `toMatchObject`, `expect.any`, or `toBeTruthy`)'))
+    findings.push(finding(file.path, firstAddedLine(file), 'no-loose-matcher', 'matcher loosened (`toEqual`/`toBe` toward `toMatchObject`, `expect.any`, or `toBeTruthy`)'))
   }
   return findings
 }
@@ -512,15 +541,13 @@ export function vitestTargets(pkg, files, exists) {
   for (const file of files) {
     if (!file.startsWith(prefix)) continue
     const relative = file.slice(prefix.length)
-    if (/\.test\.tsx?$/.test(relative)) {
-      targets.add(relative)
+    if (TEST_FILE.test(file)) {
+      if (exists(file)) targets.add(relative)
       continue
     }
-    if (!/\.tsx?$/.test(relative)) continue
-    const stem = relative.replace(/\.tsx?$/, '')
-    for (const suffix of ['.test.ts', '.test.tsx']) {
-      const candidate = `${stem}${suffix}`
-      if (exists(`${pkg}/${candidate}`)) targets.add(candidate)
+    for (const candidate of relatedTestPaths(file)) {
+      if (!candidate.startsWith(prefix) || !exists(candidate)) continue
+      targets.add(candidate.slice(prefix.length))
     }
   }
   return [...targets]
