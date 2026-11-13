@@ -1,16 +1,23 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import {
+  applyMissingTests,
+  formatLogRecord,
   guardCommand,
+  missingRelatedTests,
   packagesFor,
+  readCachedVerdict,
   reviewBranch,
   reviewDiff,
   reviewPrBody,
+  verificationKey,
   vitestTargets,
+  writeCachedVerdict,
 } from './lib.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -118,7 +125,7 @@ test('a clean diff that touches transaction-manager asks for its AGENTS.md', () 
   assert.match(review.context, /packages\/transaction-manager\/AGENTS.md/)
 })
 
-test('pr body blocks only when a body exists and a section is missing', () => {
+test('pr body keeps behaviour inside Regression check', () => {
   const diff = [
     'diff --git a/src/price.test.ts b/src/price.test.ts',
     '--- a/src/price.test.ts',
@@ -130,8 +137,22 @@ test('pr body blocks only when a body exists and a section is missing', () => {
   ].join('\n')
   assert.equal(reviewPrBody(undefined, diff).decision, 'allow')
   assert.equal(reviewPrBody('## Regression check\nnone\n', diff).decision, 'block')
-  const body = '## Regression check\nnone\n## Behaviour changes\nprice.test.ts: expected price changed\n'
-  assert.equal(reviewPrBody(body, diff).decision, 'allow')
+  const outside = [
+    '## Regression check',
+    'Callers checked: price helpers.',
+    '## Behaviour changes for users',
+    'The price is 2.',
+    '',
+  ].join('\n')
+  assert.equal(reviewPrBody(outside, diff).decision, 'block')
+  const inside = [
+    '## Regression check',
+    'Callers checked: price helpers.',
+    'Existing tests changed: price.test.ts now expects 2.',
+    'Behaviour: the displayed price is 2.',
+    '',
+  ].join('\n')
+  assert.equal(reviewPrBody(inside, diff).decision, 'allow')
 })
 
 test('branch name stays quiet unless a ticket id is known', () => {
@@ -192,6 +213,48 @@ test('claude adapter denies npx tsc and does not re-enter a stop hook', () => {
   })
   assert.equal(stopped.status, 0)
   assert.equal(stopped.stdout, '')
+})
+
+test('a runtime change without a related test is feedback, and a paired test clears it', () => {
+  const source = 'apps/manager/src/names/mergedNames.ts'
+  const testFile = 'apps/manager/src/names/mergedNames.test.ts'
+  assert.deepEqual(missingRelatedTests([source]), [source])
+  assert.deepEqual(missingRelatedTests([source, testFile]), [])
+  assert.deepEqual(missingRelatedTests([`${source.replace(/\.ts$/, '.spec.ts')}`, source]), [])
+  assert.deepEqual(missingRelatedTests(['packages/utils/src/clock.gen.ts', 'apps/manager/src/row.stories.tsx']), [])
+  const review = applyMissingTests(
+    { decision: 'allow', reason: '', findings: [] },
+    [source],
+  )
+  assert.equal(review.decision, 'feedback')
+  assert.match(review.reason, /writing-tests/)
+  assert.match(review.reason, /do not replace/i)
+})
+
+test('verification cache and log records round-trip', () => {
+  assert.equal(verificationKey(['a', 'b']), verificationKey(['a', 'b']))
+  assert.notEqual(verificationKey(['a']), verificationKey(['b']))
+  const dir = mkdtempSync(path.join(tmpdir(), 'agent-checks-'))
+  assert.equal(readCachedVerdict(dir, 'missing'), null)
+  writeCachedVerdict(dir, 'abc', { decision: 'block', reason: 'no test' })
+  assert.deepEqual(readCachedVerdict(dir, 'abc'), { decision: 'block', reason: 'no test' })
+  const line = formatLogRecord({
+    timestamp: '2026-11-13T00:00:00.000Z',
+    agent: 'codex',
+    event: 'Stop',
+    check: 'verify',
+    verdict: 'allow',
+    durationMs: 4,
+  })
+  assert.equal(line.includes('\n'), false)
+  assert.deepEqual(JSON.parse(line), {
+    timestamp: '2026-11-13T00:00:00.000Z',
+    agent: 'codex',
+    event: 'Stop',
+    check: 'verify',
+    verdict: 'allow',
+    durationMs: 4,
+  })
 })
 
 test('skill files are linked where each agent looks', () => {

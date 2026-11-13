@@ -18,7 +18,8 @@ pnpm monorepo: apps in `apps/`, shared code in `packages/` (used by every app), 
 No `any` (use `unknown`), no `!`, no mutation, `bigint` for on-chain values, no `Result` mixed with try/catch or unwrapped by throwing, no `useEffect` for fetching or chaining transactions, no viem clients in components.
 
 ## Regressions
-- Existing tests are the spec. If one fails, fix the code. Change an assertion only when the task changes that behaviour, and list it in the PR.
+- Existing tests are the spec. If one fails, fix the code. Add a case; do not replace or delete an existing one. Change an assertion only when the task changes that behaviour, and list it inside the PR's `## Regression check`.
+- Any runtime behaviour change must add or update focused tests next to the code and run `pnpm exec vitest run --maxWorkers=4 <paths>` before committing. Read skill `writing-tests` before writing those tests. Do this even when the ticket never mentions tests.
 - Never get green by skipping, loosening or deleting tests, raising timeouts, or adding `biome-ignore`, `@ts-expect-error`, `as unknown as` or `!`.
 - A bug fix starts with a test that fails on the unfixed code.
 - Before changing an export, default, query key, error shape or global CSS, `git grep -n <name>` every caller. Add an option instead of changing a default.

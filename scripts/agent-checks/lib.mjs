@@ -5,6 +5,10 @@
  * feedback: STYLEGUIDE allows a justified exception.
  */
 
+import { createHash } from 'node:crypto'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+
 const TSC_REASON =
   'Do not run `npx tsc`, `pnpx tsc`, `pnpm exec tsc`, or `node_modules/.bin/tsc`. Run `pnpm typecheck` from the app or package directory.'
 
@@ -369,27 +373,44 @@ export function pathsInDiff(diff) {
   return parseDiff(diff).map((file) => file.path)
 }
 
+const REGRESSION_SECTION_REASON =
+  'Put callers (or consumers), existing tests, and behaviour inside "## Regression check". Do not add a separate "Behaviour changes" heading.'
+
 /**
- * @param {string | undefined} body
- * @param {string} diff
- * @returns {{ decision: 'allow' | 'block' | 'feedback', reason: string }}
+ * Text under the Regression check heading, up to the next heading.
+ * @param {string} body
+ * @returns {string | null}
  */
+export function regressionCheckSection(body) {
+  const match = body.match(/^#{1,3}[ \t]+regression check\s*$/im)
+  if (!match || match.index === undefined) return null
+  const after = body.slice(match.index + match[0].length)
+  const next = after.search(/\n#{1,3}[ \t]+/)
+  return (next === -1 ? after : after.slice(0, next)).trim()
+}
+
 export function reviewPrBody(body, diff) {
   if (body === undefined || body.trim() === '') {
     return { decision: 'allow', reason: '' }
   }
-  const missing = []
-  if (!/^#{1,3}[ \t]+regression check\s*$/im.test(body)) {
-    missing.push('a "Regression check" section (callers, existing tests or "none", behaviour for other callers)')
+  const section = regressionCheckSection(body)
+  if (section === null) {
+    return {
+      decision: 'block',
+      reason: `PR body is missing a "## Regression check" section. ${REGRESSION_SECTION_REASON}`,
+    }
   }
-  if (assertionsChanged(diff) && !/^#{1,3}[ \t]+behaviour changes\s*$/im.test(body)) {
-    missing.push('a "Behaviour changes" section naming each existing test whose assertion changed')
+  if (!/(callers|consumers)/i.test(section) || !/behaviour/i.test(section)) {
+    return { decision: 'block', reason: REGRESSION_SECTION_REASON }
   }
-  if (missing.length === 0) return { decision: 'allow', reason: '' }
-  return {
-    decision: 'block',
-    reason: `PR body is missing ${missing.join(' and ')}.`,
+  if (assertionsChanged(diff) && !/existing tests/i.test(section)) {
+    return {
+      decision: 'block',
+      reason:
+        'Existing assertions changed. Name them under "Existing tests changed" inside "## Regression check".',
+    }
   }
+  return { decision: 'allow', reason: '' }
 }
 
 /**
@@ -473,10 +494,145 @@ export function vitestTargets(pkg, files, exists) {
  * @param {string} path
  * @param {string} contents
  */
-export function syntheticAddedDiff(path, contents) {
+export function syntheticAddedDiff(filePath, contents) {
   const body = contents
     .split('\n')
     .map((line) => `+${line}`)
     .join('\n')
-  return `diff --git a/${path} b/${path}\n--- /dev/null\n+++ b/${path}\n@@ -0,0 +1,${contents.split('\n').length} @@\n${body}\n`
+  return `diff --git a/${filePath} b/${filePath}\n--- /dev/null\n+++ b/${filePath}\n@@ -0,0 +1,${contents.split('\n').length} @@\n${body}\n`
+}
+
+const RUNTIME_EXT = /\.(?:[cm]?[jt]sx?)$/
+const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/
+
+/**
+ * @param {string} file
+ */
+export function isRuntimeSource(file) {
+  if (!file.startsWith('apps/') && !file.startsWith('packages/')) return false
+  if (!RUNTIME_EXT.test(file)) return false
+  if (TEST_FILE.test(file)) return false
+  if (file.includes('/__tests__/')) return false
+  if (file.endsWith('.d.ts') || file.endsWith('.gen.ts') || file.endsWith('.gen.d.ts')) return false
+  if (/\.stories\.[cm]?[jt]sx?$/.test(file)) return false
+  return true
+}
+
+/**
+ * Candidate test paths that count as related to a source file.
+ * @param {string} file
+ * @returns {readonly string[]}
+ */
+export function relatedTestPaths(file) {
+  const dir = path.posix.dirname(file)
+  const base = path.posix.basename(file).replace(/\.[^.]+$/, '')
+  const exts = ['ts', 'tsx', 'js', 'jsx']
+  const paths = []
+  for (const ext of exts) {
+    paths.push(`${dir}/${base}.test.${ext}`)
+    paths.push(`${dir}/${base}.spec.${ext}`)
+    paths.push(`${dir}/__tests__/${base}.test.${ext}`)
+    paths.push(`${dir}/__tests__/${base}.spec.${ext}`)
+  }
+  return paths
+}
+
+/**
+ * Runtime sources under apps/ or packages/ whose related test file is not in the diff.
+ * @param {readonly string[]} files
+ * @returns {readonly string[]}
+ */
+export function missingRelatedTests(files) {
+  const changed = new Set(files)
+  const missing = []
+  for (const file of files) {
+    if (!isRuntimeSource(file)) continue
+    if (!relatedTestPaths(file).some((candidate) => changed.has(candidate))) {
+      missing.push(file)
+    }
+  }
+  return missing
+}
+
+/**
+ * @param {readonly string[]} files
+ */
+export function missingTestsReason(files) {
+  const listed = files.slice(0, 20).map((file) => `- ${file}`).join('\n')
+  return [
+    'Runtime source changed with no related *.test.* or *.spec.* file in the diff.',
+    'Add or update the focused test next to the code, read skill writing-tests first, and run it before committing.',
+    'Keep existing cases; do not replace them.',
+    listed,
+  ].join('\n')
+}
+
+/**
+ * Diff-time verdict stays feedback. Stop uses missingRelatedTests and may block.
+ * @param {{ decision: string, reason: string, context?: string, findings?: readonly { path: string, line: number, rule: string, message: string }[] }} review
+ * @param {readonly string[]} files
+ */
+export function applyMissingTests(review, files) {
+  const missing = missingRelatedTests(files)
+  if (missing.length === 0) return review
+  const extra = missingTestsReason(missing)
+  return {
+    ...review,
+    decision: 'feedback',
+    reason: [review.reason, extra].filter((part) => part.length > 0).join('\n\n'),
+    findings: [
+      ...(review.findings ?? []),
+      { path: missing[0] ?? '', line: 1, rule: 'tests', message: extra },
+    ],
+  }
+}
+
+/**
+ * @param {readonly string[]} parts
+ */
+export function verificationKey(parts) {
+  return createHash('sha256').update(parts.join('\0')).digest('hex')
+}
+
+/**
+ * @param {string} dir
+ * @param {string} key
+ * @returns {{ decision: string, reason: string } | null}
+ */
+export function readCachedVerdict(dir, key) {
+  const file = path.join(dir, `${key}.json`)
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'))
+    if (parsed && (parsed.decision === 'allow' || parsed.decision === 'block' || parsed.decision === 'feedback')) {
+      return { decision: parsed.decision, reason: typeof parsed.reason === 'string' ? parsed.reason : '' }
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+/**
+ * @param {string} dir
+ * @param {string} key
+ * @param {{ decision: string, reason: string }} verdict
+ */
+export function writeCachedVerdict(dir, key, verdict) {
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(path.join(dir, `${key}.json`), JSON.stringify({ decision: verdict.decision, reason: verdict.reason }))
+}
+
+/**
+ * One JSON line for .git/agent-checks.log.
+ * @param {{ timestamp: string, agent: string, event: string, check: string, verdict: string, durationMs: number }} record
+ */
+export function formatLogRecord(record) {
+  return JSON.stringify({
+    timestamp: record.timestamp,
+    agent: record.agent,
+    event: record.event,
+    check: record.check,
+    verdict: record.verdict,
+    durationMs: record.durationMs,
+  })
 }

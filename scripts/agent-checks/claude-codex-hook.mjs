@@ -29,8 +29,13 @@ const tool = stringField(input, 'tool_name')
 const toolInput = objectField(input, 'tool_input')
 
 if (event === 'PreToolUse' && (tool === 'Bash' || tool === 'bash')) {
-  const verdict = call(['guard-command', '--command', stringField(toolInput, 'command')])
+  const verdict = call(agentName(input), event, [
+    'guard-command',
+    '--command',
+    stringField(toolInput, 'command'),
+  ])
   if (verdict.decision === 'block') {
+    note(verdict)
     write({
       hookSpecificOutput: {
         hookEventName: 'PreToolUse',
@@ -43,13 +48,14 @@ if (event === 'PreToolUse' && (tool === 'Bash' || tool === 'bash')) {
 }
 
 if (event === 'PostToolUse') {
-  const verdict = call(['check-diff'])
+  const verdict = call(agentName(input), event, ['check-diff'])
   const parts = []
   if (verdict.context && markOnce(stringField(input, 'session_id'))) {
     parts.push(verdict.context)
   }
   if (verdict.decision === 'feedback' && verdict.reason) parts.push(verdict.reason)
   if (parts.length > 0) {
+    note(verdict)
     write({
       hookSpecificOutput: {
         hookEventName: 'PostToolUse',
@@ -61,13 +67,15 @@ if (event === 'PostToolUse') {
 }
 
 if (event === 'Stop' && input.stop_hook_active !== true && !stringField(input, 'agent_id')) {
-  const verified = call(['verify'])
+  const verified = call(agentName(input), event, ['verify'])
   if (verified.decision === 'block') {
+    note(verified)
     write({ decision: 'block', reason: verified.reason })
     process.exit(0)
   }
-  const body = call(['pr-body'])
+  const body = call(agentName(input), event, ['pr-body'])
   if (body.decision === 'block') {
+    note(body)
     write({ decision: 'block', reason: body.reason })
   }
 }
@@ -75,11 +83,17 @@ if (event === 'Stop' && input.stop_hook_active !== true && !stringField(input, '
 process.exit(0)
 
 /**
+ * @param {string} agent
+ * @param {string} event
  * @param {readonly string[]} args
  * @returns {{ decision?: string, reason?: string, context?: string }}
  */
-function call(args) {
-  const result = spawnSync(process.execPath, [runner, ...args], { encoding: 'utf8' })
+function call(agent, event, args) {
+  const result = spawnSync(
+    process.execPath,
+    [runner, ...args, '--agent', agent, '--event', event],
+    { encoding: 'utf8' },
+  )
   const stdout = result.stdout ?? ''
   const line = stdout.trim().split('\n').find((entry) => entry.startsWith('{'))
   if (!line) return { decision: 'allow', reason: '' }
@@ -88,6 +102,24 @@ function call(args) {
   } catch {
     return { decision: 'allow', reason: '' }
   }
+}
+
+/**
+ * @param {{ decision?: string }} verdict
+ */
+function note(verdict) {
+  if (verdict.decision === 'feedback' || verdict.decision === 'block') {
+    process.stderr.write(`agent-checks: ${verdict.decision}\n`)
+  }
+}
+
+/**
+ * Codex sends turn_id. Claude does not.
+ * @param {Record<string, unknown>} payload
+ */
+function agentName(payload) {
+  if (typeof payload.turn_id === 'string' && payload.turn_id.length > 0) return 'codex'
+  return 'claude'
 }
 
 /**

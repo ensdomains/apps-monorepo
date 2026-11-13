@@ -20,19 +20,22 @@ function repoRoot(): string {
   return (result.stdout ?? "").trim()
 }
 
-function verdict(args: readonly string[]): Verdict {
+function verdict(eventName: string, args: readonly string[]): Verdict {
   const root = repoRoot()
   if (!root) return { decision: "allow" }
-  const result = spawnSync(process.execPath, [`${root}/scripts/agent-checks/run.mjs`, ...args], {
-    cwd: root,
-    encoding: "utf8",
-  })
-  const line = (result.stdout ?? "")
-    .split("\n")
-    .find((entry) => entry.startsWith("{"))
+  const result = spawnSync(
+    process.execPath,
+    [`${root}/scripts/agent-checks/run.mjs`, ...args, "--agent", "opencode", "--event", eventName],
+    { cwd: root, encoding: "utf8" },
+  )
+  const line = (result.stdout ?? "").split("\n").find((entry) => entry.startsWith("{"))
   if (!line) return { decision: "allow" }
   try {
-    return JSON.parse(line) as Verdict
+    const parsed = JSON.parse(line) as Verdict
+    if (parsed.decision === "feedback" || parsed.decision === "block") {
+      process.stderr.write(`agent-checks: ${parsed.decision} ${args[0] ?? "check"}\n`)
+    }
+    return parsed
   } catch {
     return { decision: "allow" }
   }
@@ -44,7 +47,7 @@ export default Plugin.define({
     await ctx.tool.hook("execute.before", (event: ToolEvent) => {
       const tool = event.tool ?? ""
       if (tool !== "bash" && tool !== "shell") return
-      const checked = verdict([
+      const checked = verdict("execute.before", [
         "guard-command",
         "--command",
         event.input?.command ?? "",
@@ -57,7 +60,7 @@ export default Plugin.define({
     await ctx.tool.hook("execute.after", (event: ToolEvent) => {
       const tool = event.tool ?? ""
       if (tool !== "bash" && tool !== "shell" && tool !== "edit" && tool !== "write") return
-      const checked = verdict(["check-diff"])
+      const checked = verdict("execute.after", ["check-diff"])
       const parts = [
         checked.context ?? "",
         checked.decision === "feedback" ? (checked.reason ?? "") : "",

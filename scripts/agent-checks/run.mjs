@@ -13,17 +13,26 @@
  * Exit 2 for block, unless --report-only (always exit 0).
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import {
+  applyMissingTests,
+  formatLogRecord,
   guardCommand,
+  missingRelatedTests,
+  missingTestsReason,
   packagesFor,
+  pathsInDiff,
+  readCachedVerdict,
   reviewBranch,
   reviewDiff,
   reviewPrBody,
   syntheticAddedDiff,
+  verificationKey,
   vitestTargets,
+  writeCachedVerdict,
 } from './lib.mjs'
 
 const { positionals, values } = parseArgs({
@@ -36,13 +45,27 @@ const { positionals, values } = parseArgs({
     body: { type: 'string' },
     'report-only': { type: 'boolean', default: false },
     strict: { type: 'boolean', default: false },
+    agent: { type: 'string', default: 'cli' },
+    event: { type: 'string', default: 'cli' },
   },
 })
 
 const command = positionals[0] ?? ''
-
+const started = Date.now()
 const verdict = run(command, values)
+const durationMs = Date.now() - started
 const reportOnly = values['report-only']
+recordLog({
+  timestamp: new Date().toISOString(),
+  agent: String(values.agent ?? 'cli'),
+  event: String(values.event ?? 'cli'),
+  check: command,
+  verdict: verdict.decision ?? 'allow',
+  durationMs,
+})
+if (verdict.decision === 'feedback' || verdict.decision === 'block') {
+  process.stderr.write(`agent-checks: ${verdict.decision} ${command} (${durationMs}ms)\n`)
+}
 process.stdout.write(`${JSON.stringify(verdict)}\n`)
 if (verdict.reason) process.stderr.write(`${verdict.reason}\n`)
 if (reportOnly && process.env.GITHUB_ACTIONS === 'true') {
@@ -90,7 +113,7 @@ function checkDiff(base) {
     if (stat.length > 200_000) continue
     diff += syntheticAddedDiff(file, stat.toString('utf8'))
   }
-  return reviewDiff(diff)
+  return applyMissingTests(reviewDiff(diff), pathsInDiff(diff).concat(untrackedSource()))
 }
 
 function prBody(options) {
@@ -125,8 +148,41 @@ function verify() {
     return { decision: 'allow', reason: '' }
   }
   const ref = defaultBase()
-  const files = changedSourceFiles(ref)
-  if (packagesFor(files).length === 0) return { decision: 'allow', reason: '' }
+  const files = allChangedFiles(ref)
+  if (files.length === 0) return { decision: 'allow', reason: '' }
+
+  const cacheDir = verificationCacheDir()
+  const key = verificationKey([
+    git(['rev-parse', 'HEAD']).trim(),
+    ref ? git(['diff', '--numstat', `${ref}...HEAD`]) : '',
+    git(['diff', '--numstat', 'HEAD']),
+    git(['diff', '--numstat', '--cached']),
+    untrackedFingerprint(),
+  ])
+  if (cacheDir) {
+    const cached = readCachedVerdict(cacheDir, key)
+    if (cached) return cached
+  }
+
+  const missing = missingRelatedTests(files)
+  if (missing.length > 0) {
+    const blocked = { decision: 'block', reason: missingTestsReason(missing) }
+    if (cacheDir) writeCachedVerdict(cacheDir, key, blocked)
+    return blocked
+  }
+
+  const sourceFiles = files.filter((file) => /\.tsx?$/.test(file))
+  const verdict = verifyTypecheck(ref, sourceFiles)
+  if (cacheDir) writeCachedVerdict(cacheDir, key, verdict)
+  return verdict
+}
+
+/**
+ * @param {string} ref
+ * @param {readonly string[]} sourceFiles
+ */
+function verifyTypecheck(ref, sourceFiles) {
+  if (packagesFor(sourceFiles).length === 0) return { decision: 'allow', reason: '' }
   if (!commandExists('pnpm')) {
     return {
       decision: 'feedback',
@@ -151,8 +207,8 @@ function verify() {
     }
   }
 
-  for (const pkg of packagesFor(files)) {
-    const targets = vitestTargets(pkg, files, existsSync)
+  for (const pkg of packagesFor(sourceFiles)) {
+    const targets = vitestTargets(pkg, sourceFiles, existsSync)
     if (targets.length === 0) continue
     const result = runLogged(
       ['pnpm', 'exec', 'vitest', 'run', '--maxWorkers=4', ...targets],
@@ -196,24 +252,61 @@ function deadExports() {
   }
 }
 
-/**
- * @param {string | undefined} ref
- * @returns {string[]}
- */
-function changedSourceFiles(ref) {
+function allChangedFiles(ref) {
   const names = new Set()
   const args = ref ? ['diff', '--name-only', `${ref}...HEAD`] : ['diff', '--name-only', 'HEAD']
   for (const line of git(args).split('\n')) if (line) names.add(line)
   for (const line of git(['diff', '--name-only', 'HEAD']).split('\n')) if (line) names.add(line)
   for (const line of git(['diff', '--name-only', '--cached']).split('\n')) if (line) names.add(line)
   for (const line of untrackedSource()) names.add(line)
-  return [...names].filter((file) => /\.tsx?$/.test(file))
+  return [...names]
+}
+
+/**
+ * @param {string | undefined} ref
+ * @returns {string[]}
+ */
+function verificationCacheDir() {
+  const gitDir = git(['rev-parse', '--git-dir']).trim()
+  if (!gitDir) return ''
+  return path.resolve(gitDir, 'agent-checks-cache')
+}
+
+/**
+ * @param {{ timestamp: string, agent: string, event: string, check: string, verdict: string, durationMs: number }} record
+ */
+function recordLog(record) {
+  if (process.env.AGENT_CHECKS_LOG === '0') return
+  const line = formatLogRecord(record)
+  let file = process.env.AGENT_CHECKS_LOG
+  if (!file) {
+    const gitDir = git(['rev-parse', '--git-dir']).trim()
+    if (!gitDir) return
+    file = path.resolve(gitDir, 'agent-checks.log')
+  }
+  try {
+    appendFileSync(file, `${line}\n`)
+  } catch {
+    return
+  }
 }
 
 function untrackedSource() {
   return git(['ls-files', '--others', '--exclude-standard'])
     .split('\n')
     .filter((file) => /\.tsx?$/.test(file))
+}
+
+function untrackedFingerprint() {
+  return untrackedSource()
+    .map((file) => {
+      try {
+        return `${file}:${createHash('sha256').update(readFileSync(file)).digest('hex')}`
+      } catch {
+        return file
+      }
+    })
+    .join('\n')
 }
 
 function defaultBase() {

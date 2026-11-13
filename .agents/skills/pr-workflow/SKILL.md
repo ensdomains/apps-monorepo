@@ -1,6 +1,6 @@
 ---
 name: pr-workflow
-description: How to open a pull request in this monorepo, including Linear app scope, branch name, and the PR body sections. Use when opening a PR, writing a PR body, or working from a Linear ticket.
+description: How to open a pull request in this monorepo, including Linear app scope, branch name, tests, and the PR body. Use when opening a PR, writing a PR body, working from a Linear ticket, or changing runtime behaviour.
 ---
 
 ## Which app
@@ -13,11 +13,25 @@ Only modify files in that app unless the change genuinely needs shared code (`pa
 
 When the work starts from a Linear ticket, name the branch `linear/<ticket-id>`.
 
+## Tests
+
+If the change touches runtime behaviour, load skill `writing-tests` before writing tests. Add or update focused tests next to the code and run `pnpm exec vitest run --maxWorkers=4 <paths>` before committing. Keep existing cases; do not replace them.
+
 ## Body
 
-- Summarize the changes. Do not paste the raw ticket.
-- If you changed or deleted an existing test assertion, add `## Behaviour changes` and name each test with one line of why. Deleting a test together with the code it covers needs no entry.
-- Add `## Regression check`: the callers you checked, existing tests you changed and why (or "none"), and any behaviour that changes for users or other callers.
+Summarize the changes. Do not paste the raw ticket.
+
+Callers, existing tests, and behaviour all go inside `## Regression check`. Do not add `## Behaviour changes` or `## Behaviour changes for users`.
+
+```markdown
+## Regression check
+
+Callers checked: `mergedRowMetadata` in apps/manager. No other callers.
+Existing tests changed: none. The 10-day case is unchanged; 45-day and 90-day cases were added.
+Behaviour: names are flagged as expiring soon 60 days ahead, for every caller of this helper.
+```
+
+If an existing assertion did change, name that test under `Existing tests changed` in this same section.
 
 ## A module that is outgrowing its structure
 

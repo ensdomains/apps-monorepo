@@ -1,9 +1,11 @@
 ---
 name: writing-tests
-description: Rules for tests that must fail when behaviour breaks. Use when writing or editing a test, a fixture, a snapshot, or a vitest file.
+description: Required before writing or editing tests for a behaviour change. Use when a ticket changes runtime behaviour, or when writing a test, fixture, snapshot, or vitest file.
 ---
 
 Every test must be able to fail when real behaviour breaks. Fewer, sharper tests beat many shallow ones.
+
+A runtime behaviour change is not done until focused tests sit next to the code and have been run. Keep every existing case. Add the new case beside it. Do not replace an old case (for example a 10-day case) with the new one.
 
 ## Don't write
 

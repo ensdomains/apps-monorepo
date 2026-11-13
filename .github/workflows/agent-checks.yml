@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Script tests
+        run: node --test scripts/agent-checks/checks.test.mjs
+
       - name: Diff checks (report only)
         run: node scripts/agent-checks/run.mjs check-diff --base "origin/${{ github.base_ref }}" --report-only
 

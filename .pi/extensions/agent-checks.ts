@@ -42,19 +42,22 @@ function repoRoot(): string {
   return (result.stdout ?? "").trim()
 }
 
-function verdict(args: readonly string[]): Verdict {
+function verdict(eventName: string, args: readonly string[]): Verdict {
   const root = repoRoot()
   if (!root) return { decision: "allow" }
-  const result = spawnSync(process.execPath, [`${root}/scripts/agent-checks/run.mjs`, ...args], {
-    cwd: root,
-    encoding: "utf8",
-  })
-  const line = (result.stdout ?? "")
-    .split("\n")
-    .find((entry) => entry.startsWith("{"))
+  const result = spawnSync(
+    process.execPath,
+    [`${root}/scripts/agent-checks/run.mjs`, ...args, "--agent", "pi", "--event", eventName],
+    { cwd: root, encoding: "utf8" },
+  )
+  const line = (result.stdout ?? "").split("\n").find((entry) => entry.startsWith("{"))
   if (!line) return { decision: "allow" }
   try {
-    return JSON.parse(line) as Verdict
+    const parsed = JSON.parse(line) as Verdict
+    if (parsed.decision === "feedback" || parsed.decision === "block") {
+      process.stderr.write(`agent-checks: ${parsed.decision} ${args[0] ?? "check"}\n`)
+    }
+    return parsed
   } catch {
     return { decision: "allow" }
   }
@@ -69,7 +72,7 @@ function withNote(content: unknown, note: string): unknown {
 export default function agentChecks(pi: Extension) {
   pi.on("tool_call", (event) => {
     if (event.toolName !== "bash") return undefined
-    const checked = verdict([
+    const checked = verdict("tool_call", [
       "guard-command",
       "--command",
       event.input?.command ?? "",
@@ -84,7 +87,7 @@ export default function agentChecks(pi: Extension) {
     if (event.toolName !== "bash" && event.toolName !== "write" && event.toolName !== "edit") {
       return undefined
     }
-    const checked = verdict(["check-diff"])
+    const checked = verdict("tool_result", ["check-diff"])
     const parts = [checked.context ?? "", checked.decision === "feedback" ? (checked.reason ?? "") : ""]
     const note = parts.filter((part) => part.length > 0).join("\n\n")
     if (!note) return undefined
@@ -95,7 +98,7 @@ export default function agentChecks(pi: Extension) {
 
   pi.on("agent_before_settle", (event) => {
     if (continued) return undefined
-    const checked = verdict(["verify"])
+    const checked = verdict("agent_before_settle", ["verify"])
     if (checked.decision !== "block" || !checked.reason) return undefined
     continued = true
     return {

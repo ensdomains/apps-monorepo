@@ -15,6 +15,10 @@ pre-commit:
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
       stage_fixed: true
       priority: 2
+    # Feedback only. A missing test does not block the commit; Stop may block.
+    agent-checks:
+      run: node scripts/agent-checks/run.mjs check-diff --report-only --agent lefthook --event pre-commit >/dev/null; true
+      priority: 3
 
 # Pre-push hook: Ensure all files pass Biome checks before pushing.
 # This gate is real — it blocks the push on lint/format errors so you find
@@ -27,4 +31,4 @@ pre-push:
     # exceptions, and a crash here must not block a push. The same scripts
     # can block inside an agent Stop hook. See scripts/agent-checks/run.mjs.
     agent-checks:
-      run: node scripts/agent-checks/run.mjs check-diff --report-only >/dev/null; node scripts/agent-checks/run.mjs branch-name --report-only >/dev/null; true
+      run: node scripts/agent-checks/run.mjs check-diff --report-only --agent lefthook --event pre-push >/dev/null; node scripts/agent-checks/run.mjs branch-name --report-only --agent lefthook --event pre-push >/dev/null; true
