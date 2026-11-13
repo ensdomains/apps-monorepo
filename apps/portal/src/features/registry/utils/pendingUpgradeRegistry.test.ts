@@ -32,6 +32,19 @@ describe('isPendingUpgradeImplementation', () => {
     },
   )
 
+  it.each([
+    [mainnet.id, '0x43d937F91eC7597c096A1e2e6B7cbd2ddcAEb23D', true],
+    [mainnet.id, '0x86013382F943C6214E1433d1e64936F4000925CB', false],
+    [sepolia.id, '0x0822d199699f0a9D378617817a1439663234a126', false],
+  ] as const)(
+    'on chain %i, lists %s: %s',
+    (chainId, implementation, expected) => {
+      expect(isPendingUpgradeImplementation({ chainId, implementation })).toBe(
+        expected,
+      )
+    },
+  )
+
   it('needs the address on the same chain', () => {
     expect(
       isPendingUpgradeImplementation({
