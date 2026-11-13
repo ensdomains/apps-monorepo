@@ -1,4 +1,4 @@
-name: Linear Releases
+name: Linear Staging Releases
 
 on:
   push:

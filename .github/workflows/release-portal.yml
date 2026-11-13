@@ -212,11 +212,21 @@ jobs:
             gh release create "$TAG" --title "$TAG" --notes-file "$notes" --verify-tag
           fi
 
+  linear:
+    name: Sync production release to Linear
+    needs: release
+    uses: ./.github/workflows/linear-production-release.yml
+    with:
+      app: portal
+      tag: ${{ github.ref_name }}
+    secrets:
+      LINEAR_ACCESS_KEY: ${{ secrets.LINEAR_RELEASE_PORTAL_PRODUCTION }}
+
   # Posts the outcome to Slack, failures included. Rerunning a failed job
   # reruns this one too, so the retry's outcome is posted as well.
   notify:
     name: Post to Slack
-    needs: [prepare, swarm, cloudflare, release]
+    needs: [prepare, swarm, cloudflare, release, linear]
     if: always()
     runs-on: ubuntu-latest
 
