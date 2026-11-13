@@ -4,6 +4,7 @@ import type {
   NameRelation,
   NameSummary,
 } from '@ens-apps/indexer/reads'
+import { match, P } from 'ts-pattern'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { toValidDate } from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
@@ -17,8 +18,8 @@ export type AddressNameItem = {
   /** Null when the name does not expire. */
   readonly expiryDate: Date | null
   /**
-   * Set on an ENSv1 subname, which lapses with its `.eth` parent. Null when the
-   * parent's expiry couldn't be read.
+   * Set on a subname that lapses with the names above it, even before its own
+   * expiry: the earliest of their expiries. Null when one couldn't be read.
    */
   readonly parentExpiryDate?: Date | null
   readonly graceEndDate: Date | null
@@ -74,19 +75,42 @@ export const toLapsedItem = (row: AddressName): AddressNameItem => ({
   protocolVersion: row.authority === 'ens_v2' ? 'ENSv2' : 'ENSv1',
 })
 
-/**
- * The `.eth` 2LD an ENSv1 subname lapses with, or null for a name with its own
- * expiry. Deeper names lapse with the same 2LD.
- */
-export const ethParentOf = ({
+/** A new subname's parent and every name above it, nearest first; any of them expiring stops it resolving. */
+export const getNamesAbove = (parentName: string): readonly string[] => {
+  const labels = parentName.split('.')
+  return Array.from({ length: labels.length - 1 }, (_, index) =>
+    labels.slice(index).join('.'),
+  )
+}
+
+/** The names above a `.eth` subname it lapses with: all of them for ENSv2, the 2LD for an undated ENSv1 one. */
+export const ethAncestorsOf = ({
   name,
   expiryDate,
   protocolVersion,
-}: AddressNameItem): string | null => {
-  if (expiryDate || protocolVersion !== 'ENSv1') return null
+}: Pick<
+  AddressNameItem,
+  'name' | 'expiryDate' | 'protocolVersion'
+>): readonly string[] => {
   const labels = name.split('.')
-  if (labels.length < 3 || labels.at(-1) !== 'eth') return null
-  return labels.slice(-2).join('.')
+  if (labels.length < 3 || labels.at(-1) !== 'eth') return []
+  if (protocolVersion === 'ENSv1')
+    return expiryDate ? [] : [labels.slice(-2).join('.')]
+  return getNamesAbove(labels.slice(1).join('.'))
+}
+
+/** The earliest expiry among `names`; null when one couldn't be read or none expires. */
+export const getEarliestExpiry = (
+  names: readonly string[],
+  expiryOf: ReadonlyMap<string, Date | null>,
+): Date | null => {
+  if (!names.every((name) => expiryOf.has(name))) return null
+  return names
+    .flatMap((name) => expiryOf.get(name) ?? [])
+    .reduce<Date | null>(
+      (earliest, date) => (earliest && earliest <= date ? earliest : date),
+      null,
+    )
 }
 
 type ShownExpiryInput = {
@@ -100,6 +124,36 @@ export const getShownExpiry = ({
   parentExpiryDate,
 }: ShownExpiryInput): Date | null => expiryDate ?? parentExpiryDate ?? null
 
+/** The parent's expiry when it comes before the row's own, which stops the subname resolving first. */
+export const getEarlierParentExpiry = ({
+  expiryDate,
+  parentExpiryDate,
+}: ShownExpiryInput): Date | null =>
+  expiryDate && parentExpiryDate && parentExpiryDate < expiryDate
+    ? parentExpiryDate
+    : null
+
+/** The expiry that stops a name resolving first; `parent` has none of its own, its parent's null when unread. */
+export type ResolvingExpiry =
+  | { readonly type: 'own'; readonly date: Date }
+  | { readonly type: 'parentFirst'; readonly date: Date }
+  | { readonly type: 'parent'; readonly date: Date | null }
+  | { readonly type: 'none'; readonly date: null }
+
+export const getResolvingExpiry = (row: ShownExpiryInput): ResolvingExpiry =>
+  match<ShownExpiryInput, ResolvingExpiry>(row)
+    .with({ expiryDate: P.instanceOf(Date) }, ({ expiryDate }) => {
+      const parentExpiryDate = getEarlierParentExpiry(row)
+      return parentExpiryDate
+        ? { type: 'parentFirst', date: parentExpiryDate }
+        : { type: 'own', date: expiryDate }
+    })
+    .with({ parentExpiryDate: P.not(undefined) }, ({ parentExpiryDate }) => ({
+      type: 'parent',
+      date: parentExpiryDate,
+    }))
+    .otherwise(() => ({ type: 'none', date: null }))
+
 /** Whether the shown expiry falls in the range; a row with none never does. */
 export const isShownExpiryInRange = (
   row: ShownExpiryInput,
@@ -112,18 +166,24 @@ export const isShownExpiryInRange = (
   return true
 }
 
-/** Soonest shown expiry first; rows with none go last. */
-export const byShownExpiry = (
-  a: ShownExpiryInput,
-  b: ShownExpiryInput,
-): number => {
-  const aExpiry = getShownExpiry(a)
-  const bExpiry = getShownExpiry(b)
+const bySoonest = (aExpiry: Date | null, bExpiry: Date | null): number => {
   if (!aExpiry && !bExpiry) return 0
   if (!aExpiry) return 1
   if (!bExpiry) return -1
   return aExpiry.getTime() - bExpiry.getTime()
 }
+
+/** Soonest shown expiry first; rows with none go last. */
+export const byShownExpiry = (
+  a: ShownExpiryInput,
+  b: ShownExpiryInput,
+): number => bySoonest(getShownExpiry(a), getShownExpiry(b))
+
+/** Soonest to stop resolving first; rows that never do, or whose date is unread, go last. */
+export const byResolvingExpiry = (
+  a: ShownExpiryInput,
+  b: ShownExpiryInput,
+): number => bySoonest(getResolvingExpiry(a).date, getResolvingExpiry(b).date)
 
 /** One row per name, a current relation winning over a lapsed one, soonest expiry first. */
 export const mergeAddressNames = (
