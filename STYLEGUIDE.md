@@ -13,14 +13,24 @@ A comprehensive guide for writing clean, maintainable, and type-safe code across
 3. ✅ **Document the trade-off** - what you gained vs what you gave up
 
 ```typescript
-// ✅ GOOD - Rule break is documented
-function processLargeDataset(data: any) { // Using 'any' because third-party library has no types
-  return transform(data)
+// ✅ GOOD - Rule break is documented, with a reason only this site has
+function sumVisibleValues(points: readonly ChartPoint[]): number {
+  // A loop, not filter + reduce: this runs on every scroll frame over the
+  // whole chart, and the chained version allocated a new array each frame
+  let total = 0
+  for (const point of points) {
+    if (point.isVisible) total += point.value
+  }
+  return total
 }
 
 // ❌ BAD - Silent rule break
-function processLargeDataset(data: any) {
-  return transform(data)
+function sumVisibleValues(points: readonly ChartPoint[]): number {
+  let total = 0
+  for (const point of points) {
+    if (point.isVisible) total += point.value
+  }
+  return total
 }
 ```
 
@@ -60,7 +70,7 @@ The codebase is built on these fundamental principles:
 
 ### 1. Thin React Layer
 
-**Keep React components focused on presentation and user interaction, not business logic.**
+**A component renders and dispatches user events. Anything you would want to unit-test without rendering belongs outside the component: in a pure function or a helper module it calls.**
 
 Components should:
 - Render UI based on props and state
@@ -121,6 +131,8 @@ A violation blocks the change unless a comment at that site names the specific c
 - **Use neverthrow for Result types** - Code that handles a Result has no try/catch
 - **Type safety** - No `any` types, use `unknown` + type guards (use `Record<string, unknown>` for objects)
 - **BigInt for blockchain values** - All numeric blockchain values use BigInt
+- **ENS contract ABIs from ENSjs** - Never hand-write or hand-copy an ENS contract ABI into app or package code
+- **Every write through the transaction manager** - Single and dependent writes alike; see [the rule](#every-write-goes-through-the-transaction-manager--must)
 - **Immutability** - Never mutate data you did not create: inputs, shared state or cached state. A function may build and change values it created itself; once it returns a value, callers treat it as fixed.
 - **Never use useEffect for data fetching** - Always use TanStack Query
 
@@ -875,11 +887,10 @@ const ProfileHeader = ({ name, avatar }: ProfileHeaderProps) => {
 // ✅ Good - Split when there's actual complexity
 const ProfileRecordsEditor = ({ records, onChange }: Props) => {
   const [editMode, setEditMode] = useState(false)
-  const { writeContractAsync } = useWriteContract()
-  
-  const handleSave = async () => {
-    // 30+ lines of validation, encoding, transaction logic
-  }
+  const saveRecordsMutation = useMutation({ mutationFn: saveRecords })
+
+  // Validation and encoding live in saveRecords, outside the component
+  const handleSave = () => saveRecordsMutation.mutate({ records })
   
   return editMode ? <Editor /> : <Display />
 }
@@ -1058,9 +1069,15 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
 }
 ```
 
+### Every Write Goes Through the Transaction Manager 🔴 Must
+
+**Every write goes through the transaction manager**, a single write as much as dependent ones. Build the write as an intent and start it with `transactionManager.startTransaction` and a `Signer`; the app's step runner shows its progress (`TransactionModal` in the portal). App code never sends a write with wagmi's `useWriteContract` or `useSendTransaction`, or with a wallet client directly; [Why Not Just Use Wagmi?](#why-not-just-use-wagmi) gives the reasons. There is no exception.
+
+The shape for a single write is the [Single Transaction Pattern](#single-transaction-pattern--default); for dependent writes, the section below and [Combining Multiple Requests](#combining-multiple-requests).
+
 ### Multi-Step Transaction Orchestration Anti-Pattern 🔴 Must
 
-**Never use `useEffect` to chain transactions.** When one transaction must trigger another (e.g., deploy → setSubregistry), use an XState operation machine, not React effects.
+When one write depends on another (e.g., deploy → setSubregistry), send them as one atomic batch where the wallet supports it. Otherwise run them as ordered steps that each call the transaction manager and advance only when the previous step is confirmed: an XState machine, or the app's step runner. Never chain them from component state or effects. See [Combining Multiple Requests](#combining-multiple-requests) for an example.
 
 #### How to Detect This Anti-Pattern
 
@@ -1142,7 +1159,7 @@ const snapshot = useSelector(actor, s => s)
 
 ### Single Transaction Pattern 🟡 Default
 
-For **single transactions** (not multi-step flows), use pure async functions with `useMutation` instead of feature-specific XState machines.
+For **single transactions** (not multi-step flows), use pure async functions with `useMutation` instead of feature-specific XState machines. The write itself still starts through the transaction manager, a [🔴 Must](#every-write-goes-through-the-transaction-manager--must); only the `useMutation` shape around it is a default.
 
 #### When to Use This Pattern
 
@@ -1152,7 +1169,7 @@ For **single transactions** (not multi-step flows), use pure async functions wit
 
 #### When NOT to Use This Pattern
 
-- ❌ Multi-step transaction flows (use XState operation machine)
+- ❌ Multi-step transaction flows (use an atomic batch or ordered steps; see above)
 - ❌ Transactions that trigger other transactions
 - ❌ Complex retry/recovery logic
 
@@ -1317,14 +1334,14 @@ export function prepareENSRenewal(
 export const RenewalButton = ({ name }: { name: string }) => {
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
-  const { writeContractAsync } = useWriteContract()
   const [isPending, setIsPending] = useState(false)
   
   const handleRenew = async () => {
     if (!walletClient) return
     
     setIsPending(true)
-    // The throwing wallet call becomes a Result at the call site: no try/catch
+    // The write starts through the transaction manager and its wait becomes a
+    // Result at the call site: no try/catch
     const result = await prepareENSRenewal({
       name,
       duration: YEAR_IN_SECONDS,
@@ -1332,7 +1349,19 @@ export const RenewalButton = ({ name }: { name: string }) => {
       walletClient,
     }).andThen((renewal) =>
       ResultAsync.fromPromise(
-        writeContractAsync(renewal),
+        waitForTransaction(
+          transactionManager.startTransaction(
+            toEoaCustomIntent({
+              from: walletClient.account.address,
+              to: renewal.to,
+              data: renewal.data,
+              value: renewal.price,
+              chainId: ensChain.id,
+            }),
+            createEOASigner(walletClient),
+            { id: `renew-${name}`, publicClient, description: `Renew ${name}` },
+          ),
+        ),
         (error) => new RenewalError({ cause: error }),
       ),
     )
@@ -1343,11 +1372,11 @@ export const RenewalButton = ({ name }: { name: string }) => {
       return
     }
 
-    console.log('Transaction sent:', result.value)
+    console.log('Renewed:', result.value.hash)
   }
   
   return (
-    <button onClick={handleRenew} disabled={isPending}>
+    <button type="button" onClick={handleRenew} disabled={isPending}>
       {isPending ? 'Renewing...' : 'Renew'}
     </button>
   )
@@ -1638,8 +1667,8 @@ const handleSubmit = async () => {
 // ✅ ALSO GOOD: try-catch in a handler that touches no Result
 const handleSubmit = async () => {
   try {
-    await sendTransaction(params)
-    console.log('Success')
+    await navigator.clipboard.writeText(address)
+    console.log('Copied')
   } catch (error) {
     console.error('Failed:', error)
   }
@@ -2127,6 +2156,8 @@ features/
 
 ### Contract Interaction Patterns
 
+**Source ENS contract ABIs and calls from ENSjs (🔴 Must).** Every interaction with an ENS protocol contract goes through `@ensdomains/ensjs`: use its read function, or for a write its `...WriteParameters` function feeding the transaction manager, when one exists, and when you encode the call yourself, import the ABI snippet from `@ensdomains/ensjs/contracts` (or `@ensdomains/ensjs-abi`). Never hand-write or hand-copy an ENS contract ABI into app or package code. If ENSjs lacks the function, add it to ENSjs; a local ABI is allowed only as a temporary stopgap whose comment names the missing ENSjs surface. The same holds for addresses: an ENS contract address that ENSjs carries comes from `getChainContractAddress` in `@ensdomains/ensjs/chain`, never from a copied literal.
+
 The codebase follows specific patterns for creating contract interaction helpers. There are two main patterns depending on where the helper lives:
 
 #### Pattern 1: Simple Request Builders (App/Package Level)
@@ -2135,6 +2166,8 @@ For app-specific or package-level contract interactions, create pure functions t
 
 ```typescript
 // packages/l2-primary/src/utils/setReverseName.ts
+// The ABI snippets here are hand-copied in packages/l2-primary/src/v1/L2ReverseRegistrar.ts.
+// The builder's shape is the pattern to follow; a new builder imports its ABI from ENSjs (see above).
 
 // 1. Define the return type (union if multiple variants)
 export type SetReverseNameRequest =
@@ -2411,46 +2444,71 @@ export async function deploySubregistry<
 - Write operations split into:
   - `xWriteParameters` - Returns contract params
   - `x` - Executes the transaction
+- App code calls only `xWriteParameters` and starts the write through the transaction manager; the `x` action is for ENSjs users outside the apps
 - Comprehensive JSDoc with examples
 - Use `satisfies` for type validation
 
 ### Using Contract Helpers in Components
 
-#### With wagmi's useWriteContract
+#### With the transaction manager
 
 ```typescript
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
-import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
+import { transactionManager } from '@ens-apps/transaction-manager'
+import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { encodeFunctionData } from 'viem'
+import { usePublicClient, useWalletClient } from 'wagmi'
+import { generateSubregistrySalt } from '@/features/registry/helpers/deploySubregistry'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ensChain } from '@/lib/wagmi'
 
 export const DeployButton = () => {
   const { data: walletClient } = useWalletClient()
-  const { writeContractAsync, data: txHash, isPending } = useWriteContract()
-  
-  const { data: receipt, isLoading: isConfirming } = 
-    useWaitForTransactionReceipt({ hash: txHash })
-  
-  const handleDeploy = async () => {
-    if (!walletClient) return
-    
+  const publicClient = usePublicClient()
+  const { openModal, closeModal } = useTransactionModal()
+
+  const handleDeploy = () => {
+    if (!walletClient || !publicClient) return
+
     // Get contract parameters
     const params = deploySubregistryWriteParameters(walletClient, {
       factoryAddress: FACTORY_ADDRESS,
       implAddress: IMPL_ADDRESS,
+      salt: generateSubregistrySalt(), // fresh per deploy
     })
-    
-    // Execute transaction
-    await writeContractAsync({
-      address: params.address,
-      abi: params.abi,
-      functionName: params.functionName,
-      args: params.args,
-    })
+
+    // Start the write as an intent; the modal tracks it to its receipt
+    transactionManager.startTransaction(
+      toEoaCustomIntent({
+        from: walletClient.account.address,
+        to: params.address,
+        data: encodeFunctionData(params),
+        chainId: ensChain.id,
+      }),
+      createEOASigner(walletClient),
+      { id: 'deploy-subregistry', publicClient, description: 'Deploy subregistry' },
+    )
   }
-  
+
   return (
-    <button onClick={handleDeploy} disabled={isPending || isConfirming}>
-      {isPending ? 'Confirm in wallet...' : isConfirming ? 'Confirming...' : 'Deploy'}
-    </button>
+    <>
+      <button type="button" onClick={openModal}>
+        Deploy
+      </button>
+      <TransactionModal
+        transactions={[
+          {
+            id: 'deploy-subregistry',
+            title: 'Deploy subregistry',
+            transactionName: 'Deploy subregistry',
+            onStart: handleDeploy,
+            onDone: closeModal,
+          },
+        ]}
+      />
+    </>
   )
 }
 ```
@@ -2459,78 +2517,146 @@ export const DeployButton = () => {
 
 ```typescript
 import { createSetReverseNameRequest } from '@ens-apps/l2-primary/utils'
-import { useWriteContract } from 'wagmi'
+import { transactionManager } from '@ens-apps/transaction-manager'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { envConfig } from '@/config'
+import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import { prepareSetReverseResolutionTransaction } from '@/features/reverse-resolution/helpers/setReverseResolution'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { ensChain } from '@/lib/wagmi'
 
 export const SetPrimaryNameButton = ({ name }: { name: string }) => {
-  const { writeContractAsync } = useWriteContract()
-  
-  const handleSetPrimaryName = async () => {
-    try {
-      // Create request. The network is the one this build targets, never the
-      // wallet's chain: a wrong-network fallback produces valid calldata
-      // against the wrong contracts.
-      const request = createSetReverseNameRequest({
-        name,
-        reverseRegistrarChainId: 60, // ETH
-        network: envConfig.network,
-      })
-      
-      // Execute
-      const hash = await writeContractAsync(request)
-      console.log('Transaction hash:', hash)
-    } catch (error) {
-      console.error('Failed to set primary name:', error)
-    }
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
+  const { openModal, closeModal } = useTransactionModal()
+
+  const handleSetPrimaryName = () => {
+    if (!walletClient || !publicClient) return
+
+    // Create request. The network is the one this build targets, never the
+    // wallet's chain: a wrong-network fallback produces valid calldata
+    // against the wrong contracts.
+    const request = createSetReverseNameRequest({
+      name,
+      reverseRegistrarChainId: 60, // ETH
+      network: envConfig.network,
+    })
+
+    // Start the request as an intent through the transaction manager
+    transactionManager.startTransaction(
+      prepareSetReverseResolutionTransaction({
+        request,
+        from: walletClient.account.address,
+        chainId: ensChain.id,
+      }),
+      createEOASigner(walletClient),
+      { id: `set-primary-${name}`, publicClient, description: 'Set primary name' },
+    )
   }
-  
-  return <button onClick={handleSetPrimaryName}>Set Primary Name</button>
+
+  return (
+    <>
+      <button type="button" onClick={openModal}>
+        Set Primary Name
+      </button>
+      <TransactionModal
+        transactions={[
+          {
+            id: `set-primary-${name}`,
+            title: 'Set primary name',
+            transactionName: `Set primary name - ${name}`,
+            onStart: handleSetPrimaryName,
+            onDone: closeModal,
+          },
+        ]}
+      />
+    </>
+  )
 }
 ```
 
 #### Combining Multiple Requests
 
+When one write depends on another, never chain them from component state or effects (two buttons, the second enabled by the first hash). Send them through the transaction manager as one atomic batch where the wallet supports it, and otherwise as ordered steps that advance only when the previous step is confirmed. In the portal the step runner is `TransactionModal`: it calls a step's `onDone` once that step's transaction succeeds. A full flow, with ids scoped per attempt, is `apps/portal/src/features/renew/hooks/useRenewalTransactions.ts`.
+
 ```typescript
-export const SetPrimaryNameFlow = ({ name, address }: Props) => {
-  const { data: walletClient } = useWalletClient()
-  const { writeContractAsync } = useWriteContract()
-  const [reverseHash, setReverseHash] = useState<Hash>()
-  const [forwardHash, setForwardHash] = useState<Hash>()
-  
-  // Step 1: Set reverse resolution
-  const setReverse = async () => {
-    const request = createSetReverseNameRequest({
-      name,
-      reverseRegistrarChainId: 60,
-      network: envConfig.network,
-    })
-    
-    const hash = await writeContractAsync(request)
-    setReverseHash(hash)
-  }
-  
-  // Step 2: Set forward resolution
-  const setForward = async () => {
-    const request = createSetForwardResolutionRequest({
-      name,
-      reverseRegistrarChainId: 60,
-      resolverAddress,
-      targetAddress: address,
-    })
-    
-    const hash = await writeContractAsync(request)
-    setForwardHash(hash)
-  }
-  
-  return (
-    <div>
-      <button onClick={setReverse}>1. Set Reverse</button>
-      <button onClick={setForward} disabled={!reverseHash}>
-        2. Set Forward
-      </button>
-    </div>
-  )
+// apps/portal: approve a token, then renew (the renewal reverts until the approval is mined)
+import {
+  type CustomTransactionIntent,
+  type Signer,
+  transactionManager,
+} from '@ens-apps/transaction-manager'
+import type { PublicClient } from 'viem'
+import { toEoaBatchIntent } from '@/features/transaction-manager/helpers/intents'
+import type { Transaction } from '@/features/transaction-manager/types'
+
+type ApproveAndRenewParams = {
+  readonly approve: CustomTransactionIntent
+  readonly renew: CustomTransactionIntent
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  // From useAtomicBatchSupport(chainId), fixed when the flow starts
+  readonly canBatchAtomically: boolean
+  readonly onFinished: () => void
 }
+
+export function buildApproveAndRenewSteps({
+  approve,
+  renew,
+  signer,
+  publicClient,
+  canBatchAtomically,
+  onFinished,
+}: ApproveAndRenewParams): readonly Transaction[] {
+  const start =
+    (id: string, intent: CustomTransactionIntent, description: string) =>
+    () => {
+      transactionManager.startTransaction(intent, signer, {
+        id,
+        publicClient,
+        description,
+      })
+    }
+
+  // ✅ One atomic EIP-5792 batch: one wallet prompt, all or nothing
+  if (canBatchAtomically) {
+    return [
+      {
+        id: 'approve-and-renew',
+        title: 'Approve and renew',
+        transactionName: 'Approve and renew',
+        onStart: start(
+          'approve-and-renew',
+          toEoaBatchIntent([approve, renew]),
+          'Approve and renew',
+        ),
+        onDone: onFinished,
+      },
+    ]
+  }
+
+  // ✅ Otherwise ordered steps: the renewal starts only after the approval is confirmed
+  const startRenew = start('renew', renew, 'Renew')
+  return [
+    {
+      id: 'approve',
+      title: 'Approve payment',
+      transactionName: 'Approve payment',
+      onStart: start('approve', approve, 'Approve payment'),
+      onDone: startRenew,
+    },
+    {
+      id: 'renew',
+      title: 'Renew',
+      transactionName: 'Renew',
+      onStart: startRenew,
+      onDone: onFinished,
+    },
+  ]
+}
+
+// In the component: <TransactionModal transactions={steps} />
 ```
 
 ### Contract Helper Pattern Summary
@@ -3776,11 +3902,11 @@ Use sparingly for legitimate cases:
 
 ```typescript
 // Ignore specific line
-// biome-ignore lint/suspicious/noExplicitAny: Third-party types unavailable
-const data: any = externalLibrary.getData()
+// biome-ignore lint/suspicious/noExplicitAny: test stub with only getBlockNumber, the one client method getLatestBlock calls; any other call throws and fails this test
+const publicClient: any = { getBlockNumber: async () => 1n }
 ```
 
-**When to ignore**: Third-party type issues, generated files, documented edge cases  
+**When to ignore**: Third-party type issues, generated files, documented edge cases, each with a reason only that site has (see [Rule Severity](#rule-severity))  
 **When NOT to ignore**: To avoid fixing real issues, skip proper typing, suppress a11y warnings
 
 ## Summary
@@ -3844,34 +3970,36 @@ const data: any = externalLibrary.getData()
 35. **Safe client access** - Use `safeGetClient` helper (🟡 Default)
 36. **BigInt for blockchain values** - All numeric blockchain values (🔴 Must)
 37. **Instantiate clients once** - Never create clients inside components (🔴 Must)
-38. **Define contracts once** - Contract address + ABI in one place (🟡 Default)
-39. **Use wagmi hooks for reads** - In React components, never call contracts directly (🟡 Default)
+38. **ENS ABIs from ENSjs** - Never hand-write or hand-copy an ENS contract ABI into app or package code (🔴 Must)
+39. **Every write through the transaction manager** - Single and dependent writes alike; dependent writes as one atomic batch or ordered steps, never chained from component state or effects; see [the rule](#every-write-goes-through-the-transaction-manager--must) (🔴 Must)
+40. **Define contracts once** - Contract address + ABI in one place (🟡 Default)
+41. **Use wagmi hooks for reads** - In React components, never call contracts directly (🟡 Default)
 
 #### Testing & Quality
 
-40. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
-41. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
-42. **Test user behavior** - Component tests from user perspective (🟡 Default)
-43. **Testing pyramid** - Weight coverage toward unit tests, then integration, then E2E for critical flows; no target for the number of tests (🟢 Guideline); within the unit and integration bands, prefer integration and property coverage over thin example-based unit tests (🟡 Default)
+42. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
+43. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
+44. **Test user behavior** - Component tests from user perspective (🟡 Default)
+45. **Testing pyramid** - Weight coverage toward unit tests, then integration, then E2E for critical flows; no target for the number of tests (🟢 Guideline); within the unit and integration bands, prefer integration and property coverage over thin example-based unit tests (🟡 Default)
 
 #### Performance & Reliability
 
-44. **Measure before optimizing** - Use React DevTools Profiler (🟢 Guideline)
-45. **Avoid premature memoization** - Only memoize when proven necessary (🟢 Guideline)
-46. **Route-level error boundaries** - Catch rendering errors (🟡 Default)
-47. **Result errors ≠ rendering errors** - Use both neverthrow and error boundaries (🟡 Default)
+46. **Measure before optimizing** - Use React DevTools Profiler (🟢 Guideline)
+47. **Avoid premature memoization** - Only memoize when proven necessary (🟢 Guideline)
+48. **Route-level error boundaries** - Catch rendering errors (🟡 Default)
+49. **Result errors ≠ rendering errors** - Use both neverthrow and error boundaries (🟡 Default)
 
 #### Styling & UI
 
-48. **Choose one class helper** - Use `cn` or `tw` consistently (🟡 Default)
-49. **Avoid arbitrary values** - Use design tokens, not `w-[37px]` (🟡 Default)
+50. **Choose one class helper** - Use `cn` or `tw` consistently (🟡 Default)
+51. **Avoid arbitrary values** - Use design tokens, not `w-[37px]` (🟡 Default)
 
 #### Code Formatting
 
-50. **Use Biome** - Format and lint with one tool (🔴 Must)
-51. **Single quotes** - For string literals (🟢 Guideline)
-52. **2-space indentation** - Consistent formatting (🟢 Guideline)
-53. **Organize imports** - Let Biome handle import sorting (🟢 Guideline)
+52. **Use Biome** - Format and lint with one tool (🔴 Must)
+53. **Single quotes** - For string literals (🟢 Guideline)
+54. **2-space indentation** - Consistent formatting (🟢 Guideline)
+55. **Organize imports** - Let Biome handle import sorting (🟢 Guideline)
 
 ### Decision Framework
 
@@ -3886,7 +4014,7 @@ Ask yourself these questions when writing code:
 - Is this async data fetching? → **Use TanStack Query, not useState**
 - Is this UI state or business state? → **React state vs XState**
 - Does this need to be cached? → **Use TanStack Query**
-- Is this a multi-step flow? → **Use XState machine**
+- Is this a multi-step flow? → **Use an atomic batch, or ordered steps (XState machine or the app's step runner)**
 - Creating a query key? → **Use `createQueryKey` with object params for easy invalidation**
 
 #### Type Safety
