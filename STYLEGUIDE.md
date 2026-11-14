@@ -1525,7 +1525,7 @@ The codebase uses `neverthrow` for functional error handling with `Result` types
 1. Use `Result<T, E>` for sync operations, `ResultAsync<T, E>` for async
 2. Create specific error classes extending `TaggedError`
 3. Always handle both success and error cases explicitly
-4. **Code that handles a Result has no try/catch.** Turn each throwing or rejecting call into a Result at the call site with `ResultAsync.fromPromise` or `Result.fromThrowable`. A plain try/catch is allowed only in a handler that touches no Result.
+4. **Code that handles a Result has no try/catch.** Turn each throwing or rejecting call into a Result at the call site with `fromPromise` (async), `fromSync` (sync) or `fromThrowable` (a reusable sync wrapper). A plain try/catch is allowed only in a handler that touches no Result.
 
 ### Creating Result Functions
 
@@ -3686,12 +3686,7 @@ Write code that is easy to test by design:
 
 ### The Testing Pyramid (🟢 Guideline)
 
-**Test Distribution:**
-- **70% Unit Tests** - Fast, isolated, test pure functions
-- **20% Integration Tests** - Test module interactions
-- **10% E2E Tests** - Test critical user flows
-
-The proportions are a guide, not a quota to game. Prefer pushing a behaviour down the pyramid (extract a pure function and unit-test it) over pinning it at the top with an E2E test.
+Weight coverage toward the base: most tests are unit tests (fast, isolated, over pure functions), above them integration tests (module interactions), and at the top E2E tests (critical user flows only). There is no target for the number of tests. Prefer pushing a behaviour down the pyramid (extract a pure function and unit-test it) over pinning it at the top with an E2E test.
 
 ### Prefer Integration and Property Coverage Over Thin Unit Tests (🟡 Default)
 
@@ -3876,7 +3871,7 @@ import { Button } from '@/components/ui/button'
 
 ### Key Linting Rules
 
-An agent treats every lint warning as an error, through the `agent:lint` command once it is merged. Each project decides for now how it enforces lint rules for people. The direction is every rule an error.
+An agent treats every lint warning on a line it adds or changes as an error, through the `lint:agent` command once it is merged; until then, `npx biome lint` on the changed files. Each project decides for now how it enforces lint rules for people. The direction is every rule an error.
 
 | Rule                           | Purpose                                       | Fix                               |
 | ------------------------------ | --------------------------------------------- | --------------------------------- |
@@ -3947,7 +3942,7 @@ const publicClient: any = { getBlockNumber: async () => 1n }
 16. **Use neverthrow** - Functional error handling with `Result` types (🔴 Must)
 17. **TaggedError classes** - For discriminated error unions (🟡 Default)
 18. **ResultFn generators** - For clean error composition (🟡 Default)
-19. **No try/catch where a Result is handled** - Turn throwing calls into Results with `ResultAsync.fromPromise` or `Result.fromThrowable` (🔴 Must)
+19. **No try/catch where a Result is handled** - Turn throwing calls into Results with `fromPromise`, `fromSync` or `fromThrowable` (🔴 Must)
 
 #### React Patterns
 
@@ -3985,7 +3980,7 @@ const publicClient: any = { getBlockNumber: async () => 1n }
 42. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
 43. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
 44. **Test user behavior** - Component tests from user perspective (🟡 Default)
-45. **70/20/10 test distribution** - Unit/Integration/E2E, a guide, not a quota (🟢 Guideline); within those bands, prefer integration and property coverage over thin example-based unit tests (🟡 Default)
+45. **Testing pyramid** - Weight coverage toward unit tests, then integration, then E2E for critical flows; no target for the number of tests (🟢 Guideline); within the unit and integration bands, prefer integration and property coverage over thin example-based unit tests (🟡 Default)
 
 #### Performance & Reliability
 
