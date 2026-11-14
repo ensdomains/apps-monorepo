@@ -1071,7 +1071,7 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
 
 ### Every Write Goes Through the Transaction Manager 🔴 Must
 
-**Every write goes through the transaction manager**, a single write as much as dependent ones. Build the write as an intent and start it with `transactionManager.startTransaction` and a `Signer`; the app's step runner shows its progress (`TransactionModal` in the portal). App code never sends a write with wagmi's `useWriteContract` or `useSendTransaction`, or with a wallet client directly; [Why Not Just Use Wagmi?](#why-not-just-use-wagmi) gives the reasons. The one write outside it is the L2 primary name write in the portal, until it moves.
+**Every write goes through the transaction manager**, a single write as much as dependent ones. Build the write as an intent and start it with `transactionManager.startTransaction` and a `Signer`; the app's step runner shows its progress (`TransactionModal` in the portal). App code never sends a write with wagmi's `useWriteContract` or `useSendTransaction`, or with a wallet client directly; [Why Not Just Use Wagmi?](#why-not-just-use-wagmi) gives the reasons. There is no exception.
 
 The shape for a single write is the [Single Transaction Pattern](#single-transaction-pattern--default); for dependent writes, the section below and [Combining Multiple Requests](#combining-multiple-requests).
 
@@ -2444,6 +2444,7 @@ export async function deploySubregistry<
 - Write operations split into:
   - `xWriteParameters` - Returns contract params
   - `x` - Executes the transaction
+- App code calls only `xWriteParameters` and starts the write through the transaction manager; the `x` action is for ENSjs users outside the apps
 - Comprehensive JSDoc with examples
 - Use `satisfies` for type validation
 
