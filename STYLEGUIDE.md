@@ -3560,12 +3560,7 @@ Write code that is easy to test by design:
 
 ### The Testing Pyramid (🟢 Guideline)
 
-**Test Distribution:**
-- **70% Unit Tests** - Fast, isolated, test pure functions
-- **20% Integration Tests** - Test module interactions
-- **10% E2E Tests** - Test critical user flows
-
-The proportions are a guide, not a quota to game. Prefer pushing a behaviour down the pyramid (extract a pure function and unit-test it) over pinning it at the top with an E2E test.
+Weight coverage toward the base: most tests are unit tests (fast, isolated, over pure functions), above them integration tests (module interactions), and at the top E2E tests (critical user flows only). There is no target for the number of tests. Prefer pushing a behaviour down the pyramid (extract a pure function and unit-test it) over pinning it at the top with an E2E test.
 
 ### Prefer Integration and Property Coverage Over Thin Unit Tests (🟡 Default)
 
@@ -3857,7 +3852,7 @@ const data: any = externalLibrary.getData()
 40. **Write testable code** - Pure functions with explicit dependencies (🟡 Default)
 41. **Test business logic** - Unit test pure functions thoroughly (🟡 Default)
 42. **Test user behavior** - Component tests from user perspective (🟡 Default)
-43. **70/20/10 test distribution** - Unit/Integration/E2E, a guide, not a quota (🟢 Guideline); within those bands, prefer integration and property coverage over thin example-based unit tests (🟡 Default)
+43. **Testing pyramid** - Weight coverage toward unit tests, then integration, then E2E for critical flows; no target for the number of tests (🟢 Guideline); within the unit and integration bands, prefer integration and property coverage over thin example-based unit tests (🟡 Default)
 
 #### Performance & Reliability
 
