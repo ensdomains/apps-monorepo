@@ -166,7 +166,7 @@ export const useDashboardNames = ({
     pageNames,
     total: merged.total,
     // Grace names add to the total, so it isn't final until they are read.
-    isComplete: merged.isComplete && !grace.isPending,
+    isComplete: merged.isComplete && grace.isSuccess,
     isPending: hasAddresses && query.isPending,
     isPagePending: needsMore,
     loadPage,
