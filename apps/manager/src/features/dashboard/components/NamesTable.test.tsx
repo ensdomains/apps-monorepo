@@ -33,23 +33,31 @@ vi.mock(import('@xstate/store-react'), async (importOriginal) => ({
   ...(await importOriginal()),
   useAtom: () => io.isAuthed.current,
 }))
-// A test can switch to the real hook to drive it through bigname's reads.
+// A test can switch to the real hook to drive it through bigname's reads;
+// the choice is fixed before render, so the hook order never changes.
 vi.mock('../useDashboardNames', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../useDashboardNames')>()
+  type Options = Parameters<typeof actual.useDashboardNames>[0]
+  const fakeAddresses = () => []
+  const fakeNames = (options: Options = {}) => ({
+    total: options.isSubnamesOnly ? io.subnamesTotal.current : 5,
+    isPending: false,
+    isError: false,
+    isComplete: true,
+  })
   return {
-    useDashboardAddresses: () =>
-      io.isRealHook.current ? actual.useDashboardAddresses() : [],
-    useDashboardNames: (
-      options: Parameters<typeof actual.useDashboardNames>[0] = {},
-    ) =>
-      io.isRealHook.current
-        ? actual.useDashboardNames(options)
-        : {
-            total: options.isSubnamesOnly ? io.subnamesTotal.current : 5,
-            isPending: false,
-            isError: false,
-            isComplete: true,
-          },
+    useDashboardAddresses: () => {
+      const readAddresses = io.isRealHook.current
+        ? actual.useDashboardAddresses
+        : fakeAddresses
+      return readAddresses()
+    },
+    useDashboardNames: (options: Options = {}) => {
+      const readNames = io.isRealHook.current
+        ? actual.useDashboardNames
+        : fakeNames
+      return readNames(options)
+    },
   }
 })
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
