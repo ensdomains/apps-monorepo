@@ -1,5 +1,6 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import {
   type Address,
@@ -36,7 +37,11 @@ const ALL_ROLES = BigInt(`0x${'1'.repeat(64)}`)
 const asWord = (address: Address): Hex =>
   encodeAbiParameters(parseAbiParameters('address'), [address])
 
-const roleLog = (address: Address, index: number) => ({
+const roleLog = (
+  address: Address,
+  index: number,
+  newRoleBitmap = ALL_ROLES,
+) => ({
   address,
   topics: encodeEventTopics({
     abi: eacRolesChangedEventSnippet,
@@ -45,7 +50,7 @@ const roleLog = (address: Address, index: number) => ({
   }),
   data: encodeAbiParameters(parseAbiParameters('uint256, uint256'), [
     0n,
-    ALL_ROLES,
+    newRoleBitmap,
   ]),
   blockNumber: numberToHex(ROLES_FROM_BLOCK + BigInt(index)),
   blockHash: pad('0x01'),
@@ -102,9 +107,11 @@ vi.mock('@/lib/wagmi/helpers', () => ({
     ),
 }))
 
-const { getUserPermissionedResolvers } = await import(
-  './useUserPermissionedResolvers'
-)
+const {
+  getUserPermissionedResolvers,
+  getUserPermissionedResolversQueryOptions,
+} = await import('./useUserPermissionedResolvers')
+const { invalidateResolverOverview } = await import('./useResolverOverview')
 
 describe('getUserPermissionedResolvers', () => {
   beforeEach(() => {
@@ -144,5 +151,49 @@ describe('getUserPermissionedResolvers', () => {
     const result = await getUserPermissionedResolvers({ account: WALLET })
 
     expect(result.isErr()).toBe(true)
+  })
+})
+
+describe('the Change resolver picker after a role write', () => {
+  // The portal caches reads for an hour, so only invalidation refetches.
+  const watchPicker = async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { staleTime: 60 * 60 * 1000, retry: false } },
+    })
+    const observer = new QueryObserver(
+      queryClient,
+      getUserPermissionedResolversQueryOptions({ account: WALLET }),
+    )
+    const unsubscribe = observer.subscribe(() => {})
+    await queryClient.refetchQueries()
+    return { queryClient, observer, unsubscribe }
+  }
+
+  it.each([
+    [
+      'drops a resolver once its last root admin role is revoked',
+      [roleLog(RESOLVER, 0)],
+      [roleLog(RESOLVER, 0), roleLog(RESOLVER, 1, 0n)],
+      [getAddress(RESOLVER)],
+      [],
+    ],
+    [
+      'adds a resolver once a grant makes it eligible',
+      [roleLog(RESOLVER, 0, 0n)],
+      [roleLog(RESOLVER, 0, 0n), roleLog(RESOLVER, 1)],
+      [],
+      [getAddress(RESOLVER)],
+    ],
+  ])('%s', async (_, before, after, listedBefore, listedAfter) => {
+    logsResponse = () => before
+    const { queryClient, observer, unsubscribe } = await watchPicker()
+    expect(observer.getCurrentResult().data).toEqual(listedBefore)
+
+    logsResponse = () => after
+    // What the grant and revoke success paths call.
+    await invalidateResolverOverview(queryClient, RESOLVER)
+
+    expect(observer.getCurrentResult().data).toEqual(listedAfter)
+    unsubscribe()
   })
 })
