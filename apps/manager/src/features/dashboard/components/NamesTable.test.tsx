@@ -1,10 +1,13 @@
 import type { LookupRequest } from '@ens-apps/indexer/bigname'
-import { fireEvent, screen } from '@testing-library/react'
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { type QueryClient, useQueryClient } from '@tanstack/react-query'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { errAsync, okAsync } from 'neverthrow'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { bigname } from '@/lib/bigname'
 import { render } from '@/utils/test-utils'
+import { invalidateDashboardNames } from '../service/queries/getDashboardNames'
 import { NamesTable } from './NamesTable'
 
 const io = vi.hoisted(() => ({
@@ -12,6 +15,9 @@ const io = vi.hoisted(() => ({
   favorites: vi.fn(),
   isAuthed: { current: true },
   subnamesTotal: { current: 2 },
+  isRealHook: { current: false },
+  isGraceDown: { current: false },
+  account: '0x0000000000000000000000000000000000000abc',
 }))
 beforeEach(() => {
   vi.clearAllMocks()
@@ -19,23 +25,37 @@ beforeEach(() => {
   io.owner.mockResolvedValue({ protocol: 'v1' })
   io.isAuthed.current = true
   io.subnamesTotal.current = 2
+  io.isRealHook.current = false
+  io.isGraceDown.current = false
 })
 
 vi.mock(import('@xstate/store-react'), async (importOriginal) => ({
   ...(await importOriginal()),
   useAtom: () => io.isAuthed.current,
 }))
-vi.mock('../useDashboardNames', () => ({
-  useDashboardAddresses: () => [],
-  useDashboardNames: ({
-    isSubnamesOnly,
-  }: {
-    readonly isSubnamesOnly?: boolean
-  } = {}) => ({
-    total: isSubnamesOnly ? io.subnamesTotal.current : 5,
-    isPending: false,
-    isError: false,
-    isComplete: true,
+// A test can switch to the real hook to drive it through bigname's reads.
+vi.mock('../useDashboardNames', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../useDashboardNames')>()
+  return {
+    useDashboardAddresses: () =>
+      io.isRealHook.current ? actual.useDashboardAddresses() : [],
+    useDashboardNames: (
+      options: Parameters<typeof actual.useDashboardNames>[0] = {},
+    ) =>
+      io.isRealHook.current
+        ? actual.useDashboardNames(options)
+        : {
+            total: options.isSubnamesOnly ? io.subnamesTotal.current : 5,
+            isPending: false,
+            isError: false,
+            isComplete: true,
+          },
+  }
+})
+vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
+  useSmartAccountContextSafe: () => ({
+    accountAddress: io.account,
+    ownerAddress: io.account,
   }),
 }))
 vi.mock('@/features/bulk-renew', () => ({ BulkRenewDialog: () => null }))
@@ -63,6 +83,47 @@ vi.mock('../service/queries/getFavorites', () => ({
 }))
 vi.mock('@/lib/bigname', () => ({
   bigname: {
+    // The address holds nothing now; its only name is an ENSv2 name in grace.
+    addressNames: (
+      _address: string,
+      query: { readonly relation?: unknown },
+    ) => {
+      if (query.relation === 'former_owner' && io.isGraceDown.current)
+        return errAsync(new Error('bigname unavailable'))
+      const now = Math.floor(Date.now() / 1000)
+      const data =
+        query.relation === 'former_owner'
+          ? [
+              {
+                name: 'lapsed.eth',
+                display_name: 'lapsed.eth',
+                namespace: 'ens',
+                namehash: '0x09',
+                status: 'expired',
+                authority: 'ens_v2',
+                expires_at: String(now - 3 * 86_400),
+                grace_ends_at: String(now + 25 * 86_400),
+                relations: ['former_owner'],
+                is_primary: false,
+                lapsed_registration: {
+                  owner: io.account,
+                  release_kind: 'expired',
+                },
+              },
+            ]
+          : []
+      return okAsync({
+        data,
+        page: {
+          cursor: null,
+          next_cursor: null,
+          page_size: 50,
+          total_count: data.length,
+          has_more: false,
+        },
+        meta: { as_of: {} },
+      })
+    },
     lookup: vi.fn(({ inputs, profile }: LookupRequest) => {
       if (
         inputs.some(
@@ -248,5 +309,44 @@ describe('NamesTable filters', () => {
 
     expect(screen.queryByRole('button', { name: /^Subnames/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'V1' })).toBeVisible()
+  })
+
+  it('keeps Owned for a grace-only wallet when the grace read fails, and after it recovers', async () => {
+    io.isRealHook.current = true
+    io.isGraceDown.current = true
+    const client: { current: QueryClient | null } = { current: null }
+    const GrabClient = () => {
+      client.current = useQueryClient()
+      return null
+    }
+    render(
+      <>
+        <NamesTable />
+        <GrabClient />
+      </>,
+    )
+    const graceStatus = () =>
+      client.current
+        ?.getQueryCache()
+        .findAll({ queryKey: qk('dashboard', 'grace_names') })[0]?.state.status
+
+    // Favorites has names, so a wrong fallback would have somewhere to go.
+    await screen.findByRole('button', { name: 'Favorites 7' })
+    await waitFor(() => expect(graceStatus()).toBe('error'))
+    expect(screen.getByRole('button', { name: /^Owned/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: /^V2/ })).toBeVisible()
+    expect(screen.getByTestId('my-names')).toBeInTheDocument()
+
+    io.isGraceDown.current = false
+    await act(async () => {
+      if (client.current) await invalidateDashboardNames(client.current)
+    })
+    expect(
+      await screen.findByRole('button', { name: 'Owned 1' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('my-names')).toBeInTheDocument()
   })
 })
