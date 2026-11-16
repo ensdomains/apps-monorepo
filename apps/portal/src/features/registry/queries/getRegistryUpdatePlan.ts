@@ -14,10 +14,8 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
-import {
-  permissionedRegistryGetSubregistrySnippet,
-  permissionedRegistryRolesSnippet,
-} from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   err,
   errAsync,
@@ -83,7 +81,7 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
     publicActions,
   )
   const contracts = getDestinationContracts(client.chain.id)
-  const [currentSubregistry, parentRoles] = yield* fromPromise(
+  const [currentSubregistry, canSwitch] = yield* fromPromise(
     Promise.all([
       client.readContract({
         address: parent.registry,
@@ -91,12 +89,16 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
         functionName: 'getSubregistry',
         args: [parent.label],
       }),
-      // The switch itself needs this role on the name; check it before sending the whole copy.
+      // The switch needs this role on the name, from the name or the root; check it before the copy.
       client.readContract({
         address: parent.registry,
-        abi: permissionedRegistryRolesSnippet,
-        functionName: 'roles',
-        args: [BigInt(labelhash(parent.label)), account],
+        abi: eacHasRolesSnippet,
+        functionName: 'hasRoles',
+        args: [
+          BigInt(labelhash(parent.label)),
+          registryRoles.ROLE_SET_SUBREGISTRY,
+          account,
+        ],
       }),
     ]),
     (cause) => readFailed(cause as ReadContractErrorType),
@@ -107,9 +109,7 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
     registry: registryAddress,
     currentSubregistry,
     label: parent.label,
-    canSwitch:
-      (parentRoles & registryRoles.ROLE_SET_SUBREGISTRY) ===
-      registryRoles.ROLE_SET_SUBREGISTRY,
+    canSwitch,
   })
   if (blocker) return err(new RegistryUpdateBlockedError({ reason: blocker }))
 

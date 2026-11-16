@@ -73,41 +73,28 @@ export const splitRepairNames = (
     .map((name) => name.label),
 })
 
-/** A name's grants without the owner's roles that `roles()` adds for accounts the owner approved for all; approvals aren't copied. */
-export const explicitNameGrants = ({
-  grants,
-  owner,
-  approvedAccounts,
-}: {
-  readonly grants: readonly RoleGrant[]
-  readonly owner: Address
-  readonly approvedAccounts: readonly Address[]
-}): readonly RoleGrant[] => {
-  const ownerRoles = rolesOf(grants, owner)
-  return grants
-    .map((grant) =>
-      !isAddressEqual(grant.account, owner) &&
-      approvedAccounts.some((approved) =>
-        isAddressEqual(approved, grant.account),
-      )
-        ? { ...grant, roleBitmap: grant.roleBitmap & ~ownerRoles }
-        : grant,
-    )
-    .filter((grant) => grant.roleBitmap !== 0n)
-}
-
 /** Every label registered and every account whose roles changed, as read from the registry's logs. */
 export type RegistryCandidates = {
   readonly labels: readonly string[]
   readonly accounts: readonly Address[]
+  /** Every role write, in order, with the bitmap it left. */
+  readonly roleChanges: readonly RoleChange[]
+}
+
+export type RoleChange = {
+  readonly resource: bigint
+  readonly account: Address
+  readonly roleBitmap: bigint
 }
 
 /** Each label and account once; logs repeat both. */
 export const uniqueCandidates = ({
   labels,
   accounts,
+  roleChanges,
 }: RegistryCandidates): RegistryCandidates => ({
   labels: [...new Set(labels)],
+  roleChanges,
   accounts: accounts.filter(
     (account, i) =>
       accounts.findIndex((other) => isAddressEqual(other, account)) === i,
@@ -123,15 +110,20 @@ export const grantsOf = (
     .map((account, i) => ({ account, roleBitmap: bitmaps[i] ?? 0n }))
     .filter((grant) => grant.roleBitmap !== 0n)
 
-/** Each name's grants from one flat read of every name's roles for every account, name by name. */
-export const nameGrantsOf = (
-  accounts: readonly Address[],
-  bitmaps: readonly bigint[],
-  nameCount: number,
-): readonly (readonly RoleGrant[])[] =>
-  Array.from({ length: nameCount }, (_, i) =>
-    grantsOf(
-      accounts,
-      bitmaps.slice(i * accounts.length, (i + 1) * accounts.length),
-    ),
-  )
+/** Each account's explicit roles on `resource`: the bitmap its last role write left. */
+export const explicitGrantsAt = (
+  changes: readonly RoleChange[],
+  resource: bigint | undefined,
+): readonly RoleGrant[] =>
+  resource === undefined
+    ? []
+    : changes
+        .filter((change) => change.resource === resource)
+        .filter(
+          (change, i, onResource) =>
+            !onResource
+              .slice(i + 1)
+              .some((later) => isAddressEqual(later.account, change.account)),
+        )
+        .map(({ account, roleBitmap }) => ({ account, roleBitmap }))
+        .filter((grant) => grant.roleBitmap !== 0n)

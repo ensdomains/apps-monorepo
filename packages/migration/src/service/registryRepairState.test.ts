@@ -8,9 +8,8 @@ import {
   SOME,
 } from './registryRepair.testUtils'
 import {
-  explicitNameGrants,
+  explicitGrantsAt,
   literalLabelId,
-  nameGrantsOf,
   splitRepairNames,
   uniqueCandidates,
 } from './registryRepairState'
@@ -41,35 +40,47 @@ describe('splitRepairNames', () => {
   })
 })
 
-describe('explicitNameGrants', () => {
-  const OWNER_ROLES = 0x1110n
+describe('explicitGrantsAt', () => {
+  const RESOURCE = 7n
+  const change = (
+    account: typeof ALICE,
+    roleBitmap: bigint,
+    resource = RESOURCE,
+  ) => ({
+    resource,
+    account,
+    roleBitmap,
+  })
 
-  it("drops the owner's roles from an account the owner approved for all, keeping its own", () => {
+  it("keeps an operator's own grant even where it overlaps the owner's roles", () => {
     expect(
-      explicitNameGrants({
-        grants: [
-          { account: ALICE, roleBitmap: OWNER_ROLES },
-          { account: BOB, roleBitmap: OWNER_ROLES | 0x1n },
-          { account: CONTROLLER, roleBitmap: OWNER_ROLES },
-        ],
-        owner: ALICE,
-        approvedAccounts: [BOB, CONTROLLER],
-      }),
+      explicitGrantsAt(
+        [change(ALICE, 0x1110n), change(BOB, 0x0100n)],
+        RESOURCE,
+      ),
     ).toEqual([
-      { account: ALICE, roleBitmap: OWNER_ROLES },
-      { account: BOB, roleBitmap: 0x1n },
+      { account: ALICE, roleBitmap: 0x1110n },
+      { account: BOB, roleBitmap: 0x0100n },
     ])
   })
 
-  it('keeps the roles of an account the owner did not approve', () => {
-    const grants = [
-      { account: ALICE, roleBitmap: OWNER_ROLES },
-      { account: BOB, roleBitmap: SOME },
-    ]
-
+  it('takes the last write per account, drops revoked ones, and ignores other resources', () => {
     expect(
-      explicitNameGrants({ grants, owner: ALICE, approvedAccounts: [] }),
-    ).toEqual(grants)
+      explicitGrantsAt(
+        [
+          change(ALICE, 0x1n),
+          change(BOB, SOME),
+          change(CONTROLLER, 0x1n, 8n),
+          change(ALICE, 0x11n),
+          change(BOB.toLowerCase() as typeof BOB, 0n),
+        ],
+        RESOURCE,
+      ),
+    ).toEqual([{ account: ALICE, roleBitmap: 0x11n }])
+  })
+
+  it('has nothing for a name whose resource was not read', () => {
+    expect(explicitGrantsAt([change(ALICE, 0x1n)], undefined)).toEqual([])
   })
 })
 
@@ -79,19 +90,8 @@ describe('uniqueCandidates', () => {
       uniqueCandidates({
         labels: ['a', 'b', 'a'],
         accounts: [BOB, ALICE, BOB.toLowerCase() as typeof BOB],
+        roleChanges: [],
       }),
-    ).toEqual({ labels: ['a', 'b'], accounts: [BOB, ALICE] })
-  })
-})
-
-describe('nameGrantsOf', () => {
-  it("gives each name its own accounts' roles from the flat read", () => {
-    expect(nameGrantsOf([ALICE, BOB], [0x1n, 0n, 0x2n, 0x3n], 2)).toEqual([
-      [{ account: ALICE, roleBitmap: 0x1n }],
-      [
-        { account: ALICE, roleBitmap: 0x2n },
-        { account: BOB, roleBitmap: 0x3n },
-      ],
-    ])
+    ).toEqual({ labels: ['a', 'b'], accounts: [BOB, ALICE], roleChanges: [] })
   })
 })

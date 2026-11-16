@@ -26,10 +26,9 @@ import {
 } from 'viem'
 import { toRegistryChildren } from './registryRepairChildren'
 import {
-  explicitNameGrants,
+  explicitGrantsAt,
   grantsOf,
   literalLabelId,
-  nameGrantsOf,
   type RegistryCandidates,
   type RegistryRepairName,
   type RegistryRepairState,
@@ -49,9 +48,6 @@ const DEFAULT_LOG_RANGE = 50_000n
 
 const getParentAbi = parseAbi([
   'function getParent() view returns (address parent, string label)',
-])
-const isApprovedForAllAbi = parseAbi([
-  'function isApprovedForAll(address owner, address operator) view returns (bool)',
 ])
 const EVENTS = [
   ...labelRegisteredEventSnippet,
@@ -99,17 +95,36 @@ const readCandidates = async (params: {
         return null
       })
     if (logs === null) return collect(from, range / 2n, found)
+    // Role writes replay last-wins, so keep them in chain order even if a provider doesn't.
+    const ordered = [...logs].sort(
+      (a, b) =>
+        Number(a.blockNumber - b.blockNumber) || a.logIndex - b.logIndex,
+    )
     return collect(to + 1n, params.maxRange, {
       labels: [
         ...found.labels,
-        ...logs.flatMap((log) =>
+        ...ordered.flatMap((log) =>
           log.eventName === 'LabelRegistered' ? [log.args.label] : [],
         ),
       ],
       accounts: [
         ...found.accounts,
-        ...logs.flatMap((log) =>
+        ...ordered.flatMap((log) =>
           log.eventName === 'EACRolesChanged' ? [log.args.account] : [],
+        ),
+      ],
+      roleChanges: [
+        ...found.roleChanges,
+        ...ordered.flatMap((log) =>
+          log.eventName === 'EACRolesChanged'
+            ? [
+                {
+                  resource: log.args.resource,
+                  account: log.args.account,
+                  roleBitmap: log.args.newRoleBitmap,
+                },
+              ]
+            : [],
         ),
       ],
     })
@@ -117,6 +132,7 @@ const readCandidates = async (params: {
   const found = await collect(params.fromBlock, params.maxRange, {
     labels: [],
     accounts: [],
+    roleChanges: [],
   })
   return uniqueCandidates(found)
 }
@@ -137,7 +153,7 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
   // One block for every read, and its time decides which names have expired, as `register` will.
   const block = yield* fromPromise(client.getBlock(), readError)
   const blockNumber = block.number
-  const { labels, accounts } = yield* fromPromise(
+  const { labels, accounts, roleChanges } = yield* fromPromise(
     readCandidates({
       client,
       registry,
@@ -218,55 +234,15 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
     readError,
   )
 
-  const nameBitmaps = yield* fromPromise(
-    client.multicall({
-      ...at,
-      contracts: states.flatMap(({ resource }) =>
-        accounts.map((account) => ({
-          address: registry,
-          abi: permissionedRegistryRolesSnippet,
-          functionName: 'roles',
-          args: [resource, account],
-        })),
-      ),
-    }),
-    readError,
-  )
-
   const ownerOf = (i: number) => states[i]?.latestOwner ?? zeroAddress
-  const nameGrants = nameGrantsOf(accounts, nameBitmaps, labels.length)
-  // `roles()` adds the owner's roles for accounts the owner approved for all, so read which ones are.
-  const approvalChecks = nameGrants.flatMap((grants, index) =>
-    grants
-      .filter((grant) => !isAddressEqual(grant.account, ownerOf(index)))
-      .map((grant) => ({ index, account: grant.account })),
-  )
-  const approvals = yield* fromPromise(
-    client.multicall({
-      ...at,
-      contracts: approvalChecks.map(({ index, account }) => ({
-        address: registry,
-        abi: isApprovedForAllAbi,
-        functionName: 'isApprovedForAll',
-        args: [ownerOf(index), account],
-      })),
-    }),
-    readError,
-  )
-
   const allNames: readonly RegistryRepairName[] = labels.map((label, i) => ({
     label,
     owner: ownerOf(i),
     resolver: resolvers[i] ?? zeroAddress,
     subregistry: subregistries[i] ?? zeroAddress,
     expiry: states[i]?.expiry ?? 0n,
-    roles: explicitNameGrants({
-      grants: nameGrants[i] ?? [],
-      owner: ownerOf(i),
-      approvedAccounts: approvalChecks
-        .filter((check, j) => check.index === i && approvals[j] === true)
-        .map((check) => check.account),
-    }),
+    // From the role events, not `roles()`: that read adds the owner's roles for approved operators.
+    roles: explicitGrantsAt(roleChanges, states[i]?.resource),
   }))
   const state: RegistryRepairState = {
     parentRegistry,
