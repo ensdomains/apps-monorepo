@@ -24,6 +24,7 @@ import {
   isAddressEqual,
   namehash,
   type PublicClient,
+  TransactionNotFoundError,
   type TransactionReceipt,
 } from 'viem'
 import {
@@ -119,6 +120,10 @@ import {
 import { planSetupBundles } from './planSetupBundles'
 import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
+import {
+  canReadStateForSubmittedBatch,
+  type SubmittedBatchLookup,
+} from './submittedBatchLookup'
 import {
   assertSubnameRecreationUnchanged,
   assertSupportedSubnameMigration,
@@ -1656,6 +1661,29 @@ const unresolvedIntentIdsFor = (params: {
   return unresolvedIntentIds
 }
 
+const lookupSubmittedBatch = async (
+  publicClient: PublicClient,
+  hash: Hex,
+): Promise<SubmittedBatchLookup> => {
+  try {
+    const transaction = await publicClient.getTransaction({ hash })
+    if (transaction.blockNumber !== null) return { status: 'mined' }
+    const confirmedNonce = await publicClient.getTransactionCount({
+      address: transaction.from,
+      blockTag: 'latest',
+    })
+    return {
+      status: 'pending',
+      nonce: BigInt(transaction.nonce),
+      confirmedNonce: BigInt(confirmedNonce),
+    }
+  } catch (cause) {
+    return cause instanceof TransactionNotFoundError
+      ? { status: 'not-found' }
+      : { status: 'unavailable' }
+  }
+}
+
 const reconcileJournaledSubmission = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -1677,7 +1705,13 @@ const reconcileJournaledSubmission = async (params: {
   } catch (error) {
     if (
       params.allowStateFallback &&
-      error instanceof SubmittedAtomicMigrationIndeterminateError
+      error instanceof SubmittedAtomicMigrationIndeterminateError &&
+      canReadStateForSubmittedBatch(
+        await lookupSubmittedBatch(
+          params.ctx.publicClient,
+          params.submission.hash,
+        ),
+      )
     ) {
       return 'unresolved'
     }

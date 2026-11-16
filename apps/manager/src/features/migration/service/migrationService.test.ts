@@ -3002,6 +3002,55 @@ describe('executeMigration HCA orchestration', () => {
     ).toEqual([])
   })
 
+  it('keeps a still-pending journaled batch indeterminate instead of prompting again', async () => {
+    persistSubmittedAtomicMigrationBatch(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        intentId: 'pending-intent',
+        hash: hashFor(9),
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
+    getTransactionReceiptMock.mockRejectedValueOnce(
+      new Error('transaction receipt not found'),
+    )
+    getTransactionMock.mockResolvedValueOnce({
+      hash: hashFor(9),
+      from: OWNER,
+      nonce: 4,
+      blockNumber: null,
+    })
+    getTransactionCountMock.mockResolvedValueOnce(4)
+    // The token has not moved yet, so a state fallback would prompt again.
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
+      status: 'incomplete',
+      verification: {
+        batchIndex: 0,
+        status: 'confirmed',
+        results: [{ expectationId: 'alice.eth:name-owner', satisfied: false }],
+      },
+      mismatches: [{ expectationId: 'alice.eth:name-owner' }],
+    })
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      cause: { name: 'SubmittedAtomicMigrationIndeterminateError' },
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(
+      loadSubmittedAtomicMigrationBatches({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }).map(({ hash }) => hash),
+    ).toEqual([hashFor(9)])
+  })
+
   it('reconciles an already-complete batch only when its attempt was recorded', async () => {
     const onBatchComplete = vi.fn()
     persistPendingAtomicMigrationIntent(
