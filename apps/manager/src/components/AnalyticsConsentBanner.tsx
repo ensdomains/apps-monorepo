@@ -15,9 +15,10 @@ export const AnalyticsConsentBanner = () => {
   if (consent !== 'pending') return null
 
   return (
+    // Caps the panel at the viewport height less its 1rem top and bottom insets, so it scrolls at large text sizes.
     <section
       aria-label={t`Analytics consent`}
-      className="fixed inset-x-4 xs:right-auto bottom-4 z-40 flex xs:w-88 flex-col gap-3 rounded-md border bg-popover p-4 text-popover-foreground text-sm shadow-md"
+      className="fixed inset-x-4 xs:right-auto bottom-4 z-40 flex max-h-[calc(100dvh-2rem)] xs:w-88 flex-col gap-3 overflow-y-auto rounded-md border bg-popover p-4 text-popover-foreground text-sm shadow-md"
     >
       <div className="flex flex-col gap-1">
         <p className="font-medium">
@@ -39,9 +40,9 @@ export const AnalyticsConsentBanner = () => {
           </a>
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
-          className="flex-1"
+          className="h-auto min-h-9 shrink grow basis-auto whitespace-normal"
           onClick={() => setAnalyticsConsent(posthog, true)}
           type="button"
           variant="lightBlue"
@@ -49,7 +50,7 @@ export const AnalyticsConsentBanner = () => {
           <Trans>Yes, happy to help</Trans>
         </Button>
         <Button
-          className="flex-1"
+          className="h-auto min-h-9 shrink grow basis-auto whitespace-normal"
           onClick={() => setAnalyticsConsent(posthog, false)}
           type="button"
           variant="lightBlue"

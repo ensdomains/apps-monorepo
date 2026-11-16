@@ -23,7 +23,10 @@ export const MobileAccountDrawer = () => {
     <>
       <Drawer.Drawer onOpenChange={setOpen} open={open}>
         <Drawer.DrawerTrigger asChild>
-          <AccountTriggerButton className="max-w-[190px]" ref={triggerRef} />
+          <AccountTriggerButton
+            className="min-w-0 max-w-[190px]"
+            ref={triggerRef}
+          />
         </Drawer.DrawerTrigger>
         <Drawer.DrawerContent className="space-y-8 px-4.5 pb-14">
           <AccountContent
