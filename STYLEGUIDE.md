@@ -1331,7 +1331,7 @@ export const RenewalButton = ({ name }: { name: string }) => {
       publicClient,
       walletClient,
     }).andThen((renewal) =>
-      ResultAsync.fromPromise(
+      fromPromise(
         writeContractAsync(renewal),
         (error) => new RenewalError({ cause: error }),
       ),
