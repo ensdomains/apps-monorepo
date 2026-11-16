@@ -57,10 +57,12 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { MAINNET_COIN_TYPE } from '@/lib/coinType'
+import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
+import { MANAGER_UPGRADE_URL } from '@/lib/constants/domain'
 import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
 import { ensChain } from '@/lib/wagmi'
+import { is2LD, isEthName } from '@/utils/ens/tldHelpers'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { validateRecord } from '@/utils/records/validateRecord'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
@@ -84,12 +86,14 @@ const Banner = ({
   label,
   lagEstimate,
   errorDetail,
+  mismatchDetail,
   action,
 }: {
   status: ReverseMatchStatus
   label: string
   lagEstimate?: string
   errorDetail?: string | null
+  readonly mismatchDetail?: ReactNode
   action?: ReactNode
 }) => (
   <div
@@ -142,6 +146,7 @@ const Banner = ({
             <XCircle className="size-6 shrink-0" />
             <span className="text-p">
               The set address does not resolve back to this name on {label}
+              {mismatchDetail ? <>. {mismatchDetail}</> : null}
             </span>
           </>
         ))
@@ -149,6 +154,32 @@ const Banner = ({
     </div>
     {action}
   </div>
+)
+
+const OlderResolverDetail = ({ name }: { readonly name: string }) => (
+  <>
+    The older ENS public resolver that <strong>{name}</strong> uses does not
+    support L2 and default primary names, so{' '}
+    {/* Upgrading copies a .eth 2LD's records to a V2 resolver; a subname keeps its old one. */}
+    {is2LD(name) && isEthName(name) ? (
+      <>
+        either{' '}
+        <a
+          href={MANAGER_UPGRADE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          upgrade the name to ENSv2
+        </a>{' '}
+        or{' '}
+      </>
+    ) : null}
+    <Link to="/$name/change-resolver" params={{ name }} className="underline">
+      change the resolver
+    </Link>
+    .
+  </>
 )
 
 const CoinTypeRow = ({
@@ -380,6 +411,13 @@ const ResolutionDetails = ({
   // couldn't be verified either, so offering it would just mint another
   // unverifiable record.
   const offerSetPrimary = status === 'mismatch' && canSetPrimaryName
+  // A primary name set on an older public resolver never verifies, so the banner points at the fix instead.
+  const needsLatestResolver =
+    offerSetPrimary &&
+    getNeedsLatestResolver({ row, v1ResolverAddress, chainId: ensChain.id })
+  // Default covers every EVM chain rather than naming one.
+  const bannerLabel =
+    coinType === DEFAULT_EVM_COIN_TYPE ? 'Default chains' : label
 
   return (
     <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
@@ -392,11 +430,14 @@ const ResolutionDetails = ({
       {address && status && (
         <Banner
           status={status}
-          label={label}
+          label={bannerLabel}
           lagEstimate={lagEstimate}
           errorDetail={row.reverseError}
+          mismatchDetail={
+            needsLatestResolver ? <OlderResolverDetail name={name} /> : null
+          }
           action={
-            offerSetPrimary ? (
+            offerSetPrimary && !needsLatestResolver ? (
               <Button
                 type="button"
                 variant="link"
@@ -411,30 +452,6 @@ const ResolutionDetails = ({
           }
         />
       )}
-
-      {offerSetPrimary &&
-        getNeedsLatestResolver({
-          row,
-          v1ResolverAddress,
-          chainId: ensChain.id,
-        }) && (
-          <Alert variant="warning">
-            <AlertTitle>Update the resolver first</AlertTitle>
-            <AlertDescription>
-              <p>
-                <strong>{name}</strong> uses an older ENS public resolver, so L2
-                and default primary names won't work.{' '}
-                <Link
-                  to="/$name/change-resolver"
-                  params={{ name }}
-                  className="underline"
-                >
-                  Change resolver
-                </Link>
-              </p>
-            </AlertDescription>
-          </Alert>
-        )}
 
       {editLock && (
         <Alert variant="warning">
