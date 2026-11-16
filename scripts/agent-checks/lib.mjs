@@ -35,15 +35,23 @@ const SKIP_PATTERN = /\b(?:it|test|describe)\.(?:skip|only|todo)\(|\bxit\(|\bxde
  * @returns {{ decision: 'allow' | 'block', reason: string }}
  */
 export function guardCommand(command, options = {}) {
-  const text = command ?? ''
-  let dir = options.cwd ?? ''
-  for (const segment of splitSegments(text)) {
+  const scopes = [options.cwd ?? '']
+  for (const segment of splitSegments(command ?? '')) {
+    if (segment === '(') {
+      scopes.push(scopes[scopes.length - 1] ?? '')
+      continue
+    }
+    if (segment === ')') {
+      if (scopes.length > 1) scopes.pop()
+      continue
+    }
     const tokens = commandTokens(segment)
     if (tokens.length === 0) continue
+    const dir = scopes[scopes.length - 1] ?? ''
     if (isBannedTsc(tokens)) return { decision: 'block', reason: TSC_REASON }
     if (isBannedTest(tokens)) return { decision: 'block', reason: TEST_REASON }
     if (tokens[0] === 'cd' && tokens[1]) {
-      dir = nextDir(dir, tokens[1])
+      scopes[scopes.length - 1] = nextDir(dir, tokens[1])
       continue
     }
     if (isBarePnpmTypecheck(tokens) && isRepoRoot(dir)) {
@@ -61,6 +69,11 @@ export function splitSegments(command) {
   const segments = []
   let current = ''
   let quote = ''
+  const pushCurrent = () => {
+    const text = current.trim()
+    current = ''
+    if (text) segments.push(text)
+  }
   for (let i = 0; i < command.length; i++) {
     const char = command[i] ?? ''
     if (quote) {
@@ -73,22 +86,25 @@ export function splitSegments(command) {
       current += char
       continue
     }
+    if (char === '(' || char === ')') {
+      pushCurrent()
+      segments.push(char)
+      continue
+    }
     if (char === '\n' || char === ';') {
-      segments.push(current)
-      current = ''
+      pushCurrent()
       continue
     }
     const next = command[i + 1] ?? ''
-    if ((char === '&' && next === '&') || (char === '|' && next === '|')) {
-      segments.push(current)
-      current = ''
-      i += 1
+    if (char === '|' || (char === '&' && next === '&')) {
+      pushCurrent()
+      if ((char === '|' && next === '|') || (char === '&' && next === '&')) i += 1
       continue
     }
     current += char
   }
-  if (current.trim()) segments.push(current)
-  return segments.map((segment) => segment.trim()).filter((segment) => segment.length > 0)
+  pushCurrent()
+  return segments
 }
 
 /**
@@ -210,12 +226,34 @@ function isRepoRoot(dir) {
  * @returns {readonly string[]}
  */
 function commandTokens(segment) {
-  const tokens = tokenize(segment)
+  const raw = tokenize(segment)
+  const tokens = []
+  for (let index = 0; index < raw.length; index += 1) {
+    const token = raw[index] ?? ''
+    const redirect = redirectKind(token)
+    if (redirect === 'skip-next') {
+      index += 1
+      continue
+    }
+    if (redirect === 'skip') continue
+    tokens.push(token)
+  }
   let index = 0
   while (tokens[index] && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[index] ?? '')) {
     index += 1
   }
   return tokens.slice(index)
+}
+
+/**
+ * @param {string} token
+ * @returns {'skip' | 'skip-next' | ''}
+ */
+function redirectKind(token) {
+  if (/^(?:&>>?|&>|\d*>&\d*|\d*>&|\d*<>)/.test(token)) return 'skip'
+  if (/^(?:\d*>>?|\d*<)$/.test(token)) return 'skip-next'
+  if (/^(?:\d*>>?|\d*<)\S/.test(token)) return 'skip'
+  return ''
 }
 
 /**

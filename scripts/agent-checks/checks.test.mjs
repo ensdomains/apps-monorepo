@@ -85,6 +85,60 @@ test('root pnpm typecheck is rejected before it runs', () => {
   assert.equal(guardCommand('pnpm -C apps/portal typecheck', { cwd: rootDir }).decision, 'allow')
 })
 
+test('app-scoped typecheck is allowed in the form the hook recommends', () => {
+  const rootDir = '/repo/apps-monorepo'
+  const reason = guardCommand('pnpm typecheck', { cwd: rootDir }).reason
+  const recommended = [...reason.matchAll(/`([^`]+)`/g)]
+    .map((match) => match[1])
+    .find((text) => text?.startsWith('(cd '))
+  assert.equal(recommended, '(cd apps/<app> && pnpm typecheck)')
+  const allowed = [
+    recommended,
+    '(cd apps/manager && pnpm typecheck)',
+    '(cd apps/manager && pnpm typecheck); echo done',
+    '(cd apps/manager && pnpm typecheck) && echo done',
+    '(cd apps/manager && pnpm typecheck) 2>&1 | tail -20',
+    '(cd apps/manager && pnpm typecheck 2>&1 | tail -20)',
+    '(cd apps/manager && pnpm typecheck --pretty false)',
+    '(cd apps/manager && pnpm typecheck > /tmp/out)',
+    `(cd ${rootDir}/apps/manager && pnpm typecheck)`,
+    `(cd ${rootDir}/apps/manager && pnpm typecheck )`,
+    `(cd ${rootDir}/apps/manager && pnpm typecheck 2>&1 | tail -20)`,
+    'pnpm --filter manager typecheck',
+    'pnpm -C apps/manager typecheck',
+    'pnpm --dir apps/manager typecheck',
+    'pnpm --dir=apps/manager typecheck',
+    'cd apps/manager && pnpm typecheck 2>&1 | tail -20',
+  ]
+  for (const command of allowed) {
+    assert.equal(guardCommand(command, { cwd: rootDir }).decision, 'allow', command)
+  }
+  const blocked = [
+    'pnpm typecheck',
+    'pnpm run typecheck',
+    'npx tsc',
+    'tsc --noEmit',
+    'cd .. && pnpm typecheck',
+    '(cd .. && pnpm typecheck)',
+    'pnpm typecheck 2>&1 | tail -20',
+    'pnpm typecheck > /tmp/out',
+    '(cd apps/manager && pnpm typecheck) && pnpm typecheck',
+    '(cd apps/manager && npx tsc)',
+    'cd apps/manager && (cd .. && pnpm typecheck)',
+  ]
+  for (const command of blocked) {
+    assert.equal(guardCommand(command, { cwd: rootDir }).decision, 'block', command)
+  }
+  assert.equal(
+    guardCommand('cd .. && pnpm typecheck', { cwd: `${rootDir}/apps/manager` }).decision,
+    'block',
+  )
+  assert.equal(
+    guardCommand('pnpm typecheck', { cwd: `${rootDir}/apps/manager` }).decision,
+    'allow',
+  )
+})
+
 test('diff review flags added violations and ignores context, comments, and prefix bangs', () => {
   const diff = [
     'diff --git a/src/pay.ts b/src/pay.ts',
