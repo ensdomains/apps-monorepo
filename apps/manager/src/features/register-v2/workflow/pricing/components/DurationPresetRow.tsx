@@ -39,13 +39,13 @@ export const DurationPresetRow = ({
     <button
       aria-pressed={isSelected}
       className={cn(
-        'group relative flex w-full cursor-pointer flex-col gap-3 rounded-lg transition-all',
+        'group relative flex w-full min-w-0 cursor-pointer flex-col gap-3 rounded-lg transition-all',
         'border border-[#DEDEDF] bg-neutral-50 px-3 py-4 hover:border-ens-lapis-900 aria-pressed:border-ens-lapis-900 md:px-5 md:py-5',
       )}
       onClick={onSelect}
       type="button"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="font-[425] text-base text-ens-quartz-900 md:text-2xl">
           {_(data.title)}
         </span>
@@ -54,7 +54,7 @@ export const DurationPresetRow = ({
         </span>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
         <span className="font-normal text-base text-ens-quartz-900 leading-none tracking-tighter md:text-2xl">
           <Plural one="# year" other="# years" value={data.years} />
         </span>
@@ -62,14 +62,16 @@ export const DurationPresetRow = ({
         <div
           className={tw(
             YEARLY_PRICE_STYLE[data.color],
-            'flex h-5 items-center justify-center rounded-full px-2 font-[450] text-xs',
+            'flex min-h-5 max-w-full items-center justify-center rounded-full px-2 font-[450] text-xs',
           )}
         >
-          <span>{yearlyPrice ? formatUsd(yearlyPrice) : '...'}/year</span>
+          <span className="wrap-anywhere">
+            {yearlyPrice ? formatUsd(yearlyPrice) : '...'}/year
+          </span>
         </div>
 
-        <div className="ml-auto flex items-baseline gap-1 md:gap-1.5">
-          <span className="font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
+        <div className="ml-auto flex min-w-0 max-w-full basis-full flex-wrap items-baseline justify-end gap-1 md:basis-auto md:gap-1.5">
+          <span className="wrap-anywhere min-w-0 font-medium font-mono text-ens-blue-dark text-xl leading-none tracking-tighter md:text-temp-32px">
             {total ? (
               formatUsd(total)
             ) : (
@@ -83,7 +85,7 @@ export const DurationPresetRow = ({
       </div>
 
       {data.kind === 'mostPopular' && (
-        <div className="absolute -top-2 -left-1 flex h-5 items-center justify-center rounded-full bg-ens-lapis-900 px-2">
+        <div className="absolute -top-2 -left-1 flex min-h-5 max-w-full items-center justify-center rounded-full bg-ens-lapis-900 px-2">
           <span className="font-[450] text-white text-xs">
             <Trans>Most popular</Trans>
           </span>
