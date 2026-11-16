@@ -30,6 +30,7 @@ import { transformProfileRecords } from '@/features/profile/utils/transformRecor
 import { isAccountPending } from '@/features/register-v2/workflow/pricing/lib/checkoutAvailability'
 import { useMigrationNftEnabled } from '@/lib/posthog/useMigrationNftEnabled'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { AddressLikeNameNotice } from './AddressLikeNameNotice'
 import { ProfileActions, ProfileDesktopActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
 import { ProfileCards } from './ProfileCards'
@@ -295,6 +296,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               records={displayRecords}
               registrationDate={registration.data?.registrationDate}
             />
+            <AddressLikeNameNotice className="mt-4" name={name} />
             {isExpiryError ? (
               <p className="px-4 pt-2 text-muted-foreground text-xs">
                 <Trans>
