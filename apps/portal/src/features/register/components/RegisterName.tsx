@@ -32,7 +32,7 @@ type RegisterNameProps = {
   readonly name: string
 }
 
-export const RegisterName = ({ name }: RegisterNameProps) => {
+const RegisterNameFlow = ({ name }: RegisterNameProps) => {
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
@@ -69,9 +69,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
 
   const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
-  const addressLikeError = getAddressLikeNameError(name)
-  const isNameValid =
-    !registrableEthError && !nameLengthError && !addressLikeError
+  const isNameValid = !registrableEthError && !nameLengthError
 
   const {
     data: availability,
@@ -125,15 +123,6 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
       <InvalidNameMessage
         title="Name too short"
         description={nameLengthError}
-      />
-    )
-  }
-
-  if (addressLikeError) {
-    return (
-      <InvalidNameMessage
-        title="Name can’t be registered"
-        description={addressLikeError}
       />
     )
   }
@@ -239,5 +228,18 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
         </>
       )}
     </main>
+  )
+}
+
+/** Refused before the flow mounts, so a run stored for the name never resumes. */
+export const RegisterName = ({ name }: RegisterNameProps) => {
+  const addressLikeError = getAddressLikeNameError(name)
+  return addressLikeError ? (
+    <InvalidNameMessage
+      title="Name can’t be registered"
+      description={addressLikeError}
+    />
+  ) : (
+    <RegisterNameFlow name={name} />
   )
 }
