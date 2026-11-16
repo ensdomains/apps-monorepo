@@ -61,3 +61,7 @@ export {
   toParentFuses,
   toV1Domain,
 } from './service/v1Domain'
+export {
+  chunkWalletBundle,
+  MAX_WALLET_BUNDLE_CALLS,
+} from './service/walletBundle'
