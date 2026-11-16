@@ -24,6 +24,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
     <a href={to}>{children}</a>
   ),
   useNavigate: () => navigate,
+  Navigate: ({ to }: { to: string }) => <div data-testid="navigate">{to}</div>,
   createFileRoute: () => (options: Record<string, unknown>) => ({
     ...options,
     options,
@@ -59,6 +60,14 @@ vi.mock('@/features/transfer/v1/getV1NameState', () => ({
   getV1NameStateQueryOptions: () => ({
     queryKey: ['v1NameState', NAME],
     queryFn: () => v1State,
+  }),
+}))
+
+const isRegistryPendingUpgrade = vi.hoisted(() => vi.fn(() => false))
+vi.mock('@/features/registry/queries/getIsRegistryPendingUpgrade', () => ({
+  getIsRegistryPendingUpgradeQueryOptions: () => ({
+    queryKey: ['isRegistryPendingUpgrade'],
+    queryFn: () => isRegistryPendingUpgrade(),
   }),
 }))
 
@@ -159,11 +168,15 @@ beforeEach(() => {
 })
 
 it.each([
-  { name: 'parent.eth', protocol: 'ENSv2', path: '/parent.eth/subnames' },
+  {
+    name: 'parent.eth',
+    protocol: 'ENSv2',
+    path: '/parent.eth/create-subname',
+  },
   {
     name: 'deep.parent.eth',
     protocol: 'ENSv2',
-    path: '/deep.parent.eth/subnames',
+    path: '/deep.parent.eth/create-subname',
   },
   { name: 'parent.eth', protocol: undefined, path: '/parent.eth/subnames' },
   { name: 'parent.eth', protocol: 'ENSv1', path: '/parent.eth/create-subname' },
@@ -283,6 +296,17 @@ describe('create subname under a V2 parent', () => {
 
   beforeEach(() => {
     protocolVersion = 'ENSv2'
+    isRegistryPendingUpgrade.mockReturnValue(false)
+  })
+
+  it('pauses creation while the registry is pending an upgrade', async () => {
+    isRegistryPendingUpgrade.mockReturnValue(true)
+    renderRoute()
+
+    expect(await screen.findByTestId('navigate')).toHaveTextContent(
+      '/$name/subnames',
+    )
+    expect(screen.queryByLabelText('Subname')).not.toBeInTheDocument()
   })
 
   it('refuses a wallet with neither registrar role on the subregistry root', async () => {

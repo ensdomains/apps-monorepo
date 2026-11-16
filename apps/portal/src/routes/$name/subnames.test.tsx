@@ -86,6 +86,14 @@ vi.mock('@/features/profile/hooks/useSubnames', () => ({
 }))
 
 let registriesFail = false
+const isRegistryPendingUpgrade = vi.hoisted(() => vi.fn(() => true))
+vi.mock('@/features/registry/queries/getIsRegistryPendingUpgrade', () => ({
+  getIsRegistryPendingUpgradeQueryOptions: () => ({
+    queryKey: ['isRegistryPendingUpgrade'],
+    queryFn: () => isRegistryPendingUpgrade(),
+  }),
+}))
+
 vi.mock('@/features/registry/hooks/useNameRegistryDiscovery', () => ({
   getNameRegistriesQueryOptions: () => ({
     queryKey: ['nameRegistries', NAME],
@@ -246,6 +254,7 @@ const renderRoute = (queryClient = createTestQueryClient()) => {
 }
 
 beforeEach(() => {
+  isRegistryPendingUpgrade.mockReturnValue(true)
   hasRolesParams.mockReset()
   rootRoleParams.mockReset()
   rootRoles = ['ROLE_REGISTRAR']
@@ -627,6 +636,15 @@ describe('subnames route role checks', () => {
     expect(
       await screen.findByRole('button', { name: /create subname/i }),
     ).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('offers subname creation once the registry is not pending an upgrade', async () => {
+    isRegistryPendingUpgrade.mockReturnValue(false)
+    renderRoute()
+
+    expect(
+      await screen.findByRole('link', { name: /create subname/i }),
+    ).toBeInTheDocument()
   })
 
   // A reserved label is registered under ROLE_REGISTER_RESERVED alone.

@@ -5,6 +5,7 @@ import {
   supportedL1Contracts,
 } from '@ensdomains/ensjs/chain'
 import { type Address, zeroAddress } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 
 /** Human-readable display names for known ENS L1 contracts */
 const contractDisplayNames: Record<SupportedL1Contract, string> = {
@@ -58,6 +59,20 @@ const contractPillLabels: Partial<Record<SupportedL1Contract, string>> = {
 // EntityBadge / ContractBadge callers.
 const contractNames = new Map<string, string>()
 const contractPills = new Map<string, string>()
+
+/** The previous V1 PublicResolver per chain, which most V1 names still point at. */
+export const PREVIOUS_PUBLIC_RESOLVERS: Readonly<Record<number, Address>> = {
+  [mainnet.id]: '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63',
+  [sepolia.id]: '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
+}
+
+for (const address of Object.values(PREVIOUS_PUBLIC_RESOLVERS)) {
+  contractNames.set(
+    address.toLowerCase(),
+    contractDisplayNames.ensPublicResolver,
+  )
+  contractPills.set(address.toLowerCase(), 'public resolver')
+}
 
 for (const chainId of Object.values(supportedL1Chains)) {
   const contracts = ensL1Contracts[chainId]
