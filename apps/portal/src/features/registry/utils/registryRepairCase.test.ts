@@ -1,5 +1,8 @@
+import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { describe, expect, it } from 'vitest'
 import { getRegistryRepairCase } from './registryRepairCase'
+
+const { ROLE_REGISTRAR, ROLE_SET_PARENT } = registryRoles
 
 describe('getRegistryRepairCase', () => {
   const run = (
@@ -8,8 +11,8 @@ describe('getRegistryRepairCase', () => {
     getRegistryRepairCase({
       isPendingUpgrade: true,
       isConnected: true,
-      canRepair: true,
-      occupants: { count: 2, thirdPartyCount: 0 },
+      canSwitchParent: true,
+      rootRoles: ROLE_REGISTRAR | ROLE_SET_PARENT,
       ...overrides,
     })
 
@@ -17,21 +20,16 @@ describe('getRegistryRepairCase', () => {
     ['an unaffected registry', { isPendingUpgrade: false }, 'unaffected'],
     ['an unchecked registry', { isPendingUpgrade: undefined }, 'unknown'],
     ['no connected wallet', { isConnected: false }, 'viewer'],
-    ['an account that cannot repair', { canRepair: false }, 'viewer'],
-    ['unknown repair rights', { canRepair: undefined }, 'unknown'],
-    ['unread subnames', { occupants: undefined }, 'unknown'],
-    ['subnames bigname cannot count', { occupants: null }, 'unknown'],
-    ['a repairer owning every subname', {}, 'owns-all'],
     [
-      'a repairer of an empty registry',
-      { occupants: { count: 0, thirdPartyCount: 0 } },
-      'owns-all',
+      "an account that can't switch the name",
+      { canSwitchParent: false },
+      'viewer',
     ],
-    [
-      'a repairer sharing subnames',
-      { occupants: { count: 2, thirdPartyCount: 1 } },
-      'shared',
-    ],
+    ['unknown switch rights', { canSwitchParent: undefined }, 'unknown'],
+    ['unread root roles', { rootRoles: undefined }, 'unknown'],
+    ['every role the copy needs', {}, 'can-upgrade'],
+    ['no registrar role', { rootRoles: ROLE_SET_PARENT }, 'viewer'],
+    ['no set-parent role', { rootRoles: ROLE_REGISTRAR }, 'viewer'],
   ] as const)('with %s: %s', (_case, overrides, expected) => {
     expect(run(overrides)).toBe(expected)
   })

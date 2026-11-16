@@ -9,23 +9,34 @@ import {
   type RegistryUpgradeState,
   useRegistryUpdate,
 } from '../../hooks/useRegistryUpdate'
-import type { RegistryRepairCase } from '../../utils/registryRepairCase'
+import type { RegistryUpdateFailure } from '../../utils/registryUpdate'
 import { RegistryPanel } from './RegistryPanel'
-
-const CAN_UPDATE_CASES: readonly RegistryRepairCase[] = ['owns-all', 'shared']
 
 const updateLabel = (state: RegistryUpgradeState) =>
   match(state)
     .with('planning', () => 'Preparing upgrade…')
+    .with('sending', 'checking', () => 'Finishing the current step…')
     .with('incomplete', () => 'Continue upgrade')
     .otherwise(() => 'Upgrade registry')
+
+const FAILURE_MESSAGES: Readonly<Record<RegistryUpdateFailure, string>> = {
+  'missing-roles':
+    "Your account doesn't have all the roles on this registry needed to copy it.",
+  'registry-replaced':
+    'This name now points at a different registry. Refresh the page to see it.',
+  'unknown-label':
+    "This name's label isn't known, so the new registry can't be linked to it.",
+  unavailable: "This registry can't be upgraded here.",
+  'read-failed':
+    "Couldn't read the registry to prepare the upgrade. Try again.",
+}
 
 /** Asks an account that can update the name's registry to do so. */
 export const RegistryUpdateNotice = ({ name }: { readonly name: string }) => {
   const { repairCase, registryAddress, parentRegistry } =
     useRegistryRepairCase(name)
 
-  if (!CAN_UPDATE_CASES.includes(repairCase)) return null
+  if (repairCase !== 'can-upgrade') return null
 
   return (
     <RegistryUpdateCard
@@ -45,7 +56,7 @@ const RegistryUpdateCard = ({
   readonly registryAddress: Address | undefined
   readonly parentRegistry: Address | undefined
 }) => {
-  const { start, state, canStart, transactions } = useRegistryUpdate({
+  const { start, state, canStart, failure, transactions } = useRegistryUpdate({
     name,
     registryAddress,
     parentRegistry,
@@ -61,11 +72,8 @@ const RegistryUpdateCard = ({
           their owners and their roles will be copied to the new registry.
         </AlertDescription>
       </Alert>
-      {state === 'planFailed' && (
-        <ErrorMessage
-          compact
-          description="Couldn't prepare the upgrade. Refresh the page and try again."
-        />
+      {state === 'planFailed' && failure && (
+        <ErrorMessage compact description={FAILURE_MESSAGES[failure]} />
       )}
       {state === 'incomplete' && (
         <ErrorMessage

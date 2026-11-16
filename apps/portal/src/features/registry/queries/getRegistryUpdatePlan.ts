@@ -1,6 +1,7 @@
 import {
   planRegistryRepair,
   type RegistryRepairPlan,
+  type RegistryRepairState,
   readChildRegistries,
   readRegistryRepairState,
 } from '@ens-apps/migration'
@@ -17,10 +18,11 @@ import { type Address, publicActions } from 'viem'
 import {
   computeRegistryUpdateSalt,
   getRegistryUpdateBlocker,
+  shouldStartFreshCopy,
 } from '@/features/registry/utils/registryUpdate'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-class GetRegistryUpdatePlanError extends TaggedError(
+export class GetRegistryUpdatePlanError extends TaggedError(
   'GetRegistryUpdatePlanError',
 )<{
   readonly cause: unknown
@@ -41,6 +43,9 @@ export type RegistryUpdatePlan = {
   readonly expiredLabels: readonly string[]
   readonly salt: bigint
 }
+
+/** A stopped upgrade that can't be resumed starts over at a new address; this bounds how many times. */
+const MAX_UPGRADE_ATTEMPTS = 16n
 
 const toError = (cause: unknown) => new GetRegistryUpdatePlanError({ cause })
 
@@ -71,13 +76,28 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
   })
   if (blocker) return err(toError(blocker))
 
-  const salt = computeRegistryUpdateSalt(registryAddress)
-  const replacement = computeVerifiableProxyAddress({
-    factory: contracts.verifiableFactory,
-    proxyLogic: contracts.verifiableFactoryProxyLogic,
-    deployer: account,
-    salt,
-  })
+  const replacementAt = (attempt: bigint) => {
+    const salt = computeRegistryUpdateSalt(registryAddress, attempt)
+    return {
+      salt,
+      address: computeVerifiableProxyAddress({
+        factory: contracts.verifiableFactory,
+        proxyLogic: contracts.verifiableFactoryProxyLogic,
+        deployer: account,
+        salt,
+      }),
+    }
+  }
+  // Each attempt deploys at its own address; the latest one with code is the copy to resume.
+  const findLatestAttempt = async (attempt: bigint): Promise<bigint> => {
+    if (attempt >= MAX_UPGRADE_ATTEMPTS) throw new Error('too-many-attempts')
+    const code = await client.getCode({
+      address: replacementAt(attempt).address,
+    })
+    return code && code !== '0x'
+      ? findLatestAttempt(attempt + 1n)
+      : attempt - 1n
+  }
   const read = (registry: Address, knownParent?: typeof parent) =>
     readRegistryRepairState({
       client,
@@ -88,11 +108,7 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
     }).mapErr(toError)
 
   const state = yield* read(registryAddress, parent)
-  const code = yield* fromPromise(
-    client.getCode({ address: replacement }),
-    toError,
-  )
-  const existing = code && code !== '0x' ? yield* read(replacement) : null
+  const latest = yield* fromPromise(findLatestAttempt(0n), toError)
   const children = yield* readChildRegistries({
     client,
     registry: registryAddress,
@@ -100,16 +116,29 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
     account,
   }).mapErr(toError)
 
-  const plan = yield* planRegistryRepair({
-    state,
-    existing,
-    children,
-    account,
-    factory: contracts.verifiableFactory,
-    implementation: contracts.userRegistryImpl,
-    salt,
-    replacement,
-  }).mapErr(toError)
+  const planAt = (attempt: bigint, existing: RegistryRepairState | null) => {
+    const replacement = replacementAt(attempt)
+    return planRegistryRepair({
+      state,
+      existing,
+      children,
+      account,
+      factory: contracts.verifiableFactory,
+      implementation: contracts.userRegistryImpl,
+      salt: replacement.salt,
+      replacement: replacement.address,
+    }).map((plan) => ({ plan, salt: replacement.salt }))
+  }
+  const resumed =
+    latest >= 0n
+      ? planAt(latest, yield* read(replacementAt(latest).address))
+      : null
+  // The original changed after part of the copy landed: start a fresh copy at the next attempt.
+  const { plan, salt } = yield* (
+    resumed && !shouldStartFreshCopy(resumed)
+      ? resumed
+      : planAt(latest + 1n, null)
+  ).mapErr(toError)
 
   const result: RegistryUpdatePlan = {
     plan,

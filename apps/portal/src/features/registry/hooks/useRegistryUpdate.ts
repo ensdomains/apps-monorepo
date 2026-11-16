@@ -149,6 +149,7 @@ export const useRegistryUpdate = ({
     snapshot.hasTag('startable'),
   )
   const plan = useSelector(actor, (snapshot) => snapshot.context.plan)
+  const failure = useSelector(actor, (snapshot) => snapshot.context.failure)
   const steps = useSelector(actor, (snapshot) => snapshot.context.steps)
 
   // Closing the modal part way leaves the copy where it is; the next start resumes it.
@@ -185,6 +186,7 @@ export const useRegistryUpdate = ({
       }),
     state,
     canStart,
+    failure,
     transactions,
   }
 }

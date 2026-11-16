@@ -2,7 +2,10 @@ import {
   chunkWalletBundle,
   type RegistryRepairCall,
   type RegistryRepairPlan,
+  type RegistryRepairPlanError,
 } from '@ens-apps/migration'
+import type { Result } from 'neverthrow'
+import { match, P } from 'ts-pattern'
 import {
   type Address,
   encodeAbiParameters,
@@ -17,16 +20,24 @@ const REGISTRY_UPDATE_SALT_DOMAIN = keccak256(
   stringToHex('ENSExplorerRegistryUpdate:v1'),
 )
 
-/** The CREATE2 salt for `registry`'s replacement, so a stopped update finds the same address again. */
-export const computeRegistryUpdateSalt = (registry: Address): bigint =>
+/** The CREATE2 salt for an attempt at replacing `registry`, so a stopped upgrade finds the same address again. */
+export const computeRegistryUpdateSalt = (
+  registry: Address,
+  attempt: bigint,
+): bigint =>
   BigInt(
     keccak256(
       encodeAbiParameters(
-        [{ type: 'bytes32' }, { type: 'address' }],
-        [REGISTRY_UPDATE_SALT_DOMAIN, registry],
+        [{ type: 'bytes32' }, { type: 'address' }, { type: 'uint256' }],
+        [REGISTRY_UPDATE_SALT_DOMAIN, registry, attempt],
       ),
     ),
   )
+
+/** A copy the original has drifted from can't be finished, so the upgrade starts a fresh one. */
+export const shouldStartFreshCopy = (
+  resumed: Result<unknown, RegistryRepairPlanError>,
+): boolean => resumed.isErr() && resumed.error.reason === 'replacement-diverged'
 
 export type RegistryUpdateStep = {
   readonly kind: 'copy' | 'finish'
@@ -97,3 +108,51 @@ export const getRegistryUpdateBlocker = (params: {
   if (isEncodedLabelhash(params.label)) return 'unknown-label'
   return null
 }
+
+export type RegistryUpdateFailure =
+  | 'missing-roles'
+  | 'registry-replaced'
+  | 'unknown-label'
+  | 'unavailable'
+  | 'read-failed'
+
+const reasonOf = (error: unknown): string | undefined => {
+  const cause =
+    typeof error === 'object' && error !== null && 'cause' in error
+      ? error.cause
+      : undefined
+  if (typeof cause === 'string') return cause
+  return typeof cause === 'object' &&
+    cause !== null &&
+    'reason' in cause &&
+    typeof cause.reason === 'string'
+    ? cause.reason
+    : undefined
+}
+
+/** Why planning an upgrade failed, in the terms the card explains to the user. */
+export const getRegistryUpdateFailure = (
+  error: unknown,
+): RegistryUpdateFailure =>
+  match(reasonOf(error))
+    .with(
+      P.union(
+        'no-root-roles',
+        'cannot-register',
+        'cannot-set-parent',
+        'cannot-grant',
+      ),
+      () => 'missing-roles' as const,
+    )
+    .with('registry-replaced', () => 'registry-replaced' as const)
+    .with('unknown-label', () => 'unknown-label' as const)
+    .with(
+      P.union(
+        'outdated-implementation',
+        'name-without-owner',
+        'duplicate-label',
+        'replacement-diverged',
+      ),
+      () => 'unavailable' as const,
+    )
+    .otherwise(() => 'read-failed' as const)

@@ -1,35 +1,42 @@
+import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { match, P } from 'ts-pattern'
-import type { RegistryOccupants } from '../hooks/useRegistryOccupants'
 
-/** How the connected account relates to a registry that needs an update, which decides the notice it sees. */
+/** How the connected account relates to a registry that needs an upgrade, which decides the notice it sees. */
 export type RegistryRepairCase =
   | 'unaffected'
   | 'unknown'
-  | 'owns-all'
-  | 'shared'
+  | 'can-upgrade'
   | 'viewer'
+
+/** Root roles the copy needs on the old registry: registering the names and setting the new registry's parent. */
+const UPGRADE_ROOT_ROLES =
+  registryRoles.ROLE_REGISTRAR | registryRoles.ROLE_SET_PARENT
 
 export const getRegistryRepairCase = ({
   isPendingUpgrade,
   isConnected,
-  canRepair,
-  occupants,
+  canSwitchParent,
+  rootRoles,
 }: {
   readonly isPendingUpgrade: boolean | undefined
   readonly isConnected: boolean
   /** The account can point the parent name at a replacement registry. */
-  readonly canRepair: boolean | undefined
-  /** The registry's subnames relative to the account; null when bigname can't count them. */
-  readonly occupants: RegistryOccupants | null | undefined
+  readonly canSwitchParent: boolean | undefined
+  /** The account's root roles on the registry being upgraded. */
+  readonly rootRoles: bigint | undefined
 }): RegistryRepairCase =>
-  match({ isPendingUpgrade, isConnected, canRepair, occupants })
+  match({ isPendingUpgrade, isConnected, canSwitchParent, rootRoles })
     .with({ isPendingUpgrade: false }, () => 'unaffected' as const)
     .with({ isPendingUpgrade: undefined }, () => 'unknown' as const)
     .with({ isConnected: false }, () => 'viewer' as const)
-    .with({ canRepair: false }, () => 'viewer' as const)
+    .with({ canSwitchParent: false }, () => 'viewer' as const)
     .with(
-      P.union({ canRepair: undefined }, { occupants: P.nullish }),
+      P.union({ canSwitchParent: undefined }, { rootRoles: undefined }),
       () => 'unknown' as const,
     )
-    .with({ occupants: { thirdPartyCount: 0 } }, () => 'owns-all' as const)
-    .otherwise(() => 'shared' as const)
+    .with({ rootRoles: P.bigint }, ({ rootRoles }) =>
+      (rootRoles & UPGRADE_ROOT_ROLES) === UPGRADE_ROOT_ROLES
+        ? ('can-upgrade' as const)
+        : ('viewer' as const),
+    )
+    .otherwise(() => 'unknown' as const)

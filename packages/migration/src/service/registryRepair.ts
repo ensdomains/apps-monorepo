@@ -121,6 +121,7 @@ export class RegistryRepairPlanError extends TaggedError(
     | 'duplicate-label'
     | 'replacement-diverged'
     | 'cannot-register'
+    | 'cannot-set-parent'
     | 'cannot-grant'
   readonly label?: string
 }> {}
@@ -178,6 +179,11 @@ const findPlanProblem = (
     return new RegistryRepairPlanError({ reason: 'no-root-roles' })
   if ((rolesOf(state.rootRoles, account) & registryRoles.ROLE_REGISTRAR) === 0n)
     return new RegistryRepairPlanError({ reason: 'cannot-register' })
+  if (
+    (rolesOf(state.rootRoles, account) & registryRoles.ROLE_SET_PARENT) ===
+    0n
+  )
+    return new RegistryRepairPlanError({ reason: 'cannot-set-parent' })
   const ungrantable = findUngrantable(state, account)
   if (ungrantable)
     return new RegistryRepairPlanError({

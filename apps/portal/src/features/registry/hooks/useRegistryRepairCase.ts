@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { getIsRegistryPendingUpgradeQueryOptions } from '../queries/getIsRegistryPendingUpgrade'
 import {
   getRegistryRepairCase,
@@ -8,7 +10,6 @@ import {
 } from '../utils/registryRepairCase'
 import { useHasSetSubregistryRole } from './useHasSetSubregistryRole'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
-import { getRegistryOccupantsQueryOptions } from './useRegistryOccupants'
 
 export type UseRegistryRepairCaseResult = {
   readonly repairCase: RegistryRepairCase
@@ -16,8 +17,6 @@ export type UseRegistryRepairCaseResult = {
   readonly registryAddress: Address | undefined
   /** The registry holding the name itself. */
   readonly parentRegistry: Address | undefined
-  /** Subnames in it; only read for an account that can repair the registry. */
-  readonly subnameCount: number | undefined
 }
 
 /** Which registry update notice the connected account sees for a V2 name. */
@@ -44,25 +43,25 @@ export const useRegistryRepairCase = (
   const { hasRole, isLoading: isRoleLoading } = useHasSetSubregistryRole(name, {
     enabled: isPendingUpgrade === true,
   })
-  const canRepair = isRoleLoading ? undefined : hasRole
+  const canSwitchParent = isRoleLoading ? undefined : hasRole
 
-  const occupants = useQuery({
-    ...getRegistryOccupantsQueryOptions({
-      address: registryAddress ?? zeroAddress,
+  const rootRoles = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress: registryAddress ?? zeroAddress,
+      resource: ROOT_RESOURCE_ID,
       account: account ?? zeroAddress,
     }),
-    enabled: Boolean(registryAddress && account) && canRepair === true,
+    enabled: Boolean(registryAddress && account) && isPendingUpgrade === true,
   })
 
   return {
     repairCase: getRegistryRepairCase({
       isPendingUpgrade: registryAddress ? isPendingUpgrade : false,
       isConnected: Boolean(account),
-      canRepair,
-      occupants: occupants.error ? undefined : occupants.data,
+      canSwitchParent,
+      rootRoles: rootRoles.error ? undefined : rootRoles.data?.raw,
     }),
     registryAddress,
     parentRegistry: registries?.at(1) ?? undefined,
-    subnameCount: occupants.data?.count,
   }
 }

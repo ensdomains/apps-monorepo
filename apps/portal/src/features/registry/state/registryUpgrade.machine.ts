@@ -1,7 +1,9 @@
 import { assign, fromPromise, setup } from 'xstate'
 import type { RegistryUpdatePlan } from '../queries/getRegistryUpdatePlan'
 import {
+  getRegistryUpdateFailure,
   getRegistryUpdateSteps,
+  type RegistryUpdateFailure,
   type RegistryUpdateStep,
 } from '../utils/registryUpdate'
 
@@ -25,6 +27,10 @@ type Context = {
   readonly plan: RegistryUpdatePlan | null
   readonly steps: readonly RegistryUpdateStep[]
   readonly index: number
+  /** Why the last plan failed, shown on the card. */
+  readonly failure: RegistryUpdateFailure | null
+  /** The modal closed while a step was in flight; the machine waits for it before the next start. */
+  readonly isDetached: boolean
 }
 
 export type RegistryUpgradeEvent =
@@ -64,12 +70,18 @@ export const registryUpgradeMachine = setup({
     openFlow: ({ context }) => context.runtime.openFlow(),
     closeFlow: ({ context }) => context.runtime.closeFlow(),
     finished: ({ context }) => context.runtime.finished(),
+    recordFailure: assign({
+      failure: ({ event }) =>
+        getRegistryUpdateFailure('error' in event ? event.error : undefined),
+    }),
     takeCapability: assign({
       canBatchAtomically: ({ event }) =>
         event.type === 'START' ? event.canBatchAtomically : false,
+      isDetached: false,
     }),
   },
   guards: {
+    isDetached: ({ context }) => context.isDetached,
     isLastStep: ({ context }) => context.index >= context.steps.length - 1,
     isNextFinishing: ({ context }) =>
       context.steps[context.index + 1]?.kind === 'finish',
@@ -82,6 +94,8 @@ export const registryUpgradeMachine = setup({
     plan: null,
     steps: [],
     index: 0,
+    failure: null,
+    isDetached: false,
   }),
   initial: 'idle',
   states: {
@@ -115,7 +129,7 @@ export const registryUpgradeMachine = setup({
             'openFlow',
           ],
         },
-        onError: 'planFailed',
+        onError: { target: 'planFailed', actions: 'recordFailure' },
       },
     },
     ready: {
@@ -132,6 +146,7 @@ export const registryUpgradeMachine = setup({
           index: context.index,
         }),
         onDone: [
+          { guard: 'isDetached', target: 'incomplete' },
           { guard: 'isLastStep', target: 'done' },
           {
             guard: 'isNextFinishing',
@@ -144,9 +159,13 @@ export const registryUpgradeMachine = setup({
             actions: assign({ index: ({ context }) => context.index + 1 }),
           },
         ],
-        onError: 'stepFailed',
+        onError: [
+          { guard: 'isDetached', target: 'idle' },
+          { target: 'stepFailed' },
+        ],
       },
-      on: { CANCEL: 'idle' },
+      // The wallet may still land this step, so wait for it rather than letting a restart send it again.
+      on: { CANCEL: { actions: assign({ isDetached: true }) } },
     },
     stepFailed: {
       tags: 'inModal',
@@ -165,7 +184,10 @@ export const registryUpgradeMachine = setup({
           },
           { target: 'sending' },
         ],
-        onError: { target: 'planFailed', actions: 'closeFlow' },
+        onError: {
+          target: 'planFailed',
+          actions: ['recordFailure', 'closeFlow'],
+        },
       },
       on: { CANCEL: 'idle' },
     },

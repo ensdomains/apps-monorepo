@@ -159,10 +159,13 @@ describe('registryUpgradeMachine', () => {
   })
 
   it('reports a plan that could not be built, and plans again on the next start', async () => {
-    const { settle, start } = run({ plans: [new Error('rpc'), planOf(1, 1)] })
+    const { actor, settle, start } = run({
+      plans: [new Error('rpc'), planOf(1, 1)],
+    })
 
     start()
     await settle('planFailed')
+    expect(actor.getSnapshot().context.failure).toBe('read-failed')
     start()
 
     await settle('ready')
@@ -187,5 +190,42 @@ describe('registryUpgradeMachine, batching', () => {
       'send 1',
       'send 2',
     ])
+  })
+})
+
+describe('registryUpgradeMachine, closing the modal', () => {
+  it('waits for a step still in flight, then offers to continue without sending it again', async () => {
+    const landed = { resolve: () => {} }
+    const stepLanded = new Promise<void>((resolve) => {
+      landed.resolve = resolve
+    })
+    const log: string[] = []
+    const runtime: RegistryUpgradeRuntime = {
+      plan: async () => {
+        log.push('plan')
+        return planOf(1, 1)
+      },
+      sendStep: async (_step, index) => {
+        log.push(`send ${index}`)
+        if (index === 0) await stepLanded
+      },
+      openFlow: () => {},
+      closeFlow: () => {},
+      finished: () => {},
+    }
+    const actor = createActor(registryUpgradeMachine, {
+      input: { runtime },
+    }).start()
+
+    actor.send({ type: 'START', canBatchAtomically: true })
+    await waitFor(actor, (snapshot) => snapshot.matches('ready'))
+    actor.send({ type: 'SEND' })
+    actor.send({ type: 'CANCEL' })
+    actor.send({ type: 'START', canBatchAtomically: true })
+
+    expect(actor.getSnapshot().matches('sending')).toBe(true)
+    landed.resolve()
+    await waitFor(actor, (snapshot) => snapshot.matches('incomplete'))
+    expect(log).toEqual(['plan', 'send 0'])
   })
 })

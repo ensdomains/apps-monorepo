@@ -1,3 +1,4 @@
+import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { permissionedRegistryUnregisterSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
@@ -39,6 +40,8 @@ const CHILD_REGISTRY = getAddress('0x00000000000000000000000000000000000005ee')
 const SALT = 7n
 const ALL = (1n << 256n) - 1n
 const SOME = 0x10n
+const REGISTRAR = registryRoles.ROLE_REGISTRAR
+const REGISTRAR_AND_PARENT = REGISTRAR | registryRoles.ROLE_SET_PARENT
 
 const makeName = (
   overrides: Partial<RegistryRepairName> = {},
@@ -176,9 +179,17 @@ describe('planRegistryRepair', () => {
     )
   })
 
+  it("refuses an account that cannot set the new registry's parent", () => {
+    const state = makeState({
+      rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR }],
+    })
+
+    expect(plan(state)._unsafeUnwrapErr().reason).toBe('cannot-set-parent')
+  })
+
   it("refuses a name whose roles the account can't grant", () => {
     const state = makeState({
-      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+      rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR_AND_PARENT }],
       names: [
         makeName({
           roles: [
@@ -197,7 +208,7 @@ describe('planRegistryRepair', () => {
 
   it("doesn't count name roles the sender only gets on a name it doesn't own", () => {
     const state = makeState({
-      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+      rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR_AND_PARENT }],
       names: [
         makeName({
           roles: [
@@ -214,7 +225,12 @@ describe('planRegistryRepair', () => {
 
   it('lets an admin role grant the regular role it implies', () => {
     const state = makeState({
-      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n | (SOME << 128n) }],
+      rootRoles: [
+        {
+          account: CONTROLLER,
+          roleBitmap: REGISTRAR_AND_PARENT | (SOME << 128n),
+        },
+      ],
       names: [
         makeName({
           roles: [
@@ -278,10 +294,10 @@ describe('planRegistryRepair, resuming a copy', () => {
 
   it('refuses to resume when it could not unregister such a name', () => {
     const state = makeState({
-      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+      rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR_AND_PARENT }],
     })
     const existing = makeState({
-      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+      rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR_AND_PARENT }],
       names: [makeName(), BOB_NAME],
     })
 

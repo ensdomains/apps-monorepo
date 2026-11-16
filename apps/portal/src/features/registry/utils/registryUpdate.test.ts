@@ -1,10 +1,14 @@
 import type { RegistryRepairCall } from '@ens-apps/migration'
+import { RegistryRepairPlanError } from '@ens-apps/migration'
+import { err, ok } from 'neverthrow'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
   getRegistryUpdateBlocker,
   getRegistryUpdateDetails,
+  getRegistryUpdateFailure,
   getRegistryUpdateSteps,
+  shouldStartFreshCopy,
 } from './registryUpdate'
 
 const calls = (count: number): readonly RegistryRepairCall[] =>
@@ -106,5 +110,50 @@ describe('getRegistryUpdateBlocker', () => {
     ],
   ] as const)('with %s: %s', (_case, overrides, expected) => {
     expect(run(overrides)).toBe(expected)
+  })
+})
+
+describe('getRegistryUpdateFailure', () => {
+  const planError = (cause: unknown) => ({ cause })
+
+  it.each([
+    [
+      'a missing role',
+      planError({ reason: 'cannot-set-parent' }),
+      'missing-roles',
+    ],
+    [
+      'a name moved elsewhere',
+      planError('registry-replaced'),
+      'registry-replaced',
+    ],
+    ['a hashed label', planError('unknown-label'), 'unknown-label'],
+    [
+      'a registry the copy refuses',
+      planError({ reason: 'duplicate-label' }),
+      'unavailable',
+    ],
+    ['a failed read', planError(new Error('rpc')), 'read-failed'],
+    ['anything else', 'boom', 'read-failed'],
+  ] as const)('explains %s as %s', (_case, error, expected) => {
+    expect(getRegistryUpdateFailure(error)).toBe(expected)
+  })
+})
+
+describe('shouldStartFreshCopy', () => {
+  it.each([
+    [
+      'a copy the original drifted from',
+      err(new RegistryRepairPlanError({ reason: 'replacement-diverged' })),
+      true,
+    ],
+    [
+      'an account missing a role',
+      err(new RegistryRepairPlanError({ reason: 'cannot-register' })),
+      false,
+    ],
+    ['a copy that can resume', ok(null), false],
+  ] as const)('for %s: %s', (_case, resumed, expected) => {
+    expect(shouldStartFreshCopy(resumed)).toBe(expected)
   })
 })
