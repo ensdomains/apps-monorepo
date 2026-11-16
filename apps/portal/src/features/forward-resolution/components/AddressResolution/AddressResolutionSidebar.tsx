@@ -62,11 +62,13 @@ import { MANAGER_UPGRADE_URL } from '@/lib/constants/domain'
 import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
 import { ensChain } from '@/lib/wagmi'
-import { is2LD, isEthName } from '@/utils/ens/tldHelpers'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { validateRecord } from '@/utils/records/validateRecord'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
-import { getNeedsLatestResolver } from './needsLatestResolver'
+import {
+  canUpgradeReplaceResolver,
+  getNeedsLatestResolver,
+} from './needsLatestResolver'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
 
@@ -158,8 +160,7 @@ const OlderResolverDetail = ({ name }: { readonly name: string }) => (
   <>
     The older ENS public resolver that <strong>{name}</strong> uses does not
     support L2 and default primary names, so{' '}
-    {/* Upgrading copies a .eth 2LD's records to a V2 resolver; a subname keeps its old one. */}
-    {is2LD(name) && isEthName(name) ? (
+    {canUpgradeReplaceResolver(name) ? (
       <>
         either{' '}
         <a
@@ -410,7 +411,7 @@ const ResolutionDetails = ({
   // unverifiable record.
   const offerSetPrimary = status === 'mismatch' && canSetPrimaryName
   // A primary name set on an older public resolver never verifies, so the banner points at the fix instead.
-  const needsLatestResolver =
+  const shouldUpdateResolver =
     offerSetPrimary &&
     getNeedsLatestResolver({ row, v1ResolverAddress, chainId: ensChain.id })
   // Default covers every EVM chain rather than naming one.
@@ -432,10 +433,10 @@ const ResolutionDetails = ({
           lagEstimate={lagEstimate}
           errorDetail={row.reverseError}
           mismatchDetail={
-            needsLatestResolver ? <OlderResolverDetail name={name} /> : null
+            shouldUpdateResolver ? <OlderResolverDetail name={name} /> : null
           }
           action={
-            offerSetPrimary && !needsLatestResolver ? (
+            offerSetPrimary && !shouldUpdateResolver ? (
               <Button
                 type="button"
                 variant="link"

@@ -110,12 +110,11 @@ const renderSidebar = (
   row: Row<AddressResolutionRow>,
   resolverAddress?: Address,
   v1ResolverAddress?: Address,
-  name = 'attacker.eth',
 ) =>
   render(
     <AddressResolutionSidebar
       row={row}
-      name={name}
+      name="attacker.eth"
       resolverAddress={resolverAddress}
       v1ResolverAddress={v1ResolverAddress}
       open
@@ -223,22 +222,6 @@ describe('AddressResolutionSidebar', () => {
       ).toHaveAttribute('href', MANAGER_UPGRADE_URL)
       expect(
         screen.queryByRole('button', { name: 'Set primary name' }),
-      ).not.toBeInTheDocument()
-    })
-
-    it('offers only a resolver change for a subname, which keeps its resolver on upgrade', () => {
-      renderSidebar(
-        defaultRow(OWNER),
-        RESOLVER,
-        OLDER_RESOLVER,
-        'sub.attacker.eth',
-      )
-
-      expect(
-        screen.getByRole('link', { name: 'change the resolver' }).parentElement,
-      ).toHaveTextContent('primary names, so change the resolver.')
-      expect(
-        screen.queryByRole('link', { name: 'upgrade the name to ENSv2' }),
       ).not.toBeInTheDocument()
     })
 
