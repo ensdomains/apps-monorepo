@@ -273,6 +273,21 @@ describe('profile createDiff utils', () => {
       },
     )
 
+    it.each(['null', 'undefined'])(
+      'should treat a custom record valued "%s" as a value',
+      (value) => {
+        const empty = newEmptyProfileRecords()
+        const withRecord = { ...empty, unknown: [{ key: 'test', value }] }
+
+        expect(Object.values(createDiff(empty, withRecord))).toEqual([
+          expect.objectContaining({ fieldKey: 'test', type: 'added' }),
+        ])
+        expect(Object.values(createDiff(withRecord, empty))).toEqual([
+          expect.objectContaining({ fieldKey: 'test', type: 'removed' }),
+        ])
+      },
+    )
+
     it('should handle empty values as removed', () => {
       const original = {
         ...newEmptyProfileRecords(),

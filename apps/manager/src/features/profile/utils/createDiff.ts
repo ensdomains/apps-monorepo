@@ -42,6 +42,10 @@ const isEmptyValue = (value: unknown): boolean => {
   return str === '' || str === 'undefined' || str === 'null'
 }
 
+// Custom records keep "null" and "undefined" as values, as the save does.
+const isBlankValue = (value: unknown): boolean =>
+  toNormalizedString(value) === ''
+
 const hasValueChanged = (oldVal: unknown, newVal: unknown): boolean =>
   toNormalizedString(oldVal) !== toNormalizedString(newVal)
 
@@ -66,9 +70,10 @@ const getBioDisplayName = (key: string): string => {
 const createDiffEntry = (
   originalValue: unknown,
   currentValue: unknown,
+  isEmpty: (value: unknown) => boolean = isEmptyValue,
 ): DiffEntry | null => {
-  const originalEmpty = isEmptyValue(originalValue)
-  const currentEmpty = isEmptyValue(currentValue)
+  const originalEmpty = isEmpty(originalValue)
+  const currentEmpty = isEmpty(currentValue)
 
   if (currentEmpty && !originalEmpty) {
     return {
@@ -106,6 +111,7 @@ const addKeyValueDiffs = (
   currentMap: Map<string, unknown>,
   section: string,
   getDisplayName: (key: string) => string = (key) => key,
+  isEmpty: (value: unknown) => boolean = isEmptyValue,
 ): void => {
   const allKeys = new Set([...originalMap.keys(), ...currentMap.keys()])
 
@@ -113,7 +119,7 @@ const addKeyValueDiffs = (
     const originalValue = originalMap.get(key)
     const currentValue = currentMap.get(key)
 
-    const diffEntry = createDiffEntry(originalValue, currentValue)
+    const diffEntry = createDiffEntry(originalValue, currentValue, isEmpty)
 
     if (diffEntry) {
       const displayName = getDisplayName(key)
@@ -211,6 +217,8 @@ export const createDiff = (
     recordsToMap(original.unknown),
     recordsToMap(current.unknown),
     'custom',
+    (key) => key,
+    isBlankValue,
   )
 
   // Process links

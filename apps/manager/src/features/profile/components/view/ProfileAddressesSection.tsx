@@ -60,7 +60,7 @@ const ReceivingChainBadge = ({
     >
       <AddressIcon
         coinType={chain.coinType}
-        framed={false}
+        isFramed={false}
         shouldShowFallbackLabel={isCompact}
         size="lg"
       />
