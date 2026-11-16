@@ -17,12 +17,12 @@ import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
   isAddressEqual,
-  labelhash,
   type PublicClient,
   parseAbi,
   zeroAddress,
 } from 'viem'
 import {
+  literalLabelId,
   type RegistryRepairName,
   type RegistryRepairState,
   type RoleGrant,
@@ -170,7 +170,7 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
             address: parentRegistry,
             abi: permissionedRegistryGetTokenIdSnippet,
             functionName: 'getTokenId',
-            args: [BigInt(labelhash(parentLabel))],
+            args: [literalLabelId(parentLabel)],
             blockNumber,
           }),
       client.multicall({
@@ -179,7 +179,7 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
           address: registry,
           abi: permissionedRegistryGetTokenIdSnippet,
           functionName: 'getTokenId',
-          args: [BigInt(labelhash(label))],
+          args: [literalLabelId(label)],
         })),
       }),
       client.multicall({

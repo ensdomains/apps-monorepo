@@ -1,6 +1,8 @@
 import type { RegistryRepairCall } from '@ens-apps/migration'
+import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
+  getRegistryUpdateBlocker,
   getRegistryUpdateDetails,
   getRegistryUpdateSteps,
 } from './registryUpdate'
@@ -68,5 +70,41 @@ describe('getRegistryUpdateDetails', () => {
         expiredLabels: [],
       }),
     ).toEqual([])
+  })
+})
+
+describe('getRegistryUpdateBlocker', () => {
+  const REGISTRY = '0x0000000000000000000000000000000000000a01'
+  const run = (
+    overrides: Partial<Parameters<typeof getRegistryUpdateBlocker>[0]>,
+  ) =>
+    getRegistryUpdateBlocker({
+      chainId: sepolia.id,
+      implementation: '0x0822d199699f0a9D378617817a1439663234a126',
+      registry: REGISTRY,
+      currentSubregistry: REGISTRY,
+      label: 'jooooe',
+      ...overrides,
+    })
+
+  it.each([
+    ['nothing in the way', {}, null],
+    [
+      'an outdated implementation to copy onto',
+      { implementation: '0x9BD8a88719068D09ecee662f36C0E3856708366a' },
+      'outdated-implementation',
+    ],
+    [
+      'a name now pointing at another registry',
+      { currentSubregistry: '0x0000000000000000000000000000000000000b02' },
+      'registry-replaced',
+    ],
+    [
+      'a label known only by its hash',
+      { label: `[${'ab'.repeat(32)}]` },
+      'unknown-label',
+    ],
+  ] as const)('with %s: %s', (_case, overrides, expected) => {
+    expect(run(overrides)).toBe(expected)
   })
 })

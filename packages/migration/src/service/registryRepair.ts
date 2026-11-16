@@ -1,6 +1,7 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { permissionedRegistryUnregisterSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   userRegistryInitializeSnippet,
   userRegistryRegisterSnippet,
@@ -14,7 +15,8 @@ import {
   encodeFunctionData,
   type Hex,
   isAddressEqual,
-  labelhash,
+  keccak256,
+  stringToHex,
   zeroAddress,
 } from 'viem'
 
@@ -124,8 +126,12 @@ export class RegistryRepairPlanError extends TaggedError(
 }> {}
 
 /** The role resource a label gets on its first registration in a fresh registry. */
+/** A label's id from its literal text; `labelhash` would read a `[<64 hex>]` label as already hashed. */
+export const literalLabelId = (label: string): bigint =>
+  BigInt(keccak256(stringToHex(label)))
+
 const freshResourceOf = (label: string): bigint =>
-  BigInt(labelhash(label)) & ~VERSION_BITS
+  literalLabelId(label) & ~VERSION_BITS
 
 const rolesOf = (grants: readonly RoleGrant[], account: Address): bigint =>
   grants
@@ -151,7 +157,11 @@ const findUngrantable = (
 ): RegistryRepairName | undefined => {
   const root = rolesOf(state.rootRoles, account)
   return state.names.find((name) => {
-    const settable = settableRoles(root | rolesOf(name.roles, account))
+    // Right after `register`, the sender holds name roles only if it owns the name.
+    const ownRoles = isAddressEqual(name.owner, account)
+      ? rolesOf(name.roles, account)
+      : 0n
+    const settable = settableRoles(root | ownRoles)
     return name.roles.some(
       (grant) =>
         !isAddressEqual(grant.account, name.owner) &&
@@ -319,12 +329,49 @@ const isDivergence = (difference: RegistryRepairDifference): boolean =>
   difference.kind === 'root-roles' || difference.kind === 'name-field'
 
 /** The copy calls still needed when `existing` (the replacement's current state) holds part of the copy. */
-const resumeCopyCalls = (
+/** Unregisters names the replacement holds but the original no longer does, so a resume never brings back a deleted subname. */
+const extraNameCalls = (
   state: RegistryRepairState,
   existing: RegistryRepairState,
   replacement: Address,
-  setParent: RegistryRepairCall,
+  account: Address,
 ): Result<readonly RegistryRepairCall[], RegistryRepairPlanError> => {
+  const extras = existing.names.filter(
+    (copy) => !state.names.some((name) => name.label === copy.label),
+  )
+  const [first] = extras
+  if (
+    first &&
+    (rolesOf(state.rootRoles, account) & registryRoles.ROLE_UNREGISTER) === 0n
+  )
+    return err(
+      new RegistryRepairPlanError({
+        reason: 'replacement-diverged',
+        label: first.label,
+      }),
+    )
+  return ok(
+    extras.map((copy) =>
+      call(
+        replacement,
+        encodeFunctionData({
+          abi: permissionedRegistryUnregisterSnippet,
+          functionName: 'unregister',
+          args: [literalLabelId(copy.label)],
+        }),
+      ),
+    ),
+  )
+}
+
+const resumeCopyCalls = (params: {
+  readonly state: RegistryRepairState
+  readonly existing: RegistryRepairState
+  readonly replacement: Address
+  readonly account: Address
+  readonly setParent: RegistryRepairCall
+}): Result<readonly RegistryRepairCall[], RegistryRepairPlanError> => {
+  const { state, existing, replacement, setParent } = params
   const divergence = compareRegistryRepair(state, existing).find(isDivergence)
   if (divergence)
     return err(
@@ -350,10 +397,13 @@ const resumeCopyCalls = (
         label: state.names[divergedAt]?.label,
       }),
     )
-  return ok([
-    ...(isParentSet ? [] : [setParent]),
-    ...nameCallsOrNull.flatMap((calls) => calls ?? []),
-  ])
+  return extraNameCalls(state, existing, replacement, params.account).map(
+    (unregisters) => [
+      ...(isParentSet ? [] : [setParent]),
+      ...unregisters,
+      ...nameCallsOrNull.flatMap((calls) => calls ?? []),
+    ],
+  )
 }
 
 /** Calls that copy a registry into `replacement` and switch its parent name to it; `existing` (the replacement's state, or null) resumes a stopped copy. */
@@ -408,7 +458,13 @@ export const planRegistryRepair = (params: {
   const movable = children.filter((child) => child.isCanonical)
 
   const copyCalls = existing
-    ? resumeCopyCalls(state, existing, replacement, setParent)
+    ? resumeCopyCalls({
+        state,
+        existing,
+        replacement,
+        account: params.account,
+        setParent,
+      })
     : ok([
         deploy,
         setParent,
@@ -418,8 +474,8 @@ export const planRegistryRepair = (params: {
   return copyCalls.map((calls) => ({
     replacement,
     copyCalls: calls,
+    // The switch goes last: until it lands the notice stays up, so stopped child moves can resume.
     finalCalls: [
-      switchParent,
       ...movable
         .filter((child) => child.canSetParent)
         .map((child) =>
@@ -432,6 +488,7 @@ export const planRegistryRepair = (params: {
             }),
           ),
         ),
+      switchParent,
     ],
     unmovedChildren: movable.filter((child) => !child.canSetParent),
   }))

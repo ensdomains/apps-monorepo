@@ -1,4 +1,5 @@
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { permissionedRegistryUnregisterSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   userRegistryInitializeSnippet,
   userRegistryRegisterSnippet,
@@ -16,6 +17,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   compareRegistryRepair,
+  literalLabelId,
   planRegistryRepair,
   type RegistryChild,
   type RegistryRepairName,
@@ -95,6 +97,7 @@ const ABI = [
   ...userRegistryRegisterSnippet,
   ...eacGrantRolesSnippet,
   ...userRegistrySetSubregistrySnippet,
+  ...permissionedRegistryUnregisterSnippet,
 ]
 const decode = (data: Hex) => decodeFunctionData({ abi: ABI, data })
 
@@ -192,6 +195,23 @@ describe('planRegistryRepair', () => {
     })
   })
 
+  it("doesn't count name roles the sender only gets on a name it doesn't own", () => {
+    const state = makeState({
+      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+      names: [
+        makeName({
+          roles: [
+            { account: ALICE, roleBitmap: ALL },
+            { account: CONTROLLER, roleBitmap: SOME << 128n },
+            { account: BOB, roleBitmap: SOME },
+          ],
+        }),
+      ],
+    })
+
+    expect(plan(state)._unsafeUnwrapErr().reason).toBe('cannot-grant')
+  })
+
   it('lets an admin role grant the regular role it implies', () => {
     const state = makeState({
       rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n | (SOME << 128n) }],
@@ -243,6 +263,32 @@ describe('planRegistryRepair, resuming a copy', () => {
       ['setParent', PARENT_REGISTRY],
       ['register', 'alice'],
     ])
+  })
+
+  it('unregisters a name the original lost since the copy, so it does not come back', () => {
+    const existing = makeState({ names: [makeName(), BOB_NAME] })
+    const [unregister] = plan(makeState(), { existing })._unsafeUnwrap()
+      .copyCalls
+
+    expect(unregister && decode(unregister.data)).toMatchObject({
+      functionName: 'unregister',
+      args: [BigInt(labelhash('bob'))],
+    })
+  })
+
+  it('refuses to resume when it could not unregister such a name', () => {
+    const state = makeState({
+      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+    })
+    const existing = makeState({
+      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+      names: [makeName(), BOB_NAME],
+    })
+
+    expect(plan(state, { existing })._unsafeUnwrapErr()).toMatchObject({
+      reason: 'replacement-diverged',
+      label: 'bob',
+    })
   })
 
   it('grants only the role bits a copied name still lacks', () => {
@@ -307,7 +353,7 @@ describe('planRegistryRepair, child registries', () => {
     ...overrides,
   })
 
-  it('re-parents the children it can move after the switch, and reports the rest', () => {
+  it('re-parents the children it can move before the switch, and reports the rest', () => {
     const blocked = child('blocked', { canSetParent: false })
     const { finalCalls, unmovedChildren } = plan(makeState(), {
       children: [
@@ -324,8 +370,8 @@ describe('planRegistryRepair, child registries', () => {
         decode(c.data).args,
       ]),
     ).toEqual([
-      [PARENT_REGISTRY, 'setSubregistry', [42n, REPLACEMENT]],
       [CHILD_REGISTRY, 'setParent', [REPLACEMENT, 'alice']],
+      [PARENT_REGISTRY, 'setSubregistry', [42n, REPLACEMENT]],
     ])
     expect(unmovedChildren).toEqual([blocked])
   })
@@ -356,6 +402,15 @@ describe('compareRegistryRepair', () => {
       { kind: 'name-roles', label: 'alice', account: ALICE },
       { kind: 'missing-name', label: 'bob' },
     ])
+  })
+})
+
+describe('literalLabelId', () => {
+  it('hashes a label shaped like an encoded labelhash as its literal text', () => {
+    const label = `[${'ab'.repeat(32)}]`
+
+    expect(literalLabelId(label)).not.toBe(BigInt(`0x${'ab'.repeat(32)}`))
+    expect(literalLabelId('alice')).toBe(BigInt(labelhash('alice')))
   })
 })
 

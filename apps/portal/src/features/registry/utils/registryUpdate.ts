@@ -3,7 +3,15 @@ import {
   type RegistryRepairCall,
   type RegistryRepairPlan,
 } from '@ens-apps/migration'
-import { type Address, encodeAbiParameters, keccak256, stringToHex } from 'viem'
+import {
+  type Address,
+  encodeAbiParameters,
+  isAddressEqual,
+  keccak256,
+  stringToHex,
+} from 'viem'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
+import { isPendingUpgradeImplementation } from './pendingUpgradeRegistry'
 
 const REGISTRY_UPDATE_SALT_DOMAIN = keccak256(
   stringToHex('ENSExplorerRegistryUpdate:v1'),
@@ -64,3 +72,28 @@ export const getRegistryUpdateDetails = ({
       ]
     : []),
 ]
+
+export type RegistryUpdateBlocker =
+  | 'outdated-implementation'
+  | 'registry-replaced'
+  | 'unknown-label'
+
+/** Why an update may not run now, or null when it can. */
+export const getRegistryUpdateBlocker = (params: {
+  readonly chainId: number
+  /** The implementation the replacement would be deployed from. */
+  readonly implementation: Address
+  readonly registry: Address
+  /** What the parent name points at right now. */
+  readonly currentSubregistry: Address
+  readonly label: string
+}): RegistryUpdateBlocker | null => {
+  // Never copy onto an implementation that would itself need updating.
+  if (isPendingUpgradeImplementation(params)) return 'outdated-implementation'
+  // Someone pointed the name elsewhere; switching it back would drop their registry.
+  if (!isAddressEqual(params.currentSubregistry, params.registry))
+    return 'registry-replaced'
+  // `setParent` needs the label's text, which an encoded label doesn't give.
+  if (isEncodedLabelhash(params.label)) return 'unknown-label'
+  return null
+}

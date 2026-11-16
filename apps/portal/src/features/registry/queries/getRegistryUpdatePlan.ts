@@ -11,10 +11,13 @@ import {
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, publicActions } from 'viem'
-import { isPendingUpgradeImplementation } from '@/features/registry/utils/pendingUpgradeRegistry'
-import { computeRegistryUpdateSalt } from '@/features/registry/utils/registryUpdate'
+import {
+  computeRegistryUpdateSalt,
+  getRegistryUpdateBlocker,
+} from '@/features/registry/utils/registryUpdate'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 class GetRegistryUpdatePlanError extends TaggedError(
@@ -50,14 +53,23 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
 }: GetRegistryUpdatePlanParameters) {
   const client = (yield* safeGetClient().mapErr(toError)).extend(publicActions)
   const contracts = getDestinationContracts(client.chain.id)
-  // Never copy onto an implementation that would itself need updating.
-  if (
-    isPendingUpgradeImplementation({
-      chainId: client.chain.id,
-      implementation: contracts.userRegistryImpl,
-    })
+  const currentSubregistry = yield* fromPromise(
+    client.readContract({
+      address: parent.registry,
+      abi: permissionedRegistryGetSubregistrySnippet,
+      functionName: 'getSubregistry',
+      args: [parent.label],
+    }),
+    toError,
   )
-    return err(toError('outdated-implementation'))
+  const blocker = getRegistryUpdateBlocker({
+    chainId: client.chain.id,
+    implementation: contracts.userRegistryImpl,
+    registry: registryAddress,
+    currentSubregistry,
+    label: parent.label,
+  })
+  if (blocker) return err(toError(blocker))
 
   const salt = computeRegistryUpdateSalt(registryAddress)
   const replacement = computeVerifiableProxyAddress({
