@@ -52,7 +52,7 @@ const stepTitle = (
 ) =>
   step.kind === 'copy'
     ? `Copy subnames (${index + 1} of ${copySteps})`
-    : 'Switch to the updated registry'
+    : 'Switch to the new registry'
 
 /** Copies a registry that needs an update into a replacement, then points the name at it. */
 export const useRegistryUpdate = ({
@@ -129,7 +129,7 @@ export const useRegistryUpdate = ({
       createEOASigner(walletClient),
       {
         id,
-        description: `Update the registry of ${name}`,
+        description: `Upgrade the registry of ${name}`,
         publicClient,
         chainId,
       },
@@ -199,7 +199,7 @@ export const useRegistryUpdate = ({
     return {
       id,
       title: stepTitle(step, index, copySteps),
-      transactionName: `Update the registry of ${name}`,
+      transactionName: `Upgrade the registry of ${name}`,
       ...(index === 0 && details.length > 0 && { details }),
       intent: {
         prepare: ({ walletClient }) =>

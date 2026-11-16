@@ -16,9 +16,9 @@ const CAN_UPDATE_CASES: readonly RegistryRepairCase[] = ['owns-all', 'shared']
 
 const updateLabel = (status: RegistryUpdateStatus) =>
   match(status.type)
-    .with('planning', () => 'Preparing update…')
-    .with('incomplete', () => 'Continue update')
-    .otherwise(() => 'Update registry')
+    .with('planning', () => 'Preparing upgrade…')
+    .with('incomplete', () => 'Continue upgrade')
+    .otherwise(() => 'Upgrade registry')
 
 /** Asks an account that can update the name's registry to do so. */
 export const RegistryUpdateNotice = ({ name }: { readonly name: string }) => {
@@ -54,23 +54,23 @@ const RegistryUpdateCard = ({
   return (
     <RegistryPanel>
       <Alert className="p-5 gap-2" variant="warning">
-        <AlertTitle>Update required</AlertTitle>
+        <AlertTitle>Upgrade required</AlertTitle>
         <AlertDescription>
           This registry runs on an older version that has since been fixed.
-          Update it to create subnames or change roles. The existing subnames
-          and their settings will carry over.
+          Upgrade it to start creating subnames or change roles. Your subnames,
+          their owners and their roles will be copied to the new registry.
         </AlertDescription>
       </Alert>
       {status.type === 'plan-failed' && (
         <ErrorMessage
           compact
-          description="Couldn't prepare the update. Refresh the page and try again."
+          description="Couldn't prepare the upgrade. Refresh the page and try again."
         />
       )}
       {status.type === 'incomplete' && (
         <ErrorMessage
           compact
-          description="The update stopped before every subname was copied. Continue to pick up where it left off."
+          description="The upgrade stopped before every subname was copied. Continue to pick up where it left off."
         />
       )}
       <Button

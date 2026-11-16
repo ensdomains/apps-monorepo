@@ -152,14 +152,14 @@ describe('/registry/$address/roles', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps an outdated registry read-only and says it must be updated', () => {
+  it('keeps an outdated registry read-only and says it must be upgraded', () => {
     kind = 'registry'
     isPendingUpgrade = true
     renderRoute(RegistryRolesRoute)
 
     expect(screen.getByText('registry roles table')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
-    expect(screen.getByText('Update required')).toBeInTheDocument()
+    expect(screen.getByText('Upgrade required')).toBeInTheDocument()
   })
 
   it('stays read-only when the update check fails after an earlier answer', () => {
@@ -168,7 +168,7 @@ describe('/registry/$address/roles', () => {
     renderRoute(RegistryRolesRoute)
 
     expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
-    expect(screen.queryByText('Update required')).toBeNull()
+    expect(screen.queryByText('Upgrade required')).toBeNull()
   })
 })
 
