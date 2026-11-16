@@ -10,7 +10,7 @@ interface AgentRecordCardProps {
 }
 
 const fieldLabelClassName = 'text-muted-foreground text-xs leading-normal'
-const fieldValueClassName = 'truncate font-medium text-foreground text-sm'
+const fieldValueClassName = 'wrap-anywhere font-medium text-foreground text-sm'
 
 /**
  * Renders a single ENSIP-25 agent-registration record as a labelled card with
@@ -19,15 +19,15 @@ const fieldValueClassName = 'truncate font-medium text-foreground text-sm'
  */
 export const AgentRecordCard = ({ record }: AgentRecordCardProps) => (
   <Card
-    className={`${profileTileClassName} block p-4`}
+    className={`${profileTileClassName} block min-w-0 p-4`}
     data-testid={`agent-record-card-${record.agentId}`}
   >
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-start gap-3">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-1 basis-48 flex-wrap items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-ens-lapis-100 text-ens-lapis-500">
           <Bot className="size-5" strokeWidth={1.75} />
         </div>
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 flex-1 basis-32 space-y-2">
           <div className="min-w-0">
             <p className={fieldLabelClassName}>
               <Trans>Registry</Trans>
