@@ -9,8 +9,12 @@ import {
 import {
   ethRegistrarGetRegisterPriceSnippet,
   ethRegistrarGetRenewPriceSnippet,
+  ethRegistrarRegisterSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
-import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  permissionedResolverInitializeSnippet,
+  permissionedResolverSetAddressSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import {
   injectHeadlessWeb3Provider,
   type Web3ProviderBackend,
@@ -24,7 +28,9 @@ import {
   encodeFunctionData,
   erc20Abi,
   formatUnits,
+  getAbiItem,
   type Hash,
+  type Hex,
   keccak256,
   maxUint256,
   namehash,
@@ -37,6 +43,7 @@ import {
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
+import { packetToBytes } from 'viem/ens'
 import {
   makeGraceV1Name,
   syncBrowserToChain,
@@ -3587,5 +3594,338 @@ test.describe('Portal multi-name Extend — V1 and V2 names together', () => {
       for (const token of [MOCK_USDC, MOCK_DAI] as const)
         await move(token, parking, owner, balances[token])
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB-2143 (PR #1746) — Explorer sets the name's ETH address when it registers.
+//
+// The bug: a name registered in Explorer resolved to nothing until its owner
+// went and added an address record.
+//
+// The fix: the registration machine points the name at the registering wallet
+// on the wallet's resolver. A wallet that can't bundle (the headless wallet
+// here) gets a "Set ETH address" step right after register. A run resumed
+// after register reads the resolver first and writes only when the record
+// isn't already the owner. When the ETH step fails, the page keeps the modal
+// (not the "already registered" card the availability poll would otherwise
+// swap in), and Try again resends only that step.
+//
+// The happy path above checks that the record resolves. The PR's unit tests
+// drive the machine and the page decision with mocks. These reach what those
+// can't: a real refusal after a real register with the 5 s availability poll
+// running, a real reload with the run's record in storage, and the mined
+// transactions themselves (one register, the number of setAddress sends).
+// The bundled path (EIP-5792) is unit-only: the headless wallet can't bundle.
+//
+// The two reload tests also guard #1784 (WEB-2163): the resumed run's
+// registration check called `REGISTRY()` and `getOwner(string)`, which the
+// deployed contracts don't have, so every resume went to error and the page
+// showed "already registered" with the name's ETH address unset.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SET_ADDRESS_SELECTOR = toFunctionSelector(
+  getAbiItem({
+    abi: permissionedResolverSetAddressSnippet,
+    name: 'setAddress',
+  }),
+)
+const REGISTER_SELECTOR_WEB2143 = toFunctionSelector(
+  getAbiItem({ abi: ethRegistrarRegisterSnippet, name: 'register' }),
+)
+
+/** The ETH address `name` resolves to, lowercased, or null. */
+async function resolvedEthAddress(name: string) {
+  const record = (await getAddressRecord(publicClient as never, {
+    name,
+    coin: 60,
+  }).catch(() => null)) as { value?: string } | null
+  return record?.value?.toLowerCase() ?? null
+}
+
+/** Whether `tx` is a register or a setAddress for `name`, by its target and calldata. */
+function ethAddressSendKind(
+  tx: { readonly to: Address | null; readonly input: Hex },
+  resolver: Address,
+  name: string,
+): 'register' | 'setAddress' | null {
+  const to = tx.to?.toLowerCase()
+  if (
+    to === ETH_REGISTRAR.toLowerCase() &&
+    tx.input.startsWith(REGISTER_SELECTOR_WEB2143)
+  ) {
+    const { args } = decodeFunctionData({
+      abi: ethRegistrarRegisterSnippet,
+      data: tx.input,
+    })
+    return args[0] === name.replace(/\.eth$/, '') ? 'register' : null
+  }
+  if (
+    to === resolver.toLowerCase() &&
+    tx.input.startsWith(SET_ADDRESS_SELECTOR)
+  ) {
+    const { args } = decodeFunctionData({
+      abi: permissionedResolverSetAddressSnippet,
+      data: tx.input,
+    })
+    const dnsName = toHex(packetToBytes(name)).toLowerCase()
+    return args[0].toLowerCase() === dnsName ? 'setAddress' : null
+  }
+  return null
+}
+
+/**
+ * `owner`'s mined register and setAddress sends for `name` after `fromBlock`.
+ * Each is matched by the name in its calldata, so other names registered on
+ * the same chain meanwhile (another session, another test) don't count.
+ */
+async function minedEthAddressSends(
+  owner: Address,
+  resolver: Address,
+  name: string,
+  fromBlock: bigint,
+) {
+  const latest = await publicClient.getBlockNumber({ cacheTime: 0 })
+  const sends = { register: 0, setAddress: 0 }
+  for (let n = fromBlock + 1n; n <= latest; n++) {
+    const block = await publicClient.getBlock({
+      blockNumber: n,
+      includeTransactions: true,
+    })
+    for (const tx of block.transactions) {
+      if (tx.from.toLowerCase() !== owner.toLowerCase()) continue
+      const kind = ethAddressSendKind(tx, resolver, name)
+      if (kind) sends[kind] += 1
+    }
+  }
+  return sends
+}
+
+/**
+ * Opens the checkout for `name`, presses Start, and authorizes every send
+ * until register lands. Returns with the ETH address prompt queued in the
+ * wallet and unanswered.
+ */
+async function registerUpToEthAddress(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  name: string,
+  states: readonly string[],
+) {
+  await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+  const dialog = await openRegistrationOverview(page)
+  // The step is listed before the run starts, last, after register.
+  await expect(
+    overviewRow(dialog, 'Set ETH address'),
+    'the run must list a Set ETH address step',
+  ).toBeVisible()
+  await dialog.getByRole('button', { name: 'Start', exact: true }).click()
+  const deadline = Date.now() + 180_000
+  while (!states.includes('tx-reg-register:success')) {
+    expect(Date.now(), 'the register step never landed').toBeLessThan(deadline)
+    if (pendingSends(wallet) > 0) {
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      continue
+    }
+    const action = dialog.getByRole('button', { name: /^(Open wallet|Next)$/ })
+    if (
+      (await action.isVisible().catch(() => false)) &&
+      (await action.isEnabled().catch(() => false))
+    ) {
+      await action.click({ timeout: 2_000 }).catch(() => {})
+    }
+    await page.waitForTimeout(1_000)
+  }
+  // Register landed and the run goes straight on to the ETH address: its
+  // send is queued in the wallet without another click.
+  await expect(
+    dialog.getByRole('heading', { name: `Set the ETH address for ${name}` }),
+  ).toBeVisible({ timeout: 30_000 })
+  await waitForWalletPrompt(wallet)
+  return dialog
+}
+
+/** The page reloaded mid-run reopens the unfinished run's modal on its own. */
+async function reloadAndDropStalePrompt(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  states: string[],
+) {
+  // The ETH address prompt from before the reload stays queued in the
+  // headless wallet; it belongs to a page that no longer exists. Count it
+  // now: the resumed page may queue its own send before we reject, and the
+  // wallet hands out the oldest request first, so rejecting exactly this
+  // many leaves the fresh one alone.
+  const stale = pendingSends(wallet)
+  states.length = 0
+  await page.reload()
+  for (let i = 0; i < stale; i++) {
+    await wallet.reject(Web3RequestKind.SendTransaction)
+  }
+}
+
+test.describe('Portal registration sets the ETH address (WEB-2143)', () => {
+  test.beforeEach(async ({ accounts }) => {
+    await ensureWalletResolver(accounts.getAddress('user'))
+  })
+
+  test('a refused ETH address keeps the registration page, and Try again sends only the ETH address', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    context,
+  }) => {
+    test.setTimeout(300_000)
+    const owner = accounts.getAddress('user')
+    const states = recordRegistrationTxStates(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const name = `e2e-web2143-retry-${Date.now().toString(36)}.eth`
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    const dialog = await registerUpToEthAddress(page, wallet, name, states)
+    expect(await getOwner(publicClient as never, { name })).toBe(owner)
+    const resolver = await registryResolver(name)
+
+    // Every attempt at the ETH address is refused, so the step fails for good.
+    for (let attempt = 0; attempt < SUBMISSION_ATTEMPTS; attempt++) {
+      await waitForWalletPrompt(wallet)
+      await wallet.reject(Web3RequestKind.SendTransaction)
+    }
+    await expect
+      .poll(() => states.includes('tx-reg-set-eth-address:error'), {
+        timeout: 30_000,
+      })
+      .toBe(true)
+    await expect(dialog.getByText('Transaction Error')).toBeVisible()
+    expect(await resolvedEthAddress(name)).toBeNull()
+
+    // Positive control: the app itself reads the name as taken, so the
+    // registration page could swap in its "already registered" card.
+    const other = await context.newPage()
+    await other.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    await expect(other.getByText(`${name} is already registered`)).toBeVisible({
+      timeout: 30_000,
+    })
+    await other.close()
+
+    // Two availability polls (5 s each) later, the run's page still holds
+    // the modal and its Try again.
+    await page.waitForTimeout(12_000)
+    await expect(
+      page.locator('main').getByText(`${name} is already registered`),
+    ).toHaveCount(0)
+    await expect(dialog.getByText('Transaction Error')).toBeVisible()
+    const tryAgain = dialog.getByRole('button', { name: 'Try again' })
+    await expect(tryAgain).toBeVisible()
+
+    // Try again asks for the ETH address only; register isn't sent again.
+    await tryAgain.click()
+    const openWallet = dialog.getByRole('button', { name: /open wallet/i })
+    if (await openWallet.isVisible().catch(() => false))
+      await openWallet.click()
+    await waitForWalletPrompt(wallet)
+    await wallet.authorize(Web3RequestKind.SendTransaction)
+    await expect
+      .poll(() => states.includes('tx-reg-set-eth-address:success'), {
+        timeout: 60_000,
+      })
+      .toBe(true)
+
+    await expect
+      .poll(() => resolvedEthAddress(name), { timeout: 30_000 })
+      .toBe(owner.toLowerCase())
+    expect(
+      await minedEthAddressSends(owner, resolver, name, fromBlock),
+    ).toEqual({
+      register: 1,
+      setAddress: 1,
+    })
+    await expect(
+      page.getByText(new RegExp(`You are the owner of ${name}`)),
+    ).toBeVisible({ timeout: 30_000 })
+  })
+
+  test('a reload after register lands resumes the run and sets the ETH address once', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, accounts }) => {
+    test.setTimeout(300_000)
+    const owner = accounts.getAddress('user')
+    const states = recordRegistrationTxStates(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const name = `e2e-web2143-reload-${Date.now().toString(36)}.eth`
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    await registerUpToEthAddress(page, wallet, name, states)
+    const resolver = await registryResolver(name)
+    await reloadAndDropStalePrompt(page, wallet, states)
+    expect(await resolvedEthAddress(name)).toBeNull()
+
+    // The resumed run reads the resolver, finds no address, and asks for it.
+    const dialog = page.locator('[data-slot="dialog-content"]')
+    await expect(dialog).toBeVisible({ timeout: 30_000 })
+    await finishRegistration(dialog, wallet, states)
+
+    await expect
+      .poll(() => resolvedEthAddress(name), { timeout: 30_000 })
+      .toBe(owner.toLowerCase())
+    expect(
+      await minedEthAddressSends(owner, resolver, name, fromBlock),
+    ).toEqual({
+      register: 1,
+      setAddress: 1,
+    })
+    await expect(
+      page.getByText(new RegExp(`You are the owner of ${name}`)),
+    ).toBeVisible({ timeout: 30_000 })
+  })
+
+  test('a resumed run whose ETH address is already set finishes without asking the wallet again', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+  }) => {
+    test.setTimeout(300_000)
+    const owner = accounts.getAddress('user')
+    const states = recordRegistrationTxStates(page)
+    await connectWithHeadlessWallet(page, wallet)
+    const name = `e2e-web2143-preset-${Date.now().toString(36)}.eth`
+    const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+
+    await registerUpToEthAddress(page, wallet, name, states)
+    const resolver = await registryResolver(name)
+
+    // The address lands outside this page (as if the pre-reload send went
+    // through), so the record already points at the owner.
+    await testClient.impersonateAccount({ address: owner })
+    try {
+      const hash = await walletClient.writeContract({
+        account: owner,
+        chain: undefined,
+        address: resolver,
+        abi: permissionedResolverSetAddressSnippet,
+        functionName: 'setAddress',
+        args: [toHex(packetToBytes(name)), 60n, owner],
+      })
+      await publicClient.waitForTransactionReceipt({ hash })
+    } finally {
+      await testClient.stopImpersonatingAccount({ address: owner })
+    }
+    expect(await resolvedEthAddress(name)).toBe(owner.toLowerCase())
+
+    await reloadAndDropStalePrompt(page, wallet, states)
+
+    // The resumed run reads the record, finds it set, and finishes.
+    await expect(
+      page.getByText(new RegExp(`You are the owner of ${name}`)),
+    ).toBeVisible({ timeout: 60_000 })
+    expect(pendingSends(wallet), 'no prompt after the reload').toBe(0)
+    expect(states).not.toContain('tx-reg-set-eth-address:pending')
+    // The one setAddress is the test's own.
+    expect(
+      await minedEthAddressSends(owner, resolver, name, fromBlock),
+    ).toEqual({
+      register: 1,
+      setAddress: 1,
+    })
   })
 })
