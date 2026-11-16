@@ -43,7 +43,22 @@ export type RegistryRepairState = {
   readonly parentTokenId: bigint
   readonly rootRoles: readonly RoleGrant[]
   readonly names: readonly RegistryRepairName[]
+  /** Labels registered once but expired or unregistered now; a copy can't re-register them. */
+  readonly expiredLabels: readonly string[]
 }
+
+/** Names a copy re-registers (owned, unexpired at `now`), and the labels it can't because they expired or were unregistered. */
+export const splitRepairNames = (
+  names: readonly RegistryRepairName[],
+  now: bigint,
+): Pick<RegistryRepairState, 'names' | 'expiredLabels'> => ({
+  names: names.filter(
+    (name) => !isAddressEqual(name.owner, zeroAddress) && name.expiry > now,
+  ),
+  expiredLabels: names
+    .filter((name) => name.expiry !== 0n && name.expiry <= now)
+    .map((name) => name.label),
+})
 
 export type RegistryRepairCall = {
   readonly to: Address
@@ -51,15 +66,57 @@ export type RegistryRepairCall = {
   readonly value: bigint
 }
 
+/** A registry nested under one of the copied names. */
+export type RegistryChild = {
+  readonly label: string
+  readonly registry: Address
+  /** It still names the copied registry and this label as its parent. */
+  readonly isCanonical: boolean
+  /** The account running the repair holds `ROLE_SET_PARENT` on it. */
+  readonly canSetParent: boolean
+}
+
+/** The child registries under `names`, from each one's `getParent` (null when unreadable) and whether the account may re-parent it. */
+export const toRegistryChildren = (params: {
+  readonly registry: Address
+  readonly names: readonly RegistryRepairName[]
+  readonly parents: readonly (readonly [Address, string] | null)[]
+  readonly canSetParent: readonly boolean[]
+}): readonly RegistryChild[] =>
+  params.names
+    .filter((name) => !isAddressEqual(name.subregistry, zeroAddress))
+    .map((name, i) => {
+      const parent = params.parents[i]
+      return {
+        label: name.label,
+        registry: name.subregistry,
+        isCanonical:
+          parent !== null &&
+          parent !== undefined &&
+          isAddressEqual(parent[0], params.registry) &&
+          parent[1] === name.label,
+        canSetParent: params.canSetParent[i] ?? false,
+      }
+    })
+
 export type RegistryRepairPlan = {
   readonly replacement: Address
-  readonly calls: readonly RegistryRepairCall[]
+  /** Whatever the replacement still lacks: deploy, parent, names and their roles. */
+  readonly copyCalls: readonly RegistryRepairCall[]
+  /** Sent once the copy matches: switch the parent name, then re-parent the child registries the account can move. */
+  readonly finalCalls: readonly RegistryRepairCall[]
+  /** Child registries that keep the old registry as their parent. */
+  readonly unmovedChildren: readonly RegistryChild[]
 }
 
 export class RegistryRepairPlanError extends TaggedError(
   'RegistryRepairPlanError',
 )<{
-  readonly reason: 'no-root-roles' | 'name-without-owner' | 'duplicate-label'
+  readonly reason:
+    | 'no-root-roles'
+    | 'name-without-owner'
+    | 'duplicate-label'
+    | 'replacement-diverged'
   readonly label?: string
 }> {}
 
@@ -100,6 +157,20 @@ const findPlanProblem = (
   return null
 }
 
+const grantCall = (
+  replacement: Address,
+  label: string,
+  grant: RoleGrant,
+): RegistryRepairCall =>
+  call(
+    replacement,
+    encodeFunctionData({
+      abi: eacGrantRolesSnippet,
+      functionName: 'grantRoles',
+      args: [freshResourceOf(label), grant.roleBitmap, grant.account],
+    }),
+  )
+
 const nameCalls = (
   replacement: Address,
   name: RegistryRepairName,
@@ -124,73 +195,8 @@ const nameCalls = (
       (grant) =>
         grant.roleBitmap !== 0n && !isAddressEqual(grant.account, name.owner),
     )
-    .map((grant) =>
-      call(
-        replacement,
-        encodeFunctionData({
-          abi: eacGrantRolesSnippet,
-          functionName: 'grantRoles',
-          args: [freshResourceOf(name.label), grant.roleBitmap, grant.account],
-        }),
-      ),
-    ),
+    .map((grant) => grantCall(replacement, name.label, grant)),
 ]
-
-/** Calls that copy a registry into `replacement` (the address `factory` deploys for this salt and sender) and switch its parent name to it. */
-export const planRegistryRepair = (params: {
-  readonly state: RegistryRepairState
-  readonly factory: Address
-  readonly implementation: Address
-  readonly salt: bigint
-  readonly replacement: Address
-}): Result<RegistryRepairPlan, RegistryRepairPlanError> => {
-  const { state, factory, implementation, salt, replacement } = params
-  const problem = findPlanProblem(state)
-  if (problem) return err(problem)
-
-  const deploy = call(
-    factory,
-    encodeFunctionData({
-      abi: verifiableFactoryDeployProxySnippet,
-      functionName: 'deployProxy',
-      args: [
-        implementation,
-        salt,
-        encodeFunctionData({
-          abi: userRegistryInitializeSnippet,
-          functionName: 'initialize',
-          args: [state.rootRoles.filter((grant) => grant.roleBitmap !== 0n)],
-        }),
-      ],
-    }),
-  )
-  const setParent = call(
-    replacement,
-    encodeFunctionData({
-      abi: userRegistrySetParentSnippet,
-      functionName: 'setParent',
-      args: [state.parentRegistry, state.parentLabel],
-    }),
-  )
-  const switchParent = call(
-    state.parentRegistry,
-    encodeFunctionData({
-      abi: userRegistrySetSubregistrySnippet,
-      functionName: 'setSubregistry',
-      args: [state.parentTokenId, replacement],
-    }),
-  )
-
-  return ok({
-    replacement,
-    calls: [
-      deploy,
-      setParent,
-      ...state.names.flatMap((name) => nameCalls(replacement, name)),
-      switchParent,
-    ],
-  })
-}
 
 export type RegistryRepairDifference =
   | { readonly kind: 'root-roles'; readonly account: Address }
@@ -253,3 +259,147 @@ export const compareRegistryRepair = (
     ]
   }),
 ]
+
+/** The role bits a copied name still lacks, or null when the copy holds bits the original doesn't. */
+const missingGrants = (
+  name: RegistryRepairName,
+  copy: RegistryRepairName,
+): readonly RoleGrant[] | null => {
+  const accounts = accountsIn([...name.roles, ...copy.roles])
+  if (
+    accounts.some(
+      (account) =>
+        (rolesOf(copy.roles, account) & ~rolesOf(name.roles, account)) !== 0n,
+    )
+  )
+    return null
+  return accounts
+    .map((account) => ({
+      account,
+      roleBitmap: rolesOf(name.roles, account) & ~rolesOf(copy.roles, account),
+    }))
+    .filter((grant) => grant.roleBitmap !== 0n)
+}
+
+const isDivergence = (difference: RegistryRepairDifference): boolean =>
+  difference.kind === 'root-roles' || difference.kind === 'name-field'
+
+/** The copy calls still needed when `existing` (the replacement's current state) holds part of the copy. */
+const resumeCopyCalls = (
+  state: RegistryRepairState,
+  existing: RegistryRepairState,
+  replacement: Address,
+  setParent: RegistryRepairCall,
+): Result<readonly RegistryRepairCall[], RegistryRepairPlanError> => {
+  const divergence = compareRegistryRepair(state, existing).find(isDivergence)
+  if (divergence)
+    return err(
+      new RegistryRepairPlanError({
+        reason: 'replacement-diverged',
+        ...('label' in divergence && { label: divergence.label }),
+      }),
+    )
+  const isParentSet =
+    isAddressEqual(existing.parentRegistry, state.parentRegistry) &&
+    existing.parentLabel === state.parentLabel
+  const nameCallsOrNull = state.names.map((name) => {
+    const copy = existing.names.find((other) => other.label === name.label)
+    if (!copy) return nameCalls(replacement, name)
+    const grants = missingGrants(name, copy)
+    return grants?.map((grant) => grantCall(replacement, name.label, grant))
+  })
+  const divergedAt = nameCallsOrNull.indexOf(undefined)
+  if (divergedAt !== -1)
+    return err(
+      new RegistryRepairPlanError({
+        reason: 'replacement-diverged',
+        label: state.names[divergedAt]?.label,
+      }),
+    )
+  return ok([
+    ...(isParentSet ? [] : [setParent]),
+    ...nameCallsOrNull.flatMap((calls) => calls ?? []),
+  ])
+}
+
+/**
+ * Calls that copy a registry into `replacement` (the address `factory` deploys for this salt and sender) and switch its parent name to it.
+ * Pass the replacement's current state as `existing` to resume a copy that stopped part way; null when it isn't deployed yet.
+ */
+export const planRegistryRepair = (params: {
+  readonly state: RegistryRepairState
+  readonly existing: RegistryRepairState | null
+  readonly children: readonly RegistryChild[]
+  readonly factory: Address
+  readonly implementation: Address
+  readonly salt: bigint
+  readonly replacement: Address
+}): Result<RegistryRepairPlan, RegistryRepairPlanError> => {
+  const { state, existing, children, factory, implementation, salt } = params
+  const { replacement } = params
+  const problem = findPlanProblem(state)
+  if (problem) return err(problem)
+
+  const deploy = call(
+    factory,
+    encodeFunctionData({
+      abi: verifiableFactoryDeployProxySnippet,
+      functionName: 'deployProxy',
+      args: [
+        implementation,
+        salt,
+        encodeFunctionData({
+          abi: userRegistryInitializeSnippet,
+          functionName: 'initialize',
+          args: [state.rootRoles.filter((grant) => grant.roleBitmap !== 0n)],
+        }),
+      ],
+    }),
+  )
+  const setParent = call(
+    replacement,
+    encodeFunctionData({
+      abi: userRegistrySetParentSnippet,
+      functionName: 'setParent',
+      args: [state.parentRegistry, state.parentLabel],
+    }),
+  )
+  const switchParent = call(
+    state.parentRegistry,
+    encodeFunctionData({
+      abi: userRegistrySetSubregistrySnippet,
+      functionName: 'setSubregistry',
+      args: [state.parentTokenId, replacement],
+    }),
+  )
+  const movable = children.filter((child) => child.isCanonical)
+
+  const copyCalls = existing
+    ? resumeCopyCalls(state, existing, replacement, setParent)
+    : ok([
+        deploy,
+        setParent,
+        ...state.names.flatMap((name) => nameCalls(replacement, name)),
+      ])
+
+  return copyCalls.map((calls) => ({
+    replacement,
+    copyCalls: calls,
+    finalCalls: [
+      switchParent,
+      ...movable
+        .filter((child) => child.canSetParent)
+        .map((child) =>
+          call(
+            child.registry,
+            encodeFunctionData({
+              abi: userRegistrySetParentSnippet,
+              functionName: 'setParent',
+              args: [replacement, child.label],
+            }),
+          ),
+        ),
+    ],
+    unmovedChildren: movable.filter((child) => !child.canSetParent),
+  }))
+}

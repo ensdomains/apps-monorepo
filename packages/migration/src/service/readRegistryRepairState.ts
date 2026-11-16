@@ -1,5 +1,9 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
-import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { registryRoles } from '@ensdomains/ensjs/utils/v2'
+import {
+  eacHasRolesSnippet,
+  eacRolesChangedEventSnippet,
+} from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import {
   permissionedRegistryGetExpirySnippet,
   permissionedRegistryGetResolverSnippet,
@@ -12,15 +16,18 @@ import { labelRegisteredEventSnippet } from '@ensdomains/ensjs-abi/v2/userRegist
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
+  isAddressEqual,
   labelhash,
   type PublicClient,
   parseAbi,
   zeroAddress,
 } from 'viem'
-import type {
-  RegistryRepairName,
-  RegistryRepairState,
-  RoleGrant,
+import {
+  type RegistryRepairName,
+  type RegistryRepairState,
+  type RoleGrant,
+  splitRepairNames,
+  toRegistryChildren,
 } from './registryRepair'
 
 const ROOT_RESOURCE = 0n
@@ -146,13 +153,16 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
   )
   const [parentTokenId, tokenIds, rootBitmaps] = yield* fromPromise(
     Promise.all([
-      client.readContract({
-        address: parentRegistry,
-        abi: permissionedRegistryGetTokenIdSnippet,
-        functionName: 'getTokenId',
-        args: [BigInt(labelhash(parentLabel))],
-        blockNumber,
-      }),
+      // A replacement whose parent isn't set yet has no parent token to read.
+      isAddressEqual(parentRegistry, zeroAddress)
+        ? 0n
+        : client.readContract({
+            address: parentRegistry,
+            abi: permissionedRegistryGetTokenIdSnippet,
+            functionName: 'getTokenId',
+            args: [BigInt(labelhash(parentLabel))],
+            blockNumber,
+          }),
       client.multicall({
         ...at,
         contracts: labels.map((label) => ({
@@ -244,29 +254,72 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
     readError,
   )
 
-  const names: readonly RegistryRepairName[] = labels
-    .map((label, i) => {
-      const owner = owners[i]
-      return {
-        label,
-        owner: owner?.status === 'success' ? owner.result : zeroAddress,
-        resolver: resolvers[i] ?? zeroAddress,
-        subregistry: subregistries[i] ?? zeroAddress,
-        expiry: expiries[i] ?? 0n,
-        roles: grantsOf(
-          accounts,
-          nameBitmaps.slice(i * accounts.length, (i + 1) * accounts.length),
-        ),
-      }
-    })
-    .filter((name) => name.owner !== zeroAddress && name.expiry > now)
-
+  const allNames: readonly RegistryRepairName[] = labels.map((label, i) => {
+    const owner = owners[i]
+    return {
+      label,
+      owner: owner?.status === 'success' ? owner.result : zeroAddress,
+      resolver: resolvers[i] ?? zeroAddress,
+      subregistry: subregistries[i] ?? zeroAddress,
+      expiry: expiries[i] ?? 0n,
+      roles: grantsOf(
+        accounts,
+        nameBitmaps.slice(i * accounts.length, (i + 1) * accounts.length),
+      ),
+    }
+  })
   const state: RegistryRepairState = {
     parentRegistry,
     parentLabel,
     parentTokenId,
     rootRoles: grantsOf(accounts, rootBitmaps),
-    names,
+    ...splitRepairNames(allNames, now),
   }
   return ok(state)
 })
+
+/** The child registries under `names`, and whether `account` may point each one at a replacement. */
+export const readChildRegistries = (params: {
+  readonly client: PublicClient
+  readonly registry: Address
+  readonly names: readonly RegistryRepairName[]
+  readonly account: Address
+}) => {
+  const { client, registry, account } = params
+  const names = params.names.filter(
+    (name) => !isAddressEqual(name.subregistry, zeroAddress),
+  )
+  return fromPromise(
+    Promise.all([
+      client.multicall({
+        allowFailure: true,
+        contracts: names.map((name) => ({
+          address: name.subregistry,
+          abi: getParentAbi,
+          functionName: 'getParent',
+        })),
+      }),
+      client.multicall({
+        allowFailure: true,
+        contracts: names.map((name) => ({
+          address: name.subregistry,
+          abi: eacHasRolesSnippet,
+          functionName: 'hasRoles',
+          args: [ROOT_RESOURCE, registryRoles.ROLE_SET_PARENT, account],
+        })),
+      }),
+    ]),
+    readError,
+  ).map(([parents, roles]) =>
+    toRegistryChildren({
+      registry,
+      names,
+      parents: parents.map((parent) =>
+        parent.status === 'success' ? parent.result : null,
+      ),
+      canSetParent: roles.map(
+        (role) => role.status === 'success' && role.result,
+      ),
+    }),
+  )
+}
