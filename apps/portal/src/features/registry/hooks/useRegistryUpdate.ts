@@ -163,11 +163,15 @@ export const useRegistryUpdate = ({
     pollForIndexerSync({ invalidateQueries: invalidate })
   }
 
-  // Only switch the name over once the replacement holds the whole copy.
-  const verifyThenSend = async (next: RegistryUpdateStep, id: string) => {
+  // Before each finishing step, re-read both registries and the name: the copy must be whole and the name still on this registry.
+  const checkThenSend = async (next: RegistryUpdateStep, id: string) => {
     const planning = fetchPlan()
     const result = planning ? await planning : null
-    if (!result || result.isErr() || result.value.plan.copyCalls.length > 0) {
+    if (!result || result.isErr()) {
+      end({ type: 'plan-failed' })
+      return
+    }
+    if (result.value.plan.copyCalls.length > 0) {
       end({ type: 'incomplete' })
       return
     }
@@ -195,7 +199,6 @@ export const useRegistryUpdate = ({
   const transactions: readonly Transaction[] = steps.map((step, index) => {
     const next = steps[index + 1]
     const id = idOf(index)
-    const isLastCopy = step.kind === 'copy' && next?.kind === 'finish'
     return {
       id,
       title: stepTitle(step, index, copySteps),
@@ -211,8 +214,8 @@ export const useRegistryUpdate = ({
       onDone: next
         ? () => {
             const nextId = idOf(index + 1)
-            void (isLastCopy
-              ? verifyThenSend(next, nextId)
+            void (next.kind === 'finish'
+              ? checkThenSend(next, nextId)
               : send(next, nextId))
           }
         : finish,
