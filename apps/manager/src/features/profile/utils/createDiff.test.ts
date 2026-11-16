@@ -251,6 +251,28 @@ describe('profile createDiff utils', () => {
       expect(linksDiff?.current).toBe('2 links')
     })
 
+    it.each([
+      ['added', [], [{ key: 'test', value: 'test' }]],
+      [
+        'modified',
+        [{ key: 'test', value: 'old' }],
+        [{ key: 'test', value: 'new' }],
+      ],
+      ['removed', [{ key: 'test', value: 'test' }], []],
+    ] as const)(
+      'should detect a custom record that was %s',
+      (type, before, after) => {
+        const original = { ...newEmptyProfileRecords(), unknown: [...before] }
+        const current = { ...newEmptyProfileRecords(), unknown: [...after] }
+
+        const diff = createDiff(original, current)
+
+        expect(Object.values(diff)).toEqual([
+          expect.objectContaining({ fieldKey: 'test', type }),
+        ])
+      },
+    )
+
     it('should handle empty values as removed', () => {
       const original = {
         ...newEmptyProfileRecords(),

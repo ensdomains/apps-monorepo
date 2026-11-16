@@ -206,6 +206,13 @@ export const createDiff = (
     )
   }
 
+  addKeyValueDiffs(
+    diff,
+    recordsToMap(original.unknown),
+    recordsToMap(current.unknown),
+    'custom',
+  )
+
   // Process links
   const linksDiffEntry = createLinksDiff(original.links, current.links)
   if (linksDiffEntry) {
