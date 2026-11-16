@@ -31,16 +31,20 @@ export {
   runEligibilityChecks,
 } from './service/preflightChecks'
 export {
+  RegistryRepairReadError,
   readChildRegistries,
   readRegistryRepairState,
 } from './service/readRegistryRepairState'
 export {
   planRegistryRepair,
-  type RegistryRepairCall,
+  REGISTRY_REPAIR_ROOT_ROLES,
   type RegistryRepairPlan,
   RegistryRepairPlanError,
-  type RegistryRepairState,
 } from './service/registryRepair'
+export type {
+  RegistryRepairCall,
+  RegistryRepairState,
+} from './service/registryRepairState'
 export {
   getSubnameMigrationImpact,
   MAX_UNRECOVERABLE_SUBNAMES,

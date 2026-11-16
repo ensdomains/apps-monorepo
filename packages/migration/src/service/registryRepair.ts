@@ -9,106 +9,38 @@ import {
   userRegistrySetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
-import { err, ok, type Result } from 'neverthrow'
+import { err, ok, Result } from 'neverthrow'
 import {
   type Address,
   encodeFunctionData,
   type Hex,
   isAddressEqual,
-  keccak256,
-  stringToHex,
-  zeroAddress,
 } from 'viem'
+import type { RegistryChild } from './registryRepairChildren'
+import { compareRegistryRepair, missingGrants } from './registryRepairCompare'
+import {
+  literalLabelId,
+  type RegistryRepairCall,
+  type RegistryRepairName,
+  type RegistryRepairState,
+  type RoleGrant,
+  rolesOf,
+} from './registryRepairState'
 
 /** The low 32 bits of a token id or resource carry its version; a fresh registry starts every name at version 0. */
 const VERSION_BITS = 0xffff_ffffn
 
-export type RoleGrant = {
-  readonly account: Address
-  readonly roleBitmap: bigint
-}
-
-/** One live name in a registry, with every account holding roles on it (its owner included). */
-export type RegistryRepairName = {
-  readonly label: string
-  readonly owner: Address
-  readonly subregistry: Address
-  readonly resolver: Address
-  readonly expiry: bigint
-  readonly roles: readonly RoleGrant[]
-}
-
-/** What a registry holds that a copy has to reproduce. */
-export type RegistryRepairState = {
-  readonly parentRegistry: Address
-  readonly parentLabel: string
-  /** The parent name's token id in `parentRegistry`, for its `setSubregistry`. */
-  readonly parentTokenId: bigint
-  readonly rootRoles: readonly RoleGrant[]
-  readonly names: readonly RegistryRepairName[]
-  /** Labels registered once but expired or unregistered now; a copy can't re-register them. */
-  readonly expiredLabels: readonly string[]
-}
-
-/** Names a copy re-registers (owned, unexpired at `now`), and the labels it can't because they expired or were unregistered. */
-export const splitRepairNames = (
-  names: readonly RegistryRepairName[],
-  now: bigint,
-): Pick<RegistryRepairState, 'names' | 'expiredLabels'> => ({
-  names: names.filter(
-    (name) => !isAddressEqual(name.owner, zeroAddress) && name.expiry > now,
-  ),
-  expiredLabels: names
-    .filter((name) => name.expiry !== 0n && name.expiry <= now)
-    .map((name) => name.label),
-})
-
-export type RegistryRepairCall = {
-  readonly to: Address
-  readonly data: Hex
-  readonly value: bigint
-}
-
-/** A registry nested under one of the copied names. */
-export type RegistryChild = {
-  readonly label: string
-  readonly registry: Address
-  /** It still names the copied registry and this label as its parent. */
-  readonly isCanonical: boolean
-  /** The account running the repair holds `ROLE_SET_PARENT` on it. */
-  readonly canSetParent: boolean
-}
-
-/** The child registries under `names`, from each one's `getParent` (null when unreadable) and whether the account may re-parent it. */
-export const toRegistryChildren = (params: {
-  readonly registry: Address
-  readonly names: readonly RegistryRepairName[]
-  readonly parents: readonly (readonly [Address, string] | null)[]
-  readonly canSetParent: readonly boolean[]
-}): readonly RegistryChild[] =>
-  params.names
-    .filter((name) => !isAddressEqual(name.subregistry, zeroAddress))
-    .map((name, i) => {
-      const parent = params.parents[i]
-      return {
-        label: name.label,
-        registry: name.subregistry,
-        isCanonical:
-          parent !== null &&
-          parent !== undefined &&
-          isAddressEqual(parent[0], params.registry) &&
-          parent[1] === name.label,
-        canSetParent: params.canSetParent[i] ?? false,
-      }
-    })
+/** Root roles the account needs on the registry being upgraded: registering the names and setting the replacement's parent. */
+export const REGISTRY_REPAIR_ROOT_ROLES =
+  registryRoles.ROLE_REGISTRAR | registryRoles.ROLE_SET_PARENT
 
 export type RegistryRepairPlan = {
   readonly replacement: Address
   /** Whatever the replacement still lacks: deploy, parent, names and their roles. */
   readonly copyCalls: readonly RegistryRepairCall[]
-  /** Sent once the copy matches: switch the parent name, then re-parent the child registries the account can move. */
+  /** Sent once the copy matches: re-parent the child registries the account can move, then switch the parent name. */
   readonly finalCalls: readonly RegistryRepairCall[]
-  /** Child registries that keep the old registry as their parent. */
+  /** Child registries that stay on the old parent. */
   readonly unmovedChildren: readonly RegistryChild[]
 }
 
@@ -117,25 +49,14 @@ export class RegistryRepairPlanError extends TaggedError(
 )<{
   readonly reason:
     | 'no-root-roles'
-    | 'replacement-diverged'
-    | 'cannot-register'
-    | 'cannot-set-parent'
+    | 'missing-root-roles'
     | 'cannot-grant'
+    | 'replacement-diverged'
   readonly label?: string
 }> {}
 
-/** A label's id from its literal text; `labelhash` would read a `[<64 hex>]` label as already hashed. */
-export const literalLabelId = (label: string): bigint =>
-  BigInt(keccak256(stringToHex(label)))
-
-/** The role resource a label gets on its first registration in a fresh registry. */
 const freshResourceOf = (label: string): bigint =>
   literalLabelId(label) & ~VERSION_BITS
-
-const rolesOf = (grants: readonly RoleGrant[], account: Address): bigint =>
-  grants
-    .filter((grant) => isAddressEqual(grant.account, account))
-    .reduce((bitmap, grant) => bitmap | grant.roleBitmap, 0n)
 
 const call = (to: Address, data: Hex): RegistryRepairCall => ({
   to,
@@ -143,13 +64,10 @@ const call = (to: Address, data: Hex): RegistryRepairCall => ({
   value: 0n,
 })
 
-/** The roles a bitmap lets its holder grant: its admin roles and the regular roles they imply. */
-const settableRoles = (bitmap: bigint): bigint => {
-  const admin = bitmap >> 128n
-  return (admin << 128n) | admin
-}
+// On a name, only the regular roles behind held admin roles can be granted; admin roles come only with `register`.
+const nameSettableRoles = (bitmap: bigint): bigint => bitmap >> 128n
 
-/** The first grant `account` could not make on the replacement, which carries the same root roles. */
+/** The first name with a grant `account` couldn't make on the replacement, which carries the same root roles. */
 const findUngrantable = (
   state: RegistryRepairState,
   account: Address,
@@ -160,7 +78,7 @@ const findUngrantable = (
     const ownRoles = isAddressEqual(name.owner, account)
       ? rolesOf(name.roles, account)
       : 0n
-    const settable = settableRoles(root | ownRoles)
+    const settable = nameSettableRoles(root | ownRoles)
     return name.roles.some(
       (grant) =>
         !isAddressEqual(grant.account, name.owner) &&
@@ -175,13 +93,9 @@ const findPlanProblem = (
 ): RegistryRepairPlanError | null => {
   if (!state.rootRoles.some((grant) => grant.roleBitmap !== 0n))
     return new RegistryRepairPlanError({ reason: 'no-root-roles' })
-  if ((rolesOf(state.rootRoles, account) & registryRoles.ROLE_REGISTRAR) === 0n)
-    return new RegistryRepairPlanError({ reason: 'cannot-register' })
-  if (
-    (rolesOf(state.rootRoles, account) & registryRoles.ROLE_SET_PARENT) ===
-    0n
-  )
-    return new RegistryRepairPlanError({ reason: 'cannot-set-parent' })
+  const accountRoot = rolesOf(state.rootRoles, account)
+  if ((accountRoot & REGISTRY_REPAIR_ROOT_ROLES) !== REGISTRY_REPAIR_ROOT_ROLES)
+    return new RegistryRepairPlanError({ reason: 'missing-root-roles' })
   const ungrantable = findUngrantable(state, account)
   if (ungrantable)
     return new RegistryRepairPlanError({
@@ -232,91 +146,11 @@ const nameCalls = (
     .map((grant) => grantCall(replacement, name.label, grant)),
 ]
 
-export type RegistryRepairDifference =
-  | { readonly kind: 'root-roles'; readonly account: Address }
-  | { readonly kind: 'missing-name'; readonly label: string }
-  | {
-      readonly kind: 'name-field'
-      readonly label: string
-      readonly field: 'owner' | 'subregistry' | 'resolver' | 'expiry'
-    }
-  | {
-      readonly kind: 'name-roles'
-      readonly label: string
-      readonly account: Address
-    }
-
-const accountsIn = (grants: readonly RoleGrant[]): readonly Address[] => [
-  ...new Map(
-    grants.map((grant) => [grant.account.toLowerCase(), grant.account]),
-  ).values(),
-]
-
-const roleDifferences = (
-  before: readonly RoleGrant[],
-  after: readonly RoleGrant[],
-): readonly Address[] =>
-  accountsIn([...before, ...after]).filter(
-    (account) => rolesOf(before, account) !== rolesOf(after, account),
-  )
-
-const NAME_FIELDS = ['owner', 'subregistry', 'resolver', 'expiry'] as const
-
-const isSameField = (
-  a: RegistryRepairName,
-  b: RegistryRepairName,
-  field: (typeof NAME_FIELDS)[number],
-): boolean =>
-  field === 'expiry'
-    ? a.expiry === b.expiry
-    : isAddressEqual(a[field], b[field])
-
-/** Everything the copy failed to reproduce; empty when it matches the original exactly. */
-export const compareRegistryRepair = (
-  before: RegistryRepairState,
-  after: RegistryRepairState,
-): readonly RegistryRepairDifference[] => [
-  ...roleDifferences(before.rootRoles, after.rootRoles).map(
-    (account) => ({ kind: 'root-roles', account }) as const,
-  ),
-  ...before.names.flatMap((name): readonly RegistryRepairDifference[] => {
-    const copy = after.names.find((other) => other.label === name.label)
-    if (!copy) return [{ kind: 'missing-name', label: name.label }]
-    return [
-      ...NAME_FIELDS.filter((field) => !isSameField(name, copy, field)).map(
-        (field) => ({ kind: 'name-field', label: name.label, field }) as const,
-      ),
-      ...roleDifferences(name.roles, copy.roles).map(
-        (account) =>
-          ({ kind: 'name-roles', label: name.label, account }) as const,
-      ),
-    ]
-  }),
-]
-
-/** The role bits a copied name still lacks, or null when the copy holds bits the original doesn't. */
-const missingGrants = (
-  name: RegistryRepairName,
-  copy: RegistryRepairName,
-): readonly RoleGrant[] | null => {
-  const accounts = accountsIn([...name.roles, ...copy.roles])
-  if (
-    accounts.some(
-      (account) =>
-        (rolesOf(copy.roles, account) & ~rolesOf(name.roles, account)) !== 0n,
-    )
-  )
-    return null
-  return accounts
-    .map((account) => ({
-      account,
-      roleBitmap: rolesOf(name.roles, account) & ~rolesOf(copy.roles, account),
-    }))
-    .filter((grant) => grant.roleBitmap !== 0n)
-}
-
-const isDivergence = (difference: RegistryRepairDifference): boolean =>
-  difference.kind === 'root-roles' || difference.kind === 'name-field'
+const diverged = (label?: string) =>
+  new RegistryRepairPlanError({
+    reason: 'replacement-diverged',
+    ...(label !== undefined && { label }),
+  })
 
 /** Unregisters names the replacement holds but the original no longer does, so a resume never brings back a deleted subname. */
 const extraNameCalls = (
@@ -333,12 +167,7 @@ const extraNameCalls = (
     first &&
     (rolesOf(state.rootRoles, account) & registryRoles.ROLE_UNREGISTER) === 0n
   )
-    return err(
-      new RegistryRepairPlanError({
-        reason: 'replacement-diverged',
-        label: first.label,
-      }),
-    )
+    return err(diverged(first.label))
   return ok(
     extras.map((copy) =>
       call(
@@ -351,6 +180,24 @@ const extraNameCalls = (
       ),
     ),
   )
+}
+
+/** The calls one name still needs on the replacement, or `replacement-diverged` when its copy holds roles the original doesn't. */
+const resumeNameCalls = (
+  name: RegistryRepairName,
+  existing: RegistryRepairState,
+  replacement: Address,
+): Result<readonly RegistryRepairCall[], RegistryRepairPlanError> => {
+  const copy = existing.names.find((other) => other.label === name.label)
+  if (!copy) return ok(nameCalls(replacement, name))
+  const missing = missingGrants(name, copy)
+  return missing.kind === 'diverged'
+    ? err(diverged(name.label))
+    : ok(
+        missing.grants.map((grant) =>
+          grantCall(replacement, name.label, grant),
+        ),
+      )
 }
 
 /** The copy calls still needed when `existing` (the replacement's current state) holds part of the copy. */
@@ -367,38 +214,19 @@ const resumeCopyCalls = ({
   readonly account: Address
   readonly setParent: RegistryRepairCall
 }): Result<readonly RegistryRepairCall[], RegistryRepairPlanError> => {
-  const divergence = compareRegistryRepair(state, existing).find(isDivergence)
+  const divergence = compareRegistryRepair(state, existing).find(
+    (difference) =>
+      difference.kind === 'root-roles' || difference.kind === 'name-field',
+  )
   if (divergence)
-    return err(
-      new RegistryRepairPlanError({
-        reason: 'replacement-diverged',
-        ...('label' in divergence && { label: divergence.label }),
-      }),
-    )
+    return err(diverged('label' in divergence ? divergence.label : undefined))
   const isParentSet =
     isAddressEqual(existing.parentRegistry, state.parentRegistry) &&
     existing.parentLabel === state.parentLabel
-  const nameCallsOrNull = state.names.map((name) => {
-    const copy = existing.names.find((other) => other.label === name.label)
-    if (!copy) return nameCalls(replacement, name)
-    const grants = missingGrants(name, copy)
-    return grants?.map((grant) => grantCall(replacement, name.label, grant))
-  })
-  const divergedAt = nameCallsOrNull.indexOf(undefined)
-  if (divergedAt !== -1)
-    return err(
-      new RegistryRepairPlanError({
-        reason: 'replacement-diverged',
-        label: state.names[divergedAt]?.label,
-      }),
-    )
-  return extraNameCalls(state, existing, replacement, account).map(
-    (unregisters) => [
-      ...(isParentSet ? [] : [setParent]),
-      ...unregisters,
-      ...nameCallsOrNull.flatMap((calls) => calls ?? []),
-    ],
-  )
+  return Result.combine([
+    extraNameCalls(state, existing, replacement, account),
+    ...state.names.map((name) => resumeNameCalls(name, existing, replacement)),
+  ]).map((groups) => [...(isParentSet ? [] : [setParent]), ...groups.flat()])
 }
 
 /** Calls that copy a registry into `replacement` and switch its parent name to it; `existing` (the replacement's state, or null) resumes a stopped copy. */
@@ -457,16 +285,9 @@ export const planRegistryRepair = ({
       args: [state.parentTokenId, replacement],
     }),
   )
-  const movable = children.filter((child) => child.isCanonical)
 
   const copyCalls = existing
-    ? resumeCopyCalls({
-        state,
-        existing,
-        replacement,
-        account,
-        setParent,
-      })
+    ? resumeCopyCalls({ state, existing, replacement, account, setParent })
     : ok([
         deploy,
         setParent,
@@ -478,8 +299,8 @@ export const planRegistryRepair = ({
     copyCalls: calls,
     // The switch goes last: until it lands the notice stays up, so stopped child moves can resume.
     finalCalls: [
-      ...movable
-        .filter((child) => child.canSetParent)
+      ...children
+        .filter((child) => child.action === 'move')
         .map((child) =>
           call(
             child.registry,
@@ -492,6 +313,6 @@ export const planRegistryRepair = ({
         ),
       switchParent,
     ],
-    unmovedChildren: movable.filter((child) => !child.canSetParent),
+    unmovedChildren: children.filter((child) => child.action === 'leave'),
   }))
 }

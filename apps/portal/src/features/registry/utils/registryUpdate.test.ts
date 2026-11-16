@@ -4,10 +4,12 @@ import { err, ok } from 'neverthrow'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
+  computeRegistryUpdateSalt,
   getRegistryUpdateBlocker,
   getRegistryUpdateDetails,
   getRegistryUpdateFailure,
   getRegistryUpdateSteps,
+  RegistryUpdateBlockedError,
   shouldStartFreshCopy,
 } from './registryUpdate'
 
@@ -51,8 +53,7 @@ describe('getRegistryUpdateDetails', () => {
   const child = {
     label: 'kept',
     registry: '0x0000000000000000000000000000000000000002',
-    isCanonical: true,
-    canSetParent: false,
+    action: 'leave',
   } as const
 
   it('lists expired names and the child registries that stay behind', () => {
@@ -88,6 +89,7 @@ describe('getRegistryUpdateBlocker', () => {
       registry: REGISTRY,
       currentSubregistry: REGISTRY,
       label: 'jooooe',
+      canSwitch: true,
       ...overrides,
     })
 
@@ -108,35 +110,49 @@ describe('getRegistryUpdateBlocker', () => {
       { label: `[${'ab'.repeat(32)}]` },
       'unknown-label',
     ],
+    [
+      "an account that can't switch the name",
+      { canSwitch: false },
+      'cannot-switch',
+    ],
   ] as const)('with %s: %s', (_case, overrides, expected) => {
     expect(run(overrides)).toBe(expected)
   })
 })
 
 describe('getRegistryUpdateFailure', () => {
-  const planError = (cause: unknown) => ({ cause })
+  const blocked = (reason: RegistryUpdateBlockedError['reason']) =>
+    new RegistryUpdateBlockedError({ reason })
+  const refused = (reason: RegistryRepairPlanError['reason']) =>
+    new RegistryRepairPlanError({ reason })
 
   it.each([
-    [
-      'a missing role',
-      planError({ reason: 'cannot-set-parent' }),
-      'missing-roles',
-    ],
+    ['missing root roles', refused('missing-root-roles'), 'missing-roles'],
+    ['a role it cannot grant', refused('cannot-grant'), 'missing-roles'],
+    ['no right to switch the name', blocked('cannot-switch'), 'missing-roles'],
     [
       'a name moved elsewhere',
-      planError('registry-replaced'),
+      blocked('registry-replaced'),
       'registry-replaced',
     ],
-    ['a hashed label', planError('unknown-label'), 'unknown-label'],
-    [
-      'a registry the copy refuses',
-      planError('outdated-implementation'),
-      'unavailable',
-    ],
-    ['a failed read', planError(new Error('rpc')), 'read-failed'],
-    ['anything else', 'boom', 'read-failed'],
+    ['a hashed label', blocked('unknown-label'), 'unknown-label'],
+    ['an outdated target', blocked('outdated-implementation'), 'unavailable'],
+    ['too many attempts', blocked('too-many-attempts'), 'unavailable'],
+    ['a failed read', new Error('rpc'), 'read-failed'],
   ] as const)('explains %s as %s', (_case, error, expected) => {
     expect(getRegistryUpdateFailure(error)).toBe(expected)
+  })
+})
+
+describe('computeRegistryUpdateSalt', () => {
+  // Pinned on purpose: a changed salt would lose every upgrade that stopped part way.
+  it('keeps the salt an in-flight upgrade was deployed with', () => {
+    expect(
+      computeRegistryUpdateSalt(
+        '0x0000000000000000000000000000000000000a01',
+        0n,
+      ).toString(16),
+    ).toBe('c1c4db113f7554d388c2e4f251d755cdb3ea71f079e8f67655ea25d03b805018')
   })
 })
 
@@ -149,7 +165,7 @@ describe('shouldStartFreshCopy', () => {
     ],
     [
       'an account missing a role',
-      err(new RegistryRepairPlanError({ reason: 'cannot-register' })),
+      err(new RegistryRepairPlanError({ reason: 'missing-root-roles' })),
       false,
     ],
     ['a copy that can resume', ok(null), false],

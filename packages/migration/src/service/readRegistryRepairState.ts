@@ -15,19 +15,27 @@ import { labelRegisteredEventSnippet } from '@ensdomains/ensjs-abi/v2/userRegist
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
+  type GetBlockErrorType,
+  type GetLogsErrorType,
   isAddressEqual,
+  type MulticallErrorType,
   type PublicClient,
   parseAbi,
+  type ReadContractErrorType,
   zeroAddress,
 } from 'viem'
+import { toRegistryChildren } from './registryRepairChildren'
 import {
+  explicitNameGrants,
+  grantsOf,
   literalLabelId,
+  nameGrantsOf,
+  type RegistryCandidates,
   type RegistryRepairName,
   type RegistryRepairState,
-  type RoleGrant,
   splitRepairNames,
-  toRegistryChildren,
-} from './registryRepair'
+  uniqueCandidates,
+} from './registryRepairState'
 
 /** The reads a registry repair needs, so any chain's public client fits. */
 export type RepairReadClient = Pick<
@@ -42,21 +50,25 @@ const DEFAULT_LOG_RANGE = 50_000n
 const getParentAbi = parseAbi([
   'function getParent() view returns (address parent, string label)',
 ])
+const isApprovedForAllAbi = parseAbi([
+  'function isApprovedForAll(address owner, address operator) view returns (bool)',
+])
 const EVENTS = [
   ...labelRegisteredEventSnippet,
   ...eacRolesChangedEventSnippet,
 ] as const
 
+type RegistryRepairReadCause =
+  | GetBlockErrorType
+  | GetLogsErrorType
+  | ReadContractErrorType
+  | MulticallErrorType
+
 export class RegistryRepairReadError extends TaggedError(
   'RegistryRepairReadError',
 )<{
-  readonly cause: unknown
+  readonly cause: RegistryRepairReadCause
 }> {}
-
-type Candidates = {
-  readonly labels: readonly string[]
-  readonly accounts: readonly Address[]
-}
 
 /** Every label the registry registered and every account whose roles on it changed, between two blocks. */
 const readCandidates = async (params: {
@@ -65,12 +77,12 @@ const readCandidates = async (params: {
   readonly fromBlock: bigint
   readonly toBlock: bigint
   readonly maxRange: bigint
-}): Promise<Candidates> => {
+}): Promise<RegistryCandidates> => {
   const collect = async (
     from: bigint,
     range: bigint,
-    found: Candidates,
-  ): Promise<Candidates> => {
+    found: RegistryCandidates,
+  ): Promise<RegistryCandidates> => {
     if (from > params.toBlock) return found
     const to =
       from + range - 1n > params.toBlock ? params.toBlock : from + range - 1n
@@ -106,23 +118,13 @@ const readCandidates = async (params: {
     labels: [],
     accounts: [],
   })
-  return {
-    labels: [...new Set(found.labels)],
-    accounts: [...new Set(found.accounts)],
-  }
+  return uniqueCandidates(found)
 }
 
-const grantsOf = (
-  accounts: readonly Address[],
-  bitmaps: readonly bigint[],
-): readonly RoleGrant[] =>
-  accounts
-    .map((account, i) => ({ account, roleBitmap: bitmaps[i] ?? 0n }))
-    .filter((grant) => grant.roleBitmap !== 0n)
+const readError = (cause: unknown) =>
+  new RegistryRepairReadError({ cause: cause as RegistryRepairReadCause })
 
-const readError = (cause: unknown) => new RegistryRepairReadError({ cause })
-
-/** What a copy of `registry` must reproduce, read at one block; names count while owned and unexpired at `now` (unix seconds). */
+/** What a copy of `registry` must reproduce, read at one block; names count while owned and unexpired at that block's time. */
 export const readRegistryRepairState = ResultFn(async function* (params: {
   readonly client: RepairReadClient
   readonly registry: Address
@@ -231,20 +233,41 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
     readError,
   )
 
-  const allNames: readonly RegistryRepairName[] = labels.map((label, i) => {
-    const state = states[i]
-    return {
-      label,
-      owner: state?.latestOwner ?? zeroAddress,
-      resolver: resolvers[i] ?? zeroAddress,
-      subregistry: subregistries[i] ?? zeroAddress,
-      expiry: state?.expiry ?? 0n,
-      roles: grantsOf(
-        accounts,
-        nameBitmaps.slice(i * accounts.length, (i + 1) * accounts.length),
-      ),
-    }
-  })
+  const ownerOf = (i: number) => states[i]?.latestOwner ?? zeroAddress
+  const nameGrants = nameGrantsOf(accounts, nameBitmaps, labels.length)
+  // `roles()` adds the owner's roles for accounts the owner approved for all, so read which ones are.
+  const approvalChecks = nameGrants.flatMap((grants, index) =>
+    grants
+      .filter((grant) => !isAddressEqual(grant.account, ownerOf(index)))
+      .map((grant) => ({ index, account: grant.account })),
+  )
+  const approvals = yield* fromPromise(
+    client.multicall({
+      ...at,
+      contracts: approvalChecks.map(({ index, account }) => ({
+        address: registry,
+        abi: isApprovedForAllAbi,
+        functionName: 'isApprovedForAll',
+        args: [ownerOf(index), account],
+      })),
+    }),
+    readError,
+  )
+
+  const allNames: readonly RegistryRepairName[] = labels.map((label, i) => ({
+    label,
+    owner: ownerOf(i),
+    resolver: resolvers[i] ?? zeroAddress,
+    subregistry: subregistries[i] ?? zeroAddress,
+    expiry: states[i]?.expiry ?? 0n,
+    roles: explicitNameGrants({
+      grants: nameGrants[i] ?? [],
+      owner: ownerOf(i),
+      approvedAccounts: approvalChecks
+        .filter((check, j) => check.index === i && approvals[j] === true)
+        .map((check) => check.account),
+    }),
+  }))
   const state: RegistryRepairState = {
     parentRegistry,
     parentLabel,
@@ -255,14 +278,14 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
   return ok(state)
 })
 
-/** The child registries under `names`, and whether `account` may point each one at a replacement. */
+/** What happens to each child registry under `names`; `fromRegistries` is the registry being upgraded plus any replacement an earlier attempt abandoned. */
 export const readChildRegistries = (params: {
   readonly client: RepairReadClient
-  readonly registry: Address
+  readonly fromRegistries: readonly Address[]
   readonly names: readonly RegistryRepairName[]
   readonly account: Address
 }) => {
-  const { client, registry, account } = params
+  const { client, account } = params
   const names = params.names.filter(
     (name) => !isAddressEqual(name.subregistry, zeroAddress),
   )
@@ -289,14 +312,16 @@ export const readChildRegistries = (params: {
     readError,
   ).map(([parents, roles]) =>
     toRegistryChildren({
-      registry,
-      names,
-      parents: parents.map((parent) =>
-        parent.status === 'success' ? parent.result : null,
-      ),
-      canSetParent: roles.map(
-        (role) => role.status === 'success' && role.result,
-      ),
+      fromRegistries: params.fromRegistries,
+      entries: names.map((name, i) => {
+        const parent = parents[i]
+        const role = roles[i]
+        return {
+          name,
+          parent: parent?.status === 'success' ? parent.result : null,
+          canSetParent: role?.status === 'success' && role.result,
+        }
+      }),
     }),
   )
 }

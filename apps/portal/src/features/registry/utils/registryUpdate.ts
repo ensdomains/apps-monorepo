@@ -2,8 +2,9 @@ import {
   chunkWalletBundle,
   type RegistryRepairCall,
   type RegistryRepairPlan,
-  type RegistryRepairPlanError,
 } from '@ens-apps/migration'
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Result } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import {
@@ -13,6 +14,10 @@ import {
   keccak256,
   stringToHex,
 } from 'viem'
+import {
+  toEoaBatchIntent,
+  toEoaCustomIntent,
+} from '@/features/transaction-manager/helpers/intents'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import { isPendingUpgradeImplementation } from './pendingUpgradeRegistry'
 
@@ -34,10 +39,17 @@ export const computeRegistryUpdateSalt = (
     ),
   )
 
+/** A stopped upgrade that can't be resumed starts over at a new address; this bounds how many times. */
+export const MAX_UPGRADE_ATTEMPTS = 16n
+
 /** A copy the original has drifted from can't be finished, so the upgrade starts a fresh one. */
 export const shouldStartFreshCopy = (
-  resumed: Result<unknown, RegistryRepairPlanError>,
-): boolean => resumed.isErr() && resumed.error.reason === 'replacement-diverged'
+  resumed: Result<unknown, { readonly _tag: string }>,
+): boolean =>
+  resumed.isErr() &&
+  resumed.error._tag === 'RegistryRepairPlanError' &&
+  'reason' in resumed.error &&
+  resumed.error.reason === 'replacement-diverged'
 
 export type RegistryUpdateStep = {
   readonly kind: 'copy' | 'finish'
@@ -88,6 +100,13 @@ export type RegistryUpdateBlocker =
   | 'outdated-implementation'
   | 'registry-replaced'
   | 'unknown-label'
+  | 'cannot-switch'
+
+export class RegistryUpdateBlockedError extends TaggedError(
+  'RegistryUpdateBlockedError',
+)<{
+  readonly reason: RegistryUpdateBlocker | 'too-many-attempts'
+}> {}
 
 /** Why an update may not run now, or null when it can. */
 export const getRegistryUpdateBlocker = (params: {
@@ -98,6 +117,8 @@ export const getRegistryUpdateBlocker = (params: {
   /** What the parent name points at right now. */
   readonly currentSubregistry: Address
   readonly label: string
+  /** The account holds `ROLE_SET_SUBREGISTRY` on the name, which the final switch needs. */
+  readonly canSwitch: boolean
 }): RegistryUpdateBlocker | null => {
   // Never copy onto an implementation that would itself need updating.
   if (isPendingUpgradeImplementation(params)) return 'outdated-implementation'
@@ -106,6 +127,7 @@ export const getRegistryUpdateBlocker = (params: {
     return 'registry-replaced'
   // `setParent` needs the label's text, which an encoded label doesn't give.
   if (isEncodedLabelhash(params.label)) return 'unknown-label'
+  if (!params.canSwitch) return 'cannot-switch'
   return null
 }
 
@@ -116,38 +138,40 @@ export type RegistryUpdateFailure =
   | 'unavailable'
   | 'read-failed'
 
-const reasonOf = (error: unknown): string | undefined => {
-  const cause =
-    typeof error === 'object' && error !== null && 'cause' in error
-      ? error.cause
-      : undefined
-  if (typeof cause === 'string') return cause
-  return typeof cause === 'object' &&
-    cause !== null &&
-    'reason' in cause &&
-    typeof cause.reason === 'string'
-    ? cause.reason
-    : undefined
-}
-
 /** Why planning an upgrade failed, in the terms the card explains to the user. */
 export const getRegistryUpdateFailure = (
   error: unknown,
 ): RegistryUpdateFailure =>
-  match(reasonOf(error))
+  match(error)
     .with(
-      P.union(
-        'no-root-roles',
-        'cannot-register',
-        'cannot-set-parent',
-        'cannot-grant',
-      ),
-      () => 'missing-roles' as const,
+      { _tag: 'RegistryUpdateBlockedError', reason: P.select() },
+      (reason) =>
+        match(reason)
+          .with('registry-replaced', () => 'registry-replaced' as const)
+          .with('unknown-label', () => 'unknown-label' as const)
+          .with('cannot-switch', () => 'missing-roles' as const)
+          .otherwise(() => 'unavailable' as const),
     )
-    .with('registry-replaced', () => 'registry-replaced' as const)
-    .with('unknown-label', () => 'unknown-label' as const)
-    .with(
-      P.union('outdated-implementation', 'replacement-diverged'),
-      () => 'unavailable' as const,
+    .with({ _tag: 'RegistryRepairPlanError', reason: P.select() }, (reason) =>
+      reason === 'replacement-diverged'
+        ? ('unavailable' as const)
+        : ('missing-roles' as const),
     )
     .otherwise(() => 'read-failed' as const)
+
+/** The wallet request for one step: a single call, or an atomic bundle of them. */
+export const toStepIntent = ({
+  from,
+  step,
+  chainId,
+}: {
+  readonly from: Address
+  readonly step: RegistryUpdateStep
+  readonly chainId: number
+}): CustomTransactionIntent => {
+  const intents = step.calls.map((call) =>
+    toEoaCustomIntent({ from, to: call.to, data: call.data, chainId }),
+  )
+  const [only] = intents
+  return intents.length === 1 && only ? only : toEoaBatchIntent(intents)
+}

@@ -8,67 +8,30 @@ import {
   userRegistrySetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
-import {
-  decodeFunctionData,
-  getAddress,
-  type Hex,
-  labelhash,
-  zeroAddress,
-} from 'viem'
+import { decodeFunctionData, type Hex, labelhash, zeroAddress } from 'viem'
 import { describe, expect, it } from 'vitest'
+import { planRegistryRepair } from './registryRepair'
 import {
-  compareRegistryRepair,
-  literalLabelId,
-  planRegistryRepair,
-  type RegistryChild,
-  type RegistryRepairName,
-  type RegistryRepairState,
-  splitRepairNames,
-  toRegistryChildren,
-} from './registryRepair'
+  ALICE,
+  ALL,
+  BOB,
+  CHILD_REGISTRY,
+  CONTROLLER,
+  FACTORY,
+  HCA,
+  IMPLEMENTATION,
+  makeName,
+  makeState,
+  PARENT_REGISTRY,
+  REGISTRAR_AND_PARENT,
+  REPLACEMENT,
+  RESOLVER,
+  SOME,
+} from './registryRepair.testUtils'
+import type { RegistryChild } from './registryRepairChildren'
+import type { RegistryRepairState } from './registryRepairState'
 
-const FACTORY = getAddress('0x00000000000000000000000000000000000000fa')
-const IMPLEMENTATION = getAddress('0x00000000000000000000000000000000000001aa')
-const REPLACEMENT = getAddress('0x00000000000000000000000000000000000002bb')
-const PARENT_REGISTRY = getAddress('0x00000000000000000000000000000000000003cc')
-const CONTROLLER = getAddress('0x0000000000000000000000000000000000000c01')
-const HCA = getAddress('0x0000000000000000000000000000000000000c02')
-const ALICE = getAddress('0x0000000000000000000000000000000000000a11')
-const BOB = getAddress('0x0000000000000000000000000000000000000b0b')
-const RESOLVER = getAddress('0x00000000000000000000000000000000000004dd')
-const CHILD_REGISTRY = getAddress('0x00000000000000000000000000000000000005ee')
 const SALT = 7n
-const ALL = (1n << 256n) - 1n
-const SOME = 0x10n
-const REGISTRAR = registryRoles.ROLE_REGISTRAR
-const REGISTRAR_AND_PARENT = REGISTRAR | registryRoles.ROLE_SET_PARENT
-
-const makeName = (
-  overrides: Partial<RegistryRepairName> = {},
-): RegistryRepairName => ({
-  label: 'alice',
-  owner: ALICE,
-  subregistry: zeroAddress,
-  resolver: RESOLVER,
-  expiry: 2_000_000_000n,
-  roles: [{ account: ALICE, roleBitmap: ALL }],
-  ...overrides,
-})
-
-const makeState = (
-  overrides: Partial<RegistryRepairState> = {},
-): RegistryRepairState => ({
-  parentRegistry: PARENT_REGISTRY,
-  parentLabel: 'parent',
-  parentTokenId: 42n,
-  rootRoles: [
-    { account: CONTROLLER, roleBitmap: ALL },
-    { account: HCA, roleBitmap: ALL },
-  ],
-  names: [makeName()],
-  expiredLabels: [],
-  ...overrides,
-})
 
 const plan = (
   state: RegistryRepairState,
@@ -167,18 +130,48 @@ describe('planRegistryRepair', () => {
     expect(plan(state)._unsafeUnwrapErr().reason).toBe('no-root-roles')
   })
 
-  it('refuses an account without the registrar role on the registry', () => {
-    expect(plan(makeState(), { account: BOB })._unsafeUnwrapErr().reason).toBe(
-      'cannot-register',
-    )
-  })
+  it.each([
+    ['no roles at all', ALICE, makeState()],
+    [
+      'no set-parent role',
+      CONTROLLER,
+      makeState({
+        rootRoles: [
+          { account: CONTROLLER, roleBitmap: registryRoles.ROLE_REGISTRAR },
+        ],
+      }),
+    ],
+    [
+      'no registrar role',
+      CONTROLLER,
+      makeState({
+        rootRoles: [
+          { account: CONTROLLER, roleBitmap: registryRoles.ROLE_SET_PARENT },
+        ],
+      }),
+    ],
+  ] as const)(
+    'refuses an account with %s on the registry',
+    (_case, account, state) => {
+      expect(plan(state, { account })._unsafeUnwrapErr().reason).toBe(
+        'missing-root-roles',
+      )
+    },
+  )
 
-  it("refuses an account that cannot set the new registry's parent", () => {
+  it('refuses to grant admin roles to anyone but the owner, which only `register` can do', () => {
     const state = makeState({
-      rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR }],
+      names: [
+        makeName({
+          roles: [
+            { account: ALICE, roleBitmap: ALL },
+            { account: BOB, roleBitmap: SOME << 128n },
+          ],
+        }),
+      ],
     })
 
-    expect(plan(state)._unsafeUnwrapErr().reason).toBe('cannot-set-parent')
+    expect(plan(state)._unsafeUnwrapErr().reason).toBe('cannot-grant')
   })
 
   it("refuses a name whose roles the account can't grant", () => {
@@ -354,23 +347,13 @@ describe('planRegistryRepair, resuming a copy', () => {
 describe('planRegistryRepair, child registries', () => {
   const child = (
     label: string,
-    overrides: Partial<RegistryChild> = {},
-  ): RegistryChild => ({
-    label,
-    registry: CHILD_REGISTRY,
-    isCanonical: true,
-    canSetParent: true,
-    ...overrides,
-  })
+    action: RegistryChild['action'],
+  ): RegistryChild => ({ label, registry: CHILD_REGISTRY, action })
 
-  it('re-parents the children it can move before the switch, and reports the rest', () => {
-    const blocked = child('blocked', { canSetParent: false })
+  it('re-parents the children it can move before the switch, and reports the ones left behind', () => {
+    const blocked = child('blocked', 'leave')
     const { finalCalls, unmovedChildren } = plan(makeState(), {
-      children: [
-        child('alice'),
-        blocked,
-        child('moved', { isCanonical: false }),
-      ],
+      children: [child('alice', 'move'), blocked, child('moved', 'skip')],
     })._unsafeUnwrap()
 
     expect(
@@ -384,95 +367,5 @@ describe('planRegistryRepair, child registries', () => {
       [PARENT_REGISTRY, 'setSubregistry', [42n, REPLACEMENT]],
     ])
     expect(unmovedChildren).toEqual([blocked])
-  })
-})
-
-describe('compareRegistryRepair', () => {
-  it('finds nothing when the copy matches', () => {
-    expect(compareRegistryRepair(makeState(), makeState())).toEqual([])
-  })
-
-  it('reports each field, role and name the copy lost', () => {
-    const before = makeState({
-      names: [makeName(), makeName({ label: 'bob', owner: BOB, roles: [] })],
-    })
-    const after = makeState({
-      rootRoles: [{ account: CONTROLLER, roleBitmap: ALL }],
-      names: [
-        makeName({
-          resolver: zeroAddress,
-          roles: [{ account: ALICE, roleBitmap: SOME }],
-        }),
-      ],
-    })
-
-    expect(compareRegistryRepair(before, after)).toEqual([
-      { kind: 'root-roles', account: HCA },
-      { kind: 'name-field', label: 'alice', field: 'resolver' },
-      { kind: 'name-roles', label: 'alice', account: ALICE },
-      { kind: 'missing-name', label: 'bob' },
-    ])
-  })
-})
-
-describe('literalLabelId', () => {
-  it('hashes a label shaped like an encoded labelhash as its literal text', () => {
-    const label = `[${'ab'.repeat(32)}]`
-
-    expect(literalLabelId(label)).not.toBe(BigInt(`0x${'ab'.repeat(32)}`))
-    expect(literalLabelId('alice')).toBe(BigInt(labelhash('alice')))
-  })
-})
-
-describe('splitRepairNames', () => {
-  it('keeps owned, unexpired names and lists the expired or unregistered ones', () => {
-    const live = makeName({ label: 'live', expiry: 101n })
-    const { names, expiredLabels } = splitRepairNames(
-      [
-        live,
-        makeName({ label: 'expired', expiry: 100n }),
-        makeName({ label: 'unregistered', owner: zeroAddress, expiry: 50n }),
-        makeName({ label: 'never', owner: zeroAddress, expiry: 0n }),
-      ],
-      100n,
-    )
-
-    expect(names).toEqual([live])
-    expect(expiredLabels).toEqual(['expired', 'unregistered'])
-  })
-})
-
-describe('toRegistryChildren', () => {
-  const OTHER = getAddress('0x00000000000000000000000000000000000006ff')
-
-  it('marks a child canonical only while it names this registry and label as its parent', () => {
-    const names = [
-      makeName({ label: 'a', subregistry: CHILD_REGISTRY }),
-      makeName({ label: 'none' }),
-      makeName({ label: 'b', subregistry: OTHER }),
-      makeName({ label: 'c', subregistry: OTHER }),
-      makeName({ label: 'd', subregistry: OTHER }),
-    ]
-
-    const children = toRegistryChildren({
-      registry: REPLACEMENT,
-      names,
-      parents: [
-        [REPLACEMENT, 'a'],
-        [REPLACEMENT, 'other-label'],
-        [PARENT_REGISTRY, 'c'],
-        null,
-      ],
-      canSetParent: [true, false, true, false],
-    })
-
-    expect(
-      children.map((c) => [c.label, c.isCanonical, c.canSetParent]),
-    ).toEqual([
-      ['a', true, true],
-      ['b', false, false],
-      ['c', false, true],
-      ['d', false, false],
-    ])
   })
 })

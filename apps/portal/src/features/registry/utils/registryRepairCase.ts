@@ -1,4 +1,4 @@
-import { registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { REGISTRY_REPAIR_ROOT_ROLES } from '@ens-apps/migration'
 import { match, P } from 'ts-pattern'
 
 /** How the connected account relates to a registry that needs an upgrade, which decides the notice it sees. */
@@ -7,10 +7,6 @@ export type RegistryRepairCase =
   | 'unknown'
   | 'can-upgrade'
   | 'viewer'
-
-/** Root roles the copy needs on the old registry: registering the names and setting the new registry's parent. */
-const UPGRADE_ROOT_ROLES =
-  registryRoles.ROLE_REGISTRAR | registryRoles.ROLE_SET_PARENT
 
 export const getRegistryRepairCase = ({
   isPendingUpgrade,
@@ -35,7 +31,7 @@ export const getRegistryRepairCase = ({
       () => 'unknown' as const,
     )
     .with({ rootRoles: P.bigint }, ({ rootRoles }) =>
-      (rootRoles & UPGRADE_ROOT_ROLES) === UPGRADE_ROOT_ROLES
+      (rootRoles & REGISTRY_REPAIR_ROOT_ROLES) === REGISTRY_REPAIR_ROOT_ROLES
         ? ('can-upgrade' as const)
         : ('viewer' as const),
     )
