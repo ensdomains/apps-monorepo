@@ -94,10 +94,10 @@ const useRegisteringDisplay = () => {
     value: registrationStage,
   }
   const txState = useRegistrationTxState(registeringTx)
-  const displayedStage = maxProgress?.stage ?? registeringTx.value
   const stageMessages = getRegistrationStageMessages(
-    { ...registeringTx, value: displayedStage },
+    registeringTx,
     txState,
+    maxProgress?.stage,
   )
 
   const { remainingSeconds: cooldownSeconds, isActive: isCooldownActive } =
