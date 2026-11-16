@@ -33,10 +33,13 @@ import {
   wrappedCopyExpiry,
 } from './classifyNames'
 import {
+  parentUserRegistryFor,
+  withoutDeployedParents,
+} from './currentParentRegistries'
+import {
   directMigrationExpiry,
   MIGRATION_EXPIRY_BONUS_SECONDS,
 } from './migrationExpiry'
-import { computeUserRegistryAddress } from './userRegistryMigration'
 
 const MAX_UINT64 = (1n << 64n) - 1n
 const DOT_ETH_GRACE_PERIOD_SECONDS = 90n * 24n * 60n * 60n
@@ -586,6 +589,7 @@ type PlannedRegistry = {
 const plannedRegistries = (params: {
   readonly hca: Address
   readonly registryContext: readonly ClassifiedName[]
+  readonly currentParentRegistries: ReadonlyMap<string, Address>
 }): readonly PlannedRegistry[] => {
   const byName = new Map(
     params.registryContext.map(
@@ -611,16 +615,18 @@ const plannedRegistries = (params: {
       }
       return {
         name,
-        registry: computeUserRegistryAddress({
+        registry: parentUserRegistryFor({
           hca: params.hca,
           parentName: name.domain.name,
+          currentParentRegistries: params.currentParentRegistries,
         }),
         parentRegistry:
           normalizedName(name.parentName ?? '') === 'eth'
             ? V2_CONTRACTS.ETHRegistry
-            : computeUserRegistryAddress({
+            : parentUserRegistryFor({
                 hca: params.hca,
                 parentName: name.parentName ?? '',
+                currentParentRegistries: params.currentParentRegistries,
               }),
       }
     })
@@ -779,6 +785,7 @@ const assertCopyTargetPristine = async (params: {
   readonly publicClient: PublicClient
   readonly hca: Address
   readonly copy: CopyClassifiedName
+  readonly currentParentRegistries: ReadonlyMap<string, Address>
   readonly hasCode: HasCode
 }): Promise<void> => {
   const parentName = params.copy.parentName
@@ -789,9 +796,10 @@ const assertCopyTargetPristine = async (params: {
       ensName: params.copy.domain.name,
     })
   }
-  const parentRegistry = computeUserRegistryAddress({
+  const parentRegistry = parentUserRegistryFor({
     hca: params.hca,
     parentName,
+    currentParentRegistries: params.currentParentRegistries,
   })
   if (!(await params.hasCode(parentRegistry))) return
 
@@ -838,6 +846,7 @@ const assertRegistryRoutesReady = async (params: {
   readonly hca: Address
   readonly wallet: Address
   readonly registryContext: readonly ClassifiedName[]
+  readonly currentParentRegistries: ReadonlyMap<string, Address>
   readonly remainingNames: ReadonlySet<string>
   readonly recordedAttemptNames?: ReadonlySet<string>
   readonly hasCode: HasCode
@@ -874,6 +883,7 @@ const assertRemainingCopyTargetsPristine = async (params: {
   readonly publicClient: PublicClient
   readonly hca: Address
   readonly copies: readonly CopyClassifiedName[]
+  readonly currentParentRegistries: ReadonlyMap<string, Address>
   readonly recordedAttemptNames?: ReadonlySet<string>
   readonly hasCode: HasCode
 }): Promise<void> => {
@@ -885,6 +895,7 @@ const assertRemainingCopyTargetsPristine = async (params: {
           publicClient: params.publicClient,
           hca: params.hca,
           copy,
+          currentParentRegistries: params.currentParentRegistries,
           hasCode: params.hasCode,
         })
       } catch (cause) {
@@ -994,8 +1005,14 @@ export const assertCopyMigrationReadiness = async (params: {
   readonly recordedAttemptNames?: ReadonlySet<string>
   /** Fee previews of a pending renewal: their expiry is projected, not on chain yet. */
   readonly projectedExpiryNames?: ReadonlySet<string>
+  /** Completed parents whose name now points at a certified replacement registry. */
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
 }): Promise<ReadonlyMap<string, bigint>> => {
   assertCopyMigrationTopology(params.registryContext)
+  const currentParentRegistries = withoutDeployedParents({
+    currentParentRegistries: params.currentParentRegistries,
+    deployed: params.remaining,
+  })
   const remainingNames = new Set(
     params.remaining.map((name) => normalizedName(name.domain.name)),
   )
@@ -1039,6 +1056,7 @@ export const assertCopyMigrationReadiness = async (params: {
       hca: params.hca,
       wallet: params.wallet,
       registryContext: params.registryContext,
+      currentParentRegistries,
       remainingNames,
       recordedAttemptNames: params.recordedAttemptNames,
       hasCode,
@@ -1047,6 +1065,7 @@ export const assertCopyMigrationReadiness = async (params: {
       publicClient: params.publicClient,
       hca: params.hca,
       copies: remainingCopies,
+      currentParentRegistries,
       recordedAttemptNames: params.recordedAttemptNames,
       hasCode,
     }),

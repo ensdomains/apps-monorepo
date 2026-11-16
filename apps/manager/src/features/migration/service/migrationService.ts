@@ -1746,6 +1746,7 @@ const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
         scope: params.scope,
         transactionHash: submission.hash,
         operations: submission.operations,
+        currentParentRegistries: params.plan.currentParentRegistries,
       })
       params.onCurrentDeploymentCheckpoint()
       removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
@@ -2143,6 +2144,7 @@ const buildNextAtomicBatch = async (params: {
     wallet: ctx.walletAddress,
     remaining,
     registryContext: plan.registryContext,
+    currentParentRegistries: plan.currentParentRegistries,
   })
   const resolverReadiness = await checkDeterministicMigrationResolverReadiness({
     publicClient: ctx.publicClient,
@@ -2173,6 +2175,7 @@ const buildNextAtomicBatch = async (params: {
     wallet: ctx.walletAddress,
     classified: remaining,
     registryContext: plan.registryContext,
+    currentParentRegistries: plan.currentParentRegistries,
     directRoutes,
     profiles: plan.profiles,
     defaultResolver: V2_CONTRACTS.DefaultResolver,
@@ -2441,6 +2444,7 @@ const executeRemainingAtomicBatches = async (params: {
       wallet: params.ctx.walletAddress,
       remaining,
       registryContext: params.plan.registryContext,
+      currentParentRegistries: params.plan.currentParentRegistries,
     })
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
@@ -2688,6 +2692,7 @@ export const executeMigration = async (params: {
         wallet: executionPlan.migrationOwner,
         remaining: executionPlan.classified,
         registryContext: executionPlan.registryContext,
+        currentParentRegistries: executionPlan.currentParentRegistries,
       })
     } catch (cause) {
       throw new MigrationSourceChangedError({
@@ -2759,6 +2764,7 @@ export const executeMigration = async (params: {
         scope: batchJournalScope(ctx),
         publicClient,
         signal: params.submissionGate.signal,
+        currentParentRegistries: plan.currentParentRegistries,
       })
       if (!restored)
         throw new Error('No current-deployment completion proof is available')
