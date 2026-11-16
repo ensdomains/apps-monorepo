@@ -5,6 +5,7 @@ import { ProfileContactSection } from './ProfileContactSection'
 import { ProfileContentHashSection } from './ProfileContentHashSection'
 import { ProfileFeaturedSocialSection } from './ProfileFeaturedSocialSection'
 import { ProfileLinksSection } from './ProfileLinksSection'
+import { ProfileOtherRecordsSection } from './ProfileOtherRecordsSection'
 import { ProfileSocialSection } from './ProfileSocialSection'
 
 type ProfileCardsProps = {
@@ -21,5 +22,6 @@ export const ProfileCards = ({ name, records }: ProfileCardsProps) => (
     <ProfileLinksSection records={records} />
     <ProfileContentHashSection name={name} records={records} />
     <ProfileAgentSection records={records} />
+    <ProfileOtherRecordsSection records={records} />
   </div>
 )

@@ -54,11 +54,13 @@ const ReceivingChainBadge = ({
     <span
       className={cn(
         'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-ens-quartz-50 text-ens-quartz-600 text-xs',
-        isCompact ? 'p-1' : 'px-2 py-1',
+        // Left padding matches py so the icon sits as close as the vertical edge.
+        isCompact ? 'p-1' : 'py-1 ps-1 pe-2',
       )}
     >
       <AddressIcon
         coinType={chain.coinType}
+        framed={false}
         shouldShowFallbackLabel={isCompact}
         size="lg"
       />
