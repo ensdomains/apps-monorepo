@@ -40,6 +40,9 @@ const CANDIDATE_ISSUE_MESSAGES = {
   'already-manager': 'This address already manages this name.',
 } as const satisfies Record<V1ManagerCandidateIssue, string>
 
+// Fill the page column like the form's alerts, not the card's narrow centred default.
+const FULL_WIDTH_CARD = 'max-w-none mx-0 my-0'
+
 const ChangeManagerForm = ({
   gate,
   onConfirm,
@@ -145,6 +148,7 @@ export const ChangeManager = ({
       <MessageCard
         icon={<AlertTriangle className="size-8" />}
         title="Couldn’t check this name"
+        className={FULL_WIDTH_CARD}
         description={
           <p>
             We couldn’t read how this name is held, so we can’t tell who may
@@ -176,6 +180,7 @@ export const ChangeManager = ({
           <MessageCard
             icon={<ShieldX className="size-8" />}
             title="You can’t change this name’s manager"
+            className={FULL_WIDTH_CARD}
             description={
               <p>
                 Only the owner or the manager of an unwrapped .eth name can
