@@ -98,21 +98,42 @@ export async function rolesOf(
 const HCA_FACTORY = ensL1Contracts[supportedL1Chains.sepolia].ensHcaFactory
   .address as Address
 
-/** The owner's HCA: what the factory's `deploy` returns, simulated only. */
+const hcaFactoryAbi = parseAbi([
+  'function deploymentSalt(address owner, address hcaImplementation, uint256 userSalt) pure returns (uint256)',
+  'function VERIFIABLE_FACTORY() view returns (address)',
+])
+const verifiableFactoryAbi = parseAbi([
+  'function predictProxyAddress(address sender, uint256 salt) view returns (address)',
+])
+
+/**
+ * The owner's HCA, deployed or not: the address the factory's `deploy` creates,
+ * predicted the way `deploy` does. Simulating `deploy` itself only works before
+ * the first deployment; after it, the proxy's CREATE2 collides and reverts.
+ */
 export async function hcaOf(owner: Address): Promise<Address> {
   const implementation = getDestinationContracts(
     supportedL1Chains.sepolia,
   ).standaloneHcaImplementation
-  const { result } = await publicClient.simulateContract({
-    account: owner,
-    address: HCA_FACTORY,
-    abi: parseAbi([
-      'function deploy(address owner, address hcaImplementation, uint256 userSalt) returns (address hca)',
-    ]),
-    functionName: 'deploy',
-    args: [owner, implementation, 0n],
+  const [salt, verifiableFactory] = await Promise.all([
+    publicClient.readContract({
+      address: HCA_FACTORY,
+      abi: hcaFactoryAbi,
+      functionName: 'deploymentSalt',
+      args: [owner, implementation, 0n],
+    }),
+    publicClient.readContract({
+      address: HCA_FACTORY,
+      abi: hcaFactoryAbi,
+      functionName: 'VERIFIABLE_FACTORY',
+    }),
+  ])
+  return publicClient.readContract({
+    address: verifiableFactory,
+    abi: verifiableFactoryAbi,
+    functionName: 'predictProxyAddress',
+    args: [HCA_FACTORY, salt],
   })
-  return result
 }
 
 /**

@@ -26,7 +26,10 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import {
+  type Web3ProviderBackend,
+  Web3RequestKind,
+} from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { type Address, erc20Abi, labelhash, parseAbi, parseUnits } from 'viem'
 import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
@@ -87,7 +90,7 @@ const test = baseTest.extend({
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-// The token the app renews with (Circle's on Sepolia), not ensjs's MockUSDC.
+// The token the app renews with (ensjs's MockUSDC on Sepolia).
 const USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
 const RENEWER = ensjsSepolia.ensEthRenewerV1.address as Address
 const BASE_REGISTRAR = ensjsSepolia.ensBaseRegistrarImplementation
@@ -511,13 +514,13 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     // ── Dashboard: upgrade copy, plus the renewal note for the grace name ──
     await page.goto(`${MANAGER_APP_URL}/dashboard`)
     const main = page.locator('main')
-    await dismissWelcomeDialog(page)
     await expect(main.getByText(grace.name).first()).toBeVisible({
       timeout: 60_000,
     })
     await expect(
       main.getByText('1 name needs renewal before it can be upgraded.'),
     ).toBeVisible({ timeout: 30_000 })
+    await dismissWelcomeDialog(page)
     await expect(
       main.getByRole('button', { name: 'Upgrade Names' }),
     ).toBeVisible()
@@ -530,6 +533,10 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
         level: 1,
         name: 'Your names are ready to upgrade',
       }),
+    ).toBeVisible({ timeout: 60_000 })
+    await expect(nameCheckbox(page, active)).toBeAttached({ timeout: 60_000 })
+    await expect(
+      main.getByRole('button', { name: /^Upgrade \d+ names?$/ }),
     ).toBeVisible({ timeout: 60_000 })
     await expect(nameCheckbox(page, active)).toBeChecked()
     await optInGrace(page, grace.name)
@@ -752,4 +759,123 @@ test.describe('Grace-period names in migration (WEB-424)', () => {
     expect(steps.at(-1)).toBe('Upgrade 2 names')
     expect(quotedUsdc).toBeGreaterThan(0n)
   })
+})
+
+test.describe('Grace approval wallet failures (WEB-1946)', () => {
+  for (const { name, code, viewport } of [
+    {
+      name: 'InvalidInput',
+      code: -32000,
+      viewport: { width: 1440, height: 900 },
+    },
+    {
+      name: 'InvalidParams',
+      code: -32602,
+      viewport: { width: 390, height: 844 },
+    },
+    {
+      name: 'MethodNotFound',
+      code: -32601,
+      viewport: { width: 1440, height: 900 },
+    },
+    {
+      name: 'MethodNotSupported',
+      code: -32004,
+      viewport: { width: 390, height: 844 },
+    },
+  ]) {
+    test(
+      `${name} sends one approval request and leaves the name and USDC untouched`,
+      { tag: ['@smoke'] },
+      async ({ migrationConnectedPage: page, wallet, accounts }, testInfo) => {
+        await page.setViewportSize(viewport)
+        const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+        const grace = await makeGraceV1Name({
+          label: 'web1946-approval',
+          owner,
+        })
+        await openMigration(page, [graceMock(grace, owner.address)])
+        await optInGrace(page, grace.name)
+        const { steps } = await readRequestsDialog(page)
+        expect(steps[0]).toBe('Approve renewal payment')
+
+        // Playwright drops custom Error fields when the backend rejects across the bridge.
+        await page.evaluate((code) => {
+          const key = '__injectedHeadlessWeb3ProviderRequest'
+          const bridge: unknown = Reflect.get(window, key)
+          if (typeof bridge !== 'function')
+            throw new Error('Wallet bridge missing')
+          const isSubmission = (request: unknown): boolean =>
+            typeof request === 'object' &&
+            request !== null &&
+            'method' in request &&
+            request.method === 'eth_sendTransaction'
+          Reflect.set(window, key, async (...args: readonly unknown[]) => {
+            if (!isSubmission(args[1]))
+              return Reflect.apply(bridge, window, args)
+            try {
+              return await Reflect.apply(bridge, window, args)
+            } catch (cause) {
+              throw Object.assign(
+                new Error('Wallet submission failed', { cause }),
+                { code },
+              )
+            }
+          })
+        }, code)
+
+        const balanceBefore = await usdcBalance(owner.address)
+        let methods: readonly string[] = []
+        const request = wallet.request.bind(wallet)
+        const approvalRequested = new Promise<void>((resolve) => {
+          wallet.request = (parameters) => {
+            methods = [...methods, parameters.method]
+            if (parameters.method === Web3RequestKind.SendTransaction) resolve()
+            return request(parameters)
+          }
+        })
+
+        await page
+          .getByRole('button', { name: 'Upgrade 1 name', exact: true })
+          .click()
+        await approvalRequested
+        await expect
+          .poll(() =>
+            wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+          )
+          .toBe(1)
+        await wallet.reject(
+          Web3RequestKind.SendTransaction,
+          Object.assign(new Error(`Wallet returned ${name}`), { code }),
+        )
+        await expect(
+          page.getByText("Upgrade didn't finish", { exact: true }),
+        ).toBeVisible()
+
+        expect(
+          methods.filter((method) =>
+            ['eth_sendTransaction', 'wallet_sendTransaction'].includes(method),
+          ),
+        ).toEqual(['eth_sendTransaction'])
+        expect(
+          wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+        ).toBe(0)
+        expect(await usdcBalance(owner.address)).toBe(balanceBefore)
+        expect(await nameExpires(grace.tokenId)).toBe(grace.expiry)
+        expect(
+          await publicClient.readContract({
+            address: USDC,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [owner.address, RENEWER],
+          }),
+        ).toBe(0n)
+        await assertV2Reserved(grace.label)
+        await page.screenshot({
+          animations: 'disabled',
+          path: testInfo.outputPath('approval-failure.png'),
+        })
+      },
+    )
+  }
 })

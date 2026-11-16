@@ -68,13 +68,13 @@ const signer = {
 const publicClient = { chain: sepolia } as unknown as PublicClient
 const approvalSigner = { type: 'eoa' } as unknown as Signer
 
-/** A quote the orchestrator priced at `fee` USDC (6dp). */
-const quoteOf = (fee: bigint) => ({
+/** A quote the orchestrator priced at `fee` USDC (6dp), spent in `token`. */
+const quoteOf = (fee: bigint, token: Address = C.usdc) => ({
   intentRoute: {
     intentCost: {
       tokensSpent: {
         [String(sepolia.id)]: {
-          [C.usdc.toLowerCase()]: { locked: '0', unlocked: String(fee) },
+          [token.toLowerCase()]: { locked: '0', unlocked: String(fee) },
         },
       },
     },
@@ -226,6 +226,16 @@ describe('planHcaIntentFunding', () => {
     expect(funding.calls[2]).toEqual(actionCalls[0])
   })
 
+  it('tells a wallet short of the fee that the USDC pays the network fee', async () => {
+    // Choose Primary Name with an empty wallet: the action buys nothing.
+    mockReads({ hcaBalance: 0n, walletBalance: 0n })
+
+    await expect(planHcaIntentFunding(params)).rejects.toThrow(
+      'This action needs 0.9 USDC to pay the network fee, but your wallet holds 0 USDC.',
+    )
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
+
   it('funds the fee above the quote by the margin a caller asks for', async () => {
     mockReads({ hcaBalance: 0n })
 
@@ -294,6 +304,26 @@ describe('planHcaIntentFunding', () => {
     expect(quoted.feeAsset).toBe('USDC')
   })
 
+  it('funds in the payment token, ignoring the HCA’s other USDC', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    // Plenty of the deployment's USDC, none of the token this intent pays in.
+    mockReads({ tokens: { [C.usdc]: { hcaBalance: 5_000_000n } } })
+    prepareTransaction.mockResolvedValue(quoteOf(900_000n, circleUsdc))
+
+    const funding = await planHcaIntentFunding({
+      ...params,
+      paymentToken: circleUsdc,
+    })
+
+    expect(funding.calls.slice(0, 2).map((call) => call.to)).toEqual([
+      circleUsdc,
+      circleUsdc,
+    ])
+    expect(funding.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [circleUsdc]: 900_000n },
+    })
+  })
+
   it('declares a first-pass inflow so an empty HCA can be priced at all', async () => {
     // The planner credits only balances it can already see and refuses to
     // quote an account below the fee, so an empty HCA needs the declaration.
@@ -305,6 +335,18 @@ describe('planHcaIntentFunding', () => {
       auxiliaryFunds?: Record<number, Record<Address, bigint>>
     }
     expect(quoted.auxiliaryFunds?.[sepolia.id]?.[C.usdc]).toBeGreaterThan(0n)
+  })
+
+  it('quotes and funds in one USDC, and names it for the intent', async () => {
+    mockReads({ hcaBalance: 0n })
+
+    const funding = await planHcaIntentFunding(params)
+
+    const quoted = prepareTransaction.mock.calls[0]?.[0] as {
+      sourceAssets?: readonly Address[]
+    }
+    expect(quoted.sourceAssets).toEqual([C.usdc])
+    expect(funding.paymentToken).toBe(C.usdc)
   })
 
   it('declares an inflow for a dust balance too, not just an empty one', async () => {
@@ -655,8 +697,9 @@ describe('planHcaIntentFunding for an intent that also buys something', () => {
       walletBalance: 1_000_000n,
     })
 
+    // The pull covers the price too, so it is not called a network fee.
     await expect(planHcaIntentFunding(rentParams)).rejects.toThrow(
-      /connected wallet holds/,
+      'This action needs 2.9 USDC to cover its cost and the network fee, but your wallet holds 1 USDC.',
     )
     expect(signFundingPermit).not.toHaveBeenCalled()
   })
@@ -773,7 +816,9 @@ describe('planHcaIntentFunding for a spend in another token', () => {
 
     await expect(
       planHcaIntentFunding({ ...daiParams, confirmFunding }),
-    ).rejects.toThrow(/wallet holds 1 DAI/)
+    ).rejects.toThrow(
+      'This action needs 2 DAI to cover its cost, but your wallet holds 1 DAI.',
+    )
     expect(confirmFunding).not.toHaveBeenCalled()
     expect(signFundingPermit).not.toHaveBeenCalled()
   })

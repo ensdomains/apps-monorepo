@@ -9,7 +9,11 @@ import { useConnection } from 'wagmi'
 import { getL2FundingSource } from '@/features/register-v2/service/l2FundingSource'
 import type { FundingSourceOrigin } from '@/features/register-v2/state/registrationUi.machine'
 import { TokenPickerContentBase } from '@/features/register-v2/workflow/pricing/components/TokenPickerContent'
-import { useRenewalBalances } from '@/features/renew/data/queries/renewalBalances.query'
+import { useIsCirclePayment } from '@/features/register-v2/workflow/pricing/hooks/useIsCirclePayment'
+import {
+  getPaymentBalances,
+  useRenewalBalances,
+} from '@/features/renew/data/queries/renewalBalances.query'
 import { getRenewPriceQueryOptions } from '@/features/renew/data/queries/renewPricing.query'
 import { useRenewalSigner } from '@/features/renew/hooks/useRenewalSigner'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
@@ -63,6 +67,13 @@ export const TokenPickerContent = () => {
       ] as const,
   )
   const token = selectedToken ?? TOKENS.USDC.symbol
+  // ETH or the chosen L2 pays in Circle's USDC, even with nothing left to bridge.
+  const isCirclePayment = useIsCirclePayment({
+    owner: account.ownerAddress,
+    isPaidWithEth: paymentAsset === 'eth',
+    l2ChainId: fundingSourceChainId,
+  })
+  const credit = getPaymentBalances(balances, isCirclePayment)
   const isAwaitingApproval = useIsAwaitingRenewalApproval(uiActor)
   const paymentUpdate = useRenewalPaymentUpdate(uiActor)
   const isReviewingPayment = paymentUpdate?.status === 'reviewing'
@@ -91,8 +102,8 @@ export const TokenPickerContent = () => {
       renewerAddress,
       account: { ...account, signer },
       pricing: pricingQuery.data,
-      accountCredit: balances.accountCredit,
-      accountCreditRaw: balances.accountCreditRaw,
+      accountCredit: credit.accountCredit,
+      accountCreditRaw: credit.accountCreditRaw,
     })
   // An L2 or ETH pays a USDC renewal into the account on the intent route.
   // Sized on the fee, so a failed fee quote leaves the wallet alone.
@@ -104,7 +115,7 @@ export const TokenPickerContent = () => {
     isEnabled: isUsdcMethodQuotable,
     rentTotalRaw: pricingQuery.data?.fundedRaw,
     feeRaw,
-    hcaBalanceRaw: balances.accountCreditRaw.USDC,
+    hcaBalanceRaw: balances.circleCreditRaw,
     selectedChainId: fundingSourceChainId,
     selectedOrigin: fundingSourceOrigin,
     onSelect: (chainId) =>
@@ -125,7 +136,7 @@ export const TokenPickerContent = () => {
     isEnabled: isUsdcMethodQuotable,
     rentTotalRaw: pricingQuery.data?.fundedRaw,
     feeRaw,
-    hcaBalanceRaw: balances.accountCreditRaw.USDC,
+    hcaBalanceRaw: balances.circleCreditRaw,
     isSelected: paymentAsset === 'eth',
     onSelect: () =>
       uiActor.send({ type: 'pricing.paymentAsset.select', asset: 'eth' }),
@@ -190,7 +201,7 @@ export const TokenPickerContent = () => {
   const checkoutTotalRaw = getRenewalReceiptTotalRaw({
     prompt: paymentUpdate?.prompt,
     fundedRaw: pricingQuery.data?.fundedRaw,
-    accountBalanceRaw: balances.accountCreditRaw[token],
+    accountBalanceRaw: credit.accountCreditRaw[token],
     decimals: TOKENS[token].decimals,
   })
 
@@ -235,6 +246,8 @@ export const TokenPickerContent = () => {
       // Checked against the intent's own quote, so the wallet opens on the
       // amount shown here without a second confirmation.
       ...funding.fields,
+      // The token follows the method, even with nothing left to bridge.
+      isCirclePayment,
     })
   }
 
@@ -254,7 +267,7 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       // With a funding summary the credit is already inside it.
-      accountCredit={funding ? undefined : balances.accountCredit}
+      accountCredit={funding ? undefined : credit.accountCredit}
       // After a Cancel the fee re-quotes; Continue waits for it and for the receipt's total.
       canProceed={
         canStart &&

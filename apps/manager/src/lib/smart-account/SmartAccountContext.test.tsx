@@ -36,16 +36,11 @@ vi.mock('./actors/session.actors', async (importOriginal) => ({
   resolveSessionActor: vi.fn(),
 }))
 
-// Auto-fund only runs against a local Anvil fork; enable that path but keep the
-// Anvil owner setup itself out of these tests.
+// Keep the dev-only Anvil owner setup out of these tests.
 vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@ens-apps/dev-time-travel')>()
-  return {
-    ...actual,
-    isTimeTravelEnabled: () => true,
-    anvilSetupOwner: vi.fn().mockResolvedValue(undefined),
-  }
+  return { ...actual, isTimeTravelEnabled: () => false }
 })
 
 import {
@@ -379,6 +374,71 @@ describe('SmartAccountContext', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50))
       expect(removeSessionsByOwnerMock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('a session in another refund token', () => {
+    it('is handed to the caller but never becomes the active session', async () => {
+      // Valid addresses: enabling a session needs the machine owner and the
+      // connected wallet to agree.
+      const OWNER: Address = '0x1111111111111111111111111111111111111111'
+      const HCA: Address = '0x2222222222222222222222222222222222222222'
+      const CIRCLE_USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+      const client: Pick<RhinestoneAccount, 'getAddress' | 'isDeployed'> = {
+        getAddress: () => HCA,
+        isDeployed: async () => true,
+      }
+      vi.mocked(initializeRhinestoneAccount).mockResolvedValueOnce({
+        client,
+        address: HCA,
+        ownerAddress: OWNER,
+        alreadyDeployed: true,
+        config: { chain: appChain },
+      } as RhinestoneInitResult)
+      const walletClient: Pick<WalletClient, 'account'> = {
+        account: { address: OWNER, type: 'json-rpc' },
+      }
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: walletClient,
+      } as ReturnType<typeof useWalletClient>)
+      const session = {
+        id: 'circle-session',
+        provider: 'rhinestone',
+        sessionKeyAddress: '0x9999999999999999999999999999999999999999',
+        smartAccountAddress: HCA,
+        ownerAddress: OWNER,
+        createdAt: Date.now(),
+        chainId: 11155111,
+        validUntil: Math.floor(Date.now() / 1000) + 3600,
+        sessionPrivateKey: `0x${'1'.repeat(64)}`,
+        permissionId: `0x${'2'.repeat(64)}`,
+        resolver: '0x3333333333333333333333333333333333333333',
+        hcaSessionNonce: '0',
+        authorization: `0x${'4'.repeat(130)}`,
+        hashesAndChainIds: [
+          { chainId: '11155111', sessionDigest: `0x${'5'.repeat(64)}` },
+        ],
+        sessionToEnableIndex: 0,
+        refundToken: CIRCLE_USDC,
+      } satisfies RhinestoneStoredSession
+      vi.mocked(resolveSessionActor).mockReturnValue(okAsync({ session }))
+      const { result } = renderHook(() => useSmartAccountContext(), {
+        wrapper: createWrapper(),
+      })
+      await waitFor(() => expect(result.current.accountAddress).toBe(HCA))
+
+      let status: string | undefined
+      await act(async () => {
+        status = (
+          await result.current.enableSession({ refundToken: CIRCLE_USDC })
+        ).status
+      })
+
+      expect(status).toBe('enabled')
+      expect(resolveSessionActor).toHaveBeenCalledWith(
+        expect.objectContaining({ refundToken: CIRCLE_USDC }),
+      )
+      expect(result.current.hasActiveSession).toBe(false)
     })
   })
 

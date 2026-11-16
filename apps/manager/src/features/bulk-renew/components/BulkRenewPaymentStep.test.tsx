@@ -49,6 +49,7 @@ const payment: UseBulkRenewResult['payment'] = {
   l2Payment: undefined,
   selectedL2: undefined,
   ethPayment: undefined,
+  isCirclePayment: false,
 }
 
 describe('BulkRenewPaymentStep', () => {

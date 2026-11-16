@@ -263,11 +263,11 @@ const CreateSubnameForm = ({
               placeholder="subname"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              className="flex-1"
+              className="min-w-32 flex-1"
               disabled={isSubmitting || isSuccess}
               required
             />
-            <span className="text-base">.{name}</span>
+            <span className="min-w-0 text-base wrap-anywhere">.{name}</span>
           </div>
           {isLabelTaken && (
             <p className="text-p text-danger">

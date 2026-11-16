@@ -11,6 +11,7 @@ import { chain, l2Sources } from '@/config'
 import type { L2Source } from '@/l2Sources'
 import { createBridgeAccount } from '@/lib/smart-account/rhinestone'
 import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
+import { CIRCLE_PAYMENT_TOKEN } from '@/lib/tokens'
 import { wagmiConfig } from '@/lib/wagmi'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { followChain } from '@/lib/wallet/followChain'
@@ -67,7 +68,7 @@ export const getL2QuoteRoute = ({
   amountOut,
 }: {
   readonly owner: Address
-  readonly source: L2Source
+  readonly source: Pick<L2Source, 'chain' | 'usdc'>
   readonly hca: Readonly<{ address: Address; config: RhinestoneAccountConfig }>
   readonly amountOut: bigint
 }): L2BridgeRoute => ({
@@ -75,7 +76,8 @@ export const getL2QuoteRoute = ({
   sourceChain: source.chain,
   sourceToken: source.usdc,
   targetChain: chain,
-  targetToken: HCA_PAYMENT_TOKEN,
+  // Bridges deliver Circle's USDC, which the run then pays in.
+  targetToken: CIRCLE_PAYMENT_TOKEN ?? HCA_PAYMENT_TOKEN,
   amountOut,
   recipient: hca,
   calls: [],

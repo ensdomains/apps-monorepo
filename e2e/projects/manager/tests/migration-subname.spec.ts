@@ -382,6 +382,11 @@ test.describe('ENS V1 → V2 subname migration', () => {
     // alone. Registered to the wallet, a real index lists the parent too and
     // offering the child would be right.
     const parentOwner = privateKeyToAccount(accounts.getPrivateKey('user3'))
+    // Public test keys can carry delegation code. This parent fixture needs a plain EOA.
+    await testClient.setCode({
+      address: parentOwner.address,
+      bytecode: '0x',
+    })
 
     const parent = await createMakeV1Name({ userAccount: parentOwner })({
       label: 'migorphan',

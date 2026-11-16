@@ -7,8 +7,10 @@ import {
 import { describe, expect, it } from 'vitest'
 import { LIB_MIGRATION_ERRORS_ABI } from '../contracts/abis'
 import {
+  canRetryMigration,
   decodeMigrationError,
   extractErrorMessage,
+  type MigrationError,
 } from './decodeMigrationError'
 import { ProfileFetchError } from './fetchV1Profiles'
 
@@ -17,6 +19,24 @@ const revertWith = (data: Hex) =>
     name: 'ContractFunctionRevertedError',
     data,
   })
+
+describe('canRetryMigration', () => {
+  it.each([
+    { error: { type: 'plan-changed' }, expected: false },
+    {
+      error: { type: 'copy-read-failed', message: 'RPC timeout' },
+      expected: true,
+    },
+    { error: { type: 'user-rejected' }, expected: true },
+    { error: { type: 'cleanup-failed' }, expected: true },
+    { error: { type: 'generic', message: 'RPC unavailable' }, expected: true },
+  ] satisfies readonly {
+    readonly error: MigrationError
+    readonly expected: boolean
+  }[])('allows retry for $error.type: $expected', ({ error, expected }) =>
+    expect(canRetryMigration(error)).toBe(expected),
+  )
+})
 
 const directMigrationErrorsAbi = parseAbi([
   'error CallerNotOwner()',
@@ -90,6 +110,22 @@ describe('decodeMigrationError — direct mappings', () => {
     })
 
     expect(decodeMigrationError(copyChanged)).toEqual({ type: 'plan-changed' })
+  })
+
+  it('keeps retry available for a transient copy-read failure', () => {
+    const readFailed = Object.assign(new Error('RPC timeout'), {
+      name: 'CopyMigrationReadinessError',
+      reason: 'read-failed',
+    })
+
+    expect(
+      decodeMigrationError(
+        new Error('migration failed', { cause: readFailed }),
+      ),
+    ).toEqual({
+      type: 'copy-read-failed',
+      message: 'RPC timeout',
+    })
   })
 
   it('maps an uncertain submitted batch to a fail-closed retry error', () => {

@@ -151,6 +151,30 @@ const makeReservedRun = () => {
   }
 }
 
+it('replaces a larger allowance with a separately consented exact grant for registration', async () => {
+  const { input } = makeRun()
+  input.publicClient.readContract.mockResolvedValue(8n)
+  const result = await approveHcaFunding({ ...input, allowanceMode: 'exact' })
+  expect(result.isOk()).toBe(true)
+  expect(input.walletClient.request).toHaveBeenCalledOnce()
+  expect(input.confirmApproval).toHaveBeenCalledWith(
+    expect.objectContaining({ amount: 4n }),
+  )
+})
+
+it('never reuses an uncertain hashless grant in exact mode, even when both amounts cover the pull', async () => {
+  const { input, records, pending } = makeReservedRun()
+  input.publicClient.readContract.mockResolvedValue(4n)
+  const result = await recoverHcaFundingApproval({
+    ...input,
+    allowanceMode: 'exact',
+    confirmApprovalRecovery: undefined,
+  })
+  expect(result.isErr()).toBe(true)
+  expect(records.get(APPROVAL_KEY)).toBe(pending)
+  expect(input.walletClient.request).not.toHaveBeenCalled()
+})
+
 describe('stranded approval recovery', () => {
   it('uses a safely covered allowance without another wallet request or clearing the uncertain reservation', async () => {
     const { input, records, pending } = makeReservedRun()

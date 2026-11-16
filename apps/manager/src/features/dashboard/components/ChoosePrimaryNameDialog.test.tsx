@@ -453,6 +453,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
         existingEthAddress: null,
         hasResolver: false,
         hasOffchainResolver: false,
+        isResolverInvalid: false,
       },
       confirmLabel: 'Continue',
       write: chain.setupResolver,
@@ -522,6 +523,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
         existingEthAddress: null,
         hasResolver: false,
         hasOffchainResolver: false,
+        isResolverInvalid: false,
       }
       await renderDashboard()
       await expectPrimary('alpha.eth')
@@ -578,6 +580,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
       existingEthAddress: null,
       hasResolver: true,
       hasOffchainResolver: true,
+      isResolverInvalid: false,
     }
     await renderDashboard()
     await expectPrimary('alpha.eth')

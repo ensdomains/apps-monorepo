@@ -15,6 +15,7 @@ import {
   type RhinestoneStoredSession,
   rebuildDestinationSession,
   storedRefundCaps,
+  storedRefundToken,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSessionContext } from '@ens-apps/transaction-manager'
 import type { Address, Chain } from 'viem'
@@ -32,6 +33,7 @@ export function buildSessionContext(params: {
     validUntil: BigInt(params.session.validUntil),
     sessionPrivateKey: params.session.sessionPrivateKey,
     refundCaps: storedRefundCaps(params.session),
+    refundToken: storedRefundToken(params.session),
   })
   return {
     session,

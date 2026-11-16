@@ -17,6 +17,7 @@ import {
   L2_BRIDGE_CLAIMABLE_MS,
 } from './registration.hca.actors'
 import {
+  REGISTRATION_TX_IDS,
   registrationMachine,
   type UnsettledL2Bridge,
 } from './registration.machine'
@@ -82,6 +83,8 @@ const startHcaRegistration = (overrides: {
   /** An ETH swap an abandoned run sent, as read back from storage. */
   pendingEthSwap?: PendingEthSwap
   swapEthForUsdc?: ReturnType<typeof vi.fn>
+  /** The USDC the run pays in, when not the deployment's. */
+  paymentTokenAddress?: Address
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -174,6 +177,7 @@ const startHcaRegistration = (overrides: {
       ...(overrides.pendingEthSwap
         ? { pendingEthSwap: overrides.pendingEthSwap }
         : {}),
+      paymentTokenAddress: overrides.paymentTokenAddress,
     })
   start()
 
@@ -206,6 +210,10 @@ const startEoaRegistration = (overrides: {
   checkResolverDeployment?: ReturnType<typeof vi.fn>
   deployResolver?: ReturnType<typeof vi.fn>
   resolveResolverDeployment?: ReturnType<typeof vi.fn>
+  /** The app asks for the ETH address (Explorer). */
+  shouldSetEthAddress?: boolean
+  submitEthAddress?: ReturnType<typeof vi.fn>
+  readEthAddress?: ReturnType<typeof vi.fn>
   generateCommitment?: ReturnType<typeof vi.fn>
   submitCommitment?: ReturnType<typeof vi.fn>
   /** Stubbed only by the tests that walk past the commit. */
@@ -226,6 +234,9 @@ const startEoaRegistration = (overrides: {
   const resolveResolverDeployment =
     overrides.resolveResolverDeployment ??
     vi.fn(async () => ({ resolverAddress: EOA_RESOLVER }))
+  const submitEthAddress =
+    overrides.submitEthAddress ?? vi.fn(async () => 'eth-address-tx')
+  const readEthAddress = overrides.readEthAddress ?? vi.fn(async () => false)
   const generateCommitment =
     overrides.generateCommitment ?? vi.fn(async () => EOA_COMMITMENT)
   const submitCommitment =
@@ -248,6 +259,8 @@ const startEoaRegistration = (overrides: {
         resolveResolverDeployment: fromPromise(
           resolveResolverDeployment,
         ) as never,
+        submitEthAddress: fromPromise(submitEthAddress) as never,
+        readEthAddress: fromPromise(readEthAddress) as never,
         generateCommitment: fromPromise(generateCommitment) as never,
         submitCommitment: fromPromise(submitCommitment) as never,
         submitEoaSetupBundle: fromPromise(submitEoaSetupBundle) as never,
@@ -287,12 +300,15 @@ const startEoaRegistration = (overrides: {
     ownerAddress: WALLET,
     publicClient: { chain: sepolia } as unknown as PublicClient,
     canBatchAtomically: overrides.canBatchAtomically,
+    shouldSetEthAddress: overrides.shouldSetEthAddress,
   })
 
   return {
     actor,
     checkResolverDeployment,
     deployResolver,
+    submitEthAddress,
+    readEthAddress,
     generateCommitment,
     submitCommitment,
     submitEoaSetupBundle,
@@ -480,6 +496,36 @@ describe('registrationMachine — paid with ETH', () => {
     expect(submitFundingAndCommit.mock.calls[0][0].input.permit).toBe(permit)
   })
 
+  it('budgets, funds and commits in the token the swap buys', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    const readHcaUsdcBalance = vi.fn(async () => 0n)
+    const {
+      actor,
+      estimateHcaBudget,
+      signFundingPermit,
+      submitFundingAndCommit,
+    } = startHcaRegistration({
+      ethFunding,
+      paymentTokenAddress: circleUsdc,
+      readHcaUsdcBalance,
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(estimateHcaBudget.mock.calls[0][0].input.paymentToken).toBe(
+      circleUsdc,
+    )
+    expect(readHcaUsdcBalance.mock.calls[0]?.[0]).toMatchObject({
+      input: { token: circleUsdc },
+    })
+    expect(signFundingPermit.mock.calls[0][0].input.token).toMatchObject({
+      address: circleUsdc,
+    })
+    expect(submitFundingAndCommit.mock.calls[0][0].input.paymentToken).toBe(
+      circleUsdc,
+    )
+  })
+
   it('swaps nothing when the HCA already holds the budget', async () => {
     const { actor, swapEthForUsdc, signFundingPermit } = startHcaRegistration({
       balances: [BUDGET],
@@ -578,6 +624,20 @@ describe('registrationMachine — paid from an L2', () => {
     const { input } = submitFundingAndCommit.mock.calls[0][0]
     expect(input.permit).toBeUndefined()
     expect(input.sessionEnable).toBe(SESSION_ENABLE)
+  })
+
+  it('bridges in the token the run pays in', async () => {
+    const circleUsdc: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    const { actor, submitL2Bridge } = startHcaRegistration({
+      balances: [0n],
+      l2Funding,
+      paymentTokenAddress: circleUsdc,
+      pollTransactionStatus: vi.fn(async () => undefined),
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(submitL2Bridge.mock.calls[0][0].input.paymentToken).toBe(circleUsdc)
   })
 
   it('bridges nothing when the HCA already holds the budget', async () => {
@@ -968,6 +1028,152 @@ describe('registrationMachine — pure-EOA resolver reuse', () => {
     expect(checkResolverDeployment).toHaveBeenCalledTimes(2)
     expect(deployResolver).toHaveBeenCalledOnce()
     expect(actor.getSnapshot().context.resolverAddress).toBe(EOA_RESOLVER)
+  })
+})
+
+describe('registrationMachine — pure-EOA ETH address', () => {
+  const lands = (txId: string) => vi.fn(async () => txId)
+
+  it('sets it once register lands, on a wallet that sends separate transactions', async () => {
+    const { actor, submitRegistration, submitEthAddress } =
+      startEoaRegistration({
+        shouldSetEthAddress: true,
+        submitCommitment: lands('commit-tx'),
+        submitRegistration: lands('register-tx'),
+      })
+
+    await waitFor(actor, (s) => s.matches('success'))
+
+    expect(submitRegistration.mock.calls[0][0].input.shouldSetEthAddress).toBe(
+      false,
+    )
+    expect(submitEthAddress.mock.calls[0][0].input).toMatchObject({
+      name: 'myname.eth',
+      owner: WALLET,
+      resolverAddress: EOA_RESOLVER,
+      id: REGISTRATION_TX_IDS.setEthAddress,
+    })
+    // The name stays out of every transaction before register.
+    expect(submitRegistration.mock.invocationCallOrder[0]).toBeLessThan(
+      submitEthAddress.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('sends it inside the register bundle, on a wallet that bundles', async () => {
+    const { actor, submitRegistration, submitEthAddress } =
+      startEoaRegistration({
+        shouldSetEthAddress: true,
+        canBatchAtomically: true,
+        submitRegistration: lands('register-tx'),
+      })
+
+    await waitFor(actor, (s) => s.matches('success'))
+
+    expect(submitRegistration.mock.calls[0][0].input.shouldSetEthAddress).toBe(
+      true,
+    )
+    expect(submitEthAddress).not.toHaveBeenCalled()
+  })
+
+  it('skips it unless the app asks for it', async () => {
+    const { actor, submitRegistration, submitEthAddress } =
+      startEoaRegistration({
+        canBatchAtomically: true,
+        submitRegistration: lands('register-tx'),
+      })
+
+    await waitFor(actor, (s) => s.matches('success'))
+
+    expect(submitRegistration.mock.calls[0][0].input.shouldSetEthAddress).toBe(
+      false,
+    )
+    expect(submitEthAddress).not.toHaveBeenCalled()
+  })
+
+  it('retries only the ETH address when it fails', async () => {
+    const submitEthAddress = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('wallet hiccup'))
+      .mockResolvedValue('eth-address-tx')
+    const { actor, submitRegistration } = startEoaRegistration({
+      shouldSetEthAddress: true,
+      submitEthAddress,
+      submitCommitment: lands('commit-tx'),
+      submitRegistration: lands('register-tx'),
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.retryTarget).toBe('settingEthAddress')
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('success'))
+
+    expect(submitEthAddress).toHaveBeenCalledTimes(2)
+    expect(submitRegistration).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['sets it when the resolver lacks it', false, 1],
+    ['skips it when the resolver has it', true, 0],
+  ])(
+    'after verifying a registration it could not confirm, %s',
+    async (_, isSet, sends) => {
+      const { actor, readEthAddress, submitEthAddress } = startEoaRegistration({
+        shouldSetEthAddress: true,
+        submitCommitment: lands('commit-tx'),
+        submitRegistration: lands('register-tx'),
+        // The commit's receipt arrives; the register's is lost.
+        pollTransactionStatus: vi
+          .fn()
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(new Error('receipt lost'))
+          .mockResolvedValue(undefined),
+        verifyRegistration: vi.fn(async () => ({
+          verified: true,
+          registeredToOther: false,
+        })),
+        readEthAddress: vi.fn(async () => isSet),
+      })
+
+      await waitFor(actor, (s) => s.matches('success'))
+
+      expect(readEthAddress.mock.calls[0][0].input).toMatchObject({
+        name: 'myname.eth',
+        owner: WALLET,
+        resolverAddress: EOA_RESOLVER,
+      })
+      expect(submitEthAddress).toHaveBeenCalledTimes(sends)
+    },
+  )
+
+  it('registers alone, then sets it, once the user declines the upgrade on the register bundle', async () => {
+    const upgradeDeclined = new TransactionUserRejectedError(
+      {} as TransactionRequest,
+      Object.assign(new Error('Upgrade rejected'), { code: 5750 }),
+    )
+    const { actor, submitRegistration, submitEthAddress } =
+      startEoaRegistration({
+        shouldSetEthAddress: true,
+        canBatchAtomically: true,
+        submitRegistration: lands('register-tx'),
+        // The setup bundle lands; the register bundle is declined.
+        pollTransactionStatus: vi
+          .fn()
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(upgradeDeclined)
+          .mockResolvedValue(undefined),
+      })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('success'))
+
+    expect(
+      submitRegistration.mock.calls.map(
+        ([{ input }]) => input.shouldSetEthAddress,
+      ),
+    ).toEqual([true, false])
+    expect(submitEthAddress).toHaveBeenCalledOnce()
   })
 })
 

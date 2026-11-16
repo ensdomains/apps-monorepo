@@ -18,6 +18,7 @@ import {
 } from './refund-caps'
 
 const USDC = getDestinationContracts(sepolia.id).usdc
+const CIRCLE_USDC = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 const OTHER_TOKEN = '0x2222222222222222222222222222222222222222'
 
 /**
@@ -279,6 +280,21 @@ describe('quoteSessionRefundCaps', () => {
     expect(request.gasLimit).toBe(HCA_LEG_GAS_LIMITS.commit)
     expect(request.auxiliaryFunds).toEqual({
       [sepolia.id]: { [USDC]: HCA_MAX_LEG_FEES_USDC },
+    })
+  })
+
+  it('declares the funds in the session’s refund token', async () => {
+    const { account, prepareTransaction } = accountReturning(async () => ({
+      intentRoute: routeWith(LIVE_GAS_REFUND),
+    }))
+    await quoteSessionRefundCaps({
+      rhinestoneAccount: account,
+      chain: sepolia as Chain,
+      refundToken: CIRCLE_USDC,
+    })
+    const request = prepareTransaction.mock.calls[0]?.[0] ?? {}
+    expect(request.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [CIRCLE_USDC]: HCA_MAX_LEG_FEES_USDC },
     })
   })
 

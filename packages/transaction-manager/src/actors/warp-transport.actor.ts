@@ -42,6 +42,7 @@ import type {
   SessionEnableData,
   TransactionRequest,
 } from '../types/transaction.types'
+import { checkPreparedOwnerIntentRoute } from './warp-owner-quote'
 
 /**
  * The ONLY sponsorship value this codebase ever sends.
@@ -325,8 +326,14 @@ export function submitWarpTransaction(
     return errAsync(new ChainIdMismatchError(request.chainId, chain))
   }
 
-  const { calls, feeAsset, sessionEnableData, tokenRequests, auxiliaryFunds } =
-    request.rhinestoneParams
+  const {
+    calls,
+    feeAsset,
+    paymentToken,
+    sessionEnableData,
+    tokenRequests,
+    auxiliaryFunds,
+  } = request.rhinestoneParams
 
   if (sessionEnableData && !signer.session) {
     return errAsync(
@@ -445,6 +452,7 @@ export function submitWarpTransaction(
         // Always user-paid; see UNSPONSORED above.
         sponsored: UNSPONSORED,
         feeAsset: feeAsset ?? DEFAULT_FEE_ASSET,
+        ...(paymentToken ? { sourceAssets: [paymentToken] } : {}),
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).
         // Cast needed: SDK's internal TokenRequests is a strict discriminated union
@@ -474,6 +482,12 @@ export function submitWarpTransaction(
       // Not `sendTransaction`: the SDK's one-shot helper drops `auxiliaryFunds`
       // from the route request, so a fresh HCA funded inside this intent is refused.
       const prepared = await account.prepareTransaction(sdkParams)
+      const ownerRouteError = checkPreparedOwnerIntentRoute({
+        request,
+        account,
+        prepared,
+      })
+      if (ownerRouteError) throw ownerRouteError
       assertWithinSessionRefundCaps(
         request,
         prepared.intentRoute,

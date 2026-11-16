@@ -1,3 +1,4 @@
+import type { RefundCaps } from '@ens-apps/smart-account'
 import type { ChainSessionConfig, TokenRequest } from '@rhinestone/sdk'
 
 /**
@@ -79,12 +80,23 @@ export interface RhinestoneIntentParams {
   readonly calls: readonly Call[]
   /** Fee asset the HCA pays from. Defaults to USDC in the transport. */
   readonly feeAsset?: 'USDC'
+  /** The only USDC the orchestrator may spend; without it, it picks whichever USDC the account holds. */
+  readonly paymentToken?: Address
   /**
    * Per-request session enable payload, overriding the signer session's own
    * `enableData`. The validator needs one on every session-signed intent.
    * Requires a signer with a `session` — the transport rejects it otherwise.
    */
   readonly sessionEnableData?: SessionEnableData
+  /**
+   * An owner-signed setup must retain the session's fee ceilings and may only
+   * authorize these exact calls on this chain, without other asset movements.
+   * Independent of session enable data: the SDK must use the owner validator.
+   */
+  readonly ownerIntentLimits?: {
+    readonly refundToken: Address
+    readonly refundCaps: RefundCaps
+  }
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
   readonly tokenRequests?: readonly TokenRequest[]
   /**

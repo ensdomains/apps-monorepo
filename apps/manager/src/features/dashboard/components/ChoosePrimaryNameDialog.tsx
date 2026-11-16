@@ -57,9 +57,9 @@ import { usePrimaryNameDomains } from '../hooks/usePrimaryNameDomains'
 import type { PrimaryNameDomain } from '../service/queries/getPrimaryNameDomains'
 import { resolveDomainLabel } from '../utils'
 import {
+  getResolverSetupReplacement,
   isConfirmationForSelection,
   isConfirmBlocked,
-  isResolverSetupReplacing,
   needsPrimaryNameConfirmation,
   PRIMARY_NAME_PAGE_SIZE,
   type PrimaryNameConfirmation,
@@ -862,7 +862,6 @@ export const ChoosePrimaryNameDialog = ({
 
       <ResolverSetupConfirmDialog
         intent="primary-name"
-        isReplacing={isResolverSetupReplacing(confirmation)}
         onConfirm={() => {
           if (confirmation) void runConfirm(confirmation)
         }}
@@ -870,6 +869,7 @@ export const ChoosePrimaryNameDialog = ({
           if (!nextOpen) setConfirmation(null)
         }}
         open={confirmation?.kind === 'setup-resolver'}
+        replaces={getResolverSetupReplacement(confirmation)}
       >
         <EthAddressUpdateNotice
           existingEthAddress={confirmation?.existingEthAddress ?? null}

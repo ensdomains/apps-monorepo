@@ -2,7 +2,7 @@ import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { drpcRpcUrl } from './drpc'
 import { MANAGER_ENDPOINTS } from './endpoints'
-import { getL2Sources } from './l2Sources'
+import { getL2Sources, parseL2RpcOverrides } from './l2Sources'
 
 /**
  * The manager's composition root for configuration: the only module in the
@@ -64,4 +64,7 @@ const avatarUploadUrl =
 export const avatarUploadBaseUrl = `${avatarUploadUrl.replace(/\/+$/, '')}/`
 
 /** L2s whose USDC can be bridged to pay on `chain`. */
-export const l2Sources = getL2Sources(envConfig.network)
+export const l2Sources = getL2Sources(
+  envConfig.network,
+  parseL2RpcOverrides(import.meta.env?.VITE_L2_RPC_URLS),
+)

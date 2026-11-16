@@ -113,6 +113,7 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
         v1NamesRaw,
         resolvedOwnerAddress as Address,
         envConfig.chain.id,
+        { nowSeconds },
       )
       return {
         classified,

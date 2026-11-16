@@ -43,6 +43,7 @@ export const classifyRenewedGraceNames = ({
     ),
     ownerAddress,
     chainId,
+    { nowSeconds },
   ).classified.filter(({ action }) => action === 'migrate')
 
 /** Namehashes of the ENSv1 names an upgrade can move. */
@@ -113,7 +114,14 @@ export const classifyForHolders = ({
 }): readonly HolderNames[] =>
   holders
     .map((holder) => {
-      const { classified, ineligible } = classifyNames(domains, holder, chainId)
+      const { classified, ineligible } = classifyNames(
+        domains,
+        holder,
+        chainId,
+        {
+          nowSeconds,
+        },
+      )
       return {
         holder,
         classified,

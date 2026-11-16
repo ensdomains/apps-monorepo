@@ -1,6 +1,7 @@
 import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
   type EthFunding,
+  type HcaFundingApprovalCapability,
   type L2FundingSource,
   type PersistedRegistrationRecord,
   type RegistrationEvent,
@@ -35,7 +36,7 @@ import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pr
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import { buildIntentStatusFetcher } from '@/lib/smart-account/rhinestone'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
-import type { SUPPORTED_TOKEN } from '@/lib/tokens'
+import { getRunPaymentToken, type SUPPORTED_TOKEN } from '@/lib/tokens'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
@@ -118,6 +119,7 @@ export type FundingSourceOrigin = 'user' | 'fallback'
 export type PaymentAsset = 'stablecoin' | 'eth'
 
 type Context = {
+  readonly approvalFallback?: HcaFundingApprovalCapability
   chainId: number
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
@@ -225,6 +227,8 @@ type Events =
       displayedL2Charge?: bigint
       /** Standalone-HCA: the wallet's ETH pays, swapped into USDC first. */
       ethFunding?: EthFunding
+      /** Standalone-HCA: ETH or the chosen L2 pays, so in Circle's USDC, even with nothing left to bridge. */
+      isCirclePayment?: boolean
     }
   | {
       /**
@@ -283,6 +287,7 @@ type Events =
   | { type: '$walletBusy'; blockingName: string | null }
 
 type Input = {
+  readonly approvalFallback?: HcaFundingApprovalCapability
   chainId: number
 }
 
@@ -780,11 +785,18 @@ const getStartL2Funding = (
 const getStartFunding = (
   event: Pick<
     Extract<Events, { type: 'registration.start' }>,
-    'l2FundingChainId' | 'ethFunding'
+    'l2FundingChainId' | 'ethFunding' | 'isCirclePayment'
   >,
   owner: Address,
   isHcaRegistration: boolean,
-): { l2Funding?: L2FundingSource; ethFunding?: EthFunding } | Error => {
+):
+  | {
+      l2Funding?: L2FundingSource
+      ethFunding?: EthFunding
+      /** What an ETH- or L2-paid run pays in, when not the deployment's USDC. */
+      paymentTokenAddress?: Address
+    }
+  | Error => {
   const l2Funding = getStartL2Funding(
     event.l2FundingChainId,
     owner,
@@ -794,7 +806,17 @@ const getStartFunding = (
   if (event.ethFunding && !isHcaRegistration) {
     return new Error('Cannot register: paying with ETH needs an ENS account.')
   }
-  return { l2Funding, ethFunding: event.ethFunding }
+  // ETH and a bridge bring in Circle's USDC; a chosen L2 with nothing to bridge pays in what the account holds of it.
+  const paymentTokenAddress = getRunPaymentToken(
+    !!event.ethFunding ||
+      l2Funding !== undefined ||
+      (isHcaRegistration && !!event.isCirclePayment),
+  )
+  return {
+    l2Funding,
+    ethFunding: event.ethFunding,
+    ...(paymentTokenAddress ? { paymentTokenAddress } : {}),
+  }
 }
 
 const startRegistrationAction = machineSetup.createAction(
@@ -927,6 +949,7 @@ const startRegistrationAction = machineSetup.createAction(
         signer: event.account.signer,
         // Funding permit signer (wallet → HCA budget) on the HCA path.
         approvalSigner,
+        approvalFallback: context.approvalFallback,
         accountAddress: event.account.accountAddress,
         ownerAddress,
         resolverOwnerAddress,
@@ -939,6 +962,8 @@ const startRegistrationAction = machineSetup.createAction(
         l2Funding: funding.l2Funding,
         displayedL2Charge: event.displayedL2Charge,
         ethFunding: funding.ethFunding,
+        // ETH buys a USDC the deployment may not pay in; the run pays in that.
+        paymentTokenAddress: funding.paymentTokenAddress,
         // A cancelled run's swap may still land: count it, don't buy twice.
         pendingEthSwap: readPendingEthSwap(context.chainId, ownerAddress),
         // A cancelled run's bridge may still arrive: wait for it, don't pay twice.
@@ -968,7 +993,7 @@ const startRegistrationAction = machineSetup.createAction(
  * run has to behave like the run it is continuing.
  */
 const resumeRegistrationAction = machineSetup.createAction(
-  enqueueActions(({ enqueue, event }) => {
+  enqueueActions(({ enqueue, event, context }) => {
     if (event.type !== 'registration.resume') {
       return enqueue.raise({
         type: '$error',
@@ -1064,6 +1089,7 @@ const resumeRegistrationAction = machineSetup.createAction(
           signer: event.account.signer,
           approveBeforeCommit: true,
           approvalSigner,
+          approvalFallback: context.approvalFallback,
           publicClient: defaultPublicClient,
           hcaSessionEnable: event.hcaSessionEnable,
           // A run paid from an L2 keeps paying from it; one the app no longer
@@ -1160,6 +1186,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   initial: 'pricing',
   context: ({ input }) => ({
     chainId: input.chainId,
+    approvalFallback: input.approvalFallback,
     duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     paymentAsset: 'stablecoin',

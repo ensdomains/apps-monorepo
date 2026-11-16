@@ -63,7 +63,10 @@ import {
   assertV2Reserved,
   readGraveyard,
 } from '../../../helpers/migration-assertions.js'
-import { selectOnlyRoots } from '../../../helpers/migration-flow.js'
+import {
+  selectOnlyRoots,
+  upgradeAndSettle,
+} from '../../../helpers/migration-flow.js'
 import { renewFor28Days } from '../../../helpers/profile-helpers.js'
 import {
   dnsEncode,
@@ -73,6 +76,7 @@ import {
 } from '../../../helpers/resolve-records.js'
 import type { MockV1Name } from '../../../helpers/v1-name-tree.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
+import { hcaOf } from '../../../helpers/v2-reads.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -157,34 +161,11 @@ async function approveRenewalFundingUntil(
 }
 
 /**
- * The owner's smart account (HCA) address. The factory has no getter, but
- * simulating `deploy` returns the address whether or not it is deployed.
- */
-async function hcaOf(owner: Address): Promise<Address> {
-  const { result } = await publicClient.simulateContract({
-    account: owner,
-    address: ensL1Contracts[supportedL1Chains.sepolia].ensHcaFactory.address,
-    abi: parseAbi([
-      'function deploy(address owner, address hcaImplementation, uint256 userSalt) returns (address hca)',
-    ]),
-    functionName: 'deploy',
-    args: [
-      owner,
-      getDestinationContracts(supportedL1Chains.sepolia)
-        .standaloneHcaImplementation,
-      0n,
-    ],
-  })
-  return result
-}
-
-/**
  * Move `amount` of `token` (default: all of it) from `holder` to `to`,
  * impersonating the holder; returns what moved.
  */
 /**
- * The USDC the app pays with: the manifest's (Circle's on Sepolia since #1395),
- * not ensjs's MockUSDC.
+ * The USDC the app pays with: the manifest's (ensjs's MockUSDC on Sepolia).
  */
 const PAYMENT_USDC = getDestinationContracts(supportedL1Chains.sepolia).usdc
 
@@ -336,14 +317,10 @@ test.describe('Migration deep into and after the V1 grace period', () => {
 
     const upgrade = page.getByRole('button', { name: /^Upgrade 2 names$/ })
     await expect(upgrade).toBeEnabled({ timeout: 90_000 })
-    let isDone = false
-    const authorizeAll = authorizeTransactionsWhile(page, wallet, () => isDone)
-    await upgrade.click()
+    expect(await upgradeAndSettle(page, wallet)).toBe('success')
     await expect(
       page.getByRole('heading', { name: /your names have been upgraded/i }),
     ).toBeVisible({ timeout: 240_000 })
-    isDone = true
-    await authorizeAll
 
     const now = await chainNow()
     for (const grace of [day45, day89]) {

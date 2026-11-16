@@ -12,12 +12,28 @@ import {
 import { Button } from '@/components/ui/button'
 import type { ResolverRecordWrite } from '@/features/profile/service/resolverReplacementRecords'
 
-export type ResolverSetupConfirmIntent = 'primary-name' | 'edit-profile'
+/**
+ * What a new primary-name resolver replaces: nothing (a plain continue), a
+ * working resolver or address (a destructive replace), or an address that is
+ * not a working resolver, which holds nothing readable.
+ */
+export type ResolverSetupReplacement =
+  | 'nothing'
+  | 'resolver'
+  | 'invalid-resolver'
 
-interface ResolverSetupConfirmDialogProps {
-  readonly intent: ResolverSetupConfirmIntent
-  /** False when the name has nothing to replace, so the action is a plain continue. */
-  readonly isReplacing: boolean
+type ResolverSetupTarget =
+  | {
+      readonly intent: 'primary-name'
+      readonly replaces: ResolverSetupReplacement
+    }
+  | {
+      readonly intent: 'edit-profile'
+      /** False when the name has nothing to replace, so the action is a plain continue. */
+      readonly isReplacing: boolean
+    }
+
+type ResolverSetupConfirmDialogProps = ResolverSetupTarget & {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly onConfirm: () => void
@@ -26,11 +42,21 @@ interface ResolverSetupConfirmDialogProps {
 }
 
 const getCopy = (
-  intent: ResolverSetupConfirmIntent,
-  isReplacing: boolean,
+  target: ResolverSetupTarget,
 ): { title: ReactNode; description: ReactNode; confirmLabel: ReactNode } =>
-  match({ intent, isReplacing })
-    .with({ intent: 'primary-name', isReplacing: true }, () => ({
+  match(target)
+    .with({ intent: 'primary-name', replaces: 'invalid-resolver' }, () => ({
+      title: <Trans>Replace this name’s resolver?</Trans>,
+      description: (
+        <Trans>
+          This name points to an address that isn’t a working resolver, so its
+          records can’t be read or saved. To use it as your primary name, we’ll
+          replace it with a resolver your wallet controls.
+        </Trans>
+      ),
+      confirmLabel: <Trans>Replace & Continue</Trans>,
+    }))
+    .with({ intent: 'primary-name', replaces: 'resolver' }, () => ({
       title: <Trans>Set this as your primary name?</Trans>,
       description: (
         <Trans>
@@ -40,7 +66,7 @@ const getCopy = (
       ),
       confirmLabel: <Trans>Replace & Continue</Trans>,
     }))
-    .with({ intent: 'primary-name', isReplacing: false }, () => ({
+    .with({ intent: 'primary-name', replaces: 'nothing' }, () => ({
       title: <Trans>Set this as your primary name?</Trans>,
       description: (
         <Trans>
@@ -73,16 +99,21 @@ const getCopy = (
     }))
     .exhaustive()
 
+/** Only replacing something readable warrants the destructive action. */
+const isDestructive = (target: ResolverSetupTarget): boolean =>
+  target.intent === 'primary-name'
+    ? target.replaces === 'resolver'
+    : target.isReplacing
+
 export const ResolverSetupConfirmDialog = ({
-  intent,
-  isReplacing,
   open,
   onOpenChange,
   onConfirm,
   children,
   recordWrites,
+  ...target
 }: ResolverSetupConfirmDialogProps) => {
-  const { title, description, confirmLabel } = getCopy(intent, isReplacing)
+  const { title, description, confirmLabel } = getCopy(target)
 
   return (
     <AlertDialog onOpenChange={onOpenChange} open={open}>
@@ -92,7 +123,7 @@ export const ResolverSetupConfirmDialog = ({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {children}
-        {intent === 'edit-profile' && recordWrites?.length === 0 ? (
+        {target.intent === 'edit-profile' && recordWrites?.length === 0 ? (
           <p className="rounded-md border p-3 text-sm" role="status">
             <Trans>
               No profile records will be kept. The replacement resolver will
@@ -100,7 +131,7 @@ export const ResolverSetupConfirmDialog = ({
             </Trans>
           </p>
         ) : null}
-        {intent === 'edit-profile' && recordWrites?.length ? (
+        {target.intent === 'edit-profile' && recordWrites?.length ? (
           <section
             aria-label="Reviewed record values"
             className="max-h-60 min-w-0 overflow-y-auto rounded-md border p-3 text-sm"
@@ -130,7 +161,9 @@ export const ResolverSetupConfirmDialog = ({
           </Button>
           <Button
             className="flex-2/3 uppercase"
-            disabled={intent === 'edit-profile' && recordWrites === undefined}
+            disabled={
+              target.intent === 'edit-profile' && recordWrites === undefined
+            }
             onClick={() => {
               // Confirm before close — edit-profile clears the deferred save
               // when the dialog closes, so reversing this no-ops Replace & Save.
@@ -138,7 +171,7 @@ export const ResolverSetupConfirmDialog = ({
               onOpenChange(false)
             }}
             size="lg"
-            variant={isReplacing ? 'destructive' : 'default'}
+            variant={isDestructive(target) ? 'destructive' : 'default'}
           >
             {confirmLabel}
           </Button>
