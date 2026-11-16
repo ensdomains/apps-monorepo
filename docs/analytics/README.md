@@ -74,6 +74,7 @@ Paths are relative to each app's `src/`. Shared contracts, consent, identity, na
 ## Funnels and dashboards
 
 - Registration/renewal conversion: `flow_view → payment_view → flow_start → flow_complete`, holding `flow_id` constant; break down by app, execution method and renewal protocol. Duration often co-fires with entry, so it is not another conversion hurdle. Explorer registration controls can share a page.
+- Explorer registration keeps entry/duration observations when an anonymous visitor connects a wallet; only a newly visible payment picker is reported. An actual wallet replacement or a new flow receives fresh observations.
 - Execution friction: inspect applicable `stage_enter → stage_fail` and subsequent retry/completion. Registration stages include setup, approval, commit, cooldown, registration and verification; Manager additionally has coarse execution and optional post-registration setup. A failed step is not terminal abandonment. Commit/reveal needs an appropriate conversion window.
 - Explorer registration: Start after a rejected run emits another `flow_start` under the current page's flow ID; continuing the existing failed run emits `flow_retry`. Count distinct flow IDs for conversion, not raw start events. Reload resume uses `flow_resume` in a new observed segment.
 - Profile conversion: `edit_view → edit_start → save_start → save_complete`. Review-modal abandonment falls before accepted save. Image-only completion is not a record write. Use `records_update` for on-chain adoption; never add it to editor completions as another save.

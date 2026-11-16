@@ -92,6 +92,12 @@ it('observes registration payment only when the connected payment picker becomes
     ['registration:duration_view', { flow_id: 'register-flow' }],
   ])
   await act(async () => {
+    const address = '0x1111111111111111111111111111111111111111'
+    mocks.connection = {
+      address,
+      status: 'connected',
+    }
+    mocks.identity.mockReturnValue(address)
     rerender({ hasPayment: true })
   })
   expect(mocks.track.mock.calls).toEqual([
