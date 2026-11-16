@@ -314,8 +314,13 @@ const ExistingEmailContactMethod = ({ email }: { email: Channel }) => {
   })
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex h-12 items-center rounded border border-[#D4D9DB] bg-white px-4">
-        <div className="text-base text-ens-quartz-550">{email.label}</div>
+      <div className="flex h-12 items-center gap-2 rounded border border-[#D4D9DB] bg-white px-4">
+        <div
+          className="min-w-0 truncate text-base text-ens-quartz-550"
+          title={email.label}
+        >
+          {email.label}
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

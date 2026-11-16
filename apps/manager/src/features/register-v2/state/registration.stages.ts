@@ -54,6 +54,10 @@ export const REGISTRATION_STAGE_PROGRESS = {
   submittingRhinestoneBundle: 55,
   waitingForRhinestoneBundle: 85,
   verifyingRegistration: 95,
+  // Explorer-only, like `submittingEoaSetupBundle`; manager never enters it.
+  checkingEthAddress: 95,
+  settingEthAddress: 96,
+  waitingForEthAddress: 98,
   postRegistrationSetup: 96,
   syncingEthRecord: 97,
   waitingForEthRecordSync: 98,
