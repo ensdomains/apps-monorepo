@@ -45,6 +45,7 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RegistrationSuccessBanner } from '@/features/register/components/RegistrationSuccessBanner'
 import { readRegistrationSuccessState } from '@/features/register/types/registrationSuccessState'
+import { SubnameOwnerNotice } from '@/features/registry/components/v2/SubnameOwnerNotice'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
@@ -432,6 +433,12 @@ const Profile = ({
           isRefreshing={dnsSync.isRefreshing}
         />
       )}
+
+      <SubnameOwnerNotice
+        name={name}
+        owner={ownerQuery.data.owner}
+        protocolVersion={resolvedProtocolVersion}
+      />
 
       {/* Header */}
       <div className="flex flex-row justify-between items-center">

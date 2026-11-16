@@ -2,6 +2,7 @@ import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { describe, expect, it } from 'vitest'
 import {
   getRegistryRepairCase,
+  shouldShowSubnameOwnerNotice,
   shouldShowUpgradeCard,
 } from './registryRepairCase'
 
@@ -56,5 +57,33 @@ describe('shouldShowUpgradeCard', () => {
     ['a Case B account, not offered yet', 'shared', true, false],
   ] as const)('for %s: %s', (_case, repairCase, wasShown, expected) => {
     expect(shouldShowUpgradeCard({ repairCase, wasShown })).toBe(expected)
+  })
+})
+
+describe('shouldShowSubnameOwnerNotice', () => {
+  const run = (
+    overrides: Partial<Parameters<typeof shouldShowSubnameOwnerNotice>[0]>,
+  ) =>
+    shouldShowSubnameOwnerNotice({
+      isV2: true,
+      isOwner: true,
+      isPendingUpgrade: true,
+      canUpgradeRegistry: false,
+      ...overrides,
+    })
+
+  it('shows for the owner of a subname in an outdated registry they cannot upgrade', () => {
+    expect(run({})).toBe(true)
+  })
+
+  it.each([
+    ['an ENSv1 name', { isV2: false }],
+    ['a visitor who does not own the subname', { isOwner: false }],
+    ['a current registry', { isPendingUpgrade: false }],
+    ['an unchecked registry', { isPendingUpgrade: undefined }],
+    ['the account that can upgrade the registry', { canUpgradeRegistry: true }],
+    ['an unread upgrade role', { canUpgradeRegistry: undefined }],
+  ] as const)('hides for %s', (_case, overrides) => {
+    expect(run(overrides)).toBe(false)
   })
 })

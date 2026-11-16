@@ -65,3 +65,19 @@ export const shouldShowUpgradeCard = ({
   readonly wasShown: boolean
 }): boolean =>
   repairCase === 'owns-all' || (repairCase === 'unknown' && wasShown)
+
+/** Case C (WEB-2170): the connected account holds a subname in an outdated registry that someone else controls. */
+export const shouldShowSubnameOwnerNotice = ({
+  isV2,
+  isOwner,
+  isPendingUpgrade,
+  canUpgradeRegistry,
+}: {
+  readonly isV2: boolean
+  readonly isOwner: boolean
+  /** The registry holding the subname runs an outdated implementation. */
+  readonly isPendingUpgrade: boolean | undefined
+  /** The account can point the parent name at a new registry. */
+  readonly canUpgradeRegistry: boolean | undefined
+}): boolean =>
+  isV2 && isOwner && isPendingUpgrade === true && canUpgradeRegistry === false
