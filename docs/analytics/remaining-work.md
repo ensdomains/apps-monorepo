@@ -4,9 +4,14 @@ Keep the first review focused on correctness and the [QA checklist](qa.md), not 
 
 ## Before shipping
 
+- Correct Manager single/bulk renewal timeout reporting and consent-transition flag-exposure reporting; see the known limitations in [configuration](configuration.md).
 - Complete real-wallet stage/failure/retry QA, especially mixed bulk renewal, optional registration setup, profile image saves, NFT wallet switching and reload recovery.
-- Verify staging proxy ingestion, essential flag/notice parity and the private Cloudflare build upload variable. Inspect original source locations from the exact deployed build. Production source-map release wiring and GitHub secret exist; no deployment was performed here.
-- Review the proposed public PR wording separately. The PR description was intentionally not updated during these follow-ups.
+- Verify staging proxy ingestion and essential flag/notice parity against the exact tested build. Prior browser passes do not verify later code changes.
+- Source-map uploads are deferred; native exception capture remains enabled.
+
+## Source-map upload follow-up
+
+Native exceptions remain captured, but production stacks may be minified/unsymbolicated. Add upload support separately: match source maps to the exact deployed artifacts, keep credentials build-only and maps out of public assets, make upload failures nonfatal, and verify an application error's original filename/function/line in staging. The existing GitHub upload secret is retained and unused; no follow-up ticket or PR has been created.
 
 ## Coverage gaps worth later work
 

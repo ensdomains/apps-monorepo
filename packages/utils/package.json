@@ -19,10 +19,7 @@
     "@types/react": "^19.3.0",
     "react": "^19.3.1",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@posthog/rollup-plugin": "catalog:",
-    "@types/node": "^24.19.2",
-    "vite": "catalog:"
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "react": "^19.0.0"

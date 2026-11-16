@@ -7,6 +7,7 @@ import type { RegistrationVerification } from '@ens-apps/transaction-manager/mac
 import { transactionManager } from '@ens-apps/transaction-manager/providers/transactionManager'
 import type { AnalyticsEvents } from '@/lib/posthog/events'
 import type { AnalyticsFlow } from '@/lib/posthog/flow'
+import { shouldVerifyRegistrationOutcome } from './shouldVerifyRegistrationOutcome'
 
 type Completion = {
   readonly analytics: AnalyticsFlow
@@ -33,7 +34,7 @@ const waitForCompletion = async (
   if (receipt.isOk()) return complete()
   if (
     !verification ||
-    (transaction && transaction.getSnapshot().status !== 'stopped')
+    (transaction && !shouldVerifyRegistrationOutcome(transaction.getSnapshot()))
   )
     return
   const result = await (verification.mode === 'hca'

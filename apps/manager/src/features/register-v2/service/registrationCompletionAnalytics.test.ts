@@ -36,12 +36,18 @@ vi.mock('@ens-apps/transaction-manager/providers/transactionManager', () => ({
 }))
 
 const transactionMachine = createMachine({
-  context: {},
+  context: { hash: '0x1234' },
   initial: 'pending',
   states: {
-    pending: { on: { CONFIRMED: 'success', FAILED: 'error' } },
+    pending: {
+      on: {
+        CONFIRMED: 'success',
+        FAILED: 'error.reverted',
+        TIMED_OUT: 'error.timeout',
+      },
+    },
     success: {},
-    error: { initial: 'reverted', states: { reverted: {} } },
+    error: { initial: 'reverted', states: { reverted: {}, timeout: {} } },
   },
 })
 
@@ -53,6 +59,8 @@ describe('registration completion observation', () => {
     ['hca', 'CONFIRMED'],
     ['eoa', 'STOPPED'],
     ['hca', 'STOPPED'],
+    ['eoa', 'TIMED_OUT'],
+    ['hca', 'TIMED_OUT'],
   ] as const)(
     'completes detached %s submission on %s receipt using pinned verification when needed',
     async (mode, outcome) => {
@@ -119,7 +127,9 @@ describe('registration completion observation', () => {
         ),
       )
       expect(capture).toHaveBeenCalledOnce()
-      expect(verify.mock.calls).toEqual(outcome === 'STOPPED' ? [[input]] : [])
+      expect(verify.mock.calls).toEqual(
+        outcome === 'CONFIRMED' ? [] : [[input]],
+      )
       transaction.stop()
     },
   )

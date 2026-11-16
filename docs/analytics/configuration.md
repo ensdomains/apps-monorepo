@@ -1,12 +1,12 @@
 # Configuration
 
-| Deployment | Browser configuration | Upload project |
+| Deployment | Browser configuration | PostHog project |
 | --- | --- | --- |
 | Production, both apps | Mainnet `.env.mainnet`, same production `VITE_PUBLIC_POSTHOG_KEY` | [ENS Apps — Production](https://eu.posthog.com/project/109100), ID `109100` |
 | Staging, both apps | Sepolia `.env`, same separate staging key | [ENS Apps — Staging](https://eu.posthog.com/project/343384), ID `343384` |
-| Normal local | Configured key can serve feature flags; analytics capture disabled | No upload credential needed |
+| Normal local | Configured key can serve feature flags; analytics capture disabled | No remote analytics capture |
 | Deliberate local QA | Sepolia plus `VITE_PUBLIC_POSTHOG_DEBUG=true`; staging only | Staging |
-| CI/E2E | Manager fake key/intercepted `.invalid` host for flags; Explorer key empty | `.env.ci` clears upload project ID |
+| CI/E2E | Manager fake key/intercepted `.invalid` host for flags; Explorer key empty | No real project ingestion |
 
 Vite merges `.env` into `.env.mainnet`; production must override the staging key explicitly. `VITE_ENS_NETWORK` supplies environment separation: mainnet currently means production, Sepolia staging. Debug cannot enable local mainnet capture. Unknown networks/empty keys cannot capture. Keep `VITE_PUBLIC_POSTHOG_HOST` on the intended ingestion proxy (`edge.ens.domains`); verify routing and CSP. Staging flags/notices must be mirrored deliberately; do not change production flags to run QA.
 
@@ -24,22 +24,18 @@ Unhandled browser errors/rejections and caught React/router failures use PostHog
 
 Consent-gated Intercom linkage sends `posthog_distinct_id` to support and `intercom_visitor_id` to the PostHog person, with up to 30 readiness attempts one second apart and stale-identity cancellation. If the widget stays unavailable, linkage waits for another wallet/consent synchronization trigger. Replay URLs are intentionally absent.
 
-## Source-map uploads
+## Error stack limitation
 
-Both apps use official `@posthog/rollup-plugin`, release names `ens-manager`/`ens-portal`, and `GITHUB_SHA` (CLI Git detection locally). Symbol-set mode matches the installed SDK's chunk-ID support. The same uploaded artifact must be deployed for correct symbolication.
-
-Build-only inputs: private `POSTHOG_API_KEY`, `POSTHOG_PROJECT_ID` from the environment files, and `POSTHOG_HOST=https://eu.posthog.com` for the upload API. The key needs error-tracking write and organization read access; never put it in a `VITE_` variable. It is configured as a GitHub repository secret and passed only to release build steps. Staging Cloudflare builds still need the private build variable configured/verified. `POSTHOG_CLI_BINARY_PATH` is an optional QA override.
-
-Uploads require all project/key/browser-token settings. Missing credentials leave local/CI builds working with a warning; upload or CLI-download failure warns and allows the build to continue without symbolication. Generated JS maps are removed after both successful and failed upload attempts; removal errors are warned and require output inspection before deployment; do not serve them publicly. The Swarm mirror has no browser SDK key and skips uploads. Follow [PostHog's Vite guide](https://posthog.com/docs/error-tracking/upload-source-maps/vite); deployed original filename/function/line still needs the [QA check](qa.md).
+Native browser/React/router exception capture and targeted payload redaction remain enabled. Source-map uploading is deferred: this PR adds no upload plugin, CLI, build credentials or release-upload step. Production errors may have minified/unsymbolicated stacks. Build configuration otherwise retains its existing source-map behavior. The existing GitHub upload secret is retained but unused by these workflows; the [follow-up](remaining-work.md#source-map-upload-follow-up) covers future symbolication.
 
 Common configuration and identity synchronization are shared utilities with injected SDK/wallet inputs; app bindings retain their bundled instance and app-specific telemetry. Current-screen readiness is shared too, while actor subscriptions and screen semantics stay local.
 
 If a previously identified wallet is still restoring, the SDK's initial pageview waits for resolution. Restoring the same wallet preserves its session and attribution; another wallet resets identity first. Native anonymous events may precede identification and merge through SDK identify. Errors/page-leave during unresolved identified restoration remain suppressed rather than buffered or sent under an unverified wallet.
 
-Feature-flag reads preserve native exposure events after consent. The PostHog CLI install script is disabled; its wrapper fetches the binary only on first use by configured source-map uploads.
+Feature flags work independently of consent. Exposure reporting has a known consent-transition gap: the installed SDK can mark a pre-consent read as reported even though capture is suppressed, preventing an anonymous visitor's later exposure event. Do not assume complete experiment exposure counts until that follow-up is fixed.
 
 The pinned SDK caches each client's identity and prefers each origin's local storage over its shared cookie mirror. A disconnected sibling resetting its SDK does not change the active app's identity or restored session/attribution; a real-SDK regression covers this. Recheck that behavior before changing SDK storage settings.
 
 Name selection intentionally includes normalized names, including unregistered destinations, after consent. Typing and abandoned queries are not recorded. Consented exception messages can also contain ENS names or wallet addresses under the same approved policy; credential and raw transaction-payload filtering still applies.
 
-Submitted transactions are observed independently of Done/unmount: receipt polling is read-only and uses the transaction's configured timeout (120 seconds by default). A timeout is unobserved, not a failed renewal. Extra registration verification is reserved for stopped/removed transaction actors; live actor failures do not start a duplicate verification poll. No new signing or transaction submission occurs in these observers.
+Submitted transactions are observed independently of Done/unmount: receipt polling is read-only and uses the transaction's configured timeout (120 seconds by default). Explorer treats a receipt timeout as unobserved; Manager single/bulk paths can still emit `renewal:stage_fail` for unknown outcomes and need a corrective follow-up. Registration recovery reuses the existing bounded on-chain verifier for unknown outcomes, including a live transaction actor that times out after its UI stops. Confirmed reverts and unsubmitted preparation/cancellation or wallet rejection skip extra verification. A missing hash after an ambiguous submission error does not prove nothing landed. No new signing or transaction submission occurs in these observers.

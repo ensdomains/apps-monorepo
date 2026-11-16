@@ -24,14 +24,14 @@ Filter PostHog by `environment=staging`, `source_app`, and the operation's `flow
 | Manager pricing banner; `TEMP_PREMIUM_NAME_STATS` enabled | Force the search-statistics request to fail upstream; favorites remain visible while unavailable search demand is absent | Unavailable searches must not display as zero or hide favorites |
 | Either app; DevTools/network blocking | Navigate routes and leave page; inspect native pageview/pageleave/rageclick. Block analytics requests and repeat product actions | No ordinary click/form events or replay; optional SDK/network failure must not block product work |
 
-## Errors and source maps
+## Exceptions
 
 Before consent, `setTimeout(() => { throw new Error('ENS QA before consent') }, 0)` must produce no report. Accept; repeat with a distinct message and `Promise.reject(new Error('ENS rejection QA'))`: expect `$exception`, correct app/environment, useful messages/frames and no credentials/RPC body. Withdraw and repeat: no report. `console.error` alone intentionally does not count.
 
-On the exact uploaded/deployed staging build, trigger an error originating in the application bundle and inspect its original source filename/function/line in Error Tracking. A DevTools-created error can prove ingestion but has no uploaded application source. Exercise caught route/render failures too. Do not enable replay for this check.
+Exercise caught route/render failures too. Source-map upload and deployed symbolication are deferred; production stacks may be minified/unsymbolicated. A DevTools-created error can prove ingestion, not original application source locations. Do not enable replay for this check.
 
 ## Verification status
 
-Focused tests/typechecks/builds are run for changed modules; see the PR/check output for the current commit. Prior local Manager browser QA observed native error/rejection stacks and consent gating with intercepted requests. Real source-map uploads to staging succeeded and maps were removed from output. That does not establish deployed symbolication or event ingestion.
+Focused tests/typechecks/builds are run for changed modules; see the PR/check output for the current input. Earlier browser QA observed normal V2 registration/renewal/profile writes, receipt/indexer outcomes and staging events in both apps, plus wallet and consent checks. Those passes predate the latest recovery/upload-removal changes and do not verify the current build. Symbolication is deferred.
 
-Real-wallet sequences above, cross-tab timing, actual staging ingestion and deployed symbolication remain manual release gates. Verify initial native pageviews after wallet restoration/opt-in, including saved attribution and a same-wallet reload; no duplicate or manual replacement pageview should appear. Also verify a receipt timeout does not emit a renewal failure, saved consent refreshes on load, and a failed map upload leaves deployable JS without generated JS maps. No exactly-once delivery or closed-browser completion guarantee is claimed.
+Current-build gates: registration/renewal completion after leaving/closing the UI, returning-wallet startup and real cross-app identity, consent changes during pending work, failure/retry and partial bulk outcomes. Verify initial native pageviews and attribution, no renewal failure solely for timeout, and saved consent renewal. For Manager registration, hold reveal receipt observation, leave the screen, allow observation to time out, then verify one completion if the name is registered. Preserve definite-failure/no-success checks. No exactly-once delivery or closed-browser completion guarantee is claimed.

@@ -45,7 +45,6 @@ catalog:
   # `instanceof` on viem errors fails across the app/package boundary. Declared
   # in the apps only to pin that peer; nothing imports it.
   zod: ^4.6.7
-  '@posthog/rollup-plugin': ^1.6.3
 
 dedupeDirectDeps: true
 
@@ -102,9 +101,8 @@ patchedDependencies:
   '@rhinestone/sdk@1.22.0': patches/@rhinestone__sdk@1.22.0.patch
 
 # pnpm >=11 fails the install on any dependency build script not listed here.
-# Most ship prebuilt binaries; PostHog CLI downloads on first use in upload builds.
+# All denied: these ship prebuilt binaries via optionalDependencies.
 allowBuilds:
-  '@posthog/cli': false
   "@reown/appkit": false
   "@tailwindcss/oxide": false
   core-js: false
