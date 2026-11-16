@@ -458,13 +458,18 @@ const V2PendingUpgradeGate = ({
   readonly name: string
   readonly registryAddress: Address
 }) => {
-  const { data: isPendingUpgrade, isPending } = useQuery(
+  const pendingUpgrade = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
   )
 
-  if (isPending) return <LoadingMessage />
+  if (pendingUpgrade.isPending) return <LoadingMessage />
 
-  if (isSubnameCreationPaused(isPendingUpgrade))
+  // A failed refresh may leave an earlier answer cached; it counts as unchecked.
+  if (
+    isSubnameCreationPaused(
+      pendingUpgrade.error ? undefined : pendingUpgrade.data,
+    )
+  )
     return <Navigate to="/$name/subnames" params={{ name }} replace />
 
   return <V2RegistrarGate name={name} registryAddress={registryAddress} />

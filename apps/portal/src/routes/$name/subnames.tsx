@@ -193,11 +193,15 @@ const SubregistrySubnames = ({
 
   // `register` checks the subregistry's root roles: ROLE_REGISTRAR for a free
   // label, ROLE_REGISTER_RESERVED for a reserved one. The create page asks the same.
-  const { data: isPendingUpgrade } = useQuery(
+  const pendingUpgrade = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({
       registryAddress: subregistryAddress,
     }),
   )
+  // A failed refresh may leave an earlier answer cached; it counts as unchecked.
+  const isPendingUpgrade = pendingUpgrade.error
+    ? undefined
+    : pendingUpgrade.data
   const { data: registrarAccess } = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress: subregistryAddress,
