@@ -2,6 +2,7 @@ import type { HcaBudgetBreakdown } from '@ens-apps/smart-account'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
+import { errAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import {
@@ -20,12 +21,14 @@ import {
   generateCommitmentActor,
   type PermitSignature,
   pollTransactionStatusActor,
+  readEthAddressActor,
   readMinCommitmentAgeActor,
   readPaymentAuthorizationActor,
   resolveResolverDeploymentActor,
   submitApprovalActor,
   submitCommitmentActor,
   submitEoaSetupBundleActor,
+  submitEthAddressActor,
   submitRegistrationActor,
   submitResolverDeploymentActor,
   validateCommitmentActor,
@@ -76,7 +79,7 @@ const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
  *    (`canBatchAtomically`), resolver + commit + approval go out as ONE
  *    EIP-5792 bundle instead (`submittingEoaSetupBundle`)
  * 2. Cooldown spine (fetch age → validate → cooldown), allowance → approve
- * 3. Register → wait → verify
+ * 3. Register → wait → verify; with `shouldSetEthAddress`, the ETH address rides in a bundled register or follows it
  *
  * Standalone-HCA (manager; new deployment, user-paid USDC, NO gas sponsorship):
  * 1. `checkingHcaFunding` — read HCA USDC balance; skip permit when funded
@@ -209,6 +212,14 @@ const canReauthorizeSession = (
 const shouldBundleEoaSetup = (context: RegistrationContext): boolean =>
   context.signer?.type === 'eoa' && context.canBatchAtomically === true
 
+/** Whether this pure-EOA run sets the name's ETH address. */
+const shouldSetEthAddress = (context: RegistrationContext): boolean =>
+  context.signer?.type === 'eoa' && context.shouldSetEthAddress === true
+
+/** Whether the ETH address follows register as a step of its own, not inside a bundled register. */
+const shouldSendEthAddressStep = (context: RegistrationContext): boolean =>
+  shouldSetEthAddress(context) && !shouldBundleEoaSetup(context)
+
 /**
  * Where a failed commit restarts. A bundled setup re-reads the resolver first,
  * so a retry never bundles a deploy that has since landed.
@@ -257,6 +268,7 @@ export const REGISTRATION_TX_IDS = {
   /** Pure-EOA, atomic-batching wallet: resolver + commit + approve at once. */
   setupBundle: 'tx-reg-setup-bundle',
   register: 'tx-reg-register',
+  setEthAddress: 'tx-reg-set-eth-address',
 } as const
 
 export type RegistrationContext = {
@@ -281,6 +293,8 @@ export type RegistrationContext = {
    * the run starts (or resumes); ignored for any other signer.
    */
   canBatchAtomically?: boolean
+  /** Pure-EOA: set the name's ETH address with register, or right after it. */
+  shouldSetEthAddress?: boolean
   accountAddress?: Address
   ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA` (see @ens-apps/smart-account providers/rhinestone/registration-policy.ts), so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
   resolverOwnerAddress?: Address // Address to grant EACL roles to on the dedicated resolver. Must be the EOA that the resolver will see at write time after SCA→EOA unwrap; defaults to ownerAddress.
@@ -412,6 +426,7 @@ export type RegistrationContext = {
   permit?: PermitSignature
   approvalTxId?: string
   registrationTxId?: string
+  ethAddressTxId?: string
   /**
    * The reveal intent's orchestrator id, reported by `onIntentSubmitted` the
    * moment the intent is accepted — BEFORE the fill resolves, because a tab
@@ -463,6 +478,7 @@ export type RegistrationContext = {
     | 'signingFundingPermit'
     | 'approvingToken'
     | 'registeringDomain'
+    | 'settingEthAddress'
     | 'submittingRhinestoneBundle'
     | 'reauthorizingSession'
 
@@ -480,6 +496,8 @@ export type RegistrationEvent =
       approveBeforeCommit?: boolean
       /** See `RegistrationContext.canBatchAtomically`. */
       canBatchAtomically?: boolean
+      /** See `RegistrationContext.shouldSetEthAddress`. */
+      shouldSetEthAddress?: boolean
       name: string
       /** Duration in seconds */
       duration: bigint
@@ -561,6 +579,8 @@ export type RegistrationEvent =
         approveBeforeCommit?: boolean
         /** See `RegistrationContext.canBatchAtomically`. */
         canBatchAtomically?: boolean
+        /** See `RegistrationContext.shouldSetEthAddress`. */
+        shouldSetEthAddress?: boolean
         /** EOA that signs the EIP-2612 funding permit on the HCA path. */
         approvalSigner?: Signer
         readonly approvalFallback?: HcaFundingApprovalCapability
@@ -842,6 +862,7 @@ export const registrationMachine = setup({
         owner: Address
         publicClient: PublicClient
         resolverAddress: Address
+        readonly shouldSetEthAddress?: boolean
         id?: string
         readonly onRegistrationQueued?: (
           txId: string,
@@ -853,6 +874,49 @@ export const registrationMachine = setup({
           input.onRegistrationQueued?.(txId, input.verification),
         )
       },
+    ),
+    readEthAddress: fromResultAsync(
+      ({
+        owner,
+        resolverAddress,
+        publicClient,
+        name,
+      }: {
+        readonly name: string
+        readonly owner: Address | undefined
+        readonly resolverAddress: Address | undefined
+        readonly publicClient: PublicClient | undefined
+      }) =>
+        owner && resolverAddress && publicClient
+          ? readEthAddressActor({ name, owner, resolverAddress, publicClient })
+          : errAsync(new Error('The ETH address check has no resolver')),
+    ),
+    submitEthAddress: fromResultAsync(
+      ({
+        owner,
+        resolverAddress,
+        signer,
+        publicClient,
+        ...input
+      }: {
+        readonly name: string
+        readonly owner: Address | undefined
+        readonly resolverAddress: Address | undefined
+        readonly signer: Signer | undefined
+        readonly publicClient: PublicClient | undefined
+        readonly id: string
+      }) =>
+        owner && resolverAddress && signer && publicClient
+          ? submitEthAddressActor({
+              ...input,
+              owner,
+              resolverAddress,
+              signer,
+              publicClient,
+            })
+          : errAsync(
+              new Error('The ETH address step has no resolver or wallet'),
+            ),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
@@ -968,6 +1032,8 @@ export const registrationMachine = setup({
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
     shouldBundleEoaSetup: ({ context }) => shouldBundleEoaSetup(context),
+    shouldSendEthAddressStep: ({ context }) =>
+      shouldSendEthAddressStep(context),
     isL2Funded: ({ context }) =>
       context.signer?.type === 'rhinestone' && context.l2Funding !== undefined,
     isEthFunded: ({ context }) =>
@@ -1023,6 +1089,7 @@ export const registrationMachine = setup({
         approvalFallback: event.deps.approvalFallback,
         approveBeforeCommit: event.deps.approveBeforeCommit,
         canBatchAtomically: event.deps.canBatchAtomically,
+        shouldSetEthAddress: event.deps.shouldSetEthAddress,
         isResolverDeployed: undefined,
         publicClient: event.deps.publicClient,
         hcaSessionEnable: event.deps.hcaSessionEnable,
@@ -1201,6 +1268,7 @@ export const registrationMachine = setup({
               approvalFallback: ({ event }) => event.approvalFallback,
               approveBeforeCommit: ({ event }) => event.approveBeforeCommit,
               canBatchAtomically: ({ event }) => event.canBatchAtomically,
+              shouldSetEthAddress: ({ event }) => event.shouldSetEthAddress,
               isResolverDeployed: () => undefined,
               accountAddress: ({ event }) => event.accountAddress,
               registrationStartedAt: ({ event }) =>
@@ -1239,6 +1307,7 @@ export const registrationMachine = setup({
               hcaUsdcBalance: () => undefined,
               approvalTxId: () => undefined,
               registrationTxId: () => undefined,
+              ethAddressTxId: () => undefined,
               registrationIntentId: () => undefined,
               suspended: () => undefined,
               error: () => undefined,
@@ -2698,6 +2767,9 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
+          // Like the manager's reveal batch: the name goes public with register, never before.
+          shouldSetEthAddress:
+            shouldSetEthAddress(context) && shouldBundleEoaSetup(context),
           id: REGISTRATION_TX_IDS.register,
           onRegistrationQueued: context.onRegistrationQueued,
           verification: getRegistrationVerification(context),
@@ -2741,7 +2813,10 @@ export const registrationMachine = setup({
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
-        onDone: 'success',
+        onDone: [
+          { guard: 'shouldSendEthAddressStep', target: 'settingEthAddress' },
+          { target: 'success' },
+        ],
         // If the poll fails (wallet flake, retry storm, persistence loss…)
         // fall back to a fresh on-chain check before declaring the flow
         // failed. The user may have already paid for and received the name.
@@ -2786,6 +2861,17 @@ export const registrationMachine = setup({
             : { fetchIntentStatus: context.fetchRegistrationIntentStatus }),
         }),
         onDone: [
+          {
+            // A resumed or unconfirmed register may or may not have carried the ETH address.
+            guard: ({ context, event }) =>
+              event.output.verified && shouldSetEthAddress(context),
+            target: 'checkingEthAddress',
+            actions: assign({
+              error: () => undefined,
+              nameUnavailable: () => undefined,
+              revealSubmitFailed: () => undefined,
+            }),
+          },
           {
             guard: ({ event }) => event.output.verified,
             target: 'success',
@@ -2843,6 +2929,11 @@ export const registrationMachine = setup({
                     ? ('submittingRhinestoneBundle' as const)
                     : ('registeringDomain' as const),
                 revealSubmitFailed: () => undefined,
+                // A declined upgrade sent nothing, so the retry registers alone.
+                canBatchAtomically: ({ context }) =>
+                  isUpgradeDeclineError(context.error)
+                    ? false
+                    : context.canBatchAtomically,
               }),
               ({ event }) => {
                 console.error(
@@ -2862,10 +2953,106 @@ export const registrationMachine = setup({
                   ? ('submittingRhinestoneBundle' as const)
                   : ('registeringDomain' as const),
               revealSubmitFailed: () => undefined,
+              canBatchAtomically: ({ context }) =>
+                isUpgradeDeclineError(context.error)
+                  ? false
+                  : context.canBatchAtomically,
             }),
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Registration transaction failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    // Read before writing: a resumed run may have set it already.
+    checkingEthAddress: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'readEthAddress',
+        input: ({ context }) => ({
+          name: context.name,
+          owner: context.ownerAddress ?? context.accountAddress,
+          resolverAddress: context.resolverAddress,
+          publicClient: context.publicClient,
+        }),
+        onDone: [
+          { guard: ({ event }) => event.output, target: 'success' },
+          { target: 'settingEthAddress' },
+        ],
+        // Setting it again is harmless; a read that failed proves nothing.
+        onError: { target: 'settingEthAddress' },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    settingEthAddress: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'submitEthAddress',
+        input: ({ context }) => ({
+          name: context.name,
+          owner: context.ownerAddress ?? context.accountAddress,
+          resolverAddress: context.resolverAddress,
+          signer: context.signer,
+          publicClient: context.publicClient,
+          id: REGISTRATION_TX_IDS.setEthAddress,
+        }),
+        onDone: {
+          target: 'waitingForEthAddress',
+          actions: assign({
+            ethAddressTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'settingEthAddress' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '[REGISTRATION] ETH address submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForEthAddress: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'pollTransactionStatus',
+        input: ({ context }) => ({
+          txId: context.ethAddressTxId ?? REGISTRATION_TX_IDS.setEthAddress,
+        }),
+        onDone: { target: 'success' },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              // Setting the same address again is harmless if it landed anyway.
+              retryTarget: () => 'settingEthAddress' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '[REGISTRATION] ETH address transaction failed:',
                 event.error,
               )
             },
@@ -2946,6 +3133,16 @@ export const registrationMachine = setup({
               ...context,
               error: undefined,
               retryTarget: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) => context.retryTarget === 'settingEthAddress',
+            target: 'settingEthAddress',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              ethAddressTxId: undefined,
             })),
           },
           {

@@ -1682,6 +1682,16 @@ describe('estimateHcaBudgetActor', () => {
     expect(breakdown.registerCost).toBeGreaterThanOrEqual(breakdown.commitCost)
   })
 
+  it('quotes both legs in the USDC the run pays in, whatever else the account holds', async () => {
+    await estimateHcaBudgetActor(input)
+
+    const quoted = prepareTransaction.mock.calls.map(
+      ([params]) =>
+        (params as { sourceAssets?: readonly Address[] }).sourceAssets,
+    )
+    expect(quoted).toEqual([[C.usdc], [C.usdc]])
+  })
+
   it('quotes the reveal batch WITH the primary-name call when one is set', async () => {
     // The permit is sized from this quote, so the quoted batch must be the
     // batch that gets submitted. Pricing a reveal without the adapter call
