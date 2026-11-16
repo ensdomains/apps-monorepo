@@ -4,11 +4,8 @@ import {
   createPublicClient,
   createTestClient,
   createWalletClient,
-  encodeAbiParameters,
   erc20Abi,
   http,
-  keccak256,
-  numberToHex,
   parseAbi,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -40,12 +37,7 @@ const DAI_MINT_AMOUNT = 10_000_000_000_000_000_000_000n // 10,000 DAI (18 decima
 export async function anvilSetupOwner(
   address: Address,
   chain: Chain,
-  tokens: {
-    USDC: Address
-    DAI?: Address
-    /** Write the balance at this mapping slot, for a USDC without an open `mint`. */
-    usdcBalanceSlot?: bigint
-  },
+  tokens: { USDC: Address; DAI?: Address },
 ): Promise<void> {
   const transport = http(TIME_TRAVEL_RPC)
   const testClient = createTestClient({ chain, mode: 'anvil', transport })
@@ -77,26 +69,15 @@ export async function anvilSetupOwner(
       : undefined,
   ])
 
-  const mints: Promise<unknown>[] = []
+  const mints: Promise<`0x${string}`>[] = []
   if (usdcBal < USDC_MINT_AMOUNT) {
     mints.push(
-      tokens.usdcBalanceSlot === undefined
-        ? walletClient.writeContract({
-            address: tokens.USDC,
-            abi: ERC20_MINT_ABI,
-            functionName: 'mint',
-            args: [address, USDC_MINT_AMOUNT],
-          })
-        : testClient.setStorageAt({
-            address: tokens.USDC,
-            index: keccak256(
-              encodeAbiParameters(
-                [{ type: 'address' }, { type: 'uint256' }],
-                [address, tokens.usdcBalanceSlot],
-              ),
-            ),
-            value: numberToHex(USDC_MINT_AMOUNT, { size: 32 }),
-          }),
+      walletClient.writeContract({
+        address: tokens.USDC,
+        abi: ERC20_MINT_ABI,
+        functionName: 'mint',
+        args: [address, USDC_MINT_AMOUNT],
+      }),
     )
   }
   if (daiAddress && daiBal !== undefined && daiBal < DAI_MINT_AMOUNT) {

@@ -1,4 +1,3 @@
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Address, Hash, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -30,7 +29,8 @@ vi.mock('viem/actions', async (importOriginal) => ({
 }))
 
 const WALLET: Address = '0x1111111111111111111111111111111111111111'
-const USDC = getDestinationContracts(sepolia.id).usdc
+// What the swap buys: Circle's USDC, not the manifest's MockUSDC.
+const USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 const ROUTER = '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E'
 const SWAP_HASH: Hash = `0x${'de'.repeat(32)}`
 const PENDING_HASH: Hash = `0x${'aa'.repeat(32)}`
@@ -123,6 +123,10 @@ describe('swapEthForUsdcActor', () => {
     const result = await swapEthForUsdcActor(input({ onSwapSent }))
 
     expect(result._unsafeUnwrap()).toBe(15_000_000n)
+    expect(readContract).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ address: USDC, functionName: 'balanceOf' }),
+    )
     expect(simulateContract.mock.calls[0]?.[1].args[0]).toMatchObject({
       tokenOut: USDC,
       amount: 15_000_000n,

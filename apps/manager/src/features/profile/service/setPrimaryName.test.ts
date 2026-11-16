@@ -98,12 +98,15 @@ const firstStartArg = () => {
   return call[0]
 }
 
+const PAYMENT_TOKEN: Address = '0x240b0316Df57887DBBE58b586508b19e633a14aa'
+
 beforeEach(() => {
   vi.mocked(getEnsAddress).mockReset().mockResolvedValue(EOA_OWNER)
   // Default: the HCA covers its own fee, so the batch passes through unchanged.
   planFunding.mockImplementation(async ({ calls }) => ({
     calls: [...calls],
     quotedFeeUsdc: 900_000n,
+    paymentToken: PAYMENT_TOKEN,
   }))
 })
 
@@ -367,6 +370,7 @@ describe('setPrimaryNameWithHca funding', () => {
       incomingUsdc: 900_000n,
       auxiliaryFunds: { [CHAIN_ID]: { '0xusdc': 900_000n } } as never,
       quotedFeeUsdc: 900_000n,
+      paymentToken: PAYMENT_TOKEN,
     }))
 
     await setPrimaryNameWithHca({
@@ -384,6 +388,7 @@ describe('setPrimaryNameWithHca funding', () => {
           rhinestoneParams: {
             calls: { data: Hex }[]
             auxiliaryFunds?: Record<number, Record<string, bigint>>
+            paymentToken?: Address
           }
         }
       }
@@ -394,6 +399,8 @@ describe('setPrimaryNameWithHca funding', () => {
     expect(rhinestoneParams.calls[0]?.data).toBe('0xpermit')
     expect(rhinestoneParams.calls[1]?.data).toBe('0xtransfer')
     expect(rhinestoneParams.calls).toHaveLength(3)
+    // The orchestrator charges whichever USDC the account holds unless told.
+    expect(rhinestoneParams.paymentToken).toBe(PAYMENT_TOKEN)
 
     // Without this the planner cannot see the inflow and refuses to price an
     // account sitting below the fee.

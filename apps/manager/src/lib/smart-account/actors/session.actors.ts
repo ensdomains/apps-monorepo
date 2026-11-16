@@ -79,6 +79,8 @@ export interface CreateSessionInput {
   readonly publicClient: PublicClient
   /** Whether the HCA already has code (affects the session nonce source). */
   readonly alreadyDeployed: boolean
+  /** The token the session refunds gas in. Defaults to the deployment's USDC. */
+  readonly refundToken?: Address
   readonly config?: {
     readonly validUntil?: number
     /**
@@ -108,6 +110,7 @@ function resolveRefundCaps(
     quoteSessionRefundCaps({
       rhinestoneAccount: input.rhinestoneAccount,
       chain: input.chain,
+      ...(input.refundToken ? { refundToken: input.refundToken } : {}),
     }),
   ).map((quote) => {
     if (quote.source === 'legacy') {
@@ -149,6 +152,7 @@ export function createSessionActor(
         validUntil,
         alreadyDeployed: input.alreadyDeployed,
         refundCaps,
+        ...(input.refundToken ? { refundToken: input.refundToken } : {}),
       }),
     )
     .map((result) => {
@@ -171,6 +175,7 @@ export function createSessionActor(
         ),
         sessionToEnableIndex: result.enableData.sessionToEnableIndex,
         refundCaps: serializeRefundCaps(result.refundCaps),
+        ...(input.refundToken ? { refundToken: input.refundToken } : {}),
       }
       saveSession(session)
       return { session }
@@ -212,6 +217,8 @@ export interface ResolveSessionInput {
    * caps. Used when a quote outgrew the stored session's caps.
    */
   readonly replaceWithCaps?: RefundCaps
+  /** The token the session refunds gas in. Defaults to the deployment's USDC. */
+  readonly refundToken?: Address
 }
 
 export interface ResolvedSession {
@@ -238,6 +245,7 @@ export function resolveSessionActor(
     accountAddress,
     ownerAddress,
     chainId: chain.id,
+    ...(input.refundToken ? { refundToken: input.refundToken } : {}),
   })
   // Mint a fresh session rather than reusing one that would expire mid-flight:
   // the reveal is session-signed and runs AFTER `MIN_COMMITMENT_AGE`, so a
@@ -268,6 +276,7 @@ function createAndResolve(
     chain: input.chain,
     publicClient: input.publicClient,
     alreadyDeployed: input.alreadyDeployed,
+    ...(input.refundToken ? { refundToken: input.refundToken } : {}),
     ...(input.replaceWithCaps
       ? { config: { refundCaps: input.replaceWithCaps } }
       : {}),

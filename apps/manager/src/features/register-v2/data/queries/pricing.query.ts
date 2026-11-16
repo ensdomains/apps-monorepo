@@ -22,7 +22,7 @@ const ETH_REGISTRAR = getChainContractAddress({
 // Standalone-HCA registrar from the shared remediated deployment manifest + its
 // price getter. The displayed price
 // MUST come from the SAME registrar the HCA flow actually pays, in the SAME
-// token (Circle Sepolia USDC), so the quote the user sees matches what the
+// token (the manifest's USDC), so the quote the user sees matches what the
 // commit/reveal charges. The legacy ensjs `ensEthRegistrar` + mock USDC path
 // priced against a different contract and token.
 const HCA_CONTRACTS = getDestinationContracts(chain.id)
@@ -47,7 +47,7 @@ export class MissingTokenError extends TaggedError('MissingTokenError')<
 
 // Standalone-HCA `ETHRegistrar.getRegisterPrice` derives the temporary premium
 // from on-chain state (time since `expiry + GRACE_PERIOD`) and returns
-// `(base, premium)`. Priced in Circle USDC against the HCA registrar so the
+// `(base, premium)`. Priced in the manifest's USDC against the HCA registrar so the
 // displayed quote matches what the commit/reveal actually charges.
 export const getRegisterPrice = ResultFn(async function* (
   label: string,

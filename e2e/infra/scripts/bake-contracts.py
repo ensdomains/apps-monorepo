@@ -159,9 +159,7 @@ SH_PERMISSIONED_RESOLVER_IMPL   = "0x115eb53f0c60696633855f90b138178fb40b2b2c"
 SH_ETH_REGISTRAR                = "0xf633e7fc17e2bbe0d0965d18ec1821dcb754a3d3"
 SH_ETH_REGISTRY                 = "0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4"
 SH_DEFAULT_REVERSE_HCA_ADAPTER  = "0x36f97328e843e37520cbf530e9402791c2754066"
-SH_USDC                         = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
-# Circle USDC is a zos AdminUpgradeabilityProxy: implementation pointer slot.
-ZOS_IMPL_SLOT = "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3"
+SH_USDC                         = "0x240b0316Df57887DBBE58b586508b19e633a14aa"
 
 # ── StandardRentPriceOracle storage layouts (differ per deployment) ────────
 # ENS-V2 mock-set oracle: _baseRatePerCp@3, _discountPoints@4, _paymentRatios@5.
@@ -312,7 +310,7 @@ def bake_oracle(
     `payment_tokens` are the tokens whose `_paymentRatios[token]` (a
     hash-addressed mapping slot NOT reachable by the sequential scan) must be
     copied so pricing survives anvil_dumpState. Defaults to the ENS-V2
-    MockUSDC/DAI set; the standalone oracle passes Circle USDC.
+    MockUSDC/DAI set; the standalone oracle passes the manifest's USDC.
 
     `ratios_slot`/`array_slots` select the deployment's storage layout — see
     the *_ORACLE_ARRAY_SLOTS / *_PAYMENT_RATIOS_SLOT comments.
@@ -411,18 +409,18 @@ def bake_standalone_hca():
     The canonical 2026-07-30 Sepolia deployment, distinct from
     bake_ens_contracts(): its own registrar, registry (PermissionedRegistry —
     same `_roles@slot2` layout), resolver impl, factories, session validator,
-    reverse adapter, and Circle USDC. The shared Rhinestone modules (Intent
+    reverse adapter, and MockUSDC. The shared Rhinestone modules (Intent
     Executor, etc.) are baked separately and reused.
     """
     # ETH Registrar — code + storage; discover + bake its price oracle.
     bake_with_storage(SH_ETH_REGISTRAR, "Standalone ETH Registrar")
     sh_oracle = get_oracle_address(SH_ETH_REGISTRAR)
     if sh_oracle:
-        # The standalone oracle prices in Circle USDC, so its ratio slot (not the
-        # MockUSDC/DAI ones) must be baked — at the canonical layout's slots.
+        # The standalone oracle's MockUSDC ratio lives at the canonical layout's
+        # slots, not the ENS-V2 mock set's, so it is baked separately here.
         bake_oracle(
             sh_oracle,
-            payment_tokens=[(SH_USDC, "Circle USDC")],
+            payment_tokens=[(SH_USDC, "MockUSDC")],
             ratios_slot=SH_PAYMENT_RATIOS_SLOT,
             array_slots=SH_ORACLE_ARRAY_SLOTS,
         )
@@ -459,15 +457,10 @@ def bake_standalone_hca():
     bake_code_only(SH_VERIFIABLE_PROXY_LOGIC,     "Standalone VerifiableFactory proxy logic")
     bake_code_only(SH_PERMISSIONED_RESOLVER_IMPL, "Standalone PermissionedResolver impl")
 
-    # Circle Sepolia USDC — the standalone route's payment token. Code,
-    # sequential storage and the proxy's implementation pointer, plus the
-    # implementation's code; balances are written per-account at fund-time.
-    bake_with_storage(SH_USDC, "Circle USDC proxy (standalone)", extra_slots=[ZOS_IMPL_SLOT])
-    usdc_impl = cast_call_address(SH_USDC, "implementation")
-    if usdc_impl:
-        bake_code_only(usdc_impl, "Circle USDC implementation")
-    else:
-        print("  ⚠  could not determine Circle USDC implementation")
+    # MockUSDC — payment token for the standalone route. Code +
+    # sequential storage; balances/allowances are minted per-account at
+    # fund-time (see fund scripts), so no mapping slots to copy here.
+    bake_with_storage(SH_USDC, "MockUSDC (standalone)")
 
 
 def bake_rhinestone_infrastructure():

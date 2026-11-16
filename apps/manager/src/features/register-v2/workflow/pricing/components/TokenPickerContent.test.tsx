@@ -49,6 +49,15 @@ const containerMocks = vi.hoisted(() => ({
   /** What every quoted L2 row is charged. */
   l2AmountIn: undefined as bigint | undefined,
   l2QuoteKeys: [] as string[],
+  paymentAsset: undefined as 'eth' | undefined,
+  /** What the ETH row's quote reads, when it has one. */
+  ethQuote: null as {
+    swap: { maximumEth: bigint }
+    walletBalance: bigint
+    gasReserve: bigint
+    ethUsd: bigint
+  } | null,
+  enableSession: vi.fn(),
 }))
 
 vi.mock('@xstate/react', () => ({
@@ -61,6 +70,7 @@ vi.mock('@xstate/react', () => ({
             selectedToken: 'USDC',
             fundingSourceChainId: containerMocks.fundingSourceChainId,
             fundingSourceOrigin: containerMocks.fundingSourceOrigin,
+            paymentAsset: containerMocks.paymentAsset,
             approvalOutcome: containerMocks.approvalOutcome,
             lastErrorMessage: containerMocks.lastErrorMessage,
             confirmedData: containerMocks.isApproving
@@ -101,6 +111,7 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
     isLoadingBalances: false,
     isConnected: true,
     getSessionEnablePayload: containerMocks.getSessionEnablePayload,
+    enableSession: containerMocks.enableSession,
   }),
 }))
 
@@ -112,6 +123,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const React = await import('react')
+  const ethQuoteResult = () => ({
+    data: containerMocks.ethQuote ?? undefined,
+    isPending: false,
+    isPlaceholderData: false,
+    isError: false,
+  })
   return {
     ...(await importOriginal<typeof import('@tanstack/react-query')>()),
     useQuery: (options: {
@@ -138,6 +155,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
           isPlaceholderData: containerMocks.isBudgetStale,
         }
       }
+      if (key.includes('eth-payment-quote')) return ethQuoteResult()
       if (key.includes('l2-usdc-balances')) {
         const balances = containerMocks.l2Balances
         return {
@@ -227,6 +245,13 @@ const insufficientDai = {
   balance: '0',
 } as unknown as StablecoinBalance
 
+// What ETH and L2s pay in on Sepolia, and the session such a run signs with.
+const CIRCLE_USDC = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+const CIRCLE_SESSION = {
+  signer: { type: 'rhinestone', session: 'circle' },
+  hcaSessionEnable: { stub: 'circle' },
+}
+
 const renderContainer = () =>
   render(
     <I18nProvider i18n={i18n}>
@@ -288,6 +313,11 @@ describe('TokenPickerContent', () => {
     containerMocks.fundingSourceOrigin = undefined
     containerMocks.l2AmountIn = undefined
     containerMocks.l2QuoteKeys = []
+    containerMocks.paymentAsset = undefined
+    containerMocks.ethQuote = null
+    containerMocks.enableSession
+      .mockReset()
+      .mockResolvedValue({ status: 'enabled', session: CIRCLE_SESSION })
   })
 
   it('keeps the wallet locked while payment approval takes longer than a minute', () => {
@@ -337,6 +367,33 @@ describe('TokenPickerContent', () => {
         }),
       ),
     )
+  })
+
+  it('starts an ETH payment on the session of the USDC the swap buys', async () => {
+    containerMocks.paymentAsset = 'eth'
+    containerMocks.ethQuote = {
+      swap: { maximumEth: 10n ** 16n },
+      walletBalance: 10n ** 18n,
+      gasReserve: 0n,
+      ethUsd: 2_000_00000000n,
+    }
+    renderContainer()
+    fireEvent.click(screen.getByRole('button', { name: 'Swap and Register' }))
+
+    await waitFor(() =>
+      expect(containerMocks.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'registration.start',
+          account: expect.objectContaining({ signer: CIRCLE_SESSION.signer }),
+          hcaSessionEnable: CIRCLE_SESSION.hcaSessionEnable,
+        }),
+      ),
+    )
+    // Sepolia's MockUSDC has no pool, so ETH buys and pays in Circle's USDC.
+    expect(containerMocks.enableSession).toHaveBeenCalledWith({
+      refundToken: CIRCLE_USDC,
+    })
+    expect(containerMocks.getSessionEnablePayload).not.toHaveBeenCalled()
   })
 
   it('ignores a click when the pricing snapshot changes while preparation is pending', async () => {
@@ -580,6 +637,15 @@ describe('TokenPickerContent', () => {
         }),
       ),
     )
+    // The bridge delivers Circle's USDC, so the run signs with that USDC's session.
+    expect(containerMocks.enableSession).toHaveBeenCalledWith({
+      refundToken: CIRCLE_USDC,
+    })
+    expect(containerMocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        account: expect.objectContaining({ signer: CIRCLE_SESSION.signer }),
+      }),
+    )
   })
 
   // Say a retry after the bridge landed: the chosen L2 has nothing to send.
@@ -605,6 +671,16 @@ describe('TokenPickerContent', () => {
     expect(containerMocks.send).not.toHaveBeenCalledWith(
       expect.objectContaining({ l2FundingChainId: baseSepolia.id }),
     )
+    // Still the L2's method, so it pays in the Circle USDC the account holds from it.
+    expect(containerMocks.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isCirclePayment: true,
+        account: expect.objectContaining({ signer: CIRCLE_SESSION.signer }),
+      }),
+    )
+    expect(containerMocks.enableSession).toHaveBeenCalledWith({
+      refundToken: CIRCLE_USDC,
+    })
   })
 
   // An L2 payment can fail for a reason the user acts on, like one still settling.
@@ -1275,7 +1351,7 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(
       screen.getByText('You do not have enough USDC for this transaction.'),
     ).toBeVisible()
-    expect(screen.getByText('Est. fee: ~$0.20')).toBeVisible()
+    expect(screen.getByText('Est. fee: $0.20')).toBeVisible()
   })
 
   it('keeps a short L2 hidden in renewal', () => {
@@ -1469,7 +1545,8 @@ describe('TokenPickerContentBase L2 rows', () => {
       l2Payment: l2PaymentOf([quoted, op], optimismSepolia.id),
     })
 
-    expect(screen.getByText('Est. fee: ~$0.21')).toBeVisible()
+    // The unquoted OP row borrows Base's quote, so both rows show its fee.
+    expect(screen.getAllByText('Est. fee: $0.21')).toHaveLength(2)
     expect(
       screen.getByText('About $2.01 more needed on OP Sepolia.'),
     ).toBeVisible()

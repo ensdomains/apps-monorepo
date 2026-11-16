@@ -13,6 +13,7 @@ import { keepPreviousData } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { chain } from '@/config'
+import { CIRCLE_PAYMENT_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 
 /**
@@ -97,13 +98,28 @@ export interface HcaBudgetQueryParams {
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnableParams | undefined
   >
+  /** An ETH or L2 payment's USDC when not the deployment's; quoted owner-signed, as the session refunds in the other. */
+  readonly paymentToken?: Address
 }
 
+/** The signer to quote with: owner-signed when the run pays in another USDC than the session. */
+const quoteSigner = (params: HcaBudgetQueryParams): Signer | null =>
+  params.paymentToken && params.signer?.type === 'rhinestone'
+    ? {
+        type: params.signer.type,
+        account: params.signer.account,
+        config: params.signer.config,
+      }
+    : params.signer
+
 const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
-  const sessionEnable = yield* fromPromise(
-    params.getSessionEnablePayload(),
-    (cause) => new HcaSessionEnableError({ cause }),
-  )
+  const sessionEnable = params.paymentToken
+    ? undefined
+    : yield* fromPromise(
+        params.getSessionEnablePayload(),
+        (cause) => new HcaSessionEnableError({ cause }),
+      )
+  const signer = quoteSigner(params)
 
   // The estimator refuses to return a fallback-sourced budget (it would over-
   // or under-fund), so an error here means "no quote", not "cheap".
@@ -112,9 +128,10 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
     duration: BigInt(Math.ceil(params.durationInSeconds)),
     publicClient,
     chainId: chain.id,
-    ...(params.signer ? { signer: params.signer } : {}),
+    ...(signer ? { signer } : {}),
     ...(sessionEnable ? { sessionEnable } : {}),
     ...(params.primaryName ? { primaryName: params.primaryName } : {}),
+    ...(params.paymentToken ? { paymentToken: params.paymentToken } : {}),
   }).mapErr((cause) => new EstimateHcaBudgetError({ cause }))
 
   // Read the standing balance the same way the machine does — including
@@ -126,6 +143,7 @@ const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
         hca: params.hca,
         publicClient,
         chainId: chain.id,
+        ...(params.paymentToken ? { token: params.paymentToken } : {}),
       }).unwrapOr(0n)
     : 0n
 
@@ -161,6 +179,16 @@ const getLoggedHcaBudget = (params: HcaBudgetQueryParams) =>
     return error
   })
 
+/** The budget an ETH or L2 payment pays: in Circle's USDC, where that is not the deployment's. */
+export const getCirclePaymentBudgetQueryOptions = (
+  params: HcaBudgetQueryParams,
+) =>
+  getHcaBudgetQueryOptions(
+    CIRCLE_PAYMENT_TOKEN
+      ? { ...params, paymentToken: CIRCLE_PAYMENT_TOKEN }
+      : params,
+  )
+
 export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
   resultQueryOptions({
     queryKey: $qk({
@@ -172,6 +200,7 @@ export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
       // Keyed, not just passed: toggling the primary-name switch changes the
       // quote, so it has to refetch rather than serve the other variant.
       primaryName: params.primaryName ?? null,
+      paymentToken: params.paymentToken ?? null,
     }),
     queryFn: () => getLoggedHcaBudget(params),
     enabled: isHcaBudgetQuoteRequired(params),

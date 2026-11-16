@@ -136,7 +136,7 @@ describe('getAddressNames', () => {
     expect(names.map(({ name }) => name)).toEqual(['kept.eth'])
   })
 
-  // Which rows count as in grace is tested with the shared grace read.
+  // Which rows count as lapsed is tested with isLapsedName.
   it('merges the names still renewable in grace into the list', async () => {
     answer(
       [[row('held.eth')]],
@@ -159,37 +159,11 @@ describe('getAddressNames', () => {
     expect(names).toEqual([
       expect.objectContaining({
         name: 'lapsed.eth',
+        status: 'expired',
         relations: ['former_owner'],
         protocolVersion: 'ENSv2',
       }),
       expect.objectContaining({ name: 'held.eth' }),
-    ])
-  })
-
-  it('keeps an ENSv1 name through its price cooldown, and drops it after', async () => {
-    const DAY = 86_400n
-    const released = (name: string, graceEndedDaysAgo: bigint) =>
-      row(name, {
-        owner: undefined,
-        authority: 'ens_v1',
-        status: 'released',
-        relations: ['former_owner'],
-        expires_at: String(NOW_SECONDS - (90n + graceEndedDaysAgo) * DAY),
-        grace_ends_at: String(NOW_SECONDS - graceEndedDaysAgo * DAY),
-        lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
-      })
-    answer([[]], [released('cooling.eth', 5n), released('gone.eth', 25n)])
-
-    const names = (
-      await getAddressNames({ address: ADDRESS }, { now: NOW })
-    )._unsafeUnwrap()
-
-    expect(names).toEqual([
-      expect.objectContaining({
-        name: 'cooling.eth',
-        status: 'released',
-        protocolVersion: 'ENSv1',
-      }),
     ])
   })
 

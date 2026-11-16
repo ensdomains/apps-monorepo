@@ -30,14 +30,12 @@ const useTrailingDots = (max = 3) => {
 const RegisteringTitle = ({ label }: { label: string }) => {
   const dots = useTrailingDots()
   return (
-    <Calligraph
-      animation="smooth"
-      as="p"
-      className="text-base text-ens-blue"
-      initial
-    >
-      {`${label}${dots}`}
-    </Calligraph>
+    <p className="max-w-full text-base text-ens-blue">
+      {label}
+      <Calligraph animation="smooth" as="span" initial>
+        {dots}
+      </Calligraph>
+    </p>
   )
 }
 

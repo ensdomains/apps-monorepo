@@ -177,4 +177,5 @@ export {
   serializeChainDigests,
   serializeRefundCaps,
   storedRefundCaps,
+  storedRefundToken,
 } from './types'

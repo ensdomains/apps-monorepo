@@ -98,6 +98,11 @@ export type EnableSessionOutcome =
   | { readonly status: 'declined' }
   | { readonly status: 'failed'; readonly message: string }
 
+export interface EnableSessionOptions {
+  /** A refund token other than the deployment's USDC; such a session is returned, never made active. */
+  readonly refundToken?: Address
+}
+
 export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly hasInitialized: boolean
   readonly isReady: boolean
@@ -127,7 +132,9 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * the next render, `signer` and `getSessionEnablePayload()` still describe
    * the session this one replaced. `failed` on the EOA-only path.
    */
-  readonly enableSession: () => Promise<EnableSessionOutcome>
+  readonly enableSession: (
+    options?: EnableSessionOptions,
+  ) => Promise<EnableSessionOutcome>
   /**
    * Replace the active session with one whose gas-overhead cap allows the
    * requested overhead — the registration machine's way out when a quote
@@ -513,8 +520,6 @@ export const SmartAccountContextProvider = ({
     anvilSetupDoneRef.current.add(ownerAddress)
     anvilSetupOwner(ownerAddress, appChain, {
       USDC: SUPPORTED_TOKENS.USDC,
-      // Circle's FiatToken keeps balances at slot 9 and has no open `mint`.
-      usdcBalanceSlot: 9n,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
@@ -587,9 +592,8 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
-    // The faucet mints MockUSDC, not the Circle USDC the route pays in, so on
-    // real Sepolia a top-up never clears the low balance and would repeat.
-    if (!isTimeTravelEnabled()) return
+    // The faucet mints MockUSDC, which is also the payment token of the
+    // standalone-HCA route, so auto-fund runs on real Sepolia too.
 
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
@@ -720,6 +724,7 @@ export const SmartAccountContextProvider = ({
   const authorizeSession = useCallback(
     async (
       replaceWithCaps?: RefundCaps,
+      refundToken?: Address,
     ): Promise<
       { signer: Signer; session: RhinestoneStoredSession } | Error
     > => {
@@ -769,6 +774,7 @@ export const SmartAccountContextProvider = ({
         publicClient: wagmiPublicClient as unknown as PublicClient,
         alreadyDeployed,
         replaceWithCaps,
+        refundToken,
       })
       setIsEnablingSession(false)
 
@@ -778,7 +784,8 @@ export const SmartAccountContextProvider = ({
       }
 
       // Update state so future renders/intents pick up the session…
-      setActiveSession(result.value.session)
+      // …unless it refunds in another token: only the run that asked uses it.
+      if (!refundToken) setActiveSession(result.value.session)
       clearSessionAccessReset(accountAddress)
 
       // …AND return a signer with the session attached NOW, so the caller can
@@ -813,25 +820,31 @@ export const SmartAccountContextProvider = ({
     ],
   )
 
-  const enableSession = useCallback(async (): Promise<EnableSessionOutcome> => {
-    const result = await authorizeSession()
-    if (result instanceof Error) {
-      return isWalletDeclineError(result)
-        ? { status: 'declined' }
-        : { status: 'failed', message: result.message }
-    }
-    return {
-      status: 'enabled',
-      session: {
-        signer: result.signer,
-        hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
-      },
-    }
-  }, [authorizeSession])
+  const enableSession = useCallback(
+    async (options?: EnableSessionOptions): Promise<EnableSessionOutcome> => {
+      const result = await authorizeSession(undefined, options?.refundToken)
+      if (result instanceof Error) {
+        return isWalletDeclineError(result)
+          ? { status: 'declined' }
+          : { status: 'failed', message: result.message }
+      }
+      return {
+        status: 'enabled',
+        session: {
+          signer: result.signer,
+          hcaSessionEnable: buildHcaSessionEnablePayload(result.session),
+        },
+      }
+    },
+    [authorizeSession],
+  )
 
   const reauthorizeSession = useCallback<ReauthorizeSession>(
-    async ({ minGasOverhead }) => {
-      const result = await authorizeSession(sizeRefundCaps(minGasOverhead))
+    async ({ minGasOverhead, refundToken }) => {
+      const result = await authorizeSession(
+        sizeRefundCaps(minGasOverhead),
+        refundToken,
+      )
       if (result instanceof Error) throw result
       return {
         signer: result.signer,

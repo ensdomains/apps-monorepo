@@ -2,7 +2,9 @@
  * @vitest-environment happy-dom
  */
 import type { Address, Hex } from 'viem'
+import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
+import { getDestinationContracts } from './manifest'
 import { LEGACY_REFUND_CAPS, sizeRefundCaps } from './refund-caps'
 import { getSession, saveSession } from './session-storage'
 import {
@@ -13,6 +15,7 @@ import {
 } from './types'
 
 const HCA: Address = '0xaAaA000000000000000000000000000000000001'
+const CIRCLE_USDC: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 
 /** A record as written before caps were stored: no `refundCaps`. */
 const legacyRecord: RhinestoneStoredSession = {
@@ -64,5 +67,17 @@ describe('buildHcaSessionEnablePayload', () => {
         refundCaps: serializeRefundCaps(quotedCaps),
       }).enableData.hcaSessionConfig.maxRefundGasOverhead,
     ).toBe(Number(quotedCaps.maxRefundGasOverhead))
+  })
+
+  it('rebuilds the proof with the token the session refunds in', () => {
+    const refundTokenOf = (record: RhinestoneStoredSession) =>
+      buildHcaSessionEnablePayload(record).enableData.hcaSessionConfig
+        .refundToken
+    expect(refundTokenOf(legacyRecord)).toBe(
+      getDestinationContracts(sepolia.id).usdc,
+    )
+    expect(refundTokenOf({ ...legacyRecord, refundToken: CIRCLE_USDC })).toBe(
+      CIRCLE_USDC,
+    )
   })
 })

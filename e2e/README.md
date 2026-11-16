@@ -154,7 +154,7 @@ Same registration flow as the standard registration test (`registration.spec.ts`
 
 The mockestrator (ENS fork: `ghcr.io/ensdomains/mockestrator`, **pinned by digest** — not the upstream `public.ecr.aws/rhinestone/mockestrator` image) is included in the e2e Docker stack. It simulates the Rhinestone orchestrator locally, using:
 - `e2e/infra/mockestrator/rpcs.json` — maps chain 11155111 to the Anvil fork
-- `e2e/infra/mockestrator/chains.json` — maps USDC to the standalone deployment's Circle Sepolia USDC (balances/allowances at slots 9/10)
+- `e2e/infra/mockestrator/chains.json` — maps USDC to the standalone deployment's MockUSDC (balances/allowances at slots 0/1)
 
 Note that it fills an intent by impersonating the smart account and sending **one transaction per call** in the batch, so — unlike the real orchestrator — a batch can land partially. It still reports the intent `COMPLETED`, carrying only the *last* call's transaction hash. A batch that stops halfway therefore looks like success to the app, which then waits for a receipt that never arrives; see [Pinned images](#pinned-images).
 
