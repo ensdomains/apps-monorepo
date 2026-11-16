@@ -31,12 +31,12 @@ export const ContractDocsValue = ({ href }: { readonly href: string }) => (
   <ExternalLink
     href={href}
     className={cn(
-      'inline-flex items-center gap-1 hover:underline',
+      'inline-flex max-w-full items-center gap-1 hover:underline',
       semiMonoValueClassName,
     )}
   >
     <BookText className="size-4 shrink-0 text-neutral-6" />
-    {formatDocsHref(href)}
+    <span className="min-w-0 break-all">{formatDocsHref(href)}</span>
   </ExternalLink>
 )
 

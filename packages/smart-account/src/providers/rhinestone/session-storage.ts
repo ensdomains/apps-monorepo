@@ -5,7 +5,7 @@
  * `HCAOwnerAndSessionValidator`. The stored record holds the ephemeral session
  * key plus the resume state (permission ID, multi-chain authorization,
  * per-chain digests, resolver binding, HCA nonce), keyed by smart-account (HCA)
- * address, so a session — and an in-flight registration spanning the commit
+ * address and refund token, so a session — and an in-flight registration spanning the commit
  * cooldown — survives page reloads. The wallet signs the authorization once per
  * stored session.
  *
@@ -35,12 +35,17 @@
  *            with, so old rows stay valid.
  *   v9 → v10: payment/refund token switched back to Circle Sepolia USDC, so
  *            v9 sessions refund in a token the HCA no longer holds.
+ *   v10 → v11: payment/refund token switched back to ensjs' MockUSDC, so v10
+ *            sessions refund in a token the HCA no longer holds. Records also
+ *            gained an optional `refundToken`, so an account keeps one session
+ *            per token: an ETH payment refunds in the USDC its swap buys.
  */
 
 import { type Address, isAddress, isHex } from 'viem'
+import { DESTINATION_CONTRACTS } from './manifest'
 import type { RhinestoneStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v10'
+const SESSION_STORAGE_KEY = 'ens-sessions-v11'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'
@@ -96,7 +101,37 @@ const isStoredSession = (value: unknown): value is RhinestoneStoredSession =>
   Array.isArray(value.hashesAndChainIds) &&
   value.hashesAndChainIds.every(isChainDigest) &&
   isNonNegativeSafeInteger(value.sessionToEnableIndex) &&
-  (value.refundCaps === undefined || isRefundCaps(value.refundCaps))
+  (value.refundCaps === undefined || isRefundCaps(value.refundCaps)) &&
+  (value.refundToken === undefined ||
+    (typeof value.refundToken === 'string' &&
+      isAddress(value.refundToken, { strict: false })))
+
+/** Whether `session` refunds in `refundToken`; absent on either side means the deployment's USDC. */
+const refundsIn = (
+  session: RhinestoneStoredSession,
+  refundToken: Address | undefined,
+): boolean => {
+  const fallback = DESTINATION_CONTRACTS[session.chainId]?.usdc
+  return (
+    (session.refundToken ?? fallback)?.toLowerCase() ===
+    (refundToken ?? fallback)?.toLowerCase()
+  )
+}
+
+const isSessionFor = (
+  session: RhinestoneStoredSession,
+  accountAddress: Address,
+  refundToken: Address | undefined,
+): boolean =>
+  session.smartAccountAddress.toLowerCase() === accountAddress.toLowerCase() &&
+  refundsIn(session, refundToken)
+
+/** Drop one stored record, leaving the account's sessions in other tokens. */
+const removeStoredSession = (session: RhinestoneStoredSession): void => {
+  if (!hasWindow()) return
+  const next = getAllSessions().filter((s) => s.id !== session.id)
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next))
+}
 
 /** Get all stored sessions. */
 export function getAllSessions(): readonly RhinestoneStoredSession[] {
@@ -111,14 +146,14 @@ export function getAllSessions(): readonly RhinestoneStoredSession[] {
   }
 }
 
-/** Get a session by smart-account (HCA) address. */
+/** Get a session by smart-account (HCA) address and refund token (default: the deployment's USDC). */
 export function getSession(
   accountAddress: Address,
+  refundToken?: Address,
 ): RhinestoneStoredSession | null {
-  const normalized = accountAddress.toLowerCase()
   return (
-    getAllSessions().find(
-      (s) => s.smartAccountAddress.toLowerCase() === normalized,
+    getAllSessions().find((s) =>
+      isSessionFor(s, accountAddress, refundToken),
     ) ?? null
   )
 }
@@ -134,13 +169,12 @@ export function getSessionByOwner(
   )
 }
 
-/** Save a session, replacing any existing session for the same account. */
+/** Save a session, replacing any existing session for the same account and refund token. */
 export function saveSession(session: RhinestoneStoredSession): void {
   if (!hasWindow()) return
-  const normalized = session.smartAccountAddress.toLowerCase()
   const next: RhinestoneStoredSession[] = [
     ...getAllSessions().filter(
-      (s) => s.smartAccountAddress.toLowerCase() !== normalized,
+      (s) => !isSessionFor(s, session.smartAccountAddress, session.refundToken),
     ),
     session,
   ]
@@ -148,7 +182,7 @@ export function saveSession(session: RhinestoneStoredSession): void {
 }
 
 /**
- * Forget a session by smart-account address.
+ * Forget every session for a smart-account address, in every refund token.
  *
  * LOCAL ONLY — this is not a revocation. It drops our copy of the record; a
  * copy already taken off this device stays usable until `validUntil`. The
@@ -251,14 +285,15 @@ export function hasRegistrationHeadroom(
   return Date.now() + headroomSeconds * 1000 <= session.validUntil * 1000
 }
 
-/** Get a non-expired session for an account, evicting it on expiry. */
+/** Get a non-expired session for an account and refund token, evicting it on expiry. */
 export function getValidSession(
   accountAddress: Address,
+  refundToken?: Address,
 ): RhinestoneStoredSession | null {
-  const session = getSession(accountAddress)
+  const session = getSession(accountAddress, refundToken)
   if (!session) return null
   if (isSessionExpired(session)) {
-    removeSession(accountAddress)
+    removeStoredSession(session)
     return null
   }
   return session
@@ -281,6 +316,8 @@ export interface SessionScope {
   readonly accountAddress: Address
   readonly ownerAddress: Address
   readonly chainId: number
+  /** The session's refund token. Defaults to the deployment's USDC. */
+  readonly refundToken?: Address
 }
 
 /**
@@ -296,14 +333,14 @@ export interface SessionScope {
 export function getValidSessionForAccount(
   scope: SessionScope,
 ): RhinestoneStoredSession | null {
-  const session = getValidSession(scope.accountAddress)
+  const session = getValidSession(scope.accountAddress, scope.refundToken)
   if (!session) return null
 
   const ownerMatches =
     session.ownerAddress.toLowerCase() === scope.ownerAddress.toLowerCase()
   const chainMatches = session.chainId === scope.chainId
   if (!ownerMatches || !chainMatches) {
-    removeSession(scope.accountAddress)
+    removeStoredSession(session)
     return null
   }
   return session

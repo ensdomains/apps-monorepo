@@ -1,5 +1,6 @@
 import { match, P } from 'ts-pattern'
 import type { L2Source } from '@/l2Sources'
+import type { L2Wallets } from '../../../data/queries/l2Balances.query'
 
 /** The payment row for the registration paid with USDC on an L2. */
 type L2PaymentOptionId = `l2:${number}:usdc`
@@ -61,6 +62,26 @@ export const getSelectedL2ChainId = (
         (option) =>
           option.source.chain.id === chainId && !isL2OptionEmpty(option),
       )?.source.chain.id
+
+/**
+ * The chosen method pays in the USDC ETH buys and L2s bridge (Circle's, on
+ * Sepolia): ETH, or the chosen L2 even once nothing is left to bridge, as the
+ * account then pays from what it holds of that USDC. An emptied L2 gives way
+ * to the wallet's coin, as on screen.
+ */
+export const isCirclePaymentMethod = ({
+  isPaidWithEth,
+  l2ChainId,
+  l2Wallets,
+}: {
+  readonly isPaidWithEth: boolean
+  /** The L2 picked, whether or not it has anything to bridge. */
+  readonly l2ChainId: number | undefined
+  /** Unread, or a failed read, counts as holding something, like an L2 option. */
+  readonly l2Wallets: Readonly<L2Wallets> | undefined
+}): boolean =>
+  isPaidWithEth ||
+  (l2ChainId !== undefined && l2Wallets?.[l2ChainId]?.usdc !== 0n)
 
 /**
  * One row per L2 source. `amountRaw`, what paying from an L2 sends the HCA, is

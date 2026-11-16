@@ -112,15 +112,12 @@ export const getL2SelectionMessage = (
 export const L2SourceListItem = ({
   row,
   networkFee,
-  isFeeEstimated,
   isSelected,
   onSelect,
 }: {
   readonly row: L2PaymentRow
   /** What the registration costs on top of the name, paid from here, once quoted. */
   readonly networkFee: number | undefined
-  /** Borrowed from another chain's quote, as this one could not be quoted. */
-  readonly isFeeEstimated: boolean
   readonly isSelected: boolean
   readonly onSelect: () => void
 }) => {
@@ -137,13 +134,7 @@ export const L2SourceListItem = ({
           : formatUsd(decimalBigintToNumber(option.balanceRaw, USDC_DECIMALS))
       }
       amountLabel={<Trans>available</Trans>}
-      fee={
-        isFeeEstimated ? (
-          <Trans>Est. fee: ~{formatUsd(networkFee ?? Number.NaN)}</Trans>
-        ) : (
-          <Trans>Est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>
-        )
-      }
+      fee={<Trans>Est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}

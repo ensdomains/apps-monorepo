@@ -68,13 +68,15 @@ export const PaymentAction = ({
       )}
       {helpMessage && (
         <Popover>
-          <PopoverTrigger className="flex items-center gap-1 rounded px-2 py-1 text-ens-quartz-500 text-xs outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ens-blue">
+          <PopoverTrigger className="group flex items-center gap-1 rounded px-2 py-1 text-ens-quartz-500 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ens-blue">
             <MSymbol
               aria-hidden="true"
               className="ms-opsz-20 ms-wght-400 text-xs"
               symbol="info"
             />
-            <Trans>What will I sign?</Trans>
+            <span className="group-hover:underline">
+              <Trans>What will I sign?</Trans>
+            </span>
           </PopoverTrigger>
           <PopoverContent
             className="w-80 text-ens-quartz-500 text-sm"

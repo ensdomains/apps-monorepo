@@ -190,6 +190,8 @@ export const BulkRenewDialog = ({
             ethPayment: { displayedCharge: ethPayment.funding.displayedCharge },
           }
         : {}),
+      // The token follows the method, even with nothing left to bridge.
+      isCirclePayment: payment.isCirclePayment,
     })
   }
 

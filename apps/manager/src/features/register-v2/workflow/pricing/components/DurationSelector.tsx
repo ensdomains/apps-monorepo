@@ -76,7 +76,7 @@ export const DurationSelector = () => {
   )
 
   return (
-    <Card className="h-full justify-between gap-3 p-3">
+    <Card className="h-full min-w-0 justify-between gap-3 p-3">
       {presetDurations.map((data, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type FavoriteEntry,
   filterFavoritesBySearch,
+  filterFavoritesByVersion,
   paginateFavorites,
   sortFavorites,
 } from './favorites.helpers'
@@ -191,4 +192,31 @@ describe('favorites.helpers', () => {
       expect(result.hasPrevPage).toBe(false)
     })
   })
+})
+
+describe('filterFavoritesByVersion', () => {
+  const favorites = [
+    createFavorite('old.eth', 1),
+    createFavorite('new.eth', 2),
+    createFavorite('unknown.eth', 3),
+  ]
+  const versions = new Map([
+    ['old.eth', 'v1' as const],
+    ['new.eth', 'v2' as const],
+  ])
+
+  it.each([
+    ['v1' as const, ['old.eth']],
+    ['v2' as const, ['new.eth']],
+    [null, ['old.eth', 'new.eth', 'unknown.eth']],
+  ])(
+    'filters %s without assigning unknown names a version',
+    (version, expected) => {
+      expect(
+        filterFavoritesByVersion(favorites, version, versions).map(
+          ({ label }) => label,
+        ),
+      ).toEqual(expected)
+    },
+  )
 })

@@ -87,14 +87,16 @@ const account = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-const resumableAssessment = (): ResumeAssessment =>
+const resumableAssessment = (
+  context: Record<string, unknown> = {},
+): ResumeAssessment =>
   ({
     status: 'resumable',
     priceIsStale: false,
     confirmedData: { label: 'leon' },
     stored: {
       label: 'leon',
-      record: { updatedAt: 1, context: { ownerAddress: OWNER } },
+      record: { updatedAt: 1, context: { ownerAddress: OWNER, ...context } },
       postRegistrationSetup: undefined,
     },
   }) as unknown as ResumeAssessment
@@ -357,6 +359,27 @@ describe('useRegistrationResume', () => {
       }),
     )
     expect(getSessionEnablePayload).not.toHaveBeenCalled()
+  })
+
+  it('continues a run paid in another USDC on that USDC’s session', async () => {
+    const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    assessResumableRegistration.mockResolvedValue(
+      resumableAssessment({ paymentTokenAddress: circleUsdc }),
+    )
+
+    const { result } = render()
+
+    await waitFor(() => expect(result.current.status).toBe('resumed'))
+    expect(enableSession).toHaveBeenCalledWith({ refundToken: circleUsdc })
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'registration.resume',
+        account: expect.objectContaining({
+          signer: enabledSession().session.signer,
+        }),
+        hcaSessionEnable: enabledSession().session.hcaSessionEnable,
+      }),
+    )
   })
 
   it('does not re-prompt when the account context churns mid-enable', async () => {

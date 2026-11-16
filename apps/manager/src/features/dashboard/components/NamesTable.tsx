@@ -206,12 +206,12 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     {
       value: 'v1',
       label: t`V1`,
-      count: countOf(v1Names, false),
+      count: activeFilter === 'owned' ? countOf(v1Names, false) : undefined,
     },
     {
       value: 'v2',
       label: t`V2`,
-      count: countOf(v2Names),
+      count: activeFilter === 'owned' ? countOf(v2Names) : undefined,
     },
   ]
   const changeVersion = (next: NameVersion | null) => {
@@ -283,14 +283,12 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
             }}
             value={activeFilter}
           />
-          {activeFilter === 'owned' && (
-            <FilterChips
-              chips={versionChips}
-              onChange={changeVersion}
-              onClear={() => changeVersion(null)}
-              value={version}
-            />
-          )}
+          <FilterChips
+            chips={versionChips}
+            onChange={changeVersion}
+            onClear={() => changeVersion(null)}
+            value={version}
+          />
         </div>
 
         {activeFilter === 'owned' && ownedTotal > 0 && version !== 'v1' && (
@@ -384,6 +382,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
                 isAuthenticated={isAuthed}
                 searchQuery={searchQuery}
                 sort={favoritesSort}
+                version={version}
               />
             </motion.div>
           ))

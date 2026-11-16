@@ -9,6 +9,7 @@
 
 import type { Address, Hex } from 'viem'
 import type { BaseStoredSession } from '../../types'
+import { getDestinationContracts } from './manifest'
 import { LEGACY_REFUND_CAPS, type RefundCaps } from './refund-caps'
 import {
   buildHcaSessionConfig,
@@ -50,6 +51,13 @@ export interface RhinestoneStoredSession extends BaseStoredSession {
     readonly maxRefundGasOverhead: string
     readonly maxRefundAmount: string
   }
+  /** The token the session refunds gas in, part of the salt like the caps; absent, the deployment's USDC. */
+  readonly refundToken?: Address
+}
+
+/** The token a stored session refunds gas in. */
+export function storedRefundToken(session: RhinestoneStoredSession): Address {
+  return session.refundToken ?? getDestinationContracts(session.chainId).usdc
 }
 
 /** Serialize caps into the stored string form. */
@@ -127,6 +135,7 @@ export function buildHcaSessionEnablePayload(
       validUntil: BigInt(session.validUntil),
       resolver: session.resolver,
       refundCaps: storedRefundCaps(session),
+      refundToken: storedRefundToken(session),
     }),
   }
   return {

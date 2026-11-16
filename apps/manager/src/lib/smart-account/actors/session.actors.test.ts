@@ -165,4 +165,35 @@ describe('resolveSessionActor', () => {
     expect(session.id).not.toBe('stored')
     expect(getSession(HCA)?.id).toBe(session.id)
   })
+
+  it('authorizes a session in another refund token beside the stored one, then reuses it', async () => {
+    const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+    storeValidSession()
+    mocks.quoteSessionRefundCaps.mockResolvedValue({
+      source: 'quote',
+      caps: quotedCaps,
+    })
+
+    const first = await resolveSessionActor({
+      ...input,
+      refundToken: circleUsdc,
+    })
+    const second = await resolveSessionActor({
+      ...input,
+      refundToken: circleUsdc,
+    })
+
+    expect(mocks.quoteSessionRefundCaps).toHaveBeenCalledWith(
+      expect.objectContaining({ refundToken: circleUsdc }),
+    )
+    expect(mocks.createDestinationSession).toHaveBeenCalledOnce()
+    expect(mocks.createDestinationSession).toHaveBeenCalledWith(
+      expect.objectContaining({ refundToken: circleUsdc }),
+    )
+    const circleSession = first._unsafeUnwrap().session
+    expect(circleSession.refundToken).toBe(circleUsdc)
+    expect(second._unsafeUnwrap().session.id).toBe(circleSession.id)
+    // The deployment-USDC session is still the default one.
+    expect(getSession(HCA)?.id).toBe('stored')
+  })
 })

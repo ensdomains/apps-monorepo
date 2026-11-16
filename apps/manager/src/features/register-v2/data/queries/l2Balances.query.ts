@@ -10,7 +10,7 @@ export type L2Wallet = Readonly<{
   usdc: bigint
 }>
 
-type L2Wallets = Record<number, L2Wallet | null>
+export type L2Wallets = Record<number, L2Wallet | null>
 
 // A failed read is `null`, so one unreachable L2 doesn't hide the others.
 const readL2Wallet = (

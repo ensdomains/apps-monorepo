@@ -11,6 +11,7 @@ import {
   getDestinationContracts,
 } from '@ens-apps/smart-account'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
+import { publicResolverMultiAddrSnippet } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -23,8 +24,18 @@ import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { permissionedResolverInitializeSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
-import { errAsync, fromPromise, okAsync, ResultAsync } from 'neverthrow'
+import {
+  permissionedResolverInitializeSnippet,
+  permissionedResolverResolveSnippet,
+  permissionedResolverSetAddressSnippet,
+} from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import {
+  errAsync,
+  fromPromise,
+  fromThrowable,
+  okAsync,
+  ResultAsync,
+} from 'neverthrow'
 import type {
   Address,
   Hash,
@@ -37,14 +48,18 @@ import {
   bytesToHex,
   type Chain,
   decodeEventLog,
+  decodeFunctionResult,
   encodeFunctionData,
   erc20Abi,
   getChainContractAddress,
   isAddressEqual,
+  labelhash,
   parseAbi,
+  toHex,
   zeroAddress,
 } from 'viem'
 import { getBlock, multicall, readContract } from 'viem/actions'
+import { namehash, packetToBytes } from 'viem/ens'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
@@ -558,6 +573,96 @@ export function encodeCommitCall(input: {
   }
 }
 
+/** SLIP-44 coin type of ETH. */
+const COIN_TYPE_ETH = 60n
+
+/** The resolver call pointing `name` (e.g. `nick.eth`) at `owner`; the app's estimate uses it too. */
+export function encodeSetEthAddressCall(input: {
+  readonly name: string
+  readonly owner: Address
+  readonly resolverAddress: Address
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: input.resolverAddress,
+    data: encodeFunctionData({
+      abi: permissionedResolverSetAddressSnippet,
+      functionName: 'setAddress',
+      args: [toHex(packetToBytes(input.name)), COIN_TYPE_ETH, input.owner],
+    }),
+    value: 0n,
+  }
+}
+
+/** Point the name at its owner on the wallet's resolver, which checks the caller's roles, not the name's owner. */
+export function submitEthAddressActor(input: {
+  readonly name: string
+  readonly owner: Address
+  readonly resolverAddress: Address
+  readonly signer: Signer
+  readonly publicClient: PublicClient
+  readonly id?: string
+}): ResultAsync<string, Error> {
+  return fromThrowable(
+    () =>
+      transactionManager.startTransaction(
+        {
+          type: 'custom',
+          request: createTransactionRequest({
+            signer: input.signer,
+            from: getSignerAddress(input.signer),
+            chainId: requireChainId(input.publicClient, 'registration'),
+            calls: [encodeSetEthAddressCall(input)],
+          }),
+        },
+        input.signer,
+        {
+          id: input.id,
+          description: `Set ETH address for ${input.name}`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+        },
+      ),
+    (error) => new Error(`Failed to submit the ETH address: ${error}`),
+  )().asyncAndThen((txId) => okAsync(txId))
+}
+
+/** Whether the wallet's resolver already points `name` at `owner`; it answers reads only through `resolve`. */
+export function readEthAddressActor(input: {
+  readonly name: string
+  readonly owner: Address
+  readonly resolverAddress: Address
+  readonly publicClient: PublicClient
+}): ResultAsync<boolean, Error> {
+  const toError = (error: unknown) =>
+    new Error(`Failed to read the ETH address: ${error}`)
+  return fromPromise(
+    readContract(input.publicClient, {
+      address: input.resolverAddress,
+      abi: permissionedResolverResolveSnippet,
+      functionName: 'resolve',
+      args: [
+        toHex(packetToBytes(input.name)),
+        encodeFunctionData({
+          abi: publicResolverMultiAddrSnippet,
+          functionName: 'addr',
+          args: [namehash(input.name), COIN_TYPE_ETH],
+        }),
+      ],
+    }),
+    toError,
+  ).andThen((data) =>
+    fromThrowable(
+      () =>
+        decodeFunctionResult({
+          abi: publicResolverMultiAddrSnippet,
+          functionName: 'addr',
+          data,
+        }),
+      toError,
+    )().map((value) => value.toLowerCase() === input.owner.toLowerCase()),
+  )
+}
+
 /**
  * Wait for resolver deployment transaction and extract deployed proxy address
  */
@@ -921,8 +1026,6 @@ export function verifyRegistrationActor(
     publicClient: PublicClient
     /** The commitment this flow's registration consumed. */
     commitment: Hex
-    /** Override for the standalone-HCA registrar; defaults to the EOA deployment. */
-    registrarAddress?: Address
   } & VerifyPollOptions,
 ): ResultAsync<
   {
@@ -933,12 +1036,15 @@ export function verifyRegistrationActor(
   },
   Error
 > {
-  const registrarAddress =
-    input.registrarAddress ??
-    getChainContractAddress({
-      chain: requireEnsChain(input.publicClient, 'registration'),
-      contract: 'ensEthRegistrar',
-    })
+  const chain = requireEnsChain(input.publicClient, 'registration')
+  const registrarAddress = getChainContractAddress({
+    chain,
+    contract: 'ensEthRegistrar',
+  })
+  const registryAddress = getChainContractAddress({
+    chain,
+    contract: 'ensRegistry',
+  })
   const cleanName = input.name.replace('.eth', '')
 
   const readRegistryEntry = async (): Promise<{
@@ -947,17 +1053,9 @@ export function verifyRegistrationActor(
     isUnregistered: boolean
     reason?: string
   }> => {
-    // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
-    // entries are stored. Read the registry, then look up the resolver.
-    const registryAddress = (await readContract(input.publicClient, {
-      address: registrarAddress,
-      abi: parseAbi(['function REGISTRY() view returns (address)']),
-      functionName: 'REGISTRY',
-    })) as Address
-
-    // ensjs-abi ships no owner-by-label snippet, so that one stays local.
+    // ensjs-abi ships no `getOwner` snippet, so that one stays local.
     const registryOwnerAbi = parseAbi([
-      'function getOwner(string label) view returns (address)',
+      'function getOwner(uint256 anyId) view returns (address)',
     ])
     const [[resolver, owner, subregistry], commitTime] = await Promise.all([
       multicall(input.publicClient, {
@@ -973,7 +1071,7 @@ export function verifyRegistrationActor(
             address: registryAddress,
             abi: registryOwnerAbi,
             functionName: 'getOwner',
-            args: [cleanName],
+            args: [BigInt(labelhash(cleanName))],
           },
           {
             address: registryAddress,
@@ -1367,6 +1465,8 @@ export function submitRegistrationActor(input: {
   owner: Address
   publicClient: PublicClient
   resolverAddress: Address
+  /** EOA that bundles: point the name at its owner in the same atomic bundle. */
+  readonly shouldSetEthAddress?: boolean
   id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = getChainContractAddress({
@@ -1408,12 +1508,28 @@ export function submitRegistrationActor(input: {
         resolverAddress: input.resolverAddress,
       })
 
-      const request = createTransactionRequest({
-        signer: input.signer,
-        from: accountAddress,
-        chainId: requireChainId(input.publicClient, 'registration'),
-        calls: [registerCall],
-      })
+      const chainId = requireChainId(input.publicClient, 'registration')
+      const request: TransactionRequest =
+        input.shouldSetEthAddress && input.signer.type === 'eoa'
+          ? {
+              type: 'eoa-batch',
+              from: accountAddress,
+              chainId,
+              calls: [
+                registerCall,
+                encodeSetEthAddressCall({
+                  name: input.name,
+                  owner: input.owner,
+                  resolverAddress: input.resolverAddress,
+                }),
+              ],
+            }
+          : createTransactionRequest({
+              signer: input.signer,
+              from: accountAddress,
+              chainId,
+              calls: [registerCall],
+            })
 
       const txId = transactionManager.startTransaction(
         {

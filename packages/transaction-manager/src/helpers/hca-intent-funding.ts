@@ -328,10 +328,18 @@ async function quoteIntentUsdc(input: {
   /** Declared limit the rail prices the quote against. */
   gasLimit: bigint
   readonly feeMarginBps: bigint
+  /** The USDC the HCA pays the fee in. */
+  readonly usdc: Address
 }): Promise<bigint | null> {
-  const { account, chain, calls, declaredInflow, gasLimit, feeMarginBps } =
-    input
-  const usdc = getDestinationContracts(chain.id).usdc
+  const {
+    account,
+    chain,
+    calls,
+    declaredInflow,
+    gasLimit,
+    feeMarginBps,
+    usdc,
+  } = input
 
   const prepared = (await account.prepareTransaction({
     sourceChains: [chain],
@@ -339,6 +347,7 @@ async function quoteIntentUsdc(input: {
     calls: [...calls],
     sponsored: { gas: false, bridging: false, swaps: false },
     feeAsset: 'USDC',
+    sourceAssets: [usdc],
     tokenRequests: [],
     gasLimit,
     ...(declaredInflow > 0n
@@ -351,7 +360,7 @@ async function quoteIntentUsdc(input: {
   } as Transaction)) as PreparedQuote
 
   const route = prepared.intentRoute
-  const spend = readUsdcSpend(route?.intentCost, chain.id)
+  const spend = readUsdcSpend(route?.intentCost, chain.id, usdc)
   if (spend === null) return null
   const gasPrice =
     route?.intentOp?.signedMetadata?.gasPrices?.[String(chain.id)]
@@ -382,6 +391,8 @@ export interface HcaIntentFunding {
   >
   /** The fee funded for, with any margin, for logging/telemetry. */
   readonly quotedFeeUsdc: bigint
+  /** The USDC the intent funds and pays its fee in, for `rhinestoneParams.paymentToken`. */
+  readonly paymentToken: Address
 }
 
 export interface PlanHcaIntentFundingParams {
@@ -421,6 +432,8 @@ export interface PlanHcaIntentFundingParams {
   readonly hcaBalanceAtLeast?: bigint
   /** Basis points the fee is funded above the quote; none by default. */
   readonly feeMarginBps?: bigint
+  /** The USDC the HCA pays the fee and a USDC spend in. Defaults to the deployment's. */
+  readonly paymentToken?: Address
   /**
    * Ceiling on the quoted fee before it can become a permit value. Defaults to
    * {@link HCA_MAX_STANDALONE_INTENT_FEE_USDC}; pass
@@ -668,6 +681,7 @@ export type QuoteHcaIntentParams = Pick<
   | 'gasLimit'
   | 'hcaBalanceAtLeast'
   | 'feeMarginBps'
+  | 'paymentToken'
 >
 
 /** Read the balances and quote the fee for `calls` as the funded batch; nothing is signed. */
@@ -693,7 +707,7 @@ async function quoteIntent(
   }
 
   const hca = signer.account.getAddress() as Address
-  const usdc = getDestinationContracts(chainId).usdc
+  const usdc = params.paymentToken ?? getDestinationContracts(chainId).usdc
 
   // A USDC spend shares the fee's funding; any other token is a leg of its own.
   const otherSpend =
@@ -709,11 +723,12 @@ async function quoteIntent(
   // elsewhere — it would pull the full fee out of the owner's wallet into an
   // HCA that may already have been holding it.
   const balance = await (hcaBalanceAtLeast === undefined
-    ? readHcaUsdcBalanceActor({ hca, publicClient, chainId })
+    ? readHcaUsdcBalanceActor({ hca, publicClient, chainId, token: usdc })
     : readHcaUsdcBalanceAtLeastActor({
         hca,
         publicClient,
         chainId,
+        token: usdc,
         atLeast: hcaBalanceAtLeast,
       })
   ).match(
@@ -771,6 +786,7 @@ async function quoteIntent(
     declaredInflow,
     gasLimit,
     feeMarginBps,
+    usdc,
   })
 
   return {
@@ -838,7 +854,7 @@ export async function planHcaIntentFunding(
     // The HCA already covers it — submit the bare action. The quote was taken
     // over a larger batch, so it only over-estimated, which is safe here
     // because nothing is being permitted.
-    return { calls: [...calls], quotedFeeUsdc }
+    return { calls: [...calls], quotedFeeUsdc, paymentToken: usdc }
   }
 
   return fundShortfalls(params, {
@@ -1140,5 +1156,6 @@ async function buildFundingCalls(
         }
       : {}),
     quotedFeeUsdc: quoted.quotedFeeUsdc,
+    paymentToken: usdc,
   }
 }
