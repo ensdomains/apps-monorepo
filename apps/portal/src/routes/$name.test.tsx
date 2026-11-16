@@ -86,3 +86,28 @@ describe('name layout — invalid names', () => {
     ).toBeNull()
   })
 })
+
+describe('name layout — address-like names', () => {
+  afterEach(() => {
+    routeName = 'alice.eth'
+  })
+
+  it('warns above the pages of a name that reads like a wallet address', () => {
+    routeName = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth'
+
+    renderLayout()
+
+    expect(
+      screen.getByText(/This name may resolve to another address/),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('outlet')).toBeInTheDocument()
+  })
+
+  it('does not warn on an ordinary name', () => {
+    renderLayout()
+
+    expect(
+      screen.queryByText(/This name may resolve to another address/),
+    ).toBeNull()
+  })
+})

@@ -1,3 +1,4 @@
+import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { hasResolvedRecords } from '@ens-apps/utils/hasResolvedRecords'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -255,7 +256,10 @@ export const useSearchResults = ({
   // Owner isn't a proxy for registered: an expired name keeps a registry entry
   // pointing at the NameWrapper, so it has an owner and is still available.
   const namesToCheckAvailability = useMemo(
-    () => nameSuggestions.filter((s) => isRegistrable(s.inputValue)),
+    () =>
+      nameSuggestions.filter(
+        (s) => isRegistrable(s.inputValue) && !isAddressLikeName(s.inputValue),
+      ),
     [nameSuggestions],
   )
 

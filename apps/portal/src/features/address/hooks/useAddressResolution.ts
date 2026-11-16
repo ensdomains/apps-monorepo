@@ -1,3 +1,4 @@
+import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { useQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress } from 'viem'
@@ -12,6 +13,8 @@ export type AddressResolutionStatus =
   | 'empty'
   /** Non-empty, but not a syntactically valid ENS name or 0x address. */
   | 'invalid'
+  /** A name that reads like a wallet address, so it is never resolved. */
+  | 'address-like'
   /** Valid input; debouncing or fetching the resolution. */
   | 'resolving'
   /** Resolved to an address. */
@@ -51,6 +54,9 @@ export const useAddressResolution = (input: string): AddressResolution => {
   const debounced = useDebouncedValue(trimmed, isRawAddress ? 0 : DEBOUNCE_MS)
 
   const isValid = trimmed.length > 0 && isNameOrAddress(trimmed)
+  // Such a name gets passed off as the address it spells, so make the user paste that.
+  const isAddressLike = !isRawAddress && isAddressLikeName(trimmed)
+  const canResolve = isValid && !isAddressLike
   const isDebouncing = debounced !== trimmed
 
   const {
@@ -59,20 +65,22 @@ export const useAddressResolution = (input: string): AddressResolution => {
     isError,
   } = useQuery({
     ...getResolvedAddressQueryOptions({ nameOrAddress: debounced }),
-    enabled: isValid && !isDebouncing,
+    enabled: canResolve && !isDebouncing,
   })
 
-  const isResolving = isValid && (isDebouncing || isFetching)
+  const isResolving = canResolve && (isDebouncing || isFetching)
 
   const status = match({
     isEmpty: trimmed.length === 0,
+    isAddressLike,
     isValid,
     isResolving,
-    isError: isValid && isError,
+    isError: canResolve && isError,
     resolved,
   })
     .with({ isEmpty: true }, () => 'empty' as const)
     .with({ isValid: false }, () => 'invalid' as const)
+    .with({ isAddressLike: true }, () => 'address-like' as const)
     .with({ isResolving: true }, () => 'resolving' as const)
     .with({ resolved: P.nonNullable }, () => 'resolved' as const)
     .with({ isError: true }, () => 'error' as const)
@@ -84,7 +92,10 @@ export const useAddressResolution = (input: string): AddressResolution => {
     isValid,
     isRawAddress,
     isInvalid:
-      status === 'invalid' || status === 'unresolved' || status === 'error',
+      status === 'invalid' ||
+      status === 'address-like' ||
+      status === 'unresolved' ||
+      status === 'error',
     status,
   }
 }

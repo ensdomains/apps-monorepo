@@ -1,3 +1,4 @@
+import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 import { getLabel } from './getLabel'
@@ -32,6 +33,12 @@ export const validateRegistrableEthName = (
 
   return undefined
 }
+
+/** Refuses a name that reads like a wallet address, which ENS itself allows. */
+export const getAddressLikeNameError = (name: string): string | null =>
+  isAddressLikeName(name)
+    ? 'Names that look like a wallet address can’t be registered here, because they can be passed off as that address.'
+    : null
 
 /**
  * Validates that a name meets ENS minimum length (3+ chars for the first label).

@@ -82,6 +82,12 @@ export const AddressNameInput = ({
             Enter a valid ENS name or address
           </p>
         ))
+        .with('address-like', () => (
+          <p className="text-p mt-1.5 text-danger">
+            This name looks like a wallet address and may resolve to a different
+            one. Enter the address itself.
+          </p>
+        ))
         // No message before the user has typed anything.
         .with('empty', () => null)
         .exhaustive()}

@@ -20,6 +20,7 @@ import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
+  getAddressLikeNameError,
   validateNameLength,
   validateRegistrableEthName,
 } from '@/utils/token/nameValidation'
@@ -68,7 +69,9 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
 
   const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
-  const isNameValid = !registrableEthError && !nameLengthError
+  const addressLikeError = getAddressLikeNameError(name)
+  const isNameValid =
+    !registrableEthError && !nameLengthError && !addressLikeError
 
   const {
     data: availability,
@@ -122,6 +125,15 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
       <InvalidNameMessage
         title="Name too short"
         description={nameLengthError}
+      />
+    )
+  }
+
+  if (addressLikeError) {
+    return (
+      <InvalidNameMessage
+        title="Name can’t be registered"
+        description={addressLikeError}
       />
     )
   }

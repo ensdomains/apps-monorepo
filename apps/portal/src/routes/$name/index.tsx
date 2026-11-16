@@ -58,7 +58,10 @@ import {
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
-import { validateNameLength } from '@/utils/token/nameValidation'
+import {
+  getAddressLikeNameError,
+  validateNameLength,
+} from '@/utils/token/nameValidation'
 
 export const Route = createFileRoute('/$name/')({
   component: App,
@@ -81,6 +84,26 @@ export const Route = createFileRoute('/$name/')({
 // minmax(0,1fr) lets the metadata column shrink below its content width.
 const profileGridClassName =
   'grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px] gap-3'
+
+/** An available .eth 2LD: the Register prompt, or why it can't be registered. */
+const AvailableNamePrompt = ({ name }: { readonly name: string }) => {
+  const lengthError = validateNameLength(name)
+  if (lengthError) {
+    return (
+      <InvalidNameMessage title="Name too short" description={lengthError} />
+    )
+  }
+  const addressLikeError = getAddressLikeNameError(name)
+  if (addressLikeError) {
+    return (
+      <InvalidNameMessage
+        title="Name can’t be registered"
+        description={addressLikeError}
+      />
+    )
+  }
+  return <AvailableNameMessage name={name} />
+}
 
 /** A name with no registry entry has only what its resolver returns. */
 const OffchainNameProfile = ({
@@ -285,15 +308,7 @@ const Profile = ({
     if (availabilityQuery.data?.isAvailable) {
       // .eth names can be registered
       if (isRegistrable(name)) {
-        const lengthError = validateNameLength(name)
-        return lengthError ? (
-          <InvalidNameMessage
-            title="Name too short"
-            description={lengthError}
-          />
-        ) : (
-          <AvailableNameMessage name={name} />
-        )
+        return <AvailableNamePrompt name={name} />
       }
     }
 
@@ -379,12 +394,7 @@ const Profile = ({
   }
 
   if (availabilityQuery.data?.isAvailable && isRegistrable(name)) {
-    const lengthError = validateNameLength(name)
-    return lengthError ? (
-      <InvalidNameMessage title="Name too short" description={lengthError} />
-    ) : (
-      <AvailableNameMessage name={name} />
-    )
+    return <AvailableNamePrompt name={name} />
   }
 
   // Profile query error - but we have owner, so name exists

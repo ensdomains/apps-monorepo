@@ -147,10 +147,6 @@ const CreateSubnameForm = ({
 
   const ownerResolution = useAddressResolution(ownerInput)
   const ownerAddress = ownerResolution.address
-  const ownerInvalid =
-    ownerResolution.status === 'invalid' ||
-    ownerResolution.status === 'unresolved' ||
-    ownerResolution.status === 'error'
 
   useSyncOwnerWithConnectedAddress(
     connectedAddress,
@@ -308,7 +304,7 @@ const CreateSubnameForm = ({
           )}
         </Field>
 
-        <Field data-invalid={ownerInvalid}>
+        <Field data-invalid={ownerResolution.isInvalid}>
           <FieldLabel htmlFor="owner">Owner</FieldLabel>
           <AddressNameInput
             id="owner"
