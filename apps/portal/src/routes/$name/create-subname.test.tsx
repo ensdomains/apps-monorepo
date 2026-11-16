@@ -299,8 +299,16 @@ describe('create subname under a V2 parent', () => {
     isRegistryPendingUpgrade.mockReturnValue(false)
   })
 
-  it('pauses creation while the registry is pending an upgrade', async () => {
-    isRegistryPendingUpgrade.mockReturnValue(true)
+  it.each([
+    ['is pending an upgrade', () => true],
+    [
+      'could not be checked',
+      () => {
+        throw new Error('rpc')
+      },
+    ],
+  ])('pauses creation while the registry %s', async (_case, answer) => {
+    isRegistryPendingUpgrade.mockImplementation(answer)
     renderRoute()
 
     expect(await screen.findByTestId('navigate')).toHaveTextContent(

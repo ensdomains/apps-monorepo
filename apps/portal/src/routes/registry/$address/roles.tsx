@@ -15,7 +15,11 @@ import { RegistryRolesLockedNotice } from '@/features/registry/components/v2/Reg
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
-import { getRoleEditLock } from '@/features/registry/utils/pendingUpgradeRegistry'
+import {
+  getRoleEditing,
+  getUpgradeGate,
+  settledPendingUpgrade,
+} from '@/features/registry/utils/pendingUpgradeRegistry'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
@@ -64,10 +68,11 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
   const pendingUpgrade = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress: address }),
   )
-  const roleEditLock = getRoleEditLock(
-    pendingUpgrade.error ? undefined : pendingUpgrade.data,
-  )
-  const canEditRoles = isAdmin && roleEditLock === 'open'
+  const roleGate = getUpgradeGate(settledPendingUpgrade(pendingUpgrade))
+  const { canEdit: canEditRoles, showUpgradeNote } = getRoleEditing({
+    isAdmin,
+    gate: roleGate,
+  })
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
 
@@ -114,13 +119,8 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
           {truncateAddress(address)}
         </EntityBadge>
       </div>
-      {isAdmin && roleEditLock === 'needs-update' && (
-        <RegistryRolesLockedNotice />
-      )}
-      <RegistryRolesTable
-        address={address}
-        disableEdit={roleEditLock !== 'open'}
-      />
+      {showUpgradeNote && <RegistryRolesLockedNotice />}
+      <RegistryRolesTable address={address} disableEdit={roleGate !== 'open'} />
       {canEditRoles && (
         <RegistryAddUserSheet
           open={isAddUserOpen}

@@ -46,7 +46,10 @@ import {
   prepareCreateSubnameTransaction,
   type RegistrarAccess,
 } from '@/features/registry/utils/create-subname.helpers'
-import { isSubnameCreationPaused } from '@/features/registry/utils/pendingUpgradeRegistry'
+import {
+  getUpgradeGate,
+  settledPendingUpgrade,
+} from '@/features/registry/utils/pendingUpgradeRegistry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
@@ -464,12 +467,7 @@ const V2PendingUpgradeGate = ({
 
   if (pendingUpgrade.isPending) return <LoadingMessage />
 
-  // A failed refresh may leave an earlier answer cached; it counts as unchecked.
-  if (
-    isSubnameCreationPaused(
-      pendingUpgrade.error ? undefined : pendingUpgrade.data,
-    )
-  )
+  if (getUpgradeGate(settledPendingUpgrade(pendingUpgrade)) !== 'open')
     return <Navigate to="/$name/subnames" params={{ name }} replace />
 
   return <V2RegistrarGate name={name} registryAddress={registryAddress} />

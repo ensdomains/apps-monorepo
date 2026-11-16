@@ -61,12 +61,16 @@ const contractNames = new Map<string, string>()
 const contractPills = new Map<string, string>()
 
 /** The previous V1 PublicResolver per chain, which most V1 names still point at. */
-export const PREVIOUS_PUBLIC_RESOLVERS: Readonly<Record<number, Address>> = {
+export const PREVIOUS_PUBLIC_RESOLVERS: Readonly<
+  Partial<Record<number, Address>>
+> = {
   [mainnet.id]: '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63',
   [sepolia.id]: '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
 }
 
-for (const address of Object.values(PREVIOUS_PUBLIC_RESOLVERS)) {
+for (const address of Object.values(PREVIOUS_PUBLIC_RESOLVERS).filter(
+  (resolver) => resolver !== undefined,
+)) {
   contractNames.set(
     address.toLowerCase(),
     contractDisplayNames.ensPublicResolver,

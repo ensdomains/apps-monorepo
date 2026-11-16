@@ -4,6 +4,7 @@ import { useConnection } from 'wagmi'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { getIsRegistryPendingUpgradeQueryOptions } from '../queries/getIsRegistryPendingUpgrade'
+import { settledPendingUpgrade } from '../utils/pendingUpgradeRegistry'
 import {
   getRegistryRepairCase,
   type RegistryRepairCase,
@@ -36,9 +37,7 @@ export const useRegistryRepairCase = (
     }),
     enabled: Boolean(registryAddress),
   })
-  const isPendingUpgrade = pendingUpgrade.error
-    ? undefined
-    : pendingUpgrade.data
+  const isPendingUpgrade = settledPendingUpgrade(pendingUpgrade)
 
   const { hasRole, isLoading: isRoleLoading } = useHasSetSubregistryRole(name, {
     enabled: isPendingUpgrade === true,
@@ -56,7 +55,9 @@ export const useRegistryRepairCase = (
 
   return {
     repairCase: getRegistryRepairCase({
-      isPendingUpgrade: registryAddress ? isPendingUpgrade : false,
+      // No registry under the name: nothing to upgrade. Registries not read yet: unknown.
+      isPendingUpgrade:
+        registries && (registryAddress ? isPendingUpgrade : false),
       isConnected: Boolean(account),
       canSwitchParent,
       rootRoles: rootRoles.error ? undefined : rootRoles.data?.raw,

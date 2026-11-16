@@ -2,10 +2,11 @@ import { getDestinationContracts } from '@ens-apps/smart-account'
 import { mainnet, sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
 import {
-  getRoleEditLock,
+  getRoleEditing,
+  getUpgradeGate,
   isPastedRegistryBlocked,
   isPendingUpgradeImplementation,
-  isSubnameCreationPaused,
+  settledPendingUpgrade,
 } from './pendingUpgradeRegistry'
 
 describe('isPendingUpgradeImplementation', () => {
@@ -72,25 +73,32 @@ describe('isPastedRegistryBlocked', () => {
   )
 })
 
-describe('getRoleEditLock', () => {
+describe('getUpgradeGate', () => {
   it.each([
     [false, 'open'],
-    [true, 'needs-update'],
+    [true, 'needs-upgrade'],
     [undefined, 'checking'],
   ] as const)('pending upgrade %s: %s', (isPendingUpgrade, expected) => {
-    expect(getRoleEditLock(isPendingUpgrade)).toBe(expected)
+    expect(getUpgradeGate(isPendingUpgrade)).toBe(expected)
   })
 })
 
-describe('isSubnameCreationPaused', () => {
+describe('settledPendingUpgrade', () => {
+  it('counts an answer as unknown once a refresh of it failed', () => {
+    expect(
+      settledPendingUpgrade({ data: false, error: new Error('rpc') }),
+    ).toBeUndefined()
+    expect(settledPendingUpgrade({ data: false, error: null })).toBe(false)
+  })
+})
+
+describe('getRoleEditing', () => {
   it.each([
-    { isPendingUpgrade: true, expected: true },
-    { isPendingUpgrade: undefined, expected: true },
-    { isPendingUpgrade: false, expected: false },
-  ])(
-    'pending $isPendingUpgrade: paused $expected',
-    ({ isPendingUpgrade, expected }) => {
-      expect(isSubnameCreationPaused(isPendingUpgrade)).toBe(expected)
-    },
-  )
+    [true, 'open', { canEdit: true, showUpgradeNote: false }],
+    [true, 'checking', { canEdit: false, showUpgradeNote: false }],
+    [true, 'needs-upgrade', { canEdit: false, showUpgradeNote: true }],
+    [false, 'needs-upgrade', { canEdit: false, showUpgradeNote: false }],
+  ] as const)('admin %s behind a %s gate', (isAdmin, gate, expected) => {
+    expect(getRoleEditing({ isAdmin, gate })).toEqual(expected)
+  })
 })

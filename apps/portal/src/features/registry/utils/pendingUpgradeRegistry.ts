@@ -45,19 +45,35 @@ export const isPastedRegistryBlocked = ({
   readonly isPendingUpgrade: boolean | undefined
 }): boolean => isPasted && isPendingUpgrade !== false
 
-export type RoleEditLock = 'open' | 'checking' | 'needs-update'
+/** Whether roles can change and subnames be created: only once the registry is confirmed not to be pending an upgrade. */
+export type UpgradeGate = 'open' | 'checking' | 'needs-upgrade'
 
-/** Roles on a registry can only change once it is confirmed not to be pending an upgrade. */
-export const getRoleEditLock = (
+export const getUpgradeGate = (
   isPendingUpgrade: boolean | undefined,
-): RoleEditLock =>
+): UpgradeGate =>
   match(isPendingUpgrade)
     .with(false, () => 'open' as const)
-    .with(true, () => 'needs-update' as const)
+    .with(true, () => 'needs-upgrade' as const)
     .with(undefined, () => 'checking' as const)
     .exhaustive()
 
-/** Subnames can't be created in a registry until it is confirmed not to be pending an upgrade. */
-export const isSubnameCreationPaused = (
-  isPendingUpgrade: boolean | undefined,
-): boolean => isPendingUpgrade !== false
+/** The pending-upgrade answer a gate may use; a failed refresh can leave an earlier answer cached, so it counts as unknown. */
+export const settledPendingUpgrade = ({
+  data,
+  error,
+}: {
+  readonly data: boolean | undefined
+  readonly error: unknown
+}): boolean | undefined => (error ? undefined : data)
+
+/** What a role admin may do on a registry behind `gate`: edit only when it is open, and see the upgrade note when it needs one. */
+export const getRoleEditing = ({
+  isAdmin,
+  gate,
+}: {
+  readonly isAdmin: boolean
+  readonly gate: UpgradeGate
+}): { readonly canEdit: boolean; readonly showUpgradeNote: boolean } => ({
+  canEdit: isAdmin && gate === 'open',
+  showUpgradeNote: isAdmin && gate === 'needs-upgrade',
+})

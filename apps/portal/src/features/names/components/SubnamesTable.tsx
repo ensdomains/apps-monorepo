@@ -38,6 +38,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import type { UpgradeGate } from '@/features/registry/utils/pendingUpgradeRegistry'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { healSubname } from '@/utils/ens/localLabels'
@@ -115,10 +116,8 @@ interface SubnamesTableProps {
   readonly isLoadMoreError?: boolean
   readonly name: string
   readonly canCreateSubname?: boolean
-  /** Shows the create action disabled instead of linking to the form. */
-  readonly isCreationPaused?: boolean
-  /** The pause is because the registry runs on an older version. */
-  readonly isRegistryUpdateRequired?: boolean
+  /** Whether the create action links to the form, or why it is disabled. */
+  readonly creationGate?: UpgradeGate
   /** Called when user confirms delete on a single subname. */
   readonly onDeleteSubname?: (subname: SubnameRow) => void
   /** Called when user clicks Clear with selection. */
@@ -217,16 +216,27 @@ function buildColumns(
   ]
 }
 
+const PAUSED_CREATION_REASON = {
+  checking: 'Subname creation temporarily disabled.',
+  'needs-upgrade':
+    'This registry must be upgraded before new subnames can be created.',
+} as const
+
 const CreateSubnameAction = ({
   name,
-  isPaused,
-  isUpdateRequired,
+  gate,
 }: {
   readonly name: string
-  readonly isPaused: boolean
-  readonly isUpdateRequired: boolean
+  readonly gate: UpgradeGate
 }) =>
-  isPaused ? (
+  gate === 'open' ? (
+    <Button variant="default" asChild>
+      <Link to="/$name/create-subname" params={{ name }}>
+        <Plus className="size-4" />
+        Create subname
+      </Link>
+    </Button>
+  ) : (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button aria-disabled="true" className="cursor-not-allowed opacity-50">
@@ -234,19 +244,8 @@ const CreateSubnameAction = ({
           Create subname
         </Button>
       </TooltipTrigger>
-      <TooltipContent>
-        {isUpdateRequired
-          ? 'This registry must be upgraded before new subnames can be created.'
-          : 'Subname creation temporarily disabled.'}
-      </TooltipContent>
+      <TooltipContent>{PAUSED_CREATION_REASON[gate]}</TooltipContent>
     </Tooltip>
-  ) : (
-    <Button variant="default" asChild>
-      <Link to="/$name/create-subname" params={{ name }}>
-        <Plus className="size-4" />
-        Create subname
-      </Link>
-    </Button>
   )
 
 export const SubnamesTable = ({
@@ -257,8 +256,7 @@ export const SubnamesTable = ({
   isLoadMoreError = false,
   name,
   canCreateSubname,
-  isCreationPaused = true,
-  isRegistryUpdateRequired = false,
+  creationGate = 'checking',
   onDeleteSubname,
   onClearSelected,
   isDeleting,
@@ -334,11 +332,7 @@ export const SubnamesTable = ({
             {totalCount ? `Subnames (${totalCount})` : 'Subnames'}
           </PageHeading>
           {canCreateSubname && (
-            <CreateSubnameAction
-              name={name}
-              isPaused={isCreationPaused}
-              isUpdateRequired={isRegistryUpdateRequired}
-            />
+            <CreateSubnameAction name={name} gate={creationGate} />
           )}
         </div>
         {selectedCount > 0 && (

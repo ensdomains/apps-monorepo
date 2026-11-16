@@ -1,21 +1,12 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
-import { ensChain } from '@/lib/wagmi'
 import { isOfficialPublicResolver } from './universalResolver'
 
+// Tests run on Sepolia (ensChain from .env.ci).
 describe('isOfficialPublicResolver', () => {
-  it('runs on Sepolia', () => {
-    expect(ensChain.id).toBe(sepolia.id)
-  })
-
   it.each([
     [
       'the current PublicResolver',
-      getChainContractAddress({
-        chain: ensChain,
-        contract: 'ensPublicResolver',
-      }),
+      '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
       true,
     ],
     [

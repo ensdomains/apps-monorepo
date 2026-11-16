@@ -36,3 +36,13 @@ export const getRegistryRepairCase = ({
         : ('viewer' as const),
     )
     .otherwise(() => 'unknown' as const)
+
+/** Keeps the card up while the case briefly reads as unknown (a refetch on focus), so an upgrade in progress isn't torn down. */
+export const shouldShowUpgradeCard = ({
+  repairCase,
+  wasShown,
+}: {
+  readonly repairCase: RegistryRepairCase
+  readonly wasShown: boolean
+}): boolean =>
+  repairCase === 'can-upgrade' || (repairCase === 'unknown' && wasShown)

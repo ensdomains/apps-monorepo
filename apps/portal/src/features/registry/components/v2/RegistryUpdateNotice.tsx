@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -7,6 +8,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useRegistryRepairCase } from '../../hooks/useRegistryRepairCase'
 import { useRegistryUpdate } from '../../hooks/useRegistryUpdate'
 import type { RegistryUpgradeStage } from '../../state/registryUpgrade.machine'
+import { shouldShowUpgradeCard } from '../../utils/registryRepairCase'
 import type { RegistryUpdateFailure } from '../../utils/registryUpdate'
 import { RegistryPanel } from './RegistryPanel'
 
@@ -33,8 +35,11 @@ const FAILURE_MESSAGES: Readonly<Record<RegistryUpdateFailure, string>> = {
 export const RegistryUpdateNotice = ({ name }: { readonly name: string }) => {
   const { repairCase, registryAddress, parentRegistry } =
     useRegistryRepairCase(name)
+  const [wasShown, setWasShown] = useState(false)
+  const isShown = shouldShowUpgradeCard({ repairCase, wasShown })
+  if (isShown !== wasShown) setWasShown(isShown)
 
-  if (repairCase !== 'can-upgrade') return null
+  if (!isShown) return null
 
   return (
     <RegistryUpdateCard

@@ -38,7 +38,10 @@ import {
 import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import { getRegistrarAccess } from '@/features/registry/utils/create-subname.helpers'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
-import { isSubnameCreationPaused } from '@/features/registry/utils/pendingUpgradeRegistry'
+import {
+  getUpgradeGate,
+  settledPendingUpgrade,
+} from '@/features/registry/utils/pendingUpgradeRegistry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import type { IntentContext } from '@/features/transaction-manager/types'
@@ -198,10 +201,6 @@ const SubregistrySubnames = ({
       registryAddress: subregistryAddress,
     }),
   )
-  // A failed refresh may leave an earlier answer cached; it counts as unchecked.
-  const isPendingUpgrade = pendingUpgrade.error
-    ? undefined
-    : pendingUpgrade.data
   const { data: registrarAccess } = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress: subregistryAddress,
@@ -418,8 +417,7 @@ const SubregistrySubnames = ({
         isLoadMoreError={isFetchNextPageError}
         name={name}
         canCreateSubname={canCreateSubname}
-        isCreationPaused={isSubnameCreationPaused(isPendingUpgrade)}
-        isRegistryUpdateRequired={isPendingUpgrade === true}
+        creationGate={getUpgradeGate(settledPendingUpgrade(pendingUpgrade))}
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
         onClearSelected={canDeleteSubname ? handleClearSelected : undefined}
         isDeleting={isDeleting}

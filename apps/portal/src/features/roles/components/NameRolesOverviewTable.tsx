@@ -14,7 +14,11 @@ import { Button } from '@/components/ui/button'
 import { RegistryRolesLockedNotice } from '@/features/registry/components/v2/RegistryRolesLockedNotice'
 import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
-import { getRoleEditLock } from '@/features/registry/utils/pendingUpgradeRegistry'
+import {
+  getRoleEditing,
+  getUpgradeGate,
+  settledPendingUpgrade,
+} from '@/features/registry/utils/pendingUpgradeRegistry'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
@@ -216,15 +220,13 @@ export const NameRolesOverviewTable = ({
   const pendingUpgrade = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
   )
-  const roleEditLock = getRoleEditLock(
-    pendingUpgrade.error ? undefined : pendingUpgrade.data,
-  )
-  const isRoleAdmin = callerAdminRoles.size > 0
-
   // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
-  const canManageRoles = isRoleAdmin && roleEditLock === 'open'
+  const { canEdit: canManageRoles, showUpgradeNote } = getRoleEditing({
+    isAdmin: callerAdminRoles.size > 0,
+    gate: getUpgradeGate(settledPendingUpgrade(pendingUpgrade)),
+  })
   const canAddUser =
-    roleEditLock === 'open' &&
+    canManageRoles &&
     permissions.some((permission) =>
       canCallerSetManagerRole(permission.key, callerAdminRoles, {
         is2LD: name.split('.').length === 2,
@@ -247,9 +249,7 @@ export const NameRolesOverviewTable = ({
           {truncateAddress(registryAddress)}
         </EntityBadge>
       </div>
-      {isRoleAdmin && roleEditLock === 'needs-update' && (
-        <RegistryRolesLockedNotice />
-      )}
+      {showUpgradeNote && <RegistryRolesLockedNotice />}
       <V2NameRoles
         name={name}
         registryAddress={registryAddress}

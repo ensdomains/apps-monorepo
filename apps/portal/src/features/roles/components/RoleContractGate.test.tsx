@@ -83,7 +83,9 @@ vi.mock('@/components/PageHeading', () => ({
   ),
 }))
 vi.mock('@/features/registry/components/v2/RegistryRolesTable', () => ({
-  RegistryRolesTable: () => <div>registry roles table</div>,
+  RegistryRolesTable: ({ disableEdit }: { disableEdit?: boolean }) => (
+    <div>{disableEdit ? 'read-only roles table' : 'registry roles table'}</div>
+  ),
 }))
 vi.mock('@/features/registry/components/v2/RegistryAddUserSheet', () => ({
   RegistryAddUserSheet: () => <div>registry add user sheet</div>,
@@ -157,7 +159,7 @@ describe('/registry/$address/roles', () => {
     isPendingUpgrade = true
     renderRoute(RegistryRolesRoute)
 
-    expect(screen.getByText('registry roles table')).toBeInTheDocument()
+    expect(screen.getByText('read-only roles table')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
     expect(screen.getByText('Upgrade required')).toBeInTheDocument()
   })
@@ -167,6 +169,7 @@ describe('/registry/$address/roles', () => {
     pendingUpgradeError = new Error('rpc down')
     renderRoute(RegistryRolesRoute)
 
+    expect(screen.getByText('read-only roles table')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Add User/i })).toBeNull()
     expect(screen.queryByText('Upgrade required')).toBeNull()
   })

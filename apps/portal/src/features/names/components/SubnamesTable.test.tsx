@@ -260,7 +260,7 @@ describe('SubnamesTable', () => {
         subnames={[]}
         name="test.eth"
         canCreateSubname
-        isCreationPaused={false}
+        creationGate="open"
       />,
     )
 
@@ -298,7 +298,7 @@ describe('SubnamesTable', () => {
         subnames={[]}
         name="test.eth"
         canCreateSubname
-        isRegistryUpdateRequired
+        creationGate="needs-upgrade"
       />,
     )
 
