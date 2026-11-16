@@ -1071,7 +1071,16 @@ export const RegistrationFlow = ({ name }: { name: string }) => {
 
 ### Every Write Goes Through the Transaction Manager 🔴 Must
 
-**Every write goes through the transaction manager**, a single write as much as dependent ones. Build the write as an intent and start it with `transactionManager.startTransaction` and a `Signer`; the app's step runner shows its progress (`TransactionModal` in the portal). App code never sends a write with wagmi's `useWriteContract` or `useSendTransaction`, or with a wallet client directly; [Why Not Just Use Wagmi?](#why-not-just-use-wagmi) gives the reasons. There is no exception.
+**Every write goes through the transaction manager**, a single write as much as dependent ones. Build the write as an intent and start it with `transactionManager.startTransaction` and a `Signer`; the app's step runner shows its progress (`TransactionModal` in the portal). App code never sends a write with wagmi's `useWriteContract` or `useSendTransaction`, or with a wallet client directly; [Why Not Just Use Wagmi?](#why-not-just-use-wagmi) gives the reasons.
+
+The only exceptions are the direct writes that predate this rule. Each is to be moved to the transaction manager, and no new code adds another:
+
+- Setting an L2 primary name: `apps/portal/src/features/reverse-resolution/hooks/useSetL2ReverseName.ts`
+- Renewing ENSv1 names in their grace period, USDC approval included: `apps/manager/src/features/migration/service/graceRenewal.ts`
+- Claiming the commemorative NFT: `apps/manager/src/features/migration/commemorative-nft/contract.ts`
+- Revoking a migration operator approval: `apps/manager/src/features/migration/components/revokeMigrationApproval.ts`
+- Withdrawing leftover funds from the smart account: `apps/manager/src/features/wallet/service/leftoverFunds.ts`
+- Revoking the smart account's sessions: `packages/smart-account/src/providers/rhinestone/revoke-sessions.ts`
 
 The shape for a single write is the [Single Transaction Pattern](#single-transaction-pattern--default); for dependent writes, the section below and [Combining Multiple Requests](#combining-multiple-requests).
 
