@@ -236,7 +236,7 @@ const CreateSubnameAction = ({
       </TooltipTrigger>
       <TooltipContent>
         {isUpdateRequired
-          ? 'This registry must be updated before new subnames can be created.'
+          ? 'This registry must be upgraded before new subnames can be created.'
           : 'Subname creation temporarily disabled.'}
       </TooltipContent>
     </Tooltip>

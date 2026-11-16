@@ -292,7 +292,7 @@ describe('SubnamesTable', () => {
     },
   )
 
-  it('explains that an older registry must be updated before creating subnames', async () => {
+  it('explains that an older registry must be upgraded before creating subnames', async () => {
     render(
       <SubnamesTable
         subnames={[]}
@@ -307,7 +307,7 @@ describe('SubnamesTable', () => {
       .hover(screen.getByRole('button', { name: 'Create subname' }))
 
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      'This registry must be updated before new subnames can be created.',
+      'This registry must be upgraded before new subnames can be created.',
     )
   })
 
