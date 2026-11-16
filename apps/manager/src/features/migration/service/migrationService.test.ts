@@ -3135,6 +3135,29 @@ describe('executeMigration HCA orchestration', () => {
     expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
   })
 
+  it('keeps an intent indeterminate after an account switch stopped its wait while the prompt may be open', async () => {
+    stubWebLocks()
+    const { TransactionStoppedError } = await vi.importActual<
+      typeof import('@ens-apps/transaction-manager')
+    >('@ens-apps/transaction-manager')
+    mocks.waitForTransactionHash.mockRejectedValueOnce(
+      new TransactionStoppedError('tx-1'),
+    )
+    await expect(runExecute()).rejects.toBeDefined()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue(INCOMPLETE_ALICE)
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      cause: { name: 'AtomicMigrationIntentIndeterminateError' },
+    })
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+  })
+
   it('reconciles an already-complete batch only when its attempt was recorded', async () => {
     const onBatchComplete = vi.fn()
     persistPendingAtomicMigrationIntent(

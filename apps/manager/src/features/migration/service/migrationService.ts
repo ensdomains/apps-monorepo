@@ -135,6 +135,7 @@ import {
 import { assertSubnameRecreationSnapshotCurrent } from './subnameRecreationError'
 import {
   canReadStateForUnrecordedIntent,
+  mayLeaveWalletPromptOpen,
   type UnrecordedIntentEvidence,
 } from './unrecordedIntent'
 import {
@@ -1669,6 +1670,13 @@ const unresolvedIntentIdsFor = (params: {
   return unresolvedIntentIds
 }
 
+const releaseLeaseUnlessPromptOpen = (
+  release: () => void,
+  error: unknown,
+): void => {
+  if (!mayLeaveWalletPromptOpen(error)) release()
+}
+
 /** Records an attempt under its intent lease, so a retry elsewhere can see the prompt is live. */
 const recordLeasedAttempt = async (
   scope: MigrationBatchJournalScope,
@@ -2663,7 +2671,7 @@ const executeRemainingAtomicBatches = async (params: {
       params.ctx.tracker.finishBatchStep(batch, 'atomic-batch')
       params.ctx.tracker.emit('Batch confirmed', hash, batch.operations)
     } catch (error) {
-      releaseIntentLease()
+      releaseLeaseUnlessPromptOpen(releaseIntentLease, error)
       if (!submittedHash && isUserRejection(error)) {
         removePendingAtomicMigrationIntent(journalScope, intent.id)
       }
