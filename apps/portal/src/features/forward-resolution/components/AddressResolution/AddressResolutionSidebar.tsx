@@ -95,66 +95,64 @@ const Banner = ({
   errorDetail?: string | null
   readonly mismatchDetail?: ReactNode
   action?: ReactNode
-}) => (
-  <div
-    className={cn(
-      'flex items-center justify-between gap-3 p-4 rounded-md',
-      match(status)
-        .with('verified', () => 'bg-success-fill text-success-text')
-        .with('pending', () => 'bg-accent-fill text-accent-text')
-        .with('unverifiable', () => 'bg-danger-fill text-danger-text')
-        .with('mismatch', () => 'bg-danger-fill text-danger-text')
-        .exhaustive(),
-    )}
-  >
-    <div className="flex items-center gap-3">
-      {match(status)
-        .with('verified', () => (
-          <>
-            <CheckCircle2 className="size-6 shrink-0" />
-            <span className="font-medium">
-              This is the primary name on {label}
-            </span>
-          </>
-        ))
-        .with('pending', () => (
-          <>
-            <Clock className="size-6 shrink-0" />
-            <span className="text-p">
-              Primary name is set on {label} — waiting for L1 verification
-              {lagEstimate ? ` (${lagEstimate})` : ''}.
-            </span>
-          </>
-        ))
-        .with('unverifiable', () => (
-          <>
-            <TriangleAlert className="size-6 shrink-0" />
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-p">
-                Can't verify reverse resolution on {label} right now
-              </span>
-              {errorDetail && (
-                <code className="text-smallmono opacity-80 break-all">
-                  {errorDetail}
-                </code>
-              )}
-            </div>
-          </>
-        ))
-        .with('mismatch', () => (
-          <>
-            <XCircle className="size-6 shrink-0" />
-            <span className="text-p">
-              The set address does not resolve back to this name on {label}
-              {mismatchDetail ? <>. {mismatchDetail}</> : null}
-            </span>
-          </>
-        ))
-        .exhaustive()}
-    </div>
-    {action}
-  </div>
-)
+}) => {
+  const { variant, icon, message } = match(status)
+    .returnType<{
+      readonly variant: 'success' | 'default' | 'destructive'
+      readonly icon: ReactNode
+      readonly message: ReactNode
+    }>()
+    .with('verified', () => ({
+      variant: 'success',
+      icon: <CheckCircle2 />,
+      message: <p>This is the primary name on {label}</p>,
+    }))
+    .with('pending', () => ({
+      variant: 'default',
+      icon: <Clock />,
+      message: (
+        <p>
+          Primary name is set on {label} — waiting for L1 verification
+          {lagEstimate ? ` (${lagEstimate})` : ''}.
+        </p>
+      ),
+    }))
+    .with('unverifiable', () => ({
+      variant: 'destructive',
+      icon: <TriangleAlert />,
+      message: (
+        <>
+          <p>Can't verify reverse resolution on {label} right now</p>
+          {errorDetail && (
+            <code className="text-smallmono opacity-80 break-all">
+              {errorDetail}
+            </code>
+          )}
+        </>
+      ),
+    }))
+    .with('mismatch', () => ({
+      variant: 'destructive',
+      icon: <XCircle />,
+      message: (
+        <p>
+          The set address does not resolve back to this name on {label}
+          {mismatchDetail ? <>. {mismatchDetail}</> : null}
+        </p>
+      ),
+    }))
+    .exhaustive()
+
+  return (
+    <Alert variant={variant}>
+      {icon}
+      <AlertDescription>
+        {message}
+        {action}
+      </AlertDescription>
+    </Alert>
+  )
+}
 
 const OlderResolverDetail = ({ name }: { readonly name: string }) => (
   <>
@@ -442,7 +440,7 @@ const ResolutionDetails = ({
                 type="button"
                 variant="link"
                 size="sm"
-                className="h-auto p-0 text-primary font-medium shrink-0"
+                className="h-auto p-0 text-primary font-medium underline"
                 disabled={isSettingPrimaryName}
                 onClick={onSetPrimaryName}
               >
