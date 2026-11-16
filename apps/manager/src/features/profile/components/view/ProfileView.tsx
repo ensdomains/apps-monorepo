@@ -273,6 +273,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               name={name}
               protocol={ownerData?.protocol}
             />
+            <AddressLikeNameNotice
+              className="mx-5 mb-6 w-auto xl:hidden"
+              name={name}
+            />
             <ProfileHeader
               avatarLoading={avatar.isLoading}
               avatarUrl={avatarUrl}
@@ -296,7 +300,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               records={displayRecords}
               registrationDate={registration.data?.registrationDate}
             />
-            <AddressLikeNameNotice className="mt-4" name={name} />
+            <AddressLikeNameNotice
+              className="mx-8 mt-6 hidden w-auto xl:flex"
+              name={name}
+            />
             {isExpiryError ? (
               <p className="px-4 pt-2 text-muted-foreground text-xs">
                 <Trans>
