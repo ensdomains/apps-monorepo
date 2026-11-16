@@ -82,6 +82,7 @@ export {
   encodeCommitCall,
   encodeDeployDedicatedResolverCall,
   encodeRegisterCall,
+  encodeSetEthAddressCall,
   hasDeployedCode,
   type TOKEN_SYMBOL,
   VERIFY_GRACE_WINDOW_MS,
