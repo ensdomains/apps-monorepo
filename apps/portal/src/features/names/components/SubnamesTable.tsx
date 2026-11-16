@@ -46,7 +46,13 @@ import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
 // A child neither bigname nor this browser can label is shown as
 // `[labelhash].parent`, never linked.
-const SubnameBadge = ({ name }: { readonly name: string }) => {
+const SubnameBadge = ({
+  name,
+  format,
+}: {
+  readonly name: string
+  readonly format?: 'inline' | 'truncate' | 'wrap'
+}) => {
   const isLabelled = !isEncodedLabelhash(name.split('.')[0] ?? '')
   return (
     <EntityBadge
@@ -54,6 +60,7 @@ const SubnameBadge = ({ name }: { readonly name: string }) => {
       name={isLabelled ? name : undefined}
       copyValue={name}
       showAvatar
+      format={format}
     >
       {name}
     </EntityBadge>
@@ -410,7 +417,11 @@ export const SubnamesTable = ({
                         aria-label="Select row"
                       />
                     )}
-                    <SubnameBadge name={row.getValue<string>('name')} />
+                    {/* Wraps rather than truncates: touch users can't reach the title or hover copy chip. */}
+                    <SubnameBadge
+                      name={row.getValue<string>('name')}
+                      format="wrap"
+                    />
                     {row.original.canDelete && onDeleteSubname && (
                       <Button
                         variant="ghost"
@@ -484,98 +495,106 @@ export const SubnamesTable = ({
       </div>
 
       {/* Desktop view - Table layout */}
-      <Table
-        className={cn('relative hidden', subnames.length > 0 && 'md:table')}
-      >
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} className="px-6 py-2">
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {rows.length > 0 ? (
-            rows.map((row) => {
-              const isPendingDelete = pendingDeleteName === row.original.name
-              const isPendingTx = pendingSet.has(row.original.name)
-
-              return (
-                <React.Fragment key={row.id}>
-                  <TableRow
-                    data-state={row.getIsSelected() && 'selected'}
-                    className={cn(
-                      isPendingTx && 'opacity-50 pointer-events-none',
-                    )}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        className={cn('px-6', 'h-10 py-0')}
-                        key={cell.id}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
+      {/* Let the badges' hover fill and chips spill past the last row instead of adding a scrollbar. */}
+      <div className="[&_.overflow-x-auto]:overflow-visible">
+        <Table
+          className={cn('relative hidden', subnames.length > 0 && 'md:table')}
+        >
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="px-6 py-2">
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
                         )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {isPendingDelete && (
-                    <TableRow className="bg-muted">
-                      <TableCell
-                        colSpan={columns.length}
-                        className="px-6 py-3 first:pl-6 last:pr-6"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">
-                            Remove {row.getValue<string>('name')}?
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleCancelDelete}
-                              className="gap-1"
-                            >
-                              Cancel
-                              <X className="size-4" />
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              disabled={isDeleting}
-                              onClick={() => handleConfirmDelete(row.original)}
-                              className="gap-1"
-                            >
-                              Confirm
-                              <Check className="size-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </TableCell>
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {rows.length > 0 ? (
+              rows.map((row) => {
+                const isPendingDelete = pendingDeleteName === row.original.name
+                const isPendingTx = pendingSet.has(row.original.name)
+
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsSelected() && 'selected'}
+                      className={cn(
+                        isPendingTx && 'opacity-50 pointer-events-none',
+                      )}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          className={cn('px-6', 'h-10 py-0')}
+                          key={cell.id}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  )}
-                </React.Fragment>
-              )
-            })
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No subnames found.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+                    {isPendingDelete && (
+                      <TableRow className="bg-muted">
+                        <TableCell
+                          colSpan={columns.length}
+                          className="px-6 py-3 first:pl-6 last:pr-6"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">
+                              Remove {row.getValue<string>('name')}?
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCancelDelete}
+                                className="gap-1"
+                              >
+                                Cancel
+                                <X className="size-4" />
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                disabled={isDeleting}
+                                onClick={() =>
+                                  handleConfirmDelete(row.original)
+                                }
+                                className="gap-1"
+                              >
+                                Confirm
+                                <Check className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                )
+              })
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No subnames found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       {onLoadMore && (
         <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 md:px-0">

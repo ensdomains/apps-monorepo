@@ -327,6 +327,18 @@ describe('planHcaIntentFunding', () => {
     expect(quoted.auxiliaryFunds?.[sepolia.id]?.[C.usdc]).toBeGreaterThan(0n)
   })
 
+  it('quotes and funds in one USDC, and names it for the intent', async () => {
+    mockReads({ hcaBalance: 0n })
+
+    const funding = await planHcaIntentFunding(params)
+
+    const quoted = prepareTransaction.mock.calls[0]?.[0] as {
+      sourceAssets?: readonly Address[]
+    }
+    expect(quoted.sourceAssets).toEqual([C.usdc])
+    expect(funding.paymentToken).toBe(C.usdc)
+  })
+
   it('declares an inflow for a dust balance too, not just an empty one', async () => {
     // 0.3 USDC against a 0.9 fee is exactly as unpriceable to the planner as
     // an empty account — and it is where a settled registration leaves the

@@ -124,9 +124,14 @@ export const RegistryTreeItem = ({
       >
         <div className="flex flex-col lg:flex-row lg:items-center justify-start md:gap-2 gap-0">
           {!isRoot ? (
-            <div className="flex flex-row items-center justify-start gap-2">
+            <div className="flex min-w-0 flex-row items-center justify-start gap-2">
               <RegistryTreePathIcon />
-              <EntityBadge variant="name" name={levelName} showAvatar>
+              <EntityBadge
+                variant="name"
+                name={levelName}
+                showAvatar
+                format="truncate"
+              >
                 {label}
               </EntityBadge>
             </div>
