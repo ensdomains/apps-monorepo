@@ -1,4 +1,5 @@
 import { match } from 'ts-pattern'
+import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -23,13 +24,32 @@ const updateLabel = (status: RegistryUpdateStatus) =>
 export const RegistryUpdateNotice = ({ name }: { readonly name: string }) => {
   const { repairCase, registryAddress, parentRegistry } =
     useRegistryRepairCase(name)
+
+  if (!CAN_UPDATE_CASES.includes(repairCase)) return null
+
+  return (
+    <RegistryUpdateCard
+      name={name}
+      registryAddress={registryAddress}
+      parentRegistry={parentRegistry}
+    />
+  )
+}
+
+const RegistryUpdateCard = ({
+  name,
+  registryAddress,
+  parentRegistry,
+}: {
+  readonly name: string
+  readonly registryAddress: Address | undefined
+  readonly parentRegistry: Address | undefined
+}) => {
   const { start, status, transactions } = useRegistryUpdate({
     name,
     registryAddress,
     parentRegistry,
   })
-
-  if (!CAN_UPDATE_CASES.includes(repairCase)) return null
 
   return (
     <RegistryPanel>
