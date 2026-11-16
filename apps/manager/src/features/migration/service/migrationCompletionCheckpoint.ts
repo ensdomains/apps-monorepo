@@ -15,6 +15,7 @@ import {
 } from 'viem'
 import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { dnsEncodeName } from '../utils/dnsEncodeName'
+import { isAcceptedParentRegistry } from './currentParentRegistries'
 import type {
   MigrationBatchJournalScope,
   MigrationJournalOperation,
@@ -254,10 +255,12 @@ const verifyCheckpointOperation = async (params: {
       hca: params.hca,
       parentName,
     })
-    const currentRegistry = params.currentParentRegistries.get(parentName)
     if (
-      !isAddressEqual(registry, expectedRegistry) &&
-      !(currentRegistry && isAddressEqual(registry, currentRegistry))
+      !isAcceptedParentRegistry({
+        registry,
+        expectedRegistry,
+        currentRegistry: params.currentParentRegistries.get(parentName),
+      })
     )
       throw new Error('Migration checkpoint copy registry is invalid')
     const implementation = await params.read(params.factory, 'verifyContract', [

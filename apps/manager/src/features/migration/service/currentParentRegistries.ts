@@ -103,7 +103,43 @@ export const parentUserRegistryFor = (params: {
   params.currentParentRegistries.get(params.parentName) ??
   computeUserRegistryAddress(params)
 
-const readAddress = (
+/** A copy's registry is the one the HCA deployed, or the certified replacement its parent now points at. */
+export const isAcceptedParentRegistry = (params: {
+  readonly registry: Address
+  readonly expectedRegistry: Address
+  readonly currentRegistry: Address | undefined
+}): boolean =>
+  isAddressEqual(params.registry, params.expectedRegistry) ||
+  (params.currentRegistry !== undefined &&
+    isAddressEqual(params.registry, params.currentRegistry))
+
+/** A registry worth asking the factory about: set, and not the address the HCA would have deployed. */
+export const isRegistryCandidate = (params: {
+  readonly registry: Address | undefined
+  readonly hca: Address
+  readonly parentName: string
+}): params is { readonly registry: Address } & typeof params =>
+  params.registry !== undefined &&
+  !isAddressEqual(params.registry, zeroAddress) &&
+  !isAddressEqual(
+    params.registry,
+    computeUserRegistryAddress({
+      hca: params.hca,
+      parentName: params.parentName,
+    }),
+  )
+
+/** The two chain reads the lookup needs, so tests can pass plain functions. */
+export type ParentRegistryReads = {
+  readonly getSubregistry: (
+    registry: Address,
+    label: string,
+  ) => Promise<Address>
+  readonly verifyContract: (registry: Address) => Promise<Address>
+}
+
+// A failed or malformed read (thrown or rejected) counts as unknown, leaving the parent on its computed registry.
+const settledAddress = (
   read: () => Promise<Address>,
 ): Promise<Address | undefined> =>
   Promise.resolve()
@@ -114,7 +150,7 @@ const readAddress = (
     )
 
 const readNameRegistry = (
-  publicClient: PublicClient,
+  reads: ParentRegistryReads,
   ethRegistry: Address,
   parentName: string,
 ): Promise<Address | undefined> =>
@@ -125,48 +161,34 @@ const readNameRegistry = (
     .reduce<Promise<Address | undefined>>(async (pending, label) => {
       const registry = await pending
       if (!registry || isAddressEqual(registry, zeroAddress)) return undefined
-      return readAddress(() =>
-        publicClient.readContract({
-          address: registry,
-          abi: permissionedRegistryGetSubregistrySnippet,
-          functionName: 'getSubregistry',
-          args: [label],
-        }),
-      )
+      return settledAddress(() => reads.getSubregistry(registry, label))
     }, Promise.resolve(ethRegistry))
 
 const readParentRegistry = async (params: {
-  readonly publicClient: PublicClient
-  readonly contracts: ParentRegistryContracts
+  readonly reads: ParentRegistryReads
+  readonly ethRegistry: Address
   readonly hca: Address
   readonly parentName: string
 }): Promise<ParentRegistryRead> => {
   const registry = await readNameRegistry(
-    params.publicClient,
-    params.contracts.ethRegistry,
+    params.reads,
+    params.ethRegistry,
     params.parentName,
   )
-  const isCandidate =
-    registry !== undefined &&
-    !isAddressEqual(registry, zeroAddress) &&
-    !isAddressEqual(registry, computeUserRegistryAddress(params))
-  const implementation = isCandidate
-    ? await readAddress(() =>
-        params.publicClient.readContract({
-          address: params.contracts.verifiableFactory,
-          abi: verifiableFactoryVerifyContractSnippet,
-          functionName: 'verifyContract',
-          args: [registry],
-        }),
+  const candidate = { registry, hca: params.hca, parentName: params.parentName }
+  const implementation = isRegistryCandidate(candidate)
+    ? await settledAddress(() =>
+        params.reads.verifyContract(candidate.registry),
       )
     : undefined
   return { parentName: params.parentName, registry, implementation }
 }
 
-/** A failed read leaves that parent out, so readiness checks the computed registry as before. */
-export const readCurrentParentRegistries = async (params: {
-  readonly publicClient: PublicClient
-  readonly contracts: ParentRegistryContracts
+/** Parents whose name now points at a certified replacement registry, from the given reads. */
+export const findCurrentParentRegistries = async (params: {
+  readonly reads: ParentRegistryReads
+  readonly ethRegistry: Address
+  readonly userRegistryImpl: Address
   readonly hca: Address
   readonly parentNames: readonly string[]
 }): Promise<ReadonlyMap<string, Address>> => {
@@ -174,8 +196,8 @@ export const readCurrentParentRegistries = async (params: {
   const reads = await Promise.all(
     [...new Set(params.parentNames)].map((parentName) =>
       readParentRegistry({
-        publicClient: params.publicClient,
-        contracts: params.contracts,
+        reads: params.reads,
+        ethRegistry: params.ethRegistry,
         hca: params.hca,
         parentName,
       }),
@@ -183,7 +205,37 @@ export const readCurrentParentRegistries = async (params: {
   )
   return toCurrentParentRegistries({
     hca: params.hca,
-    userRegistryImpl: params.contracts.userRegistryImpl,
+    userRegistryImpl: params.userRegistryImpl,
     reads,
   })
 }
+
+/** {@link findCurrentParentRegistries} over a public client. */
+export const readCurrentParentRegistries = (params: {
+  readonly publicClient: PublicClient
+  readonly contracts: ParentRegistryContracts
+  readonly hca: Address
+  readonly parentNames: readonly string[]
+}): Promise<ReadonlyMap<string, Address>> =>
+  findCurrentParentRegistries({
+    reads: {
+      getSubregistry: (registry, label) =>
+        params.publicClient.readContract({
+          address: registry,
+          abi: permissionedRegistryGetSubregistrySnippet,
+          functionName: 'getSubregistry',
+          args: [label],
+        }),
+      verifyContract: (registry) =>
+        params.publicClient.readContract({
+          address: params.contracts.verifiableFactory,
+          abi: verifiableFactoryVerifyContractSnippet,
+          functionName: 'verifyContract',
+          args: [registry],
+        }),
+    },
+    ethRegistry: params.contracts.ethRegistry,
+    userRegistryImpl: params.contracts.userRegistryImpl,
+    hca: params.hca,
+    parentNames: params.parentNames,
+  })
