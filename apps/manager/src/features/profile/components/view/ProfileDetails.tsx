@@ -95,7 +95,13 @@ const ProfileDetail = ({
   readonly value: React.ReactNode
   readonly copyValue?: string
 }) => (
-  <div className="group flex shrink-0 flex-col items-start gap-0.5 overflow-visible">
+  <div
+    className={cn(
+      'group flex shrink-0 flex-col items-start gap-0.5 overflow-visible',
+      // Leaves room for the copy button that hangs past the value's right edge.
+      copyValue ? 'max-w-[calc(100%-15px)]' : 'max-w-full',
+    )}
+  >
     <div className={detailLabelClassName}>
       {icon}
       <span>{label}</span>
