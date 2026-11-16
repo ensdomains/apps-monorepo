@@ -1348,7 +1348,7 @@ export const RenewalButton = ({ name }: { name: string }) => {
       publicClient,
       walletClient,
     }).andThen((renewal) =>
-      ResultAsync.fromPromise(
+      fromPromise(
         waitForTransaction(
           transactionManager.startTransaction(
             toEoaCustomIntent({
