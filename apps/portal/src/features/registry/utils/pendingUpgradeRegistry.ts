@@ -57,14 +57,14 @@ export const getUpgradeGate = (
     .with(undefined, () => 'checking' as const)
     .exhaustive()
 
-/** The pending-upgrade answer a gate may use; a failed refresh can leave an earlier answer cached, so it counts as unknown. */
-export const settledPendingUpgrade = ({
+/** A query's answer a gate may use; a failed refresh can leave an earlier answer cached, so it counts as unknown. */
+export const settledData = <T>({
   data,
   error,
 }: {
-  readonly data: boolean | undefined
+  readonly data: T | undefined
   readonly error: unknown
-}): boolean | undefined => (error ? undefined : data)
+}): T | undefined => (error ? undefined : data)
 
 /** What a role admin may do on a registry behind `gate`: edit only when it is open, and see the upgrade note when it needs one. */
 export const getRoleEditing = ({

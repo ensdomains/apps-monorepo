@@ -18,7 +18,7 @@ import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/que
 import {
   getRoleEditing,
   getUpgradeGate,
-  settledPendingUpgrade,
+  settledData,
 } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { RoleContractGate } from '@/features/roles/components/RoleContractGate'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
@@ -68,7 +68,7 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
   const pendingUpgrade = useQuery(
     getIsRegistryPendingUpgradeQueryOptions({ registryAddress: address }),
   )
-  const roleGate = getUpgradeGate(settledPendingUpgrade(pendingUpgrade))
+  const roleGate = getUpgradeGate(settledData(pendingUpgrade))
   const { canEdit: canEditRoles, showUpgradeNote } = getRoleEditing({
     isAdmin,
     gate: roleGate,

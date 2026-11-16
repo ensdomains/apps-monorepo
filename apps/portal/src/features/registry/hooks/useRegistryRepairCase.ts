@@ -4,13 +4,14 @@ import { useConnection } from 'wagmi'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { getIsRegistryPendingUpgradeQueryOptions } from '../queries/getIsRegistryPendingUpgrade'
-import { settledPendingUpgrade } from '../utils/pendingUpgradeRegistry'
+import { settledData } from '../utils/pendingUpgradeRegistry'
 import {
   getRegistryRepairCase,
   type RegistryRepairCase,
 } from '../utils/registryRepairCase'
 import { useHasSetSubregistryRole } from './useHasSetSubregistryRole'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
+import { getRegistryOccupantsQueryOptions } from './useRegistryOccupants'
 
 export type UseRegistryRepairCaseResult = {
   readonly repairCase: RegistryRepairCase
@@ -37,7 +38,7 @@ export const useRegistryRepairCase = (
     }),
     enabled: Boolean(registryAddress),
   })
-  const isPendingUpgrade = settledPendingUpgrade(pendingUpgrade)
+  const isPendingUpgrade = settledData(pendingUpgrade)
 
   const { hasRole, isLoading: isRoleLoading } = useHasSetSubregistryRole(name, {
     enabled: isPendingUpgrade === true,
@@ -53,6 +54,17 @@ export const useRegistryRepairCase = (
     enabled: Boolean(registryAddress && account) && isPendingUpgrade === true,
   })
 
+  const occupants = useQuery({
+    ...getRegistryOccupantsQueryOptions({
+      address: registryAddress ?? zeroAddress,
+      account: account ?? zeroAddress,
+    }),
+    enabled:
+      Boolean(registryAddress && account) &&
+      canSwitchParent === true &&
+      rootRoles.data !== undefined,
+  })
+
   return {
     repairCase: getRegistryRepairCase({
       // No registry under the name: nothing to upgrade. Registries not read yet: unknown.
@@ -60,7 +72,8 @@ export const useRegistryRepairCase = (
         registries && (registryAddress ? isPendingUpgrade : false),
       isConnected: Boolean(account),
       canSwitchParent,
-      rootRoles: rootRoles.error ? undefined : rootRoles.data?.raw,
+      rootRoles: settledData(rootRoles)?.raw,
+      occupants: settledData(occupants),
     }),
     registryAddress,
     parentRegistry: registries?.at(1) ?? undefined,

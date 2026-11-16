@@ -40,7 +40,7 @@ import { getRegistrarAccess } from '@/features/registry/utils/create-subname.hel
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
 import {
   getUpgradeGate,
-  settledPendingUpgrade,
+  settledData,
 } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -417,7 +417,7 @@ const SubregistrySubnames = ({
         isLoadMoreError={isFetchNextPageError}
         name={name}
         canCreateSubname={canCreateSubname}
-        creationGate={getUpgradeGate(settledPendingUpgrade(pendingUpgrade))}
+        creationGate={getUpgradeGate(settledData(pendingUpgrade))}
         onDeleteSubname={canDeleteSubname ? handleDeleteSubname : undefined}
         onClearSelected={canDeleteSubname ? handleClearSelected : undefined}
         isDeleting={isDeleting}

@@ -48,7 +48,7 @@ import {
 } from '@/features/registry/utils/create-subname.helpers'
 import {
   getUpgradeGate,
-  settledPendingUpgrade,
+  settledData,
 } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -467,7 +467,7 @@ const V2PendingUpgradeGate = ({
 
   if (pendingUpgrade.isPending) return <LoadingMessage />
 
-  if (getUpgradeGate(settledPendingUpgrade(pendingUpgrade)) !== 'open')
+  if (getUpgradeGate(settledData(pendingUpgrade)) !== 'open')
     return <Navigate to="/$name/subnames" params={{ name }} replace />
 
   return <V2RegistrarGate name={name} registryAddress={registryAddress} />

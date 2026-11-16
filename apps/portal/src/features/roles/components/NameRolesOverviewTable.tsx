@@ -17,7 +17,7 @@ import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import {
   getRoleEditing,
   getUpgradeGate,
-  settledPendingUpgrade,
+  settledData,
 } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
@@ -223,7 +223,7 @@ export const NameRolesOverviewTable = ({
   // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
   const { canEdit: canManageRoles, showUpgradeNote } = getRoleEditing({
     isAdmin: callerAdminRoles.size > 0,
-    gate: getUpgradeGate(settledPendingUpgrade(pendingUpgrade)),
+    gate: getUpgradeGate(settledData(pendingUpgrade)),
   })
   const canAddUser =
     canManageRoles &&

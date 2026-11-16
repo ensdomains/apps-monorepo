@@ -16,6 +16,7 @@ describe('getRegistryRepairCase', () => {
       isConnected: true,
       canSwitchParent: true,
       rootRoles: ROLE_REGISTRAR | ROLE_SET_PARENT,
+      occupants: { count: 3, thirdPartyCount: 0 },
       ...overrides,
     })
 
@@ -30,7 +31,14 @@ describe('getRegistryRepairCase', () => {
     ],
     ['unknown switch rights', { canSwitchParent: undefined }, 'unknown'],
     ['unread root roles', { rootRoles: undefined }, 'unknown'],
-    ['every role the copy needs', {}, 'can-upgrade'],
+    ['every role, owning every subname (Case A)', {}, 'owns-all'],
+    [
+      'every role, someone else owning a subname (Case B)',
+      { occupants: { count: 3, thirdPartyCount: 1 } },
+      'shared',
+    ],
+    ['unread ownership', { occupants: undefined }, 'unknown'],
+    ['ownership bigname cannot count', { occupants: null }, 'unknown'],
     ['no registrar role', { rootRoles: ROLE_SET_PARENT }, 'viewer'],
     ['no set-parent role', { rootRoles: ROLE_REGISTRAR }, 'viewer'],
   ] as const)('with %s: %s', (_case, overrides, expected) => {
@@ -40,11 +48,12 @@ describe('getRegistryRepairCase', () => {
 
 describe('shouldShowUpgradeCard', () => {
   it.each([
-    ['an account that can upgrade', 'can-upgrade', false, true],
+    ['a Case A account', 'owns-all', false, true],
     ['a brief unknown while shown', 'unknown', true, true],
     ['an unknown never shown', 'unknown', false, false],
     ['an upgraded registry', 'unaffected', true, false],
     ['an account that lost the roles', 'viewer', true, false],
+    ['a Case B account, not offered yet', 'shared', true, false],
   ] as const)('for %s: %s', (_case, repairCase, wasShown, expected) => {
     expect(shouldShowUpgradeCard({ repairCase, wasShown })).toBe(expected)
   })

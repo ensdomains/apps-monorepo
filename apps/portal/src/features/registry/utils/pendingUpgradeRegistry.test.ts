@@ -6,7 +6,7 @@ import {
   getUpgradeGate,
   isPastedRegistryBlocked,
   isPendingUpgradeImplementation,
-  settledPendingUpgrade,
+  settledData,
 } from './pendingUpgradeRegistry'
 
 describe('isPendingUpgradeImplementation', () => {
@@ -83,12 +83,12 @@ describe('getUpgradeGate', () => {
   })
 })
 
-describe('settledPendingUpgrade', () => {
+describe('settledData', () => {
   it('counts an answer as unknown once a refresh of it failed', () => {
     expect(
-      settledPendingUpgrade({ data: false, error: new Error('rpc') }),
+      settledData({ data: false, error: new Error('rpc') }),
     ).toBeUndefined()
-    expect(settledPendingUpgrade({ data: false, error: null })).toBe(false)
+    expect(settledData({ data: false, error: null })).toBe(false)
   })
 })
 
