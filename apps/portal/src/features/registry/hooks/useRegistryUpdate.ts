@@ -2,6 +2,7 @@ import {
   scopeTransactionId,
   transactionManager,
   useAtomicBatchSupport,
+  useHasDeclinedAtomicUpgrade,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { useQueryClient } from '@tanstack/react-query'
@@ -64,6 +65,7 @@ export const useRegistryUpdate = ({
   const { address: account } = useConnection()
   const chainId = ensChain.id
   const canBatchAtomically = useAtomicBatchSupport(chainId)
+  const hasDeclinedUpgrade = useHasDeclinedAtomicUpgrade(chainId)
   const attempt = useFlowAttempt()
   const { isOpen, closeModal, clearTransaction } = useTransactionModal()
 
@@ -132,7 +134,6 @@ export const useRegistryUpdate = ({
   runtimeRef.current = runtime
   const actor = useActorRef(registryUpgradeMachine, {
     input: {
-      canBatchAtomically,
       runtime: {
         plan: () => runtimeRef.current.plan(),
         sendStep: (step, index) => runtimeRef.current.sendStep(step, index),
@@ -177,7 +178,11 @@ export const useRegistryUpdate = ({
     : []
 
   return {
-    start: () => actor.send({ type: 'START' }),
+    start: () =>
+      actor.send({
+        type: 'START',
+        canBatchAtomically: canBatchAtomically && !hasDeclinedUpgrade,
+      }),
     state,
     canStart,
     transactions,

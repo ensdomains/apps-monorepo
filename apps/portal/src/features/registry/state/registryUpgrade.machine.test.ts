@@ -60,18 +60,21 @@ const run = ({
     finished: () => log.push('finished'),
   }
   const actor = createActor(registryUpgradeMachine, {
-    input: { runtime, canBatchAtomically },
+    input: { runtime },
   }).start()
+  const start = () => actor.send({ type: 'START', canBatchAtomically })
   const settle = (state: RegistryUpgradeState) =>
     waitFor(actor, (snapshot) => snapshot.matches(state))
-  return { actor, log, settle }
+  return { actor, log, settle, start }
 }
 
 describe('registryUpgradeMachine', () => {
   it('copies, re-checks, then switches, and closes once the name has moved', async () => {
-    const { actor, log, settle } = run({ plans: [planOf(3, 1), planOf(0, 1)] })
+    const { actor, log, settle, start } = run({
+      plans: [planOf(3, 1), planOf(0, 1)],
+    })
 
-    actor.send({ type: 'START' })
+    start()
     await settle('ready')
     actor.send({ type: 'SEND' })
     await settle('done')
@@ -88,12 +91,12 @@ describe('registryUpgradeMachine', () => {
   })
 
   it('re-checks before every finishing step, not just the first', async () => {
-    const { actor, log, settle } = run({
+    const { actor, log, settle, start } = run({
       plans: [planOf(1, 2), planOf(0, 2)],
       canBatchAtomically: false,
     })
 
-    actor.send({ type: 'START' })
+    start()
     await settle('ready')
     actor.send({ type: 'SEND' })
     await settle('done')
@@ -111,9 +114,11 @@ describe('registryUpgradeMachine', () => {
   })
 
   it("stops before the switch when the re-check finds the copy isn't whole", async () => {
-    const { actor, log, settle } = run({ plans: [planOf(2, 1), planOf(1, 1)] })
+    const { actor, log, settle, start } = run({
+      plans: [planOf(2, 1), planOf(1, 1)],
+    })
 
-    actor.send({ type: 'START' })
+    start()
     await settle('ready')
     actor.send({ type: 'SEND' })
     await settle('incomplete')
@@ -123,11 +128,11 @@ describe('registryUpgradeMachine', () => {
   })
 
   it('stops before the switch when the re-check fails', async () => {
-    const { actor, log, settle } = run({
+    const { actor, log, settle, start } = run({
       plans: [planOf(1, 1), new Error('registry-replaced')],
     })
 
-    actor.send({ type: 'START' })
+    start()
     await settle('ready')
     actor.send({ type: 'SEND' })
     await settle('planFailed')
@@ -136,12 +141,12 @@ describe('registryUpgradeMachine', () => {
   })
 
   it('retries a declined step on the next SEND and ignores a second SEND while one is in flight', async () => {
-    const { actor, log, settle } = run({
+    const { actor, log, settle, start } = run({
       plans: [planOf(1, 1), planOf(0, 1)],
       failSendAt: [0],
     })
 
-    actor.send({ type: 'START' })
+    start()
     await settle('ready')
     actor.send({ type: 'SEND' })
     await settle('stepFailed')
@@ -154,12 +159,33 @@ describe('registryUpgradeMachine', () => {
   })
 
   it('reports a plan that could not be built, and plans again on the next start', async () => {
-    const { actor, settle } = run({ plans: [new Error('rpc'), planOf(1, 1)] })
+    const { settle, start } = run({ plans: [new Error('rpc'), planOf(1, 1)] })
 
-    actor.send({ type: 'START' })
+    start()
     await settle('planFailed')
-    actor.send({ type: 'START' })
+    start()
 
     await settle('ready')
+  })
+})
+
+describe('registryUpgradeMachine, batching', () => {
+  it('splits the steps by the batching support given at each start, not at mount', async () => {
+    const { actor, log, settle } = run({
+      plans: [new Error('rpc'), planOf(2, 1), planOf(0, 1)],
+    })
+
+    actor.send({ type: 'START', canBatchAtomically: true })
+    await settle('planFailed')
+    actor.send({ type: 'START', canBatchAtomically: false })
+    await settle('ready')
+    actor.send({ type: 'SEND' })
+    await settle('done')
+
+    expect(log.filter((entry) => entry.startsWith('send'))).toEqual([
+      'send 0',
+      'send 1',
+      'send 2',
+    ])
   })
 })

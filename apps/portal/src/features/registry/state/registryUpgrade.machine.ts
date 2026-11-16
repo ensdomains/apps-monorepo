@@ -28,8 +28,8 @@ type Context = {
 }
 
 export type RegistryUpgradeEvent =
-  /** The card's button: plan the upgrade, or resume a stopped one. */
-  | { readonly type: 'START' }
+  /** The card's button: plan the upgrade, or resume a stopped one, with the wallet's batching support as it is now. */
+  | { readonly type: 'START'; readonly canBatchAtomically: boolean }
   /** The modal's "Open wallet" for the current step, or a retry after it failed. */
   | { readonly type: 'SEND' }
   /** The modal closed; the copy stays where it is and the next start resumes it. */
@@ -45,10 +45,7 @@ export const registryUpgradeMachine = setup({
     events: {} as RegistryUpgradeEvent,
     /** `startable`: the card's button can start or resume; `inModal`: the transaction modal shows the steps. */
     tags: {} as 'startable' | 'inModal',
-    input: {} as {
-      readonly runtime: RegistryUpgradeRuntime
-      readonly canBatchAtomically: boolean
-    },
+    input: {} as { readonly runtime: RegistryUpgradeRuntime },
   },
   actors: {
     plan: fromPromise<RegistryUpdatePlan, RegistryUpgradeRuntime>(({ input }) =>
@@ -67,6 +64,10 @@ export const registryUpgradeMachine = setup({
     openFlow: ({ context }) => context.runtime.openFlow(),
     closeFlow: ({ context }) => context.runtime.closeFlow(),
     finished: ({ context }) => context.runtime.finished(),
+    takeCapability: assign({
+      canBatchAtomically: ({ event }) =>
+        event.type === 'START' ? event.canBatchAtomically : false,
+    }),
   },
   guards: {
     isLastStep: ({ context }) => context.index >= context.steps.length - 1,
@@ -77,16 +78,25 @@ export const registryUpgradeMachine = setup({
   id: 'registryUpgrade',
   context: ({ input }) => ({
     runtime: input.runtime,
-    canBatchAtomically: input.canBatchAtomically,
+    canBatchAtomically: false,
     plan: null,
     steps: [],
     index: 0,
   }),
   initial: 'idle',
   states: {
-    idle: { tags: 'startable', on: { START: 'planning' } },
-    planFailed: { tags: 'startable', on: { START: 'planning' } },
-    incomplete: { tags: 'startable', on: { START: 'planning' } },
+    idle: {
+      tags: 'startable',
+      on: { START: { target: 'planning', actions: 'takeCapability' } },
+    },
+    planFailed: {
+      tags: 'startable',
+      on: { START: { target: 'planning', actions: 'takeCapability' } },
+    },
+    incomplete: {
+      tags: 'startable',
+      on: { START: { target: 'planning', actions: 'takeCapability' } },
+    },
     planning: {
       invoke: {
         src: 'plan',
