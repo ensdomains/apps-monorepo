@@ -1,4 +1,11 @@
-import { assign, fromPromise, setup } from 'xstate'
+import { isAddressEqual } from 'viem'
+import {
+  assign,
+  fromPromise,
+  type StateValueFrom,
+  setup,
+  stateIn,
+} from 'xstate'
 import type { RegistryUpdatePlan } from '../queries/getRegistryUpdatePlan'
 import {
   getRegistryUpdateFailure,
@@ -9,15 +16,11 @@ import {
 
 /** The side effects the machine runs; the hook supplies them so the machine stays free of wallet and query code. */
 export type RegistryUpgradeRuntime = {
-  /** Reads both registries and the name, and plans what is left to send. */
   readonly plan: () => Promise<RegistryUpdatePlan>
-  /** Signs one step and resolves once it is mined; rejects when it fails or is declined. */
+  /** Resolves once the step is mined; rejects when it fails or is declined. */
   readonly sendStep: (step: RegistryUpdateStep, index: number) => Promise<void>
-  /** Opens the transaction modal for a planned upgrade. */
   readonly openFlow: () => void
-  /** Closes the modal and ends the attempt. */
   readonly closeFlow: () => void
-  /** Refreshes what the page reads once the name has switched. */
   readonly finished: () => void
 }
 
@@ -27,22 +30,19 @@ type Context = {
   readonly plan: RegistryUpdatePlan | null
   readonly steps: readonly RegistryUpdateStep[]
   readonly index: number
-  /** Why the last plan failed, shown on the card. */
   readonly failure: RegistryUpdateFailure | null
-  /** The modal closed while a step was in flight; the machine waits for it before the next start. */
-  readonly isDetached: boolean
 }
 
 export type RegistryUpgradeEvent =
-  /** The card's button: plan the upgrade, or resume a stopped one, with the wallet's batching support as it is now. */
   | { readonly type: 'START'; readonly canBatchAtomically: boolean }
-  /** The modal's "Open wallet" for the current step, or a retry after it failed. */
   | { readonly type: 'SEND' }
-  /** The modal closed; the copy stays where it is and the next start resumes it. */
   | { readonly type: 'CANCEL' }
 
-const isCopyComplete = (plan: RegistryUpdatePlan) =>
-  plan.plan.copyCalls.length === 0
+/** The plan the finishing steps came from no longer describes what is on chain. */
+const isStalePlan = (context: Context, fresh: RegistryUpdatePlan) =>
+  fresh.plan.copyCalls.length > 0 ||
+  !context.plan ||
+  !isAddressEqual(fresh.plan.replacement, context.plan.plan.replacement)
 
 // A finishing step is only sent right after a fresh check, also when resumed or retried.
 const SEND_CURRENT_STEP = [
@@ -50,12 +50,16 @@ const SEND_CURRENT_STEP = [
   { target: 'sending' },
 ] as const
 
+const START = {
+  target: 'planning',
+  actions: 'takeCapability',
+} as const
+
 /** Plan, wait for the user, send each step, and re-check the copy and the name before every finishing step. */
 export const registryUpgradeMachine = setup({
   types: {
     context: {} as Context,
     events: {} as RegistryUpgradeEvent,
-    /** `startable`: the card's button can start or resume; `inModal`: the transaction modal shows the steps. */
     tags: {} as 'startable' | 'inModal',
     input: {} as { readonly runtime: RegistryUpgradeRuntime },
   },
@@ -67,10 +71,14 @@ export const registryUpgradeMachine = setup({
       void,
       {
         readonly runtime: RegistryUpgradeRuntime
-        readonly step: RegistryUpdateStep
+        readonly step: RegistryUpdateStep | undefined
         readonly index: number
       }
-    >(({ input }) => input.runtime.sendStep(input.step, input.index)),
+    >(({ input }) =>
+      input.step
+        ? input.runtime.sendStep(input.step, input.index)
+        : Promise.reject(new Error('No step to send')),
+    ),
   },
   actions: {
     openFlow: ({ context }) => context.runtime.openFlow(),
@@ -83,11 +91,12 @@ export const registryUpgradeMachine = setup({
     takeCapability: assign({
       canBatchAtomically: ({ event }) =>
         event.type === 'START' ? event.canBatchAtomically : false,
-      isDetached: false,
+      failure: null,
     }),
+    nextStep: assign({ index: ({ context }) => context.index + 1 }),
   },
   guards: {
-    isDetached: ({ context }) => context.isDetached,
+    isDetached: stateIn('#registryUpgrade.sending.detached'),
     isLastStep: ({ context }) => context.index >= context.steps.length - 1,
     isCurrentFinishing: ({ context }) =>
       context.steps[context.index]?.kind === 'finish',
@@ -103,22 +112,12 @@ export const registryUpgradeMachine = setup({
     steps: [],
     index: 0,
     failure: null,
-    isDetached: false,
   }),
   initial: 'idle',
   states: {
-    idle: {
-      tags: 'startable',
-      on: { START: { target: 'planning', actions: 'takeCapability' } },
-    },
-    planFailed: {
-      tags: 'startable',
-      on: { START: { target: 'planning', actions: 'takeCapability' } },
-    },
-    incomplete: {
-      tags: 'startable',
-      on: { START: { target: 'planning', actions: 'takeCapability' } },
-    },
+    idle: { tags: 'startable', on: { START } },
+    planFailed: { tags: 'startable', on: { START } },
+    incomplete: { tags: 'startable', on: { START } },
     planning: {
       invoke: {
         src: 'plan',
@@ -146,34 +145,34 @@ export const registryUpgradeMachine = setup({
     },
     sending: {
       tags: 'inModal',
+      initial: 'attached',
+      states: {
+        attached: { on: { CANCEL: 'detached' } },
+        // The modal closed, but the wallet may still land this step; wait for it so a restart doesn't send it again.
+        detached: {},
+      },
       invoke: {
         src: 'sendStep',
         input: ({ context }) => ({
           runtime: context.runtime,
-          step: context.steps[context.index] ?? { kind: 'copy', calls: [] },
+          step: context.steps[context.index],
           index: context.index,
         }),
         onDone: [
-          { guard: 'isDetached', target: 'incomplete' },
           { guard: 'isLastStep', target: 'done' },
+          { guard: 'isDetached', target: 'incomplete' },
           {
             guard: 'isNextFinishing',
             target: 'checking',
-            actions: assign({ index: ({ context }) => context.index + 1 }),
+            actions: 'nextStep',
           },
-          {
-            target: 'sending',
-            reenter: true,
-            actions: assign({ index: ({ context }) => context.index + 1 }),
-          },
+          { target: 'sending', reenter: true, actions: 'nextStep' },
         ],
         onError: [
           { guard: 'isDetached', target: 'idle' },
           { target: 'stepFailed' },
         ],
       },
-      // The wallet may still land this step, so wait for it rather than letting a restart send it again.
-      on: { CANCEL: { actions: assign({ isDetached: true }) } },
     },
     stepFailed: {
       tags: 'inModal',
@@ -186,11 +185,24 @@ export const registryUpgradeMachine = setup({
         input: ({ context }) => context.runtime,
         onDone: [
           {
-            guard: ({ event }) => !isCopyComplete(event.output),
+            guard: ({ context, event }) => isStalePlan(context, event.output),
             target: 'incomplete',
             actions: 'closeFlow',
           },
-          { target: 'sending' },
+          {
+            // Send the finishing steps as they stand now, not as first planned.
+            target: 'sending',
+            actions: assign(({ context, event }) => ({
+              plan: event.output,
+              steps: [
+                ...context.steps.slice(0, context.index),
+                ...getRegistryUpdateSteps({
+                  plan: event.output.plan,
+                  canBatchAtomically: context.canBatchAtomically,
+                }),
+              ],
+            })),
+          },
         ],
         onError: {
           target: 'planFailed',
@@ -205,3 +217,14 @@ export const registryUpgradeMachine = setup({
     },
   },
 })
+
+export type RegistryUpgradeState = StateValueFrom<typeof registryUpgradeMachine>
+
+/** The top-level state; only `sending` has substates. */
+export type RegistryUpgradeStage =
+  | Extract<RegistryUpgradeState, string>
+  | 'sending'
+
+export const toRegistryUpgradeStage = (
+  state: RegistryUpgradeState,
+): RegistryUpgradeStage => (typeof state === 'string' ? state : 'sending')

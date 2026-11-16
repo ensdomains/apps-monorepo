@@ -5,15 +5,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useRegistryRepairCase } from '../../hooks/useRegistryRepairCase'
-import {
-  type RegistryUpgradeState,
-  useRegistryUpdate,
-} from '../../hooks/useRegistryUpdate'
+import { useRegistryUpdate } from '../../hooks/useRegistryUpdate'
+import type { RegistryUpgradeStage } from '../../state/registryUpgrade.machine'
 import type { RegistryUpdateFailure } from '../../utils/registryUpdate'
 import { RegistryPanel } from './RegistryPanel'
 
-const updateLabel = (state: RegistryUpgradeState) =>
-  match(state)
+const updateLabel = (stage: RegistryUpgradeStage) =>
+  match(stage)
     .with('planning', () => 'Preparing upgrade…')
     .with('sending', 'checking', () => 'Finishing the current step…')
     .with('incomplete', () => 'Continue upgrade')
@@ -56,7 +54,7 @@ const RegistryUpdateCard = ({
   readonly registryAddress: Address | undefined
   readonly parentRegistry: Address | undefined
 }) => {
-  const { start, state, canStart, failure, transactions } = useRegistryUpdate({
+  const { start, stage, canStart, failure, transactions } = useRegistryUpdate({
     name,
     registryAddress,
     parentRegistry,
@@ -72,17 +70,17 @@ const RegistryUpdateCard = ({
           their owners and their roles will be copied to the new registry.
         </AlertDescription>
       </Alert>
-      {state === 'planFailed' && failure && (
+      {stage === 'planFailed' && failure && (
         <ErrorMessage compact description={FAILURE_MESSAGES[failure]} />
       )}
-      {state === 'incomplete' && (
+      {stage === 'incomplete' && (
         <ErrorMessage
           compact
           description="The upgrade stopped before every subname was copied. Continue to pick up where it left off."
         />
       )}
       <Button className="w-full" disabled={!canStart} onClick={start}>
-        {updateLabel(state)}
+        {updateLabel(stage)}
       </Button>
       {transactions.length > 0 && (
         <TransactionModal transactions={transactions} />

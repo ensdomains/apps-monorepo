@@ -11,13 +11,8 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
-import type { StateValueFrom } from 'xstate'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
-import {
-  toEoaBatchIntent,
-  toEoaCustomIntent,
-} from '@/features/transaction-manager/helpers/intents'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
@@ -27,16 +22,16 @@ import { getRegistryUpdatePlanQueryOptions } from '../queries/getRegistryUpdateP
 import {
   type RegistryUpgradeRuntime,
   registryUpgradeMachine,
+  toRegistryUpgradeStage,
 } from '../state/registryUpgrade.machine'
 import {
   getRegistryUpdateDetails,
   type RegistryUpdateStep,
+  toStepIntent,
 } from '../utils/registryUpdate'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
 const TX_ID_PREFIX = 'tx-registry-update'
-
-export type RegistryUpgradeState = StateValueFrom<typeof registryUpgradeMachine>
 
 const stepTitle = (
   step: RegistryUpdateStep,
@@ -70,14 +65,6 @@ export const useRegistryUpdate = ({
   const idOf = (index: number) =>
     scopeTransactionId(`${TX_ID_PREFIX}-${name}-${index}`, attempt.scope)
 
-  const intentFor = (from: Address, step: RegistryUpdateStep) => {
-    const intents = step.calls.map((call) =>
-      toEoaCustomIntent({ from, to: call.to, data: call.data, chainId }),
-    )
-    const [only] = intents
-    return intents.length === 1 && only ? only : toEoaBatchIntent(intents)
-  }
-
   const runtime: RegistryUpgradeRuntime = {
     plan: () => {
       if (!registryAddress || !parentRegistry || !account)
@@ -98,7 +85,7 @@ export const useRegistryUpdate = ({
       if (!walletClient.account || !publicClient)
         throw new Error('No connected wallet')
       const txId = transactionManager.startTransaction(
-        intentFor(walletClient.account.address, step),
+        toStepIntent({ from: walletClient.account.address, step, chainId }),
         createEOASigner(walletClient),
         {
           id: idOf(index),
@@ -140,7 +127,9 @@ export const useRegistryUpdate = ({
       },
     },
   })
-  const state = useSelector(actor, (snapshot) => snapshot.value)
+  const stage = useSelector(actor, (snapshot) =>
+    toRegistryUpgradeStage(snapshot.value),
+  )
   const isInModal = useSelector(actor, (snapshot) => snapshot.hasTag('inModal'))
   const canStart = useSelector(actor, (snapshot) =>
     snapshot.hasTag('startable'),
@@ -168,7 +157,7 @@ export const useRegistryUpdate = ({
         ...(index === 0 && details.length > 0 && { details }),
         intent: {
           prepare: ({ walletClient }) =>
-            intentFor(walletClient.account.address, step),
+            toStepIntent({ from: walletClient.account.address, step, chainId }),
         },
         onStart: () => actor.send({ type: 'SEND' }),
         onDone: () => {},
@@ -181,7 +170,7 @@ export const useRegistryUpdate = ({
         type: 'START',
         canBatchAtomically: canBatchAtomically && !hasDeclinedUpgrade,
       }),
-    state,
+    stage,
     canStart,
     failure,
     transactions,
