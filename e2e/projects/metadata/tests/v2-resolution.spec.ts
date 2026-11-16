@@ -63,6 +63,10 @@ test.describe('MD3 — sepolia v2 name resolves metadata correctly', () => {
       const avatarRes = await request.get(routes.avatar('sepolia', name))
       expect(avatarRes.status()).toBe(200)
       expect(avatarRes.headers()['content-type']).toContain('image')
+      // The registered red PNG itself, not a default image or another name's.
+      expect(await avatarRes.body()).toEqual(
+        Buffer.from(RED_AVATAR_DATA_URI.split(',')[1] ?? '', 'base64'),
+      )
 
       for (const registryType of ['registry', 'namewrapper'] as const) {
         const metaRes = await request.get(
