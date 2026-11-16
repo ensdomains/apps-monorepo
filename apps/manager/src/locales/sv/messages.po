@@ -1787,7 +1787,7 @@ msgid "Keep renewal"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/keepBrowserOpen.ts
-msgid "Keep this browser open while your name is registered"
+msgid "Keep this browser open while your name is being registered"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -2278,10 +2278,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftTraitsTooltip.tsx
 msgid "OpenSea"
-msgstr ""
-
-#: src/features/profile/components/view/ProfileOtherRecordsSection.tsx
-msgid "Other records"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx

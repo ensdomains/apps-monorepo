@@ -10,7 +10,6 @@ import {
   getContentHashHref,
   getFeaturedSocialItems,
   getMainReceivingAddress,
-  getOtherRecords,
   getReceivingAddressChains,
   getSafeProfileLinks,
   getSecondarySocialRecords,
@@ -453,22 +452,6 @@ describe('ProfileView helpers', () => {
     expect(getMainReceivingAddress(records)).toBeUndefined()
     expect(getReceivingAddressChains(records)).toEqual([])
     expect(getChainSpecificAddresses(records)).toEqual([])
-  })
-
-  it('lists custom records in order and skips rows with a blank key or value', () => {
-    const records = makeRecords({
-      unknown: [
-        { key: 'inphinity.symbol', value: 'AIBLD' },
-        { key: ' ', value: 'no key yet' },
-        { key: 'inphinity.fee', value: '' },
-        { key: 'inphinity.index', value: '2' },
-      ],
-    })
-
-    expect(getOtherRecords(records)).toEqual([
-      { key: 'inphinity.symbol', value: 'AIBLD' },
-      { key: 'inphinity.index', value: '2' },
-    ])
   })
 })
 
