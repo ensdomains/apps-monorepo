@@ -34,7 +34,7 @@ const ThemePreviewButton = ({
     aria-label={`${theme.label} theme${isActive ? ' (selected)' : ''}`}
     aria-pressed={isActive}
     className={cn(
-      'flex shrink-0 cursor-pointer flex-col items-start gap-0.5 overflow-hidden rounded-md p-3 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+      'flex max-w-full shrink-0 cursor-pointer flex-col items-start gap-0.5 overflow-hidden rounded-md p-3 text-left transition-shadow focus-visible:outline-2 focus-visible:outline-ens-lapis-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
       isActive && ['ring-2', theme.preview.activeRingClassName],
     )}
     disabled={disabled}

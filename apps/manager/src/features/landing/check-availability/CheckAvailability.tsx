@@ -53,18 +53,21 @@ const SearchStatusResult = ({
           name={domainName}
         />
       </div>
-      <span className="font-medium text-ens-blue text-lg leading-tight tracking-tight">
-        {domainName}
-      </span>
-      <div
-        className={cn(
-          'ml-auto flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-normal text-xs',
-          href
-            ? 'bg-ens-lapis-100 text-ens-lapis-500'
-            : 'bg-red-50 text-red-500',
-        )}
-      >
-        {badge}
+      {/* Wraps so a long name pushes the badge below it instead of off-screen. */}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="min-w-0 break-all font-medium text-ens-blue text-lg leading-tight tracking-tight">
+          {domainName}
+        </span>
+        <div
+          className={cn(
+            'ml-auto flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-normal text-xs',
+            href
+              ? 'bg-ens-lapis-100 text-ens-lapis-500'
+              : 'bg-red-50 text-red-500',
+          )}
+        >
+          {badge}
+        </div>
       </div>
     </>
   )
