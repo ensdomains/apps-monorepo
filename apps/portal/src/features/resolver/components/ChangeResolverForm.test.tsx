@@ -392,9 +392,13 @@ describe('ChangeResolverForm', () => {
       render(<ChangeResolverForm name={name} target={v1Target} />)
 
       expect(
-        screen.getByRole('radio', { name: 'Use latest resolver' }),
+        screen.getByRole('radio', {
+          name: 'Use the latest ENS Public Resolver.',
+        }),
       ).toBeChecked()
-      expect(screen.getByRole('link', { name: /Etherscan/ })).toHaveAttribute(
+      expect(
+        screen.getByRole('link', { name: 'View on Etherscan' }),
+      ).toHaveAttribute(
         'href',
         `https://sepolia.etherscan.io/address/${latest}`,
       )
@@ -427,7 +431,9 @@ describe('ChangeResolverForm', () => {
       )
 
       expect(
-        screen.getByRole('radio', { name: 'Use latest resolver' }),
+        screen.getByRole('radio', {
+          name: 'Use the latest ENS Public Resolver.',
+        }),
       ).toBeDisabled()
       expect(
         screen.getByRole('radio', { name: 'Custom resolver' }),
@@ -450,7 +456,9 @@ describe('ChangeResolverForm', () => {
     )
 
     expect(
-      screen.queryByRole('radio', { name: 'Use latest resolver' }),
+      screen.queryByRole('radio', {
+        name: 'Use the latest ENS Public Resolver.',
+      }),
     ).not.toBeInTheDocument()
   })
 })
