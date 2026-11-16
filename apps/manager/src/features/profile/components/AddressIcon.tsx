@@ -1,7 +1,6 @@
 import { Network } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { cn } from '@/lib/utils'
 import { getAddressPresentation } from '../data/records/address'
 import { safeImageSrc } from '../utils/safeUrl'
 
@@ -16,8 +15,6 @@ interface AddressIconProps {
   readonly coinType: number
   readonly size?: 'xs' | 'sm' | 'md' | 'lg'
   readonly shouldShowFallbackLabel?: boolean
-  /** When false, skips the quartz circle frame (e.g. on tinted badges). */
-  readonly framed?: boolean
 }
 
 type AddressArtwork = ReturnType<typeof getAddressPresentation>['icon']
@@ -35,20 +32,14 @@ const getAddressIconSrc = (icon: AddressArtwork): string | undefined => {
 
 const AddressIconFrame = ({
   children,
-  framed,
   size,
 }: {
   readonly children: React.ReactNode
-  readonly framed: boolean
   readonly size: keyof typeof SIZE_CLASS_NAMES
 }) => (
   <span
     aria-hidden="true"
-    className={cn(
-      'inline-flex shrink-0 items-center justify-center overflow-hidden text-ens-quartz-500',
-      SIZE_CLASS_NAMES[size],
-      framed && 'rounded-full bg-ens-quartz-100',
-    )}
+    className={`inline-flex ${SIZE_CLASS_NAMES[size]} shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-quartz-100 text-ens-quartz-500`}
   >
     {children}
   </span>
@@ -57,13 +48,11 @@ const AddressIconFrame = ({
 const AddressIconImage = ({
   src,
   alt,
-  framed,
   size,
   fallback,
 }: {
   readonly src: string
   readonly alt: string
-  readonly framed: boolean
   readonly size: keyof typeof SIZE_CLASS_NAMES
   readonly fallback: React.ReactNode
 }) => {
@@ -71,7 +60,7 @@ const AddressIconImage = ({
   if (hasFailed) return fallback
 
   return (
-    <AddressIconFrame framed={framed} size={size}>
+    <AddressIconFrame size={size}>
       <img
         alt={alt}
         className="size-full object-contain"
@@ -87,7 +76,6 @@ export const AddressIcon = ({
   coinType,
   size = 'sm',
   shouldShowFallbackLabel = false,
-  framed = true,
 }: AddressIconProps) => {
   const { icon, label } = getAddressPresentation(coinType)
   const src = getAddressIconSrc(icon)
@@ -99,14 +87,14 @@ export const AddressIcon = ({
       {label}
     </span>
   ) : (
-    <AddressIconFrame framed={framed} size={size}>
+    <AddressIconFrame size={size}>
       <Network className="size-3/4" />
     </AddressIconFrame>
   )
 
   return match({ icon, src })
     .with({ icon: P.when(isIconComponent) }, ({ icon: Icon }) => (
-      <AddressIconFrame framed={framed} size={size}>
+      <AddressIconFrame size={size}>
         <Icon className="size-full" />
       </AddressIconFrame>
     ))
@@ -115,7 +103,6 @@ export const AddressIcon = ({
       <AddressIconImage
         alt={shouldShowFallbackLabel ? label : ''}
         fallback={fallback}
-        framed={framed}
         key={src}
         size={size}
         src={src}
