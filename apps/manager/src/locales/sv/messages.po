@@ -2280,6 +2280,10 @@ msgstr ""
 msgid "OpenSea"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileOtherRecordsSection.tsx
+msgid "Other records"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"

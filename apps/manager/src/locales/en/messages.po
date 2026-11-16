@@ -2275,6 +2275,10 @@ msgstr "Open Safari to finish connecting Telegram, then return here. Keep ENS Ma
 msgid "OpenSea"
 msgstr "OpenSea"
 
+#: src/features/profile/components/view/ProfileOtherRecordsSection.tsx
+msgid "Other records"
+msgstr "Other records"
+
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"
