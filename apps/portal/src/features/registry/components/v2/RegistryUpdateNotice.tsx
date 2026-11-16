@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useRegistryRepairCase } from '../../hooks/useRegistryRepairCase'
 import {
-  type RegistryUpdateStatus,
+  type RegistryUpgradeState,
   useRegistryUpdate,
 } from '../../hooks/useRegistryUpdate'
 import type { RegistryRepairCase } from '../../utils/registryRepairCase'
@@ -14,8 +14,8 @@ import { RegistryPanel } from './RegistryPanel'
 
 const CAN_UPDATE_CASES: readonly RegistryRepairCase[] = ['owns-all', 'shared']
 
-const updateLabel = (status: RegistryUpdateStatus) =>
-  match(status.type)
+const updateLabel = (state: RegistryUpgradeState) =>
+  match(state)
     .with('planning', () => 'Preparing upgrade…')
     .with('incomplete', () => 'Continue upgrade')
     .otherwise(() => 'Upgrade registry')
@@ -45,7 +45,7 @@ const RegistryUpdateCard = ({
   readonly registryAddress: Address | undefined
   readonly parentRegistry: Address | undefined
 }) => {
-  const { start, status, transactions } = useRegistryUpdate({
+  const { start, state, canStart, transactions } = useRegistryUpdate({
     name,
     registryAddress,
     parentRegistry,
@@ -61,24 +61,20 @@ const RegistryUpdateCard = ({
           their owners and their roles will be copied to the new registry.
         </AlertDescription>
       </Alert>
-      {status.type === 'plan-failed' && (
+      {state === 'planFailed' && (
         <ErrorMessage
           compact
           description="Couldn't prepare the upgrade. Refresh the page and try again."
         />
       )}
-      {status.type === 'incomplete' && (
+      {state === 'incomplete' && (
         <ErrorMessage
           compact
           description="The upgrade stopped before every subname was copied. Continue to pick up where it left off."
         />
       )}
-      <Button
-        className="w-full"
-        disabled={status.type === 'planning' || status.type === 'running'}
-        onClick={() => void start()}
-      >
-        {updateLabel(status)}
+      <Button className="w-full" disabled={!canStart} onClick={start}>
+        {updateLabel(state)}
       </Button>
       {transactions.length > 0 && (
         <TransactionModal transactions={transactions} />

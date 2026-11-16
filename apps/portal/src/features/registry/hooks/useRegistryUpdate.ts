@@ -6,10 +6,11 @@ import {
 } from '@ens-apps/transaction-manager'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
-import { fromPromise } from 'neverthrow'
-import { useEffect, useRef, useState } from 'react'
+import { useActorRef, useSelector } from '@xstate/react'
+import { useEffect, useRef } from 'react'
 import type { Address } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
+import type { StateValueFrom } from 'xstate'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
@@ -21,27 +22,20 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import type { Transaction } from '@/features/transaction-manager/types'
 import { ensChain } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { getRegistryUpdatePlanQueryOptions } from '../queries/getRegistryUpdatePlan'
 import {
-  getRegistryUpdatePlanQueryOptions,
-  type RegistryUpdatePlan,
-} from '../queries/getRegistryUpdatePlan'
+  type RegistryUpgradeRuntime,
+  registryUpgradeMachine,
+} from '../state/registryUpgrade.machine'
 import {
   getRegistryUpdateDetails,
-  getRegistryUpdateSteps,
   type RegistryUpdateStep,
 } from '../utils/registryUpdate'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
 const TX_ID_PREFIX = 'tx-registry-update'
 
-export type RegistryUpdateStatus =
-  | { readonly type: 'idle' }
-  | { readonly type: 'planning' }
-  | { readonly type: 'running'; readonly plan: RegistryUpdatePlan }
-  /** The plan couldn't be read or built; nothing was sent. */
-  | { readonly type: 'plan-failed' }
-  /** The copy stopped before it matched; starting again resumes it. */
-  | { readonly type: 'incomplete' }
+export type RegistryUpgradeState = StateValueFrom<typeof registryUpgradeMachine>
 
 const nowInSeconds = () => BigInt(Math.floor(Date.now() / 1000))
 
@@ -54,7 +48,7 @@ const stepTitle = (
     ? `Copy subnames (${index + 1} of ${copySteps})`
     : 'Switch to the new registry'
 
-/** Copies a registry that needs an update into a replacement, then points the name at it. */
+/** Connects the registry upgrade machine to the wallet, the plan query and the transaction modal. */
 export const useRegistryUpdate = ({
   name,
   registryAddress,
@@ -73,45 +67,8 @@ export const useRegistryUpdate = ({
   const attempt = useFlowAttempt()
   const { isOpen, closeModal, clearTransaction } = useTransactionModal()
 
-  const [status, setStatus] = useState<RegistryUpdateStatus>({ type: 'idle' })
-  const [steps, setSteps] = useState<readonly RegistryUpdateStep[]>([])
-  // The modal's auto-advance and an "Open wallet" click can both start a step.
-  const inFlightRef = useRef<Set<string>>(new Set())
-
-  const fetchPlan = () =>
-    registryAddress && parentRegistry && account
-      ? fromPromise(
-          queryClient.fetchQuery(
-            getRegistryUpdatePlanQueryOptions({
-              registryAddress,
-              parent: {
-                registry: parentRegistry,
-                label: getNameLabels(name).currentLabel,
-              },
-              account,
-              now: nowInSeconds(),
-            }),
-          ),
-          (error) => error,
-        )
-      : null
-
-  const start = async () => {
-    const planning = fetchPlan()
-    if (!planning || !account) return
-    setStatus({ type: 'planning' })
-    const result = await planning
-    if (result.isErr()) {
-      setStatus({ type: 'plan-failed' })
-      return
-    }
-    inFlightRef.current = new Set()
-    setSteps(
-      getRegistryUpdateSteps({ plan: result.value.plan, canBatchAtomically }),
-    )
-    setStatus({ type: 'running', plan: result.value })
-    attempt.start(account)
-  }
+  const idOf = (index: number) =>
+    scopeTransactionId(`${TX_ID_PREFIX}-${name}-${index}`, attempt.scope)
 
   const intentFor = (from: Address, step: RegistryUpdateStep) => {
     const intents = step.calls.map((call) =>
@@ -121,106 +78,108 @@ export const useRegistryUpdate = ({
     return intents.length === 1 && only ? only : toEoaBatchIntent(intents)
   }
 
-  const submit = async (step: RegistryUpdateStep, id: string) => {
-    const walletClient = await getWalletClient(config, { account })
-    if (!walletClient.account || !publicClient) return
-    const txId = transactionManager.startTransaction(
-      intentFor(walletClient.account.address, step),
-      createEOASigner(walletClient),
-      {
-        id,
-        description: `Upgrade the registry of ${name}`,
-        publicClient,
-        chainId,
+  const runtime: RegistryUpgradeRuntime = {
+    plan: () => {
+      if (!registryAddress || !parentRegistry || !account)
+        return Promise.reject(new Error('The registry or wallet is not ready'))
+      return queryClient.fetchQuery(
+        getRegistryUpdatePlanQueryOptions({
+          registryAddress,
+          parent: {
+            registry: parentRegistry,
+            label: getNameLabels(name).currentLabel,
+          },
+          account,
+          now: nowInSeconds(),
+        }),
+      )
+    },
+    sendStep: async (step, index) => {
+      const walletClient = await getWalletClient(config, { account })
+      if (!walletClient.account || !publicClient)
+        throw new Error('No connected wallet')
+      const txId = transactionManager.startTransaction(
+        intentFor(walletClient.account.address, step),
+        createEOASigner(walletClient),
+        {
+          id: idOf(index),
+          description: `Upgrade the registry of ${name}`,
+          publicClient,
+          chainId,
+        },
+      )
+      await waitForTransaction(txId)
+    },
+    openFlow: () => {
+      if (account) attempt.start(account)
+    },
+    closeFlow: () => {
+      closeModal()
+      clearTransaction()
+      attempt.end()
+    },
+    finished: () => {
+      const invalidate = () =>
+        queryClient.invalidateQueries({
+          queryKey: getNameRegistriesQueryOptions({ name }).queryKey,
+        })
+      void invalidate()
+      pollForIndexerSync({ invalidateQueries: invalidate })
+    },
+  }
+  // The machine keeps the runtime it started with; this one always reads the latest render.
+  const runtimeRef = useRef(runtime)
+  runtimeRef.current = runtime
+  const actor = useActorRef(registryUpgradeMachine, {
+    input: {
+      canBatchAtomically,
+      runtime: {
+        plan: () => runtimeRef.current.plan(),
+        sendStep: (step, index) => runtimeRef.current.sendStep(step, index),
+        openFlow: () => runtimeRef.current.openFlow(),
+        closeFlow: () => runtimeRef.current.closeFlow(),
+        finished: () => runtimeRef.current.finished(),
       },
-    )
-    await waitForTransaction(txId)
-  }
-
-  // A failed step surfaces in the modal; clearing the guard lets it be retried.
-  const send = async (step: RegistryUpdateStep, id: string) => {
-    if (inFlightRef.current.has(id)) return
-    inFlightRef.current.add(id)
-    const result = await fromPromise(submit(step, id), (error) => error)
-    if (result.isErr()) inFlightRef.current.delete(id)
-  }
-
-  const end = (next: RegistryUpdateStatus) => {
-    closeModal()
-    clearTransaction()
-    attempt.end()
-    setSteps([])
-    setStatus(next)
-  }
-
-  const finish = () => {
-    end({ type: 'idle' })
-    const invalidate = () =>
-      queryClient.invalidateQueries({
-        queryKey: getNameRegistriesQueryOptions({ name }).queryKey,
-      })
-    void invalidate()
-    pollForIndexerSync({ invalidateQueries: invalidate })
-  }
-
-  // Before each finishing step, re-read both registries and the name: the copy must be whole and the name still on this registry.
-  const checkThenSend = async (next: RegistryUpdateStep, id: string) => {
-    const planning = fetchPlan()
-    const result = planning ? await planning : null
-    if (!result || result.isErr()) {
-      end({ type: 'plan-failed' })
-      return
-    }
-    if (result.value.plan.copyCalls.length > 0) {
-      end({ type: 'incomplete' })
-      return
-    }
-    await send(next, id)
-  }
+    },
+  })
+  const state = useSelector(actor, (snapshot) => snapshot.value)
+  const isInModal = useSelector(actor, (snapshot) => snapshot.hasTag('inModal'))
+  const canStart = useSelector(actor, (snapshot) =>
+    snapshot.hasTag('startable'),
+  )
+  const plan = useSelector(actor, (snapshot) => snapshot.context.plan)
+  const steps = useSelector(actor, (snapshot) => snapshot.context.steps)
 
   // Closing the modal part way leaves the copy where it is; the next start resumes it.
   const wasOpenRef = useRef(false)
   useEffect(() => {
     const wasOpen = wasOpenRef.current
     wasOpenRef.current = isOpen
-    if (!wasOpen || isOpen) return
-    setSteps([])
-    setStatus((current) =>
-      current.type === 'running' ? { type: 'idle' } : current,
-    )
-  }, [isOpen])
+    if (wasOpen && !isOpen) actor.send({ type: 'CANCEL' })
+  }, [actor, isOpen])
 
-  const idOf = (index: number) =>
-    scopeTransactionId(`${TX_ID_PREFIX}-${name}-${index}`, attempt.scope)
   const copySteps = steps.filter((step) => step.kind === 'copy').length
-  const details =
-    status.type === 'running' ? getRegistryUpdateDetails(status.plan) : []
+  const details = plan ? getRegistryUpdateDetails(plan) : []
+  // The machine sends each step once the one before it lands; the modal only starts or retries the current one.
+  const transactions: readonly Transaction[] = isInModal
+    ? steps.map((step, index) => ({
+        id: idOf(index),
+        title: stepTitle(step, index, copySteps),
+        transactionName: `Upgrade the registry of ${name}`,
+        ...(index === 0 && details.length > 0 && { details }),
+        intent: {
+          prepare: ({ walletClient }) =>
+            intentFor(walletClient.account.address, step),
+        },
+        onStart: () => actor.send({ type: 'SEND' }),
+        onDone: () => {},
+      }))
+    : []
 
-  const transactions: readonly Transaction[] = steps.map((step, index) => {
-    const next = steps[index + 1]
-    const id = idOf(index)
-    return {
-      id,
-      title: stepTitle(step, index, copySteps),
-      transactionName: `Upgrade the registry of ${name}`,
-      ...(index === 0 && details.length > 0 && { details }),
-      intent: {
-        prepare: ({ walletClient }) =>
-          intentFor(walletClient.account.address, step),
-      },
-      onStart: () => {
-        void send(step, id)
-      },
-      onDone: next
-        ? () => {
-            const nextId = idOf(index + 1)
-            void (next.kind === 'finish'
-              ? checkThenSend(next, nextId)
-              : send(next, nextId))
-          }
-        : finish,
-    }
-  })
-
-  return { start, status, transactions }
+  return {
+    start: () => actor.send({ type: 'START' }),
+    state,
+    canStart,
+    transactions,
+  }
 }
