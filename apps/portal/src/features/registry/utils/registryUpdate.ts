@@ -147,12 +147,7 @@ export const getRegistryUpdateFailure = (
     .with('registry-replaced', () => 'registry-replaced' as const)
     .with('unknown-label', () => 'unknown-label' as const)
     .with(
-      P.union(
-        'outdated-implementation',
-        'name-without-owner',
-        'duplicate-label',
-        'replacement-diverged',
-      ),
+      P.union('outdated-implementation', 'replacement-diverged'),
       () => 'unavailable' as const,
     )
     .otherwise(() => 'read-failed' as const)

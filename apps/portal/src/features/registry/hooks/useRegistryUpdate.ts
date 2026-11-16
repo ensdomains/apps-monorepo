@@ -38,8 +38,6 @@ const TX_ID_PREFIX = 'tx-registry-update'
 
 export type RegistryUpgradeState = StateValueFrom<typeof registryUpgradeMachine>
 
-const nowInSeconds = () => BigInt(Math.floor(Date.now() / 1000))
-
 const stepTitle = (
   step: RegistryUpdateStep,
   index: number,
@@ -92,7 +90,6 @@ export const useRegistryUpdate = ({
             label: getNameLabels(name).currentLabel,
           },
           account,
-          now: nowInSeconds(),
         }),
       )
     },

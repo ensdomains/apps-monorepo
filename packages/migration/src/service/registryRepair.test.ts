@@ -159,18 +159,12 @@ describe('planRegistryRepair', () => {
     expect(switchParent?.args).toEqual([42n, REPLACEMENT])
   })
 
-  it.each([
-    [
-      'no-root-roles',
-      makeState({ rootRoles: [{ account: CONTROLLER, roleBitmap: 0n }] }),
-    ],
-    [
-      'name-without-owner',
-      makeState({ names: [makeName({ owner: zeroAddress })] }),
-    ],
-    ['duplicate-label', makeState({ names: [makeName(), makeName()] })],
-  ] as const)('refuses a state with %s', (reason, state) => {
-    expect(plan(state)._unsafeUnwrapErr().reason).toBe(reason)
+  it('refuses a registry with no root roles', () => {
+    const state = makeState({
+      rootRoles: [{ account: CONTROLLER, roleBitmap: 0n }],
+    })
+
+    expect(plan(state)._unsafeUnwrapErr().reason).toBe('no-root-roles')
   })
 
   it('refuses an account without the registrar role on the registry', () => {

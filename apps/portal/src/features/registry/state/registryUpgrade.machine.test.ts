@@ -229,3 +229,41 @@ describe('registryUpgradeMachine, closing the modal', () => {
     expect(log).toEqual(['plan', 'send 0'])
   })
 })
+
+describe('registryUpgradeMachine, finishing steps', () => {
+  it('re-checks before a resume whose first step is the switch', async () => {
+    const { log, settle, start, actor } = run({ plans: [planOf(0, 1)] })
+
+    start()
+    await settle('ready')
+    actor.send({ type: 'SEND' })
+    await settle('done')
+
+    expect(log).toEqual(['plan', 'open', 'plan', 'send 0', 'close', 'finished'])
+  })
+
+  it('re-checks before retrying a switch that failed', async () => {
+    const { log, settle, start, actor } = run({
+      plans: [planOf(1, 1), planOf(0, 1)],
+      failSendAt: [1],
+    })
+
+    start()
+    await settle('ready')
+    actor.send({ type: 'SEND' })
+    await settle('stepFailed')
+    actor.send({ type: 'SEND' })
+    await settle('done')
+
+    expect(log.filter((entry) => entry !== 'open')).toEqual([
+      'plan',
+      'send 0',
+      'plan',
+      'send 1',
+      'plan',
+      'send 1',
+      'close',
+      'finished',
+    ])
+  })
+})

@@ -130,7 +130,7 @@ describe('getRegistryUpdateFailure', () => {
     ['a hashed label', planError('unknown-label'), 'unknown-label'],
     [
       'a registry the copy refuses',
-      planError({ reason: 'duplicate-label' }),
+      planError('outdated-implementation'),
       'unavailable',
     ],
     ['a failed read', planError(new Error('rpc')), 'read-failed'],

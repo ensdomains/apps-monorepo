@@ -44,6 +44,12 @@ export type RegistryUpgradeEvent =
 const isCopyComplete = (plan: RegistryUpdatePlan) =>
   plan.plan.copyCalls.length === 0
 
+// A finishing step is only sent right after a fresh check, also when resumed or retried.
+const SEND_CURRENT_STEP = [
+  { guard: 'isCurrentFinishing', target: 'checking' },
+  { target: 'sending' },
+] as const
+
 /** Plan, wait for the user, send each step, and re-check the copy and the name before every finishing step. */
 export const registryUpgradeMachine = setup({
   types: {
@@ -83,6 +89,8 @@ export const registryUpgradeMachine = setup({
   guards: {
     isDetached: ({ context }) => context.isDetached,
     isLastStep: ({ context }) => context.index >= context.steps.length - 1,
+    isCurrentFinishing: ({ context }) =>
+      context.steps[context.index]?.kind === 'finish',
     isNextFinishing: ({ context }) =>
       context.steps[context.index + 1]?.kind === 'finish',
   },
@@ -134,7 +142,7 @@ export const registryUpgradeMachine = setup({
     },
     ready: {
       tags: 'inModal',
-      on: { SEND: 'sending', CANCEL: 'idle' },
+      on: { SEND: SEND_CURRENT_STEP, CANCEL: 'idle' },
     },
     sending: {
       tags: 'inModal',
@@ -169,7 +177,7 @@ export const registryUpgradeMachine = setup({
     },
     stepFailed: {
       tags: 'inModal',
-      on: { SEND: 'sending', CANCEL: 'idle' },
+      on: { SEND: SEND_CURRENT_STEP, CANCEL: 'idle' },
     },
     checking: {
       tags: 'inModal',

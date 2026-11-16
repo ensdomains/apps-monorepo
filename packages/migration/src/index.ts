@@ -31,22 +31,15 @@ export {
   runEligibilityChecks,
 } from './service/preflightChecks'
 export {
-  RegistryRepairReadError,
-  type RepairReadClient,
   readChildRegistries,
   readRegistryRepairState,
 } from './service/readRegistryRepairState'
 export {
-  compareRegistryRepair,
   planRegistryRepair,
-  type RegistryChild,
   type RegistryRepairCall,
-  type RegistryRepairDifference,
-  type RegistryRepairName,
   type RegistryRepairPlan,
   RegistryRepairPlanError,
   type RegistryRepairState,
-  type RoleGrant,
 } from './service/registryRepair'
 export {
   getSubnameMigrationImpact,

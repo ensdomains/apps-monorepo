@@ -117,8 +117,6 @@ export class RegistryRepairPlanError extends TaggedError(
 )<{
   readonly reason:
     | 'no-root-roles'
-    | 'name-without-owner'
-    | 'duplicate-label'
     | 'replacement-diverged'
     | 'cannot-register'
     | 'cannot-set-parent'
@@ -126,11 +124,11 @@ export class RegistryRepairPlanError extends TaggedError(
   readonly label?: string
 }> {}
 
-/** The role resource a label gets on its first registration in a fresh registry. */
 /** A label's id from its literal text; `labelhash` would read a `[<64 hex>]` label as already hashed. */
 export const literalLabelId = (label: string): bigint =>
   BigInt(keccak256(stringToHex(label)))
 
+/** The role resource a label gets on its first registration in a fresh registry. */
 const freshResourceOf = (label: string): bigint =>
   literalLabelId(label) & ~VERSION_BITS
 
@@ -190,20 +188,6 @@ const findPlanProblem = (
       reason: 'cannot-grant',
       label: ungrantable.label,
     })
-  const seen = new Set<string>()
-  for (const name of state.names) {
-    if (isAddressEqual(name.owner, zeroAddress))
-      return new RegistryRepairPlanError({
-        reason: 'name-without-owner',
-        label: name.label,
-      })
-    if (seen.has(name.label))
-      return new RegistryRepairPlanError({
-        reason: 'duplicate-label',
-        label: name.label,
-      })
-    seen.add(name.label)
-  }
   return null
 }
 
@@ -334,7 +318,6 @@ const missingGrants = (
 const isDivergence = (difference: RegistryRepairDifference): boolean =>
   difference.kind === 'root-roles' || difference.kind === 'name-field'
 
-/** The copy calls still needed when `existing` (the replacement's current state) holds part of the copy. */
 /** Unregisters names the replacement holds but the original no longer does, so a resume never brings back a deleted subname. */
 const extraNameCalls = (
   state: RegistryRepairState,
@@ -370,14 +353,20 @@ const extraNameCalls = (
   )
 }
 
-const resumeCopyCalls = (params: {
+/** The copy calls still needed when `existing` (the replacement's current state) holds part of the copy. */
+const resumeCopyCalls = ({
+  state,
+  existing,
+  replacement,
+  account,
+  setParent,
+}: {
   readonly state: RegistryRepairState
   readonly existing: RegistryRepairState
   readonly replacement: Address
   readonly account: Address
   readonly setParent: RegistryRepairCall
 }): Result<readonly RegistryRepairCall[], RegistryRepairPlanError> => {
-  const { state, existing, replacement, setParent } = params
   const divergence = compareRegistryRepair(state, existing).find(isDivergence)
   if (divergence)
     return err(
@@ -403,7 +392,7 @@ const resumeCopyCalls = (params: {
         label: state.names[divergedAt]?.label,
       }),
     )
-  return extraNameCalls(state, existing, replacement, params.account).map(
+  return extraNameCalls(state, existing, replacement, account).map(
     (unregisters) => [
       ...(isParentSet ? [] : [setParent]),
       ...unregisters,
@@ -413,7 +402,16 @@ const resumeCopyCalls = (params: {
 }
 
 /** Calls that copy a registry into `replacement` and switch its parent name to it; `existing` (the replacement's state, or null) resumes a stopped copy. */
-export const planRegistryRepair = (params: {
+export const planRegistryRepair = ({
+  state,
+  existing,
+  children,
+  account,
+  factory,
+  implementation,
+  salt,
+  replacement,
+}: {
   readonly state: RegistryRepairState
   readonly existing: RegistryRepairState | null
   readonly children: readonly RegistryChild[]
@@ -424,9 +422,7 @@ export const planRegistryRepair = (params: {
   readonly salt: bigint
   readonly replacement: Address
 }): Result<RegistryRepairPlan, RegistryRepairPlanError> => {
-  const { state, existing, children, factory, implementation, salt } = params
-  const { replacement } = params
-  const problem = findPlanProblem(state, params.account)
+  const problem = findPlanProblem(state, account)
   if (problem) return err(problem)
 
   const deploy = call(
@@ -468,7 +464,7 @@ export const planRegistryRepair = (params: {
         state,
         existing,
         replacement,
-        account: params.account,
+        account,
         setParent,
       })
     : ok([

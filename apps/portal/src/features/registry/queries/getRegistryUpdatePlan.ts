@@ -34,8 +34,6 @@ type GetRegistryUpdatePlanParameters = {
   readonly parent: { readonly registry: Address; readonly label: string }
   /** The account that will send the update; it deploys the replacement. */
   readonly account: Address
-  /** Unix seconds; names expired by then can't be copied. */
-  readonly now: bigint
 }
 
 export type RegistryUpdatePlan = {
@@ -54,7 +52,6 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
   registryAddress,
   parent,
   account,
-  now,
 }: GetRegistryUpdatePlanParameters) {
   const client = (yield* safeGetClient().mapErr(toError)).extend(publicActions)
   const contracts = getDestinationContracts(client.chain.id)
@@ -103,7 +100,6 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
       client,
       registry,
       fromBlock: contracts.verifiableFactoryDeployBlock,
-      now,
       ...(knownParent && { parent: knownParent }),
     }).mapErr(toError)
 

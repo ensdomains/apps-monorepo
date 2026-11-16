@@ -5,9 +5,8 @@ import {
   eacRolesChangedEventSnippet,
 } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import {
-  permissionedRegistryGetExpirySnippet,
   permissionedRegistryGetResolverSnippet,
-  permissionedRegistryGetResourceSnippet,
+  permissionedRegistryGetStateSnippet,
   permissionedRegistryGetSubregistrySnippet,
   permissionedRegistryGetTokenIdSnippet,
   permissionedRegistryRolesSnippet,
@@ -33,16 +32,13 @@ import {
 /** The reads a registry repair needs, so any chain's public client fits. */
 export type RepairReadClient = Pick<
   PublicClient,
-  'getBlockNumber' | 'getLogs' | 'readContract' | 'multicall'
+  'getBlock' | 'getLogs' | 'readContract' | 'multicall'
 >
 
 const ROOT_RESOURCE = 0n
 const MIN_LOG_RANGE = 500n
 const DEFAULT_LOG_RANGE = 50_000n
 
-const ownerOfAbi = parseAbi([
-  'function ownerOf(uint256 tokenId) view returns (address)',
-])
 const getParentAbi = parseAbi([
   'function getParent() view returns (address parent, string label)',
 ])
@@ -131,13 +127,14 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
   readonly client: RepairReadClient
   readonly registry: Address
   readonly fromBlock: bigint
-  readonly now: bigint
   readonly maxLogRange?: bigint
   /** Where the name lives, when known; otherwise read from the registry's own `getParent`, which may be unset. */
   readonly parent?: { readonly registry: Address; readonly label: string }
 }) {
-  const { client, registry, now } = params
-  const blockNumber = yield* fromPromise(client.getBlockNumber(), readError)
+  const { client, registry } = params
+  // One block for every read, and its time decides which names have expired, as `register` will.
+  const block = yield* fromPromise(client.getBlock(), readError)
+  const blockNumber = block.number
   const { labels, accounts } = yield* fromPromise(
     readCandidates({
       client,
@@ -161,7 +158,7 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
         }),
         readError,
       )
-  const [parentTokenId, tokenIds, rootBitmaps] = yield* fromPromise(
+  const [parentTokenId, states, rootBitmaps] = yield* fromPromise(
     Promise.all([
       // A replacement whose parent isn't set yet has no parent token to read.
       isAddressEqual(parentRegistry, zeroAddress)
@@ -177,8 +174,8 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
         ...at,
         contracts: labels.map((label) => ({
           address: registry,
-          abi: permissionedRegistryGetTokenIdSnippet,
-          functionName: 'getTokenId',
+          abi: permissionedRegistryGetStateSnippet,
+          functionName: 'getState',
           args: [literalLabelId(label)],
         })),
       }),
@@ -195,64 +192,34 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
     readError,
   )
 
-  const [owners, resolvers, subregistries, expiries, resources] =
-    yield* fromPromise(
-      Promise.all([
-        // An unregistered token has no owner and may revert; it counts as unowned.
-        client.multicall({
-          blockNumber,
-          allowFailure: true,
-          contracts: tokenIds.map((tokenId) => ({
-            address: registry,
-            abi: ownerOfAbi,
-            functionName: 'ownerOf',
-            args: [tokenId],
-          })),
-        }),
-        client.multicall({
-          ...at,
-          contracts: labels.map((label) => ({
-            address: registry,
-            abi: permissionedRegistryGetResolverSnippet,
-            functionName: 'getResolver',
-            args: [label],
-          })),
-        }),
-        client.multicall({
-          ...at,
-          contracts: labels.map((label) => ({
-            address: registry,
-            abi: permissionedRegistryGetSubregistrySnippet,
-            functionName: 'getSubregistry',
-            args: [label],
-          })),
-        }),
-        client.multicall({
-          ...at,
-          contracts: tokenIds.map((tokenId) => ({
-            address: registry,
-            abi: permissionedRegistryGetExpirySnippet,
-            functionName: 'getExpiry',
-            args: [tokenId],
-          })),
-        }),
-        client.multicall({
-          ...at,
-          contracts: tokenIds.map((tokenId) => ({
-            address: registry,
-            abi: permissionedRegistryGetResourceSnippet,
-            functionName: 'getResource',
-            args: [tokenId],
-          })),
-        }),
-      ]),
-      readError,
-    )
+  const [resolvers, subregistries] = yield* fromPromise(
+    Promise.all([
+      client.multicall({
+        ...at,
+        contracts: labels.map((label) => ({
+          address: registry,
+          abi: permissionedRegistryGetResolverSnippet,
+          functionName: 'getResolver',
+          args: [label],
+        })),
+      }),
+      client.multicall({
+        ...at,
+        contracts: labels.map((label) => ({
+          address: registry,
+          abi: permissionedRegistryGetSubregistrySnippet,
+          functionName: 'getSubregistry',
+          args: [label],
+        })),
+      }),
+    ]),
+    readError,
+  )
 
   const nameBitmaps = yield* fromPromise(
     client.multicall({
       ...at,
-      contracts: resources.flatMap((resource) =>
+      contracts: states.flatMap(({ resource }) =>
         accounts.map((account) => ({
           address: registry,
           abi: permissionedRegistryRolesSnippet,
@@ -265,13 +232,13 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
   )
 
   const allNames: readonly RegistryRepairName[] = labels.map((label, i) => {
-    const owner = owners[i]
+    const state = states[i]
     return {
       label,
-      owner: owner?.status === 'success' ? owner.result : zeroAddress,
+      owner: state?.latestOwner ?? zeroAddress,
       resolver: resolvers[i] ?? zeroAddress,
       subregistry: subregistries[i] ?? zeroAddress,
-      expiry: expiries[i] ?? 0n,
+      expiry: state?.expiry ?? 0n,
       roles: grantsOf(
         accounts,
         nameBitmaps.slice(i * accounts.length, (i + 1) * accounts.length),
@@ -283,7 +250,7 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
     parentLabel,
     parentTokenId,
     rootRoles: grantsOf(accounts, rootBitmaps),
-    ...splitRepairNames(allNames, now),
+    ...splitRepairNames(allNames, block.timestamp),
   }
   return ok(state)
 })
