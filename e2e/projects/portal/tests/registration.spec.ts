@@ -3710,7 +3710,7 @@ async function registerUpToEthAddress(
   page: Page,
   wallet: Web3ProviderBackend,
   name: string,
-  states: string[],
+  states: readonly string[],
 ) {
   await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
   const dialog = await openRegistrationOverview(page)
@@ -3751,13 +3751,17 @@ async function reloadAndDropStalePrompt(
   wallet: Web3ProviderBackend,
   states: string[],
 ) {
+  // The ETH address prompt from before the reload stays queued in the
+  // headless wallet; it belongs to a page that no longer exists. Count it
+  // now: the resumed page may queue its own send before we reject, and the
+  // wallet hands out the oldest request first, so rejecting exactly this
+  // many leaves the fresh one alone.
+  const stale = pendingSends(wallet)
+  states.length = 0
   await page.reload()
-  // The ETH address prompt from before the reload is still queued in the
-  // headless wallet; it belongs to a page that no longer exists.
-  while (pendingSends(wallet) > 0) {
+  for (let i = 0; i < stale; i++) {
     await wallet.reject(Web3RequestKind.SendTransaction)
   }
-  states.length = 0
 }
 
 test.describe('Portal registration sets the ETH address (WEB-2143)', () => {
