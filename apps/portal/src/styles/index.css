@@ -391,6 +391,12 @@
     @apply bg-background text-foreground antialiased;
   }
 
+  /* Bold text is Figma "Medium", not the browser's `bolder` (700). */
+  b,
+  strong {
+    font-weight: var(--font-weight-medium);
+  }
+
   /* iOS Safari zooms the page when a focused control is under 16px, so form
      controls are 16px on small screens and Figma "base" from `md` up. */
   input,
@@ -421,6 +427,8 @@
   --font-mono: "ABCMonumentGroteskMono", monospace;
   --font-semi-mono: "ABCMonumentGroteskSemiMono", monospace;
   --font-serif: "ABCMarist", serif;
+  /* Figma "Medium" is the variable font's Medium instance, wght 570. */
+  --font-weight-medium: 570;
 
   /* Tailwind's default sizes are switched off so only the styles below
      resolve. `3xl`/`5xl` stay until the serif banner titles get a style. */

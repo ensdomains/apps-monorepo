@@ -5,9 +5,10 @@ import type * as React from 'react'
 import { cn } from '@/lib/utils'
 
 /* Geometry and type per the Figma Message component: 16px padding, 8px
-   radius, 24px icon, 15px single-line base text, a hue border in dark mode. */
+   radius, 24px icon, 15px single-line base text, 12px from title to text, a
+   hue border in dark mode. */
 const alertVariants = cva(
-  'relative w-full rounded-[8px] p-4 text-p grid has-[>svg]:grid-cols-[calc(var(--spacing)*6)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-6 [&>svg]:translate-y-0.5 [&>svg]:text-current dark:ring-1 dark:ring-current dark:ring-inset',
+  'relative w-full rounded-[8px] p-4 text-p grid has-[>svg]:grid-cols-[calc(var(--spacing)*6)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-3 items-start [&>svg]:size-6 [&>svg]:translate-y-0.5 [&>svg]:text-current dark:ring-1 dark:ring-current dark:ring-inset',
   {
     variants: {
       variant: {
