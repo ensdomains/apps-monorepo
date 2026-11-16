@@ -1458,7 +1458,7 @@ msgstr ""
 msgid "Expires"
 msgstr "Går ut"
 
-#: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NameRow.tsx
 msgid "Expires in {days} days"
 msgstr ""
 
@@ -1791,7 +1791,7 @@ msgid "Keep renewal"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/keepBrowserOpen.ts
-msgid "Keep this browser open while your name is registered"
+msgid "Keep this browser open while your name is being registered"
 msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
