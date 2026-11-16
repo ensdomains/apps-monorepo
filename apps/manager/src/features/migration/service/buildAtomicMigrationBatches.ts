@@ -35,10 +35,7 @@ import {
   FUSES,
   hasFuse,
 } from './classifyNames'
-import {
-  parentUserRegistryFor,
-  withoutDeployedParents,
-} from './currentParentRegistries'
+import { parentUserRegistryFor } from './currentParentRegistries'
 import {
   computeExpectedWrapperRegistry,
   type DirectMigrationRoute,
@@ -564,10 +561,8 @@ const buildUserRegistryAddresses = (params: {
       name.action === 'copy' && name.parentName ? [name.parentName] : [],
     ),
   )
-  const currentParentRegistries = withoutDeployedParents({
-    currentParentRegistries: params.currentParentRegistries,
-    deployed: params.classified,
-  })
+  const currentParentRegistries =
+    params.currentParentRegistries ?? new Map<string, Address>()
   return new Map(
     [...parentNames].map((parentName) => [
       parentName,

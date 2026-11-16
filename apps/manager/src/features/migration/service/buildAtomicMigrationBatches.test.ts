@@ -1593,26 +1593,16 @@ describe('parents upgraded to a replacement registry', () => {
     sourceExpiry: (1n << 64n) - 1n,
   })
 
-  it.each([
-    ['a completed parent', [child], UPGRADED],
-    [
-      'a parent deployed in this run',
-      [root, child],
-      computeUserRegistryAddress({ hca: HCA, parentName: 'example.eth' }),
-    ],
-  ] as const)(
-    'registers the child of %s in its registry',
-    async (_case, classified, expectedRegistry) => {
-      const plan = await buildPlan({
-        classified,
-        registryContext: [root, child],
-        currentParentRegistries: new Map([['example.eth', UPGRADED]]),
-      })
-      const registration = plan.batches[0]?.innerExecutions.find(
-        ({ phase }) => phase === 'copy-register',
-      )
+  it('registers the child of a completed parent in its registry', async () => {
+    const plan = await buildPlan({
+      classified: [child],
+      registryContext: [root, child],
+      currentParentRegistries: new Map([['example.eth', UPGRADED]]),
+    })
+    const registration = plan.batches[0]?.innerExecutions.find(
+      ({ phase }) => phase === 'copy-register',
+    )
 
-      expect(registration?.call.to).toBe(expectedRegistry)
-    },
-  )
+    expect(registration?.call.to).toBe(UPGRADED)
+  })
 })

@@ -1,50 +1,29 @@
 import type { DestinationContracts } from '@ens-apps/smart-account'
-import { permissionedRegistryGetSubregistrySnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { universalHelperFindRegistriesSnippet } from '@ensdomains/ensjs-abi/v2/universalHelper'
 import { verifiableFactoryVerifyContractSnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
-  isAddress,
+  BaseError,
+  ContractFunctionRevertedError,
+  ContractFunctionZeroDataError,
   isAddressEqual,
   type PublicClient,
+  toHex,
   zeroAddress,
 } from 'viem'
+import { packetToBytes } from 'viem/ens'
+import { getChainContractAddress } from 'viem/utils'
 import type { ClassifiedName } from './classifyNames'
 import type { MigrationJournalOperation } from './migrationBatchJournal'
 import { computeUserRegistryAddress } from './userRegistryMigration'
 
-export type ParentRegistryRead = {
-  readonly parentName: string
-  readonly registry: Address | undefined
-  readonly implementation: Address | undefined
-}
-
-export type ParentRegistryContracts = Pick<
+type ParentRegistryContracts = Pick<
   DestinationContracts,
-  'ethRegistry' | 'verifiableFactory' | 'userRegistryImpl'
+  'verifiableFactory' | 'userRegistryImpl'
 >
 
 const EMPTY_PARENT_REGISTRIES: ReadonlyMap<string, Address> = new Map()
-
-/** Parents whose name now points at a certified UserRegistry other than the computed one. */
-export const toCurrentParentRegistries = (params: {
-  readonly hca: Address
-  readonly userRegistryImpl: Address
-  readonly reads: readonly ParentRegistryRead[]
-}): ReadonlyMap<string, Address> =>
-  new Map(
-    params.reads.flatMap(({ parentName, registry, implementation }) =>
-      registry !== undefined &&
-      implementation !== undefined &&
-      !isAddressEqual(registry, zeroAddress) &&
-      !isAddressEqual(
-        registry,
-        computeUserRegistryAddress({ hca: params.hca, parentName }),
-      ) &&
-      isAddressEqual(implementation, params.userRegistryImpl)
-        ? [[parentName, registry] as const]
-        : [],
-    ),
-  )
 
 /** Copy parents already on chain before this run; none when nothing is left to plan. */
 export const completedCopyParentNames = (params: {
@@ -74,26 +53,12 @@ export const copyParentNames = (
   operations: readonly MigrationJournalOperation[],
 ): readonly string[] => [
   ...new Set(
-    operations.flatMap(({ name, action }) =>
-      action === 'copy' ? [name.split('.').slice(1).join('.')] : [],
-    ),
+    operations.flatMap(({ name, action }) => {
+      const parentName = name.split('.').slice(1).join('.')
+      return action === 'copy' && parentName !== 'eth' ? [parentName] : []
+    }),
   ),
 ]
-
-/** Drop overrides for names this run deploys: those keep the computed registry. */
-export const withoutDeployedParents = (params: {
-  readonly currentParentRegistries?: ReadonlyMap<string, Address>
-  readonly deployed: readonly ClassifiedName[]
-}): ReadonlyMap<string, Address> => {
-  const deployedNames = new Set(
-    params.deployed.map(({ domain }) => domain.name.toLowerCase()),
-  )
-  return new Map(
-    [...(params.currentParentRegistries ?? EMPTY_PARENT_REGISTRIES)].filter(
-      ([parentName]) => !deployedNames.has(parentName.toLowerCase()),
-    ),
-  )
-}
 
 export const parentUserRegistryFor = (params: {
   readonly hca: Address
@@ -114,127 +79,115 @@ export const isAcceptedParentRegistry = (params: {
     isAddressEqual(params.registry, params.currentRegistry))
 
 /** A registry worth asking the factory about: set, and not the address the HCA would have deployed. */
-export const isRegistryCandidate = (params: {
-  readonly registry: Address | undefined
-  readonly hca: Address
-  readonly parentName: string
-}): params is { readonly registry: Address } & typeof params =>
-  params.registry !== undefined &&
-  !isAddressEqual(params.registry, zeroAddress) &&
-  !isAddressEqual(
-    params.registry,
-    computeUserRegistryAddress({
-      hca: params.hca,
-      parentName: params.parentName,
-    }),
-  )
+const isRegistryCandidate = (
+  registry: Address,
+  hca: Address,
+  parentName: string,
+): boolean =>
+  !isAddressEqual(registry, zeroAddress) &&
+  !isAddressEqual(registry, computeUserRegistryAddress({ hca, parentName }))
 
 /** The two chain reads the lookup needs, so tests can pass plain functions. */
 export type ParentRegistryReads = {
-  readonly getSubregistry: (
-    registry: Address,
-    label: string,
-  ) => Promise<Address>
+  /** The registry holding the name's subnames, or zero when it has none. */
+  readonly getNameRegistry: (name: string) => Promise<Address>
   readonly verifyContract: (registry: Address) => Promise<Address>
 }
 
-// A failed or malformed read (thrown or rejected) counts as unknown, leaving the parent on its computed registry.
-const settledAddress = (
-  read: () => Promise<Address>,
-): Promise<Address | undefined> =>
-  Promise.resolve()
-    .then(read)
-    .then(
-      (value) => (isAddress(value, { strict: false }) ? value : undefined),
-      () => undefined,
-    )
+export class ParentRegistryReadError extends TaggedError(
+  'ParentRegistryReadError',
+)<{
+  readonly parentName: string
+  readonly cause: unknown
+}> {}
 
-const readNameRegistry = (
-  reads: ParentRegistryReads,
-  ethRegistry: Address,
-  parentName: string,
-): Promise<Address | undefined> =>
-  parentName
-    .split('.')
-    .slice(0, -1)
-    .reverse()
-    .reduce<Promise<Address | undefined>>(async (pending, label) => {
-      const registry = await pending
-      if (!registry || isAddressEqual(registry, zeroAddress)) return undefined
-      return settledAddress(() => reads.getSubregistry(registry, label))
-    }, Promise.resolve(ethRegistry))
-
-const readParentRegistry = async (params: {
+const readCertifiedRegistry = async (params: {
   readonly reads: ParentRegistryReads
-  readonly ethRegistry: Address
+  readonly userRegistryImpl: Address
   readonly hca: Address
   readonly parentName: string
-}): Promise<ParentRegistryRead> => {
-  const registry = await readNameRegistry(
-    params.reads,
-    params.ethRegistry,
-    params.parentName,
-  )
-  const candidate = { registry, hca: params.hca, parentName: params.parentName }
-  const implementation = isRegistryCandidate(candidate)
-    ? await settledAddress(() =>
-        params.reads.verifyContract(candidate.registry),
-      )
+}): Promise<Address | undefined> => {
+  const registry = await params.reads.getNameRegistry(params.parentName)
+  if (!isRegistryCandidate(registry, params.hca, params.parentName))
+    return undefined
+  const implementation = await params.reads.verifyContract(registry)
+  return isAddressEqual(implementation, params.userRegistryImpl)
+    ? registry
     : undefined
-  return { parentName: params.parentName, registry, implementation }
 }
 
-/** Parents whose name now points at a certified replacement registry, from the given reads. */
+/** Parents whose name now points at a certified UserRegistry other than the computed one; a failed read rejects. */
 export const findCurrentParentRegistries = async (params: {
   readonly reads: ParentRegistryReads
-  readonly ethRegistry: Address
   readonly userRegistryImpl: Address
   readonly hca: Address
   readonly parentNames: readonly string[]
 }): Promise<ReadonlyMap<string, Address>> => {
   if (params.parentNames.length === 0) return EMPTY_PARENT_REGISTRIES
-  const reads = await Promise.all(
+  const entries = await Promise.all(
     [...new Set(params.parentNames)].map((parentName) =>
-      readParentRegistry({
-        reads: params.reads,
-        ethRegistry: params.ethRegistry,
-        hca: params.hca,
-        parentName,
-      }),
+      Promise.resolve()
+        .then(() => readCertifiedRegistry({ ...params, parentName }))
+        .then(
+          (registry) =>
+            registry === undefined ? [] : [[parentName, registry] as const],
+          (cause: unknown) => {
+            throw new ParentRegistryReadError({ parentName, cause })
+          },
+        ),
     ),
   )
-  return toCurrentParentRegistries({
-    hca: params.hca,
-    userRegistryImpl: params.userRegistryImpl,
-    reads,
-  })
+  return new Map(entries.flat())
+}
+
+const unknownChain = (): never => {
+  throw new Error('The client has no chain to find the universal helper on')
+}
+
+// A revert is the chain's answer (not a registry, or not from the factory); only a failed request rejects.
+const zeroOnRevert = (error: unknown): Address => {
+  const isRevert =
+    error instanceof BaseError &&
+    error.walk(
+      (entry) =>
+        entry instanceof ContractFunctionRevertedError ||
+        entry instanceof ContractFunctionZeroDataError,
+    ) !== null
+  if (isRevert) return zeroAddress
+  throw error
 }
 
 /** {@link findCurrentParentRegistries} over a public client. */
 export const readCurrentParentRegistries = (params: {
-  readonly publicClient: PublicClient
+  readonly publicClient: Pick<PublicClient, 'readContract' | 'chain'>
   readonly contracts: ParentRegistryContracts
   readonly hca: Address
   readonly parentNames: readonly string[]
 }): Promise<ReadonlyMap<string, Address>> =>
   findCurrentParentRegistries({
     reads: {
-      getSubregistry: (registry, label) =>
-        params.publicClient.readContract({
-          address: registry,
-          abi: permissionedRegistryGetSubregistrySnippet,
-          functionName: 'getSubregistry',
-          args: [label],
-        }),
+      getNameRegistry: (name) =>
+        params.publicClient
+          .readContract({
+            address: getChainContractAddress({
+              chain: params.publicClient.chain ?? unknownChain(),
+              contract: 'ensUniversalHelper',
+            }),
+            abi: universalHelperFindRegistriesSnippet,
+            functionName: 'findRegistries',
+            args: [toHex(packetToBytes(name))],
+          })
+          .then(([registry]) => registry ?? zeroAddress, zeroOnRevert),
       verifyContract: (registry) =>
-        params.publicClient.readContract({
-          address: params.contracts.verifiableFactory,
-          abi: verifiableFactoryVerifyContractSnippet,
-          functionName: 'verifyContract',
-          args: [registry],
-        }),
+        params.publicClient
+          .readContract({
+            address: params.contracts.verifiableFactory,
+            abi: verifiableFactoryVerifyContractSnippet,
+            functionName: 'verifyContract',
+            args: [registry],
+          })
+          .catch(zeroOnRevert),
     },
-    ethRegistry: params.contracts.ethRegistry,
     userRegistryImpl: params.contracts.userRegistryImpl,
     hca: params.hca,
     parentNames: params.parentNames,

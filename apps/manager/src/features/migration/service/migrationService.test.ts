@@ -1378,6 +1378,9 @@ describe('executeMigration HCA orchestration', () => {
       mocks.verifyMigrationRecoveryTransaction.mockResolvedValue(
         status === 'reverted' ? 'reverted' : 'success',
       )
+      const currentParentRegistries = new Map([
+        ['example.eth', '0x00000000000000000000000000000000000000c1' as const],
+      ])
       const plan: MigrationPlan = {
         ...bulkPlan(),
         classified: [],
@@ -1386,6 +1389,7 @@ describe('executeMigration HCA orchestration', () => {
         requiresReconciliation: true,
         requiresFreshDeploymentPreview: true,
         temporaryRegistrationApproval,
+        currentParentRegistries,
         preflight: {
           skipFetchProfilesPhase: true,
           migrationApprovals: [],
@@ -1421,6 +1425,7 @@ describe('executeMigration HCA orchestration', () => {
         expect.objectContaining({
           transactionHash: submissionHash,
           migrationHelper: recordedHelper,
+          currentParentRegistries,
         }),
       )
       const updated = loadMigrationBatchJournal({

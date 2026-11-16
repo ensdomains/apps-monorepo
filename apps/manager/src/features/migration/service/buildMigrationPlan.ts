@@ -49,9 +49,13 @@ import {
   withManagerRestorationOptIn,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
-import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
+import {
+  assertCopyMigrationReadiness,
+  CopyMigrationReadinessError,
+} from './copyMigrationReadiness'
 import {
   completedCopyParentNames,
+  ParentRegistryReadError,
   readCurrentParentRegistries,
 } from './currentParentRegistries'
 import {
@@ -1119,10 +1123,10 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
 
+  // A parent whose registry can't be read stops the plan with a retryable error, not a wrong verdict.
   const currentParentRegistries = await readCurrentParentRegistries({
     publicClient,
     contracts: {
-      ethRegistry: V2_CONTRACTS.ETHRegistry,
       verifiableFactory: V2_CONTRACTS.VerifiableFactory,
       userRegistryImpl: V2_CONTRACTS.UserRegistryImpl,
     },
@@ -1131,6 +1135,14 @@ export const buildMigrationRecoveryPlan = async (params: {
       registryContext,
       remaining: classified,
     }),
+  }).catch((cause: unknown) => {
+    if (!(cause instanceof ParentRegistryReadError)) throw cause
+    throw new CopyMigrationReadinessError({
+      message: `Could not read the current registry of "${cause.parentName}"`,
+      reason: 'read-failed',
+      ensName: cause.parentName,
+      cause,
+    })
   })
   signal?.throwIfAborted()
   const directMigrationExpiries =

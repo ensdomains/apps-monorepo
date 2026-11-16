@@ -32,10 +32,7 @@ import {
   registryControllerOf,
   wrappedCopyExpiry,
 } from './classifyNames'
-import {
-  parentUserRegistryFor,
-  withoutDeployedParents,
-} from './currentParentRegistries'
+import { parentUserRegistryFor } from './currentParentRegistries'
 import {
   directMigrationExpiry,
   MIGRATION_EXPIRY_BONUS_SECONDS,
@@ -75,7 +72,7 @@ type CopyMigrationReadinessFailure =
   | 'v2-name-history'
   | 'read-failed'
 
-class CopyMigrationReadinessError extends TaggedError(
+export class CopyMigrationReadinessError extends TaggedError(
   'CopyMigrationReadinessError',
 )<{
   readonly message: string
@@ -1009,10 +1006,8 @@ export const assertCopyMigrationReadiness = async (params: {
   readonly currentParentRegistries?: ReadonlyMap<string, Address>
 }): Promise<ReadonlyMap<string, bigint>> => {
   assertCopyMigrationTopology(params.registryContext)
-  const currentParentRegistries = withoutDeployedParents({
-    currentParentRegistries: params.currentParentRegistries,
-    deployed: params.remaining,
-  })
+  const currentParentRegistries =
+    params.currentParentRegistries ?? new Map<string, Address>()
   const remainingNames = new Set(
     params.remaining.map((name) => normalizedName(name.domain.name)),
   )

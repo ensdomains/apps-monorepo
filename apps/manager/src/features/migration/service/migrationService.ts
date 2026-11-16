@@ -1415,6 +1415,7 @@ const releaseChangedHelperRecovery = async (params: {
         operations: submission.operations,
         migrationHelper: submission.migrationHelper ?? previousHelper,
         signal: params.ctx.submissionGate.signal,
+        currentParentRegistries: params.plan.currentParentRegistries,
       })
       if (status === 'success') {
         persistSubmittedAtomicMigrationBatch(scope, {
