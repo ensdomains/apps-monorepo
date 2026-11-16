@@ -7,6 +7,8 @@ Every test must be able to fail when real behaviour breaks. Fewer, sharper tests
 
 A runtime behaviour change is not done until focused tests sit next to the code and have been run. Keep every existing case. Add the new case beside it. Do not replace an old case (for example a 10-day case) with the new one.
 
+When a change alters behaviour on more than one code path, add a focused test for each path whose behaviour changes, not only the paths the ticket's acceptance criteria name. Example: a shared predicate used by both ENSv1 and ENSv2 names. If v1 names also move from 30 to 60 days, add a v1 test too.
+
 ## Don't write
 
 - **Tests of dead code.** If nothing outside tests imports a function, delete the function rather than testing it. Don't export a helper only so a test can reach it; test it through the live entry point. knip can see export-only-to-tests usage, but CI does not fail on knip yet (the step in `.github/workflows/test.yml` is still commented out).

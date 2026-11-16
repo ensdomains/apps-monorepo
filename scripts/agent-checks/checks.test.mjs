@@ -534,6 +534,10 @@ test('greptile-reviewer copies match the canonical prompt', () => {
   assert.ok(instructions)
   assert.equal(instructions[1].trim(), body)
   assert.match(toml, /name = "greptile-reviewer"/)
+  assert.match(body, /ask for the missing test/)
+  const skill = readFileSync(path.join(root, '.agents/skills/writing-tests/SKILL.md'), 'utf8')
+  assert.match(skill, /Do not replace an old case/)
+  assert.match(skill, /each path whose behaviour changes/)
 })
 
 test('command bans look at the executable, not quoted text', () => {
