@@ -319,7 +319,7 @@ describe('NamesTable filters', () => {
     expect(screen.getByRole('button', { name: 'V1' })).toBeVisible()
   })
 
-  it('keeps Owned for a grace-only wallet when the grace read fails, and after it recovers', async () => {
+  it('keeps Owned and the chosen scope for a grace-only wallet when the grace read fails, and after it recovers', async () => {
     io.isRealHook.current = true
     io.isGraceDown.current = true
     const client: { current: QueryClient | null } = { current: null }
@@ -345,8 +345,13 @@ describe('NamesTable filters', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.getByRole('button', { name: /^V2/ })).toBeVisible()
     expect(screen.getByTestId('my-names')).toBeInTheDocument()
+    // The scope the user picks while grace is failing survives the recovery.
+    fireEvent.click(screen.getByRole('button', { name: /^V2/ }))
+    expect(screen.getByRole('button', { name: /^V2/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
 
     io.isGraceDown.current = false
     await act(async () => {
@@ -355,6 +360,10 @@ describe('NamesTable filters', () => {
     expect(
       await screen.findByRole('button', { name: 'Owned 1' }),
     ).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'V2 1' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     expect(screen.getByTestId('my-names')).toBeInTheDocument()
   })
 })
