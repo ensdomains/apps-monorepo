@@ -145,6 +145,7 @@ export const ChangeManager = ({
       <MessageCard
         icon={<AlertTriangle className="size-8" />}
         title="Couldn’t check this name"
+        className="max-w-none mx-0 my-0"
         description={
           <p>
             We couldn’t read how this name is held, so we can’t tell who may
@@ -176,6 +177,7 @@ export const ChangeManager = ({
           <MessageCard
             icon={<ShieldX className="size-8" />}
             title="You can’t change this name’s manager"
+            className="max-w-none mx-0 my-0"
             description={
               <p>
                 Only the owner or the manager of an unwrapped .eth name can
