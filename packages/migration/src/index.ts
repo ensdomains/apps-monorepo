@@ -32,6 +32,7 @@ export {
 } from './service/preflightChecks'
 export {
   RegistryRepairReadError,
+  type RepairReadClient,
   readChildRegistries,
   readRegistryRepairState,
 } from './service/readRegistryRepairState'

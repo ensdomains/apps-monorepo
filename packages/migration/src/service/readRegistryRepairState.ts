@@ -30,6 +30,12 @@ import {
   toRegistryChildren,
 } from './registryRepair'
 
+/** The reads a registry repair needs, so any chain's public client fits. */
+export type RepairReadClient = Pick<
+  PublicClient,
+  'getBlockNumber' | 'getLogs' | 'readContract' | 'multicall'
+>
+
 const ROOT_RESOURCE = 0n
 const MIN_LOG_RANGE = 500n
 const DEFAULT_LOG_RANGE = 50_000n
@@ -58,7 +64,7 @@ type Candidates = {
 
 /** Every label the registry registered and every account whose roles on it changed, between two blocks. */
 const readCandidates = async (params: {
-  readonly client: PublicClient
+  readonly client: RepairReadClient
   readonly registry: Address
   readonly fromBlock: bigint
   readonly toBlock: bigint
@@ -122,11 +128,13 @@ const readError = (cause: unknown) => new RegistryRepairReadError({ cause })
 
 /** What a copy of `registry` must reproduce, read at one block; names count while owned and unexpired at `now` (unix seconds). */
 export const readRegistryRepairState = ResultFn(async function* (params: {
-  readonly client: PublicClient
+  readonly client: RepairReadClient
   readonly registry: Address
   readonly fromBlock: bigint
   readonly now: bigint
   readonly maxLogRange?: bigint
+  /** Where the name lives, when known; otherwise read from the registry's own `getParent`, which may be unset. */
+  readonly parent?: { readonly registry: Address; readonly label: string }
 }) {
   const { client, registry, now } = params
   const blockNumber = yield* fromPromise(client.getBlockNumber(), readError)
@@ -142,15 +150,17 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
   )
   const at = { blockNumber, allowFailure: false } as const
 
-  const [parentRegistry, parentLabel] = yield* fromPromise(
-    client.readContract({
-      address: registry,
-      abi: getParentAbi,
-      functionName: 'getParent',
-      blockNumber,
-    }),
-    readError,
-  )
+  const [parentRegistry, parentLabel] = params.parent
+    ? [params.parent.registry, params.parent.label]
+    : yield* fromPromise(
+        client.readContract({
+          address: registry,
+          abi: getParentAbi,
+          functionName: 'getParent',
+          blockNumber,
+        }),
+        readError,
+      )
   const [parentTokenId, tokenIds, rootBitmaps] = yield* fromPromise(
     Promise.all([
       // A replacement whose parent isn't set yet has no parent token to read.
@@ -280,7 +290,7 @@ export const readRegistryRepairState = ResultFn(async function* (params: {
 
 /** The child registries under `names`, and whether `account` may point each one at a replacement. */
 export const readChildRegistries = (params: {
-  readonly client: PublicClient
+  readonly client: RepairReadClient
   readonly registry: Address
   readonly names: readonly RegistryRepairName[]
   readonly account: Address

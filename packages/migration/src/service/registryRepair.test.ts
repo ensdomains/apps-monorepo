@@ -35,7 +35,7 @@ const BOB = getAddress('0x0000000000000000000000000000000000000b0b')
 const RESOLVER = getAddress('0x00000000000000000000000000000000000004dd')
 const CHILD_REGISTRY = getAddress('0x00000000000000000000000000000000000005ee')
 const SALT = 7n
-const ALL = 0x1111n
+const ALL = (1n << 256n) - 1n
 const SOME = 0x10n
 
 const makeName = (
@@ -70,15 +70,18 @@ const plan = (
   {
     existing = null,
     children = [],
+    account = CONTROLLER,
   }: {
     readonly existing?: RegistryRepairState | null
     readonly children?: readonly RegistryChild[]
+    readonly account?: typeof CONTROLLER
   } = {},
 ) =>
   planRegistryRepair({
     state,
     existing,
     children,
+    account,
     factory: FACTORY,
     implementation: IMPLEMENTATION,
     salt: SALT,
@@ -162,6 +165,47 @@ describe('planRegistryRepair', () => {
     ['duplicate-label', makeState({ names: [makeName(), makeName()] })],
   ] as const)('refuses a state with %s', (reason, state) => {
     expect(plan(state)._unsafeUnwrapErr().reason).toBe(reason)
+  })
+
+  it('refuses an account without the registrar role on the registry', () => {
+    expect(plan(makeState(), { account: BOB })._unsafeUnwrapErr().reason).toBe(
+      'cannot-register',
+    )
+  })
+
+  it("refuses a name whose roles the account can't grant", () => {
+    const state = makeState({
+      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n }],
+      names: [
+        makeName({
+          roles: [
+            { account: ALICE, roleBitmap: ALL },
+            { account: BOB, roleBitmap: SOME },
+          ],
+        }),
+      ],
+    })
+
+    expect(plan(state)._unsafeUnwrapErr()).toMatchObject({
+      reason: 'cannot-grant',
+      label: 'alice',
+    })
+  })
+
+  it('lets an admin role grant the regular role it implies', () => {
+    const state = makeState({
+      rootRoles: [{ account: CONTROLLER, roleBitmap: 0x1n | (SOME << 128n) }],
+      names: [
+        makeName({
+          roles: [
+            { account: ALICE, roleBitmap: ALL },
+            { account: BOB, roleBitmap: SOME },
+          ],
+        }),
+      ],
+    })
+
+    expect(plan(state).isOk()).toBe(true)
   })
 })
 

@@ -14,6 +14,8 @@ export type UseRegistryRepairCaseResult = {
   readonly repairCase: RegistryRepairCase
   /** The registry holding the name's subnames, once known. */
   readonly registryAddress: Address | undefined
+  /** The registry holding the name itself. */
+  readonly parentRegistry: Address | undefined
   /** Subnames in it; only read for an account that can repair the registry. */
   readonly subnameCount: number | undefined
 }
@@ -60,6 +62,7 @@ export const useRegistryRepairCase = (
       occupants: occupants.error ? undefined : occupants.data,
     }),
     registryAddress,
+    parentRegistry: registries?.at(1) ?? undefined,
     subnameCount: occupants.data?.count,
   }
 }

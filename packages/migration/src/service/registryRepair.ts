@@ -1,4 +1,5 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import {
   userRegistryInitializeSnippet,
@@ -117,6 +118,8 @@ export class RegistryRepairPlanError extends TaggedError(
     | 'name-without-owner'
     | 'duplicate-label'
     | 'replacement-diverged'
+    | 'cannot-register'
+    | 'cannot-grant'
   readonly label?: string
 }> {}
 
@@ -135,11 +138,42 @@ const call = (to: Address, data: Hex): RegistryRepairCall => ({
   value: 0n,
 })
 
+/** The roles a bitmap lets its holder grant: its admin roles and the regular roles they imply. */
+const settableRoles = (bitmap: bigint): bigint => {
+  const admin = bitmap >> 128n
+  return (admin << 128n) | admin
+}
+
+/** The first grant `account` could not make on the replacement, which carries the same root roles. */
+const findUngrantable = (
+  state: RegistryRepairState,
+  account: Address,
+): RegistryRepairName | undefined => {
+  const root = rolesOf(state.rootRoles, account)
+  return state.names.find((name) => {
+    const settable = settableRoles(root | rolesOf(name.roles, account))
+    return name.roles.some(
+      (grant) =>
+        !isAddressEqual(grant.account, name.owner) &&
+        (grant.roleBitmap & ~settable) !== 0n,
+    )
+  })
+}
+
 const findPlanProblem = (
   state: RegistryRepairState,
+  account: Address,
 ): RegistryRepairPlanError | null => {
   if (!state.rootRoles.some((grant) => grant.roleBitmap !== 0n))
     return new RegistryRepairPlanError({ reason: 'no-root-roles' })
+  if ((rolesOf(state.rootRoles, account) & registryRoles.ROLE_REGISTRAR) === 0n)
+    return new RegistryRepairPlanError({ reason: 'cannot-register' })
+  const ungrantable = findUngrantable(state, account)
+  if (ungrantable)
+    return new RegistryRepairPlanError({
+      reason: 'cannot-grant',
+      label: ungrantable.label,
+    })
   const seen = new Set<string>()
   for (const name of state.names) {
     if (isAddressEqual(name.owner, zeroAddress))
@@ -322,14 +356,13 @@ const resumeCopyCalls = (
   ])
 }
 
-/**
- * Calls that copy a registry into `replacement` (the address `factory` deploys for this salt and sender) and switch its parent name to it.
- * Pass the replacement's current state as `existing` to resume a copy that stopped part way; null when it isn't deployed yet.
- */
+/** Calls that copy a registry into `replacement` and switch its parent name to it; `existing` (the replacement's state, or null) resumes a stopped copy. */
 export const planRegistryRepair = (params: {
   readonly state: RegistryRepairState
   readonly existing: RegistryRepairState | null
   readonly children: readonly RegistryChild[]
+  /** The account that sends the calls; it must be able to register and grant on the replacement. */
+  readonly account: Address
   readonly factory: Address
   readonly implementation: Address
   readonly salt: bigint
@@ -337,7 +370,7 @@ export const planRegistryRepair = (params: {
 }): Result<RegistryRepairPlan, RegistryRepairPlanError> => {
   const { state, existing, children, factory, implementation, salt } = params
   const { replacement } = params
-  const problem = findPlanProblem(state)
+  const problem = findPlanProblem(state, params.account)
   if (problem) return err(problem)
 
   const deploy = call(

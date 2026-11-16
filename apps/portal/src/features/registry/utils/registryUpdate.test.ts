@@ -1,0 +1,72 @@
+import type { RegistryRepairCall } from '@ens-apps/migration'
+import { describe, expect, it } from 'vitest'
+import {
+  getRegistryUpdateDetails,
+  getRegistryUpdateSteps,
+} from './registryUpdate'
+
+const calls = (count: number): readonly RegistryRepairCall[] =>
+  Array.from({ length: count }, (_, i) => ({
+    to: '0x0000000000000000000000000000000000000001',
+    data: `0x${i.toString(16).padStart(2, '0')}`,
+    value: 0n,
+  }))
+
+const shape = (canBatchAtomically: boolean, copy: number, final: number) =>
+  getRegistryUpdateSteps({
+    plan: { copyCalls: calls(copy), finalCalls: calls(final) },
+    canBatchAtomically,
+  }).map((step) => [step.kind, step.calls.length])
+
+describe('getRegistryUpdateSteps', () => {
+  it('bundles up to 10 calls per confirmation, finishing in their own steps after the copy', () => {
+    expect(shape(true, 23, 2)).toEqual([
+      ['copy', 10],
+      ['copy', 10],
+      ['copy', 3],
+      ['finish', 2],
+    ])
+  })
+
+  it('sends one call per confirmation when the wallet cannot batch', () => {
+    expect(shape(false, 2, 1)).toEqual([
+      ['copy', 1],
+      ['copy', 1],
+      ['finish', 1],
+    ])
+  })
+
+  it('has only the finishing step once the copy is complete', () => {
+    expect(shape(true, 0, 1)).toEqual([['finish', 1]])
+  })
+})
+
+describe('getRegistryUpdateDetails', () => {
+  const child = {
+    label: 'kept',
+    registry: '0x0000000000000000000000000000000000000002',
+    isCanonical: true,
+    canSetParent: false,
+  } as const
+
+  it('lists expired names and the child registries that stay behind', () => {
+    expect(
+      getRegistryUpdateDetails({
+        plan: { unmovedChildren: [child] },
+        expiredLabels: ['old', 'older'],
+      }),
+    ).toEqual([
+      { label: 'Expired, not copied', value: 'old, older' },
+      { label: 'Subname registries left on the old parent', value: 'kept' },
+    ])
+  })
+
+  it('adds nothing when everything carries over', () => {
+    expect(
+      getRegistryUpdateDetails({
+        plan: { unmovedChildren: [] },
+        expiredLabels: [],
+      }),
+    ).toEqual([])
+  })
+})
