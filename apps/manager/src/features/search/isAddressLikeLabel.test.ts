@@ -33,6 +33,25 @@ describe('isAddressLikeLabel', () => {
     ],
     ['the Solana system program', '11111111111111111111111111111111'],
     ['a Solana vanity address', 'abcdefghjkmnp1234567892222333344445555'],
+    // Valid generated keys with only 3 digit/letter switches once lowercased
+    ['a 3-switch Bitcoin P2PKH address', '15beglwpjubjjphpedazmozvzrsxyxn5ml'],
+    [
+      'another 3-switch Bitcoin P2PKH address',
+      '136fzpngywjgmjnjvdhztzde8lbaxwsqgv',
+    ],
+    [
+      'a third 3-switch Bitcoin P2PKH address',
+      '17neou1qqdfwjycuvpntzzbuvakqufxlfb',
+    ],
+    ['a 3-switch Solana key', '3xefdxbhyudtjqcegtyakkrzwptcryus1jxvcvcovdxa'],
+    [
+      'another 3-switch Solana key',
+      '7sjujqbkkzcfset7fkwxzhdckzvuzuoqdomluxapyzbp',
+    ],
+    [
+      'a third 3-switch Solana key',
+      'grztcakecddbkzcsbhzfvcejlswg9wztvjhfmutsvsv1',
+    ],
   ])('flags %s', (_case, label) => {
     expect(isAddressLikeLabel(label)).toBe(true)
   })
@@ -47,6 +66,10 @@ describe('isAddressLikeLabel', () => {
     [
       'a Solana-length base58-shaped name with a year',
       'summerroadtripwithallmyfriends1999',
+    ],
+    [
+      'a Solana-length name with a year in the middle',
+      'theworldcupof1998wasthebestoneinhistory',
     ],
     [
       'a short mixed name that is not a Solana key',

@@ -6,7 +6,7 @@ const BITCOIN_BECH32_LIKE = /^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{36,62}$/
 // characters; Solana keys run 32 to 44
 const BITCOIN_LEGACY_LIKE = /^[13][1-9a-z]{25,34}$/
 const SOLANA_LIKE = /^[1-9a-z]{32,44}$/
-const MIN_BASE58_DIGIT_LETTER_SWITCHES = 4
+const MIN_BASE58_DIGIT_LETTER_SWITCHES = 3
 const MIN_BASE58_DIGIT_SHARE = 1 / 3
 
 const countDigitLetterSwitches = (label: string): number =>
