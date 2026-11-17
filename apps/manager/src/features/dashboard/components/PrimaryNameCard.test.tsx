@@ -1,13 +1,29 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ProfileExpiryResult } from '@/features/profile/service/profileExpiry'
 import { copyToClipboard } from '@/lib/clipboard'
 import { render } from '@/utils/test-utils'
+import { formatDashboardDate } from '../utils'
 import { PrimaryNameCard } from './PrimaryNameCard'
+
+const mocks = vi.hoisted(() => ({
+  expiry: null as ProfileExpiryResult | null,
+}))
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
-  return { ...actual, useQuery: () => ({ data: null, isLoading: false }) }
+  return {
+    ...actual,
+    useQuery: ({
+      queryKey: [key],
+    }: {
+      readonly queryKey: readonly [{ readonly $action?: string }]
+    }) => ({
+      data: key.$action === 'expiry' ? mocks.expiry : null,
+      isLoading: false,
+    }),
+  }
 })
 
 vi.mock('motion/react', () => ({
@@ -33,6 +49,31 @@ vi.mock('./ChoosePrimaryNameDialog', () => ({
 }))
 
 describe('PrimaryNameCard', () => {
+  afterEach(() => {
+    mocks.expiry = null
+    vi.useRealTimers()
+  })
+
+  it('shows when a primary name in grace expired, and under it when grace ends', () => {
+    const expiresAt = new Date('2026-10-20T12:00:00Z')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-03T12:00:00Z'))
+    mocks.expiry = {
+      expiry: BigInt(expiresAt.getTime() / 1000),
+      isNonExpiring: false,
+      protocol: 'v2',
+    }
+
+    render(<PrimaryNameCard primaryName="alpha.eth" />)
+
+    expect(screen.getByText('Expires').nextElementSibling).toHaveTextContent(
+      formatDashboardDate(expiresAt),
+    )
+    expect(
+      screen.getByText('Grace period ends').nextElementSibling,
+    ).toHaveTextContent(formatDashboardDate(new Date('2026-11-17T12:00:00Z')))
+  })
+
   it('uses only the label button as chooser trigger and leaves the value plain', () => {
     render(<PrimaryNameCard primaryName="alpha.eth" />)
 

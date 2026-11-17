@@ -7,6 +7,7 @@ import {
   mergedRowMetadata,
   toMergedItems,
 } from './mergedNames'
+import { formatDashboardDate } from './utils'
 
 const makeName = (overrides: Partial<DashboardName> = {}): DashboardName => ({
   key: '0x01',
@@ -165,9 +166,6 @@ describe('mergedRowMetadata', () => {
     expect(meta.useDefaultAvatar).toBe(true)
     expect(meta.showProminentRenew).toBe(true)
     expect(meta.expiryCta).toBe('renew')
-    expect(meta.displayExpiryDate?.getTime()).toBeGreaterThan(
-      meta.expiryDate?.getTime() ?? 0,
-    )
   })
 
   it('shows the grace end bigname serves, read through toDashboardName', () => {
@@ -194,7 +192,8 @@ describe('mergedRowMetadata', () => {
     const meta = mergedRowMetadata(item, null)
     expect(meta.isInGrace).toBe(true)
     expect(meta.graceEndDate).toEqual(graceEndsAt)
-    expect(meta.displayExpiryDate).toEqual(graceEndsAt)
+    expect(meta.formattedExpiryDate).toBe(formatDashboardDate(expiresAt))
+    expect(meta.formattedGraceEndDate).toBe(formatDashboardDate(graceEndsAt))
     expect(meta.expiryCta).toBe('renew')
   })
 
@@ -211,6 +210,6 @@ describe('mergedRowMetadata', () => {
     expect(meta.isInGrace).toBe(false)
     expect(meta.graceEndDate).toBeNull()
     expect(meta.expiryCta).toBeNull()
-    expect(meta.displayExpiryDate?.getTime()).toBe(expired * 1000)
+    expect(meta.formattedGraceEndDate).toBeNull()
   })
 })
