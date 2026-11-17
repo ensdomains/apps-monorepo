@@ -59,6 +59,8 @@ export interface SetPrimaryNameParams {
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
   'function claimWithHCA(address addr, address resolver) returns (bytes32)',
+  'function setName(address account, string name)',
+  'function claim(address account, address resolver) returns (bytes32)',
 ])
 
 const registryResolverAbi = parseAbi([
@@ -123,8 +125,15 @@ export interface SetPrimaryNameWithHcaParams {
   confirmFunding?: (prompt: HcaFundingPrompt) => Promise<boolean> | boolean
 }
 
-/** The HCA batch: write `default.reverse`, and clear a stale `addr.reverse` when asked. */
-const primaryNameHcaCalls = (
+/** The adapters' entry points: the HCA's, or the owner's own (keyed on `msg.sender`). */
+const ADAPTER_FUNCTIONS = {
+  hca: { setName: 'setNameWithHCA', claim: 'claimWithHCA' },
+  owner: { setName: 'setName', claim: 'claim' },
+} as const
+
+/** Write `default.reverse`, and clear a stale `addr.reverse` when asked. */
+const primaryNameAdapterCalls = (
+  caller: keyof typeof ADAPTER_FUNCTIONS,
   ownerAddress: Address,
   cleanName: string,
   clearsStaleAddrReverse: boolean,
@@ -134,7 +143,7 @@ const primaryNameHcaCalls = (
     value: 0n,
     data: encodeFunctionData({
       abi: reverseAdapterAbi,
-      functionName: 'setNameWithHCA',
+      functionName: ADAPTER_FUNCTIONS[caller].setName,
       args: [ownerAddress, cleanName],
     }),
   },
@@ -145,7 +154,7 @@ const primaryNameHcaCalls = (
           value: 0n,
           data: encodeFunctionData({
             abi: reverseAdapterAbi,
-            functionName: 'claimWithHCA',
+            functionName: ADAPTER_FUNCTIONS[caller].claim,
             args: [ownerAddress, zeroAddress],
           }),
         },
@@ -200,7 +209,8 @@ export async function setPrimaryNameWithHca(
     ownerAddress,
   })
 
-  const calls = primaryNameHcaCalls(
+  const calls = primaryNameAdapterCalls(
+    'hca',
     ownerAddress,
     cleanName,
     clearsStaleAddrReverse,
@@ -390,30 +400,22 @@ export async function setPrimaryName({
   await waitForTransaction(reverseTxId)
 }
 
-/** Wei the two direct transactions are estimated to cost at the current max fee. */
-const estimateDirectPrimaryNameCost = async (
+/** Wei the owner's adapter calls are estimated to cost at the current max fee, stale `addr.reverse` included. */
+const estimateOwnerPrimaryNameCost = async (
   publicClient: PublicClient,
   ownerAddress: Address,
   cleanName: string,
 ): Promise<bigint> => {
-  const [forwardGas, reverseGas, { maxFeePerGas }] = await Promise.all([
-    publicClient.estimateContractGas({
-      account: ownerAddress,
-      address: envConfig.chain.contracts.ensDefaultReverseRegistrar.address,
-      abi: defaultReverseRegistrarSetNameSnippet,
-      functionName: 'setName',
-      args: [cleanName],
-    }),
-    publicClient.estimateContractGas({
-      account: ownerAddress,
-      address: envConfig.chain.contracts.ensReverseRegistrar.address,
-      abi: reverseRegistrarSetNameSnippet,
-      functionName: 'setName',
-      args: [cleanName],
-    }),
+  const calls = primaryNameAdapterCalls('owner', ownerAddress, cleanName, true)
+  const [gas, { maxFeePerGas }] = await Promise.all([
+    Promise.all(
+      calls.map(({ to, data }) =>
+        publicClient.estimateGas({ account: ownerAddress, to, data }),
+      ),
+    ),
     publicClient.estimateFeesPerGas(),
   ])
-  return (forwardGas + reverseGas) * maxFeePerGas
+  return gas.reduce((sum, units) => sum + units, 0n) * maxFeePerGas
 }
 
 /** Balances, the USDC fee and the ETH cost {@link selectPrimaryNamePayment} decides on. */
@@ -434,25 +436,26 @@ const readPrimaryNamePaymentInputs = async ({
       args: [holder],
     })
 
+  // Only the HCA read is required: the USDC route reads it too. An unread wallet balance counts nothing.
   const [hcaUsdc, walletUsdc, walletEth, ethCost] = await Promise.all([
     readUsdc(getSmartAccountAddress(signer)),
-    readUsdc(ownerAddress),
-    publicClient.getBalance({ address: ownerAddress }),
-    estimateDirectPrimaryNameCost(publicClient, ownerAddress, cleanName).catch(
+    readUsdc(ownerAddress).catch(() => null),
+    publicClient.getBalance({ address: ownerAddress }).catch(() => null),
+    estimateOwnerPrimaryNameCost(publicClient, ownerAddress, cleanName).catch(
       () => null,
     ),
   ])
 
   // Quoted on the larger batch, so the fee is never under-read; skipped when no USDC can pay it.
   const feeUsdc =
-    hcaUsdc + walletUsdc === 0n
+    hcaUsdc + (walletUsdc ?? 0n) === 0n
       ? null
       : await quoteHcaIntentFeeUsdc({
           signer: { ...signer, session: undefined },
           ownerAddress,
           publicClient,
           chainId,
-          calls: primaryNameHcaCalls(ownerAddress, cleanName, true),
+          calls: primaryNameAdapterCalls('hca', ownerAddress, cleanName, true),
           feeMarginBps: HCA_INTENT_FEE_MARGIN_BPS,
         }).catch(() => null)
 
@@ -465,23 +468,69 @@ export interface SetPrimaryNameWithEthFallbackParams
   readonly connector?: Connector
 }
 
-/** The HCA intent in USDC, or the owner's direct transactions in ETH when only ETH can pay. */
+/** The ETH route: the owner sends the HCA batch's adapter calls itself, one transaction each. */
+async function setPrimaryNameFromOwner({
+  name,
+  ownerAddress,
+  walletClient,
+  publicClient,
+  chainId,
+  connector,
+  onTxId,
+}: SetPrimaryNameWithEthFallbackParams): Promise<void> {
+  const cleanName = requireCanonicalPrimaryName(name)
+
+  if (
+    !walletClient.account ||
+    !isAddressEqual(walletClient.account.address, ownerAddress)
+  ) {
+    throw new Error(
+      'Cannot set primary name - the connected wallet does not control the owner address.',
+    )
+  }
+
+  await assertPrimaryNameForwardResolution(
+    publicClient,
+    cleanName,
+    ownerAddress,
+  )
+
+  const calls = primaryNameAdapterCalls(
+    'owner',
+    ownerAddress,
+    cleanName,
+    await hasStaleAddrReverse({ publicClient, ownerAddress }),
+  )
+  const signer: Signer = { type: 'eoa', walletClient, connector }
+
+  for (const { to, data, value } of calls) {
+    const txId = transactionManager.startTransaction(
+      {
+        type: 'custom',
+        request: { type: 'eoa', from: ownerAddress, to, data, value, chainId },
+      },
+      signer,
+      {
+        description: `Set primary name to ${cleanName}`,
+        publicClient,
+        chainId,
+        operation: 'set-primary-name',
+        name: cleanName,
+      },
+    )
+    onTxId?.(txId)
+    await waitForTransaction(txId)
+  }
+}
+
+/** The HCA intent in USDC, or the owner's direct adapter calls in ETH when only ETH can pay. */
 export async function setPrimaryNameWithEthFallback(
   params: SetPrimaryNameWithEthFallbackParams,
 ): Promise<void> {
   const payment = selectPrimaryNamePayment(
     await readPrimaryNamePaymentInputs(params),
   )
-  if (payment === 'usdc') return setPrimaryNameWithHca(params)
-
-  const { name, ownerAddress, walletClient, publicClient, chainId } = params
-  return setPrimaryName({
-    name,
-    ownerAddress,
-    walletClient,
-    publicClient,
-    chainId,
-    connector: params.connector,
-    onTxId: params.onTxId,
-  })
+  return payment === 'usdc'
+    ? setPrimaryNameWithHca(params)
+    : setPrimaryNameFromOwner(params)
 }

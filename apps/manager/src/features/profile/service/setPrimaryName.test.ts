@@ -468,8 +468,24 @@ describe('setPrimaryNameWithHca funding', () => {
 describe('setPrimaryNameWithEthFallback', () => {
   const quote = vi.mocked(quoteHcaIntentFeeUsdc)
 
-  // USDC balances by holder, the wallet's wei, and no stale addr.reverse.
-  const paymentClient = (usdc: { hca: bigint; wallet: bigint }) =>
+  type Read = bigint | Error
+  const settle = async (read: Read) => {
+    if (read instanceof Error) throw read
+    return read
+  }
+
+  // USDC balances by holder and the wallet's wei (an Error fails that read), and the addr.reverse resolver.
+  const paymentClient = ({
+    hca,
+    wallet,
+    eth = 10n ** 16n,
+    addrReverseResolver = zeroAddress,
+  }: {
+    readonly hca: Read
+    readonly wallet: Read
+    readonly eth?: Read
+    readonly addrReverseResolver?: Address
+  }) =>
     ({
       readContract: vi.fn(
         async ({
@@ -480,13 +496,11 @@ describe('setPrimaryNameWithEthFallback', () => {
           args: readonly Address[]
         }) =>
           functionName === 'balanceOf'
-            ? args[0] === HCA_ADDRESS
-              ? usdc.hca
-              : usdc.wallet
-            : zeroAddress,
+            ? settle(args[0] === HCA_ADDRESS ? hca : wallet)
+            : addrReverseResolver,
       ),
-      getBalance: vi.fn(async () => 10n ** 16n),
-      estimateContractGas: vi.fn(async () => 60_000n),
+      getBalance: vi.fn(() => settle(eth)),
+      estimateGas: vi.fn(async () => 60_000n),
       estimateFeesPerGas: vi.fn(async () => ({ maxFeePerGas: 2_000_000_000n })),
       // A partial client: the fallback reads only these four methods.
     }) as unknown as PublicClient
@@ -501,23 +515,87 @@ describe('setPrimaryNameWithEthFallback', () => {
       chainId: CHAIN_ID,
     })
 
-  it('sends the direct ETH-paid transactions when there is no USDC', async () => {
-    start.mockReturnValueOnce('tx-forward').mockReturnValueOnce('tx-reverse')
+  const ownerAdapterAbi = parseAbi([
+    'function setName(address account, string name)',
+    'function claim(address account, address resolver) returns (bytes32)',
+  ])
+  const ownerSetName = {
+    to: DEFAULT_ADAPTER,
+    data: encodeFunctionData({
+      abi: ownerAdapterAbi,
+      functionName: 'setName',
+      args: [EOA_OWNER, 'leon.eth'],
+    }),
+  }
+  const ownerClaim = {
+    to: REVERSE_ADAPTER,
+    data: encodeFunctionData({
+      abi: ownerAdapterAbi,
+      functionName: 'claim',
+      args: [EOA_OWNER, zeroAddress],
+    }),
+  }
 
-    await submit(paymentClient({ hca: 0n, wallet: 0n }))
+  it.each<{
+    readonly case: string
+    readonly addrReverseResolver: Address
+    readonly sent: readonly { readonly to: Address; readonly data: Hex }[]
+  }>([
+    {
+      case: 'writes default.reverse through the adapter',
+      addrReverseResolver: zeroAddress,
+      sent: [ownerSetName],
+    },
+    {
+      case: 'also clears a stale addr.reverse through the adapter',
+      addrReverseResolver: '0x00000000000000000000000000000000000000aa',
+      sent: [ownerSetName, ownerClaim],
+    },
+  ])(
+    'with no USDC, the owner pays in ETH and $case',
+    async ({ addrReverseResolver, sent }) => {
+      for (const [i] of sent.entries()) start.mockReturnValueOnce(`tx-${i + 1}`)
 
-    expect(planFunding).not.toHaveBeenCalled()
-    expect(quote).not.toHaveBeenCalled()
-    expect(start.mock.calls.map(([intent]) => intent)).toMatchObject([
-      { request: { type: 'eoa', to: DEFAULT_REVERSE } },
-      { request: { type: 'eoa', to: REVERSE } },
-    ])
-  })
+      await submit(paymentClient({ hca: 0n, wallet: 0n, addrReverseResolver }))
 
-  it('keeps the USDC intent when the wallet covers the quoted fee', async () => {
+      expect(planFunding).not.toHaveBeenCalled()
+      expect(quote).not.toHaveBeenCalled()
+      expect(start.mock.calls.map(([intent]) => intent)).toEqual(
+        sent.map((call) => ({
+          type: 'custom',
+          request: {
+            type: 'eoa',
+            from: EOA_OWNER,
+            value: 0n,
+            chainId: CHAIN_ID,
+            ...call,
+          },
+        })),
+      )
+      expect(wait.mock.calls).toEqual(sent.map((_, i) => [`tx-${i + 1}`]))
+    },
+  )
+
+  it.each<{
+    readonly case: string
+    readonly reads: Parameters<typeof paymentClient>[0]
+  }>([
+    {
+      case: 'the wallet covers the quoted fee',
+      reads: { hca: 0n, wallet: 500_000n },
+    },
+    {
+      case: 'USDC covers the fee and the wallet ETH read fails',
+      reads: { hca: 0n, wallet: 500_000n, eth: new Error('rpc down') },
+    },
+    {
+      case: 'the HCA covers the fee and the wallet USDC read fails',
+      reads: { hca: 500_000n, wallet: new Error('rpc down') },
+    },
+  ])('keeps the USDC intent when $case', async ({ reads }) => {
     quote.mockResolvedValueOnce(200_000n)
 
-    await submit(paymentClient({ hca: 0n, wallet: 500_000n }))
+    await submit(paymentClient(reads))
 
     expect(planFunding).toHaveBeenCalledOnce()
     expect(start).toHaveBeenCalledOnce()

@@ -56,6 +56,21 @@ describe('selectPrimaryNamePayment', () => {
       inputs: { ethCost: null },
       expected: 'usdc',
     },
+    {
+      case: 'USDC covers the fee and the wallet ETH is unread',
+      inputs: { walletUsdc: 200_000n, walletEth: null },
+      expected: 'usdc',
+    },
+    {
+      case: 'the HCA covers the fee and the wallet USDC is unread',
+      inputs: { hcaUsdc: 200_000n, walletUsdc: null },
+      expected: 'usdc',
+    },
+    {
+      case: 'the HCA is short, the wallet USDC is unread, enough ETH',
+      inputs: { hcaUsdc: 50_000n, walletUsdc: null },
+      expected: 'eth',
+    },
   ])('$case → $expected', ({ inputs, expected }) => {
     expect(run(inputs)).toBe(expected)
   })

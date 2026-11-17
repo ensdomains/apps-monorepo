@@ -17,9 +17,11 @@ Paths are relative to `apps/manager/src/features`.
 | --- | --- |
 | A Safe{Wallet}, or a wallet without a smart account, sends the two direct transactions (`default.reverse`, then `addr.reverse`) and pays gas in ETH. | `profile/hooks/useSetPrimaryName.test.tsx` "a Safe{Wallet} sends both transactions itself"; `profile/service/setPrimaryName.test.ts` "setPrimaryName" |
 | A smart account pays in USDC by default: one owner-signed intent, with any shortfall pulled from the wallet after the user approves the network fee. | `profile/service/setPrimaryName.test.ts` "keeps the USDC intent when the wallet covers the quoted fee", "setPrimaryNameWithHca funding" |
-| The smart account falls back to the direct ETH transactions when its USDC and the wallet's together can't cover the quoted fee, and the wallet's ETH covers both transactions' estimated gas. No USDC dialog is shown on that path. | `profile/service/primaryNamePayment.test.ts`; `profile/service/setPrimaryName.test.ts` "sends the direct ETH-paid transactions when there is no USDC" |
+| The smart account falls back to ETH when its USDC and the wallet's together can't cover the quoted fee, and the wallet's ETH covers the estimated gas. No USDC dialog is shown on that path. | `profile/service/primaryNamePayment.test.ts`; `profile/service/setPrimaryName.test.ts` "with no USDC, the owner pays in ETH and ..." |
+| On the ETH route the owner sends the HCA batch's writes itself, through the same adapters' owner entry points (`DefaultReverseRegistrarAdapter.setName(owner, name)`, then `ReverseRegistrarAdapter.claim(owner, 0)` only when a stale `addr.reverse` would shadow it), one transaction each. The name ends up stored exactly as the USDC route stores it. | `profile/service/setPrimaryName.test.ts` "with no USDC, the owner pays in ETH and writes default.reverse through the adapter", "... also clears a stale addr.reverse through the adapter" |
 | Some USDC but short of the fee counts as "can't pay": ETH is used if it can pay. | `profile/service/primaryNamePayment.test.ts` "some USDC, short of the fee, enough ETH" |
-| When the fee can't be quoted, ETH is used if it can pay. With no USDC at all, the fee isn't quoted. | `profile/service/primaryNamePayment.test.ts` "USDC held but the fee could not be quoted, enough ETH"; `profile/service/setPrimaryName.test.ts` "sends the direct ETH-paid transactions when there is no USDC" |
+| When the fee can't be quoted, ETH is used if it can pay. With no USDC at all, the fee isn't quoted. | `profile/service/primaryNamePayment.test.ts` "USDC held but the fee could not be quoted, enough ETH"; `profile/service/setPrimaryName.test.ts` "with no USDC, the owner pays in ETH and ..." |
+| A wallet balance (USDC or ETH) that can't be read counts as nothing, and never stops a USDC payment that can go ahead without it. | `profile/service/primaryNamePayment.test.ts` "... is unread" rows; `profile/service/setPrimaryName.test.ts` "keeps the USDC intent when USDC covers the fee and the wallet ETH read fails", "... the HCA covers the fee and the wallet USDC read fails" |
 | With neither enough USDC nor enough ETH, the USDC path runs, so the user sees the funding error saying the USDC pays the network fee (WEB-2124). | `profile/service/primaryNamePayment.test.ts` "no USDC and ETH short of the cost", "no USDC and the ETH cost could not be estimated" |
 
 ## Records
@@ -31,7 +33,7 @@ Paths are relative to `apps/manager/src/features`.
 
 ## Known limits
 
-- The ETH path always sends both transactions, including `addr.reverse`. The USDC path only clears a stale `addr.reverse`.
+- A Safe{Wallet} keeps the older two-transaction flow, which writes `addr.reverse` with the name rather than clearing it.
 - The ETH cost is the gas estimate × the current max fee per gas, with no buffer. A sharp gas rise between the check and the wallet prompt is left to the wallet to reject.
-- The fee is quoted on the larger batch (the stale `addr.reverse` cleared), so it reads high, never low.
+- The fee and the ETH cost are both taken on the larger batch (the stale `addr.reverse` cleared), so they read high, never low.
 - There's no manual USDC/ETH switch; the choice is automatic.
