@@ -106,10 +106,21 @@ const toMapped = (event: V1Event, chainId: number): Mapped | null => {
   }
 }
 
-/** An ENSv1 subgraph event as a history row, with no timestamp (the subgraph keeps none); null for one the screens never show. */
+// ENSNode event ids are `<chainId>-<block>-<logIndex>`.
+const toLogIndex = (id: string) => {
+  const logIndex = Number(id.split('-').at(-1))
+  return Number.isSafeInteger(logIndex) ? logIndex : null
+}
+
+/** An ENSv1 subgraph event as a history row; null for one the screens never show. */
 export const toV1HistoryEvent = (
   event: V1Event,
-  context: Readonly<{ chainId: number; name: string | null }>,
+  context: Readonly<{
+    chainId: number
+    name: string | null
+    // The subgraph keeps none; the caller looks it up.
+    timestamp: Date | null
+  }>,
 ): HistoryEvent | null => {
   const mapped = toMapped(event, context.chainId)
   if (!mapped) return null
@@ -119,9 +130,9 @@ export const toV1HistoryEvent = (
     name: context.name,
     registrationId: null,
     blockNumber: event.blockNumber,
-    timestamp: null,
+    timestamp: context.timestamp,
     transactionHash: toHash(event.transactionID),
-    logIndex: null,
+    logIndex: toLogIndex(event.id),
     contractAddress: null,
     kind: event.__typename,
     type: mapped.type,

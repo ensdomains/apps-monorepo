@@ -1,6 +1,7 @@
+import { createClient, custom, namehash, numberToHex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { V1Domain } from '../ensnode/types'
-import { createZigensIndexer } from './indexer'
+import { createZigensIndexer, type ZigensIndexerOptions } from './indexer'
 import type { V2Domain } from './types'
 
 const ZIGENS = 'https://zigens.example/graphql'
@@ -51,7 +52,10 @@ const v1 = (name: string): V1Domain => ({
 type Answer = (variables: Readonly<Record<string, unknown>>) => unknown
 
 /** Answers each GraphQL request by endpoint and operation name; anything else gets a 503. */
-const indexerWith = (answers: Readonly<Record<string, Answer>>) => {
+const indexerWith = (
+  answers: Readonly<Record<string, Answer>>,
+  options: Partial<ZigensIndexerOptions> = {},
+) => {
   const fetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
     const { query, variables } = JSON.parse(String(init?.body))
     const operation = /query (\w+)/.exec(query)?.[1]
@@ -67,6 +71,7 @@ const indexerWith = (answers: Readonly<Record<string, Answer>>) => {
     nameWrapper: '0x0635513f179d50a207757e05759cbd106d7dfce8',
     fetch,
     now: () => new Date('2026-11-17T12:00:00Z'),
+    ...options,
   })
   return { indexer, fetch }
 }
@@ -152,6 +157,79 @@ describe('createZigensIndexer', () => {
     )._unsafeUnwrap()
 
     expect(detail?.protocol).toBe('v1')
+  })
+
+  it('dates ENSv1 history from the registration date, then the blocks over RPC', async () => {
+    const getBlock = vi.fn(async (blockNumber: string) => ({
+      number: blockNumber,
+      timestamp: numberToHex(1690405000n),
+    }))
+    const rpcClient = createClient({
+      transport: custom({
+        request: async ({ method, params }) =>
+          method === 'eth_getBlockByNumber' ? getBlock(params[0]) : null,
+      }),
+    })
+    const node = namehash('test.eth')
+    const { indexer } = indexerWith(
+      {
+        [`${ZIGENS} DomainsByNames`]: () => ({ domains: [] }),
+        [`${ENSNODE} NameEvents`]: () => ({
+          domain: {
+            name: 'test.eth',
+            events: [
+              {
+                __typename: 'NewResolver',
+                id: '11155111-3970143-12',
+                blockNumber: 3970143,
+                transactionID: '0x01',
+                resolver: {
+                  address: '0x8fade66b79cc9f707ab26799354482eb93a5b7dd',
+                },
+              },
+            ],
+            registration: {
+              events: [
+                {
+                  __typename: 'NameRegistered',
+                  id: '11155111-3970144-60',
+                  blockNumber: 3970144,
+                  transactionID: '0x02',
+                  registrationId: node,
+                  registrant: { id: ADDRESS },
+                  expiryDate: '2007950758',
+                },
+              ],
+            },
+          },
+        }),
+        [`${ENSNODE} LatestRegistrations`]: () => ({
+          nameRegistereds: [
+            {
+              id: '11155111-3970144-60',
+              registrationId: node,
+              registration: { registrationDate: '1690405056' },
+            },
+          ],
+        }),
+      },
+      { rpcClient },
+    )
+    const page = (
+      await indexer.getNameHistory({ name: 'test.eth', pageSize: 10 })
+    )._unsafeUnwrap()
+
+    expect(
+      page.items.map(({ logIndex, timestamp }) => [
+        logIndex,
+        timestamp?.getTime(),
+      ]),
+    ).toEqual([
+      [60, 1690405056000],
+      [12, 1690405000000],
+    ])
+    expect(getBlock).toHaveBeenCalledTimes(1)
+    expect(getBlock).toHaveBeenCalledWith(numberToHex(3970143))
   })
 
   it('reports a block both sources have indexed', async () => {

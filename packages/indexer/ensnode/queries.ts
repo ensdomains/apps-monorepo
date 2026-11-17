@@ -82,7 +82,7 @@ const DOMAIN_EVENT_FIELDS = /* GraphQL */ `
 
 const REGISTRATION_EVENT_FIELDS = /* GraphQL */ `
   ${EVENT_FIELDS}
-  ... on NameRegistered { registrant { id } expiryDate }
+  ... on NameRegistered { registrationId registrant { id } expiryDate }
   ... on NameRenewed { expiryDate }
   ... on NameTransferred { newOwner { id } }
 `
@@ -132,6 +132,7 @@ export const REGISTRANT_EVENTS = /* GraphQL */ `
       orderDirection: $orderDirection
     ) {
       ${EVENT_FIELDS}
+      registrationId
       registrant { id }
       expiryDate
       registration { domain { name } }
@@ -168,6 +169,22 @@ export const RESOLVER_BINDINGS = /* GraphQL */ `
         wrappedOwner { id }
         resolver { address }
       }
+    }
+  }
+`
+
+/** The registrations' NameRegistered events, newest first; a re-registration reuses the registration. */
+export const LATEST_REGISTRATIONS = /* GraphQL */ `
+  query LatestRegistrations($ids: [String!]!) {
+    nameRegistereds(
+      first: 1000
+      where: { registrationId_in: $ids }
+      orderBy: blockNumber
+      orderDirection: desc
+    ) {
+      id
+      registrationId
+      registration { registrationDate }
     }
   }
 `

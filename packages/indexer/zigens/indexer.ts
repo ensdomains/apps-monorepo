@@ -1,5 +1,5 @@
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
-import { namehash } from 'viem'
+import { type Client, namehash } from 'viem'
 import { toV1HistoryEvent } from '../ensnode/history'
 import {
   toV1BoundName,
@@ -8,6 +8,13 @@ import {
   toV1Subname,
 } from '../ensnode/names'
 import * as V1 from '../ensnode/queries'
+import {
+  type RegisteredRow,
+  toEventTimes,
+  toMissingBlocks,
+  toRegistrationIds,
+  toRegistrationTimes,
+} from '../ensnode/timestamps'
 import type { V1Domain, V1Event } from '../ensnode/types'
 import type { IndexerClient } from '../reads/client.types'
 import type { Page } from '../reads/common.types'
@@ -15,6 +22,7 @@ import { IndexerReadError } from '../reads/errors'
 import type { HistoryEvent, HistoryEventKind } from '../reads/history.types'
 import type { Subname, SubnamesQuery } from '../reads/names.types'
 import type { NamesForAddressQuery } from '../reads/namesForAddress.types'
+import { readBlockTimestamps } from '../shared/blockTimestamps'
 import { createGraphqlTransport, type GraphqlRequest } from '../shared/graphql'
 import {
   type CursorRow,
@@ -26,7 +34,12 @@ import {
   type SourcePage,
 } from '../shared/merge'
 import { type PagingStop, readAllPages } from '../shared/paging'
-import { isEth2ld, toAccount, V2_GRACE_MS } from '../shared/values'
+import {
+  isEth2ld,
+  secondsToDate,
+  toAccount,
+  V2_GRACE_MS,
+} from '../shared/values'
 import {
   isChildOf,
   toRelations,
@@ -69,6 +82,8 @@ export type ZigensIndexerOptions = Readonly<{
   chainId: number
   /** The chain's NameWrapper, which tells a wrapped ENSv1 name from a stale wrapper token. */
   nameWrapper: string
+  /** Reads the ENSv1 block timestamps the subgraph lacks; give it a batching transport. Without it they stay null. */
+  rpcClient?: Client
   fetch?: typeof fetch
   timeoutMs?: number
   /** The clock registration status is decided against. */
@@ -236,6 +251,7 @@ export const createZigensIndexer = ({
   ensNodeSubgraph,
   chainId,
   nameWrapper,
+  rpcClient,
   fetch,
   timeoutMs,
   now = () => new Date(),
@@ -384,6 +400,27 @@ export const createZigensIndexer = ({
         toHistoryEvent(event, context),
       ),
     )
+
+  /** ENSv1 event times: the registration date for each latest registration, then block timestamps over RPC. */
+  const readEventTimes = (events: readonly V1Event[], signal?: AbortSignal) => {
+    const ids = toRegistrationIds(events)
+    const registrationTimes =
+      ids.length === 0
+        ? okAsync<ReadonlyMap<string, bigint>, IndexerReadError>(new Map())
+        : ensNode<{ nameRegistereds: readonly RegisteredRow[] }>(
+            V1.LATEST_REGISTRATIONS,
+            { ids },
+            signal,
+          ).map(({ nameRegistereds }) => toRegistrationTimes(nameRegistereds))
+    return registrationTimes.andThen((byEvent) => {
+      const missing = toMissingBlocks(events, byEvent)
+      const blockTimes =
+        rpcClient && missing.length > 0
+          ? readBlockTimestamps(rpcClient, missing)
+          : okAsync<ReadonlyMap<number, bigint>, IndexerReadError>(new Map())
+      return blockTimes.map((byBlock) => toEventTimes(events, byEvent, byBlock))
+    })
+  }
 
   const readV2Subnames = (
     subregistry: string,
@@ -677,27 +714,37 @@ export const createZigensIndexer = ({
             },
             signal,
           )
-        const toEvents = (name: string | null) => (event: V1Event) =>
-          toV1HistoryEvent(event, { chainId, name })
+        const toPage = (
+          events: readonly V1Event[],
+          name: string | null,
+          skip: number,
+        ) =>
+          readEventTimes(events, signal).map((times) =>
+            fromSkipPage(events, skip, pageSize, (event) =>
+              toV1HistoryEvent(event, {
+                chainId,
+                name,
+                timestamp: secondsToDate(times.get(event.id)),
+              }),
+            ),
+          )
         return readMerged({
           cursor: query.cursor,
           pageSize,
           readFirst: (cursor) =>
-            read(toSkip(cursor), 0).map(({ domain }) =>
-              fromSkipPage(
+            read(toSkip(cursor), 0).andThen(({ domain }) =>
+              toPage(
                 domain?.events ?? [],
+                domain?.name ?? null,
                 toSkip(cursor),
-                pageSize,
-                toEvents(domain?.name ?? null),
               ),
             ),
           readSecond: (cursor) =>
-            read(0, toSkip(cursor)).map(({ domain }) =>
-              fromSkipPage(
+            read(0, toSkip(cursor)).andThen(({ domain }) =>
+              toPage(
                 domain?.registration?.events ?? [],
+                domain?.name ?? null,
                 toSkip(cursor),
-                pageSize,
-                toEvents(domain?.name ?? null),
               ),
             ),
           compare: byBlock(order),
@@ -753,12 +800,15 @@ export const createZigensIndexer = ({
               orderDirection: order,
             },
             signal,
-          ).map(({ nameRegistereds }) =>
-            fromSkipPage(nameRegistereds, skip, pageSize, (event) =>
-              toV1HistoryEvent(event, {
-                chainId,
-                name: event.registration?.domain.name ?? null,
-              }),
+          ).andThen(({ nameRegistereds }) =>
+            readEventTimes(nameRegistereds, signal).map((times) =>
+              fromSkipPage(nameRegistereds, skip, pageSize, (event) =>
+                toV1HistoryEvent(event, {
+                  chainId,
+                  name: event.registration?.domain.name ?? null,
+                  timestamp: secondsToDate(times.get(event.id)),
+                }),
+              ),
             ),
           )
         },

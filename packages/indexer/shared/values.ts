@@ -18,7 +18,7 @@ const MAX_DATE_SECONDS = 8.64e12
 
 /** Unix seconds as a Date; null for none, zero, or past what a Date holds. */
 export const secondsToDate = (
-  seconds: number | string | null | undefined,
+  seconds: number | bigint | string | null | undefined,
 ): Date | null => {
   if (seconds === null || seconds === undefined) return null
   const value = Number(seconds)
