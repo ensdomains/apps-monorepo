@@ -170,7 +170,8 @@ export const walletConnectionMachine = setup({
           },
           { actions: 'recordConnection' },
         ],
-        DISMISS: { target: 'closed', actions: 'detachConnection' },
+        // Closing the picker preserves a pending connect; only disconnect detaches it.
+        DISMISS: 'closed',
         CONNECT: [
           {
             guard: 'usesOwnModal',

@@ -423,6 +423,25 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
     })
   })
 
+  it('continues a pending connection after dismissing and reopening the picker', async () => {
+    const connect = deferConnect()
+    const { trigger } = openWalletList()
+    fireEvent.click(screen.getByRole('button', { name: /MetaMask/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('button', { name: /MetaMask/ })).toBeDisabled()
+    await act(async () => connect.resolve())
+
+    expect(
+      screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Preparing your account…' }),
+    ).toBeDisabled()
+  })
+
   it('closes the sign-in step when SKIP is typed', async () => {
     const connect = deferConnect()
     openWalletList()
