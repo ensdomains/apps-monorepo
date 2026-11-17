@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { useEnsAvatar } from 'wagmi'
 import { LogoSVG } from '@/assets/logo'
 import { cn } from '@/lib/utils'
@@ -24,13 +24,15 @@ export const NameAvatar = ({
       enabled: name.endsWith('.eth'),
     },
   })
+  // The src that failed to load; a new avatar URL gets its own attempt.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
 
   const sizeStyle = {
     '--height': height,
     '--width': width,
   } as CSSProperties
 
-  if (error || isLoading) {
+  if (isLoading) {
     return (
       <div
         style={sizeStyle}
@@ -43,12 +45,17 @@ export const NameAvatar = ({
     )
   }
 
-  if (avatar)
+  if (error === null && avatar && avatar !== failedSrc)
     return (
       <img
         src={avatar}
+        onError={() => setFailedSrc(avatar)}
         alt="avatar"
-        className={cn('shrink-0', rounded)}
+        style={sizeStyle}
+        className={cn(
+          'shrink-0 w-(--width) h-(--height) object-cover',
+          rounded,
+        )}
         height={height}
         width={width}
       />

@@ -20,6 +20,8 @@ import { startUpgrade } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
 import {
+  getSelectNamesTitle,
+  type SelectNamesTitleInput,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldUseCompactSelectionLayout,
@@ -130,37 +132,27 @@ type SelectNamesStepProps = {
   readonly renewalGasEstimate?: GraceRenewalGasEstimateState
 }
 
-const SelectionTitle = ({
-  eligibleCount,
-  graceCount,
-  unavailableCount,
-  wrapperSyncCount,
-  isRecoveryStale,
-  isEligibilityError,
-  isFinishingRecovery,
-}: {
-  readonly eligibleCount: number
-  readonly graceCount: number
-  readonly unavailableCount: number
-  readonly wrapperSyncCount: number
-  readonly isRecoveryStale: boolean
-  readonly isEligibilityError: boolean
-  readonly isFinishingRecovery: boolean
-}) => {
-  if (isRecoveryStale) return <Trans>Your saved upgrade needs attention</Trans>
-  if (isFinishingRecovery) return <Trans>Finish your upgrade</Trans>
-  if (isEligibilityError) return <Trans>We couldn't check your names</Trans>
-  if (eligibleCount === 0 && graceCount > 0) {
-    return <Trans>Renew your names before upgrading</Trans>
-  }
-  if (eligibleCount === 0 && wrapperSyncCount > 0) {
-    return <Trans>Sync your names before upgrading</Trans>
-  }
-  if (eligibleCount === 0 && unavailableCount > 0) {
-    return <Trans>Your names can&apos;t be upgraded</Trans>
-  }
-  return <Trans>Your names are ready to upgrade</Trans>
-}
+const SelectionTitle = (props: SelectNamesTitleInput) =>
+  match(getSelectNamesTitle(props))
+    .with('recovery-stale', () => (
+      <Trans>Your saved upgrade needs attention</Trans>
+    ))
+    .with('finishing-recovery', () => <Trans>Finish your upgrade</Trans>)
+    .with('eligibility-error', () => (
+      <Trans>We couldn't check your names</Trans>
+    ))
+    .with('checking-eligibility', () => (
+      <Trans>Checking which names can be upgraded</Trans>
+    ))
+    .with('needs-renewal', () => (
+      <Trans>Renew your names before upgrading</Trans>
+    ))
+    .with('needs-wrapper-sync', () => (
+      <Trans>Sync your names before upgrading</Trans>
+    ))
+    .with('unavailable', () => <Trans>Your names can&apos;t be upgraded</Trans>)
+    .with('ready', () => <Trans>Your names are ready to upgrade</Trans>)
+    .exhaustive()
 
 export const SelectNamesStep = ({
   ownerAddress,
@@ -354,6 +346,7 @@ export const SelectNamesStep = ({
               graceCount={gracePeriodNames.length}
               isEligibilityError={isEligibilityError}
               isFinishingRecovery={isFinishingRecovery}
+              isPending={isPending}
               isRecoveryStale={isRecoveryStale}
               unavailableCount={
                 unavailableNames.length + blockedSubnames.length

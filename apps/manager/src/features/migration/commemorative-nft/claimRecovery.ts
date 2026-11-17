@@ -1,4 +1,4 @@
-import type { Config as WagmiConfig } from '@wagmi/core'
+import type { Connector, Config as WagmiConfig } from '@wagmi/core'
 import type { Address, Hex } from 'viem'
 import { withNftClaimSubmissionLock } from './claimSubmissionLock'
 import {
@@ -17,6 +17,7 @@ import {
   readPendingNftClaim,
   savePendingNftClaim,
 } from './pendingClaim'
+import { readCommemorativeNftSafeSubmissionBlock } from './safeExecutionHistory'
 import type { CommemorativeNftEligibility } from './types'
 
 const requireStorage = (scope: PendingNftClaimScope): void => {
@@ -47,6 +48,7 @@ export const submitPendingNftClaim = async (params: {
   readonly ownerAddress: Address | undefined
   readonly walletAddress: Address | undefined
   readonly eligibility: CommemorativeNftEligibility | undefined
+  readonly connector?: Connector
   readonly isCurrent: () => boolean
   readonly recheckMigration: () => Promise<boolean>
 }): Promise<PendingNftClaim> => {
@@ -105,6 +107,17 @@ export const submitPendingNftClaim = async (params: {
         'NFT feature is unavailable',
       )
     // Re-read after preflight: another tab could have submitted in the meantime.
+    const safeExecutionSearchFromBlock =
+      await readCommemorativeNftSafeSubmissionBlock({
+        wagmiConfig: params.wagmiConfig,
+        chainId: params.chainId,
+        connector: params.connector,
+      })
+    if (!params.isCurrent())
+      throw new CommemorativeNftClaimError(
+        'feature-disabled',
+        'NFT feature is unavailable',
+      )
     requireStorage(scope)
     const hash = await claimCommemorativeNft({
       wagmiConfig: params.wagmiConfig,
@@ -119,6 +132,9 @@ export const submitPendingNftClaim = async (params: {
       hash,
       expectedClaimData: encodeCommemorativeNftClaim(eligibility.proof),
       submittedAt: Date.now(),
+      ...(safeExecutionSearchFromBlock === undefined
+        ? {}
+        : { safeExecutionSearchFromBlock }),
     }
     keepSubmittedClaim(claim)
     trackNftEvent('nft:claim_outcome', { outcome: 'submitted' })
@@ -152,12 +168,18 @@ export const requireScopedPendingNftClaim = (params: {
 export const reconcilePendingNftClaim = async (params: {
   readonly wagmiConfig: WagmiConfig
   readonly claim: PendingNftClaim
+  readonly connector?: Connector
   readonly onHash: (hash: Hex) => void
 }) => {
   let claim = params.claim
   const outcome = await waitForCommemorativeNftClaimReceipt({
     wagmiConfig: params.wagmiConfig,
     pendingClaim: claim,
+    connector: params.connector,
+    onHistoryProgress: (safeExecutionSearchFromBlock) => {
+      claim = { ...claim, safeExecutionSearchFromBlock }
+      keepSubmittedClaim(claim)
+    },
     onReplaced: (hash) => {
       const previousHash = claim.hash
       claim = { ...claim, hash }
@@ -165,10 +187,11 @@ export const reconcilePendingNftClaim = async (params: {
       params.onHash(hash)
     },
   })
-  claim = { ...claim, hash: outcome.hash }
-  if (outcome.status === 'pending') keepSubmittedClaim(claim)
+  const reconciledClaim = { ...claim, hash: outcome.hash }
+  if (outcome.status === 'pending') keepSubmittedClaim(reconciledClaim)
   else {
     try {
+      // The persisted id can still be a Safe id while the outcome has its carrier hash.
       clearPendingNftClaim(claim)
     } catch {
       /* Safely reconcile a retained record again if removal fails. */
@@ -186,5 +209,5 @@ export const reconcilePendingNftClaim = async (params: {
       outcome.status,
       'Mint transaction did not complete',
     )
-  return { claim, outcome }
+  return { claim: reconciledClaim, outcome }
 }

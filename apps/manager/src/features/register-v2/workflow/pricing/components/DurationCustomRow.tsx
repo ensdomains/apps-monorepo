@@ -100,13 +100,13 @@ export const DurationCustomRow = memo(function DurationCustomRow({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            'group flex w-full cursor-pointer flex-col items-start justify-between gap-3 rounded-lg md:flex-row md:items-center',
+            'group flex w-full min-w-0 cursor-pointer flex-col items-start justify-between gap-3 rounded-lg md:flex-row md:flex-wrap md:items-center',
             'border-[#DEDEDF] border-[0.5px] bg-neutral-50 p-5 transition-all focus-within:border-ens-lapis-900 hover:border-ens-lapis-900 aria-pressed:border-ens-lapis-900 max-md:px-3',
             isSelected && 'border-ens-lapis-900',
           )}
           type="button"
         >
-          <div className="whitespace-nowrap font-normal text-base text-ens-blue-dark leading-none tracking-tighter md:text-2xl">
+          <div className="wrap-anywhere font-normal text-base text-ens-blue-dark leading-none tracking-tighter md:text-2xl">
             {type === 'register' ? (
               <Trans>Register to date</Trans>
             ) : (
@@ -114,12 +114,12 @@ export const DurationCustomRow = memo(function DurationCustomRow({
             )}
           </div>
           <PopoverAnchor asChild>
-            <div className="flex w-full items-center justify-between gap-1.5 rounded border border-ens-gray-three bg-white p-3 transition-colors group-data-[state=open]:border-ens-blue md:min-w-fit md:max-w-1/3 md:gap-3 md:px-5 md:py-4">
-              <span className="font-normal text-ens-blue-dark text-lg leading-ens-none">
+            <div className="flex w-full min-w-0 items-center justify-between gap-1.5 rounded border border-ens-gray-three bg-white p-3 transition-colors group-data-[state=open]:border-ens-blue md:w-auto md:max-w-full md:gap-3 md:px-5 md:py-4">
+              <span className="wrap-anywhere min-w-0 font-normal text-ens-blue-dark text-lg leading-ens-none">
                 {format(expirationDate, 'MMMM d, yyyy')}
               </span>
               <MSymbol
-                className="ms-opsz-18 ms-wght-400 text-[#A0A4A6] transition-colors group-data-[state=open]:text-ens-lapis-core"
+                className="ms-opsz-18 ms-wght-400 shrink-0 text-[#A0A4A6] transition-colors group-data-[state=open]:text-ens-lapis-core"
                 symbol="calendar_month"
               />
             </div>

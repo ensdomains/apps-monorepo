@@ -59,6 +59,7 @@ vi.mock('@/utils/blockExplorer/verifyProxyContract', () => ({
 const resumeAtCommitPrompt = (
   commitmentOnChain: boolean,
   approvalNeeded = true,
+  stage = 'waitingForCommitment',
 ) => {
   const { result } = renderHook(() =>
     useRegistrationTransactions({ name: 'leon.eth', duration: 31_536_000 }),
@@ -66,7 +67,7 @@ const resumeAtCommitPrompt = (
   // Stored while the commit prompt was open: the commitment exists, but
   // nothing says it was sent.
   const record = buildRegistrationRecord(
-    'waitingForCommitment',
+    stage,
     {
       chainId: 11155111,
       name: 'leon.eth',
@@ -110,6 +111,7 @@ describe('useRegistrationTransactions after a resume', () => {
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 
@@ -121,6 +123,7 @@ describe('useRegistrationTransactions after a resume', () => {
 
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 
@@ -130,7 +133,24 @@ describe('useRegistrationTransactions after a resume', () => {
     expect(result.current.transactions.map(({ id }) => id)).toEqual([
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
+  })
+
+  it('lists the ETH address on its own once a bundling run’s register went out', () => {
+    // That register may have gone out alone; the machine checks the resolver first.
+    wallet.canBatchAtomically = true
+    try {
+      const result = resumeAtCommitPrompt(true, false, 'waitingForRegistration')
+
+      expect(result.current.transactions.map(({ id }) => id)).toEqual([
+        REGISTRATION_TX_IDS.register,
+        REGISTRATION_TX_IDS.setEthAddress,
+      ])
+      expect(result.current.transactions[0]?.steps).toBeUndefined()
+    } finally {
+      wallet.canBatchAtomically = false
+    }
   })
 })
 
@@ -257,7 +277,35 @@ describe('useRegistrationTransactions before a run', () => {
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
+  })
+
+  it.each([
+    [
+      'estimates the ETH address against a deployed resolver',
+      '0x6080',
+      true,
+      true,
+    ],
+    ["doesn't estimate it against a resolver with no code", null, true, false],
+    [
+      "doesn't estimate it while the resolver read has no answer",
+      undefined,
+      false,
+      false,
+    ],
+  ])('%s', (_, code, isSuccess, isEstimated) => {
+    vi.mocked(useBytecode).mockReturnValue({ data: code, isSuccess } as never)
+    const result = render()
+
+    const isEstimatedById = Object.fromEntries(
+      result.current.transactions.map(({ id, intent }) => [
+        id,
+        intent?.prepare !== undefined,
+      ]),
+    )
+    expect(isEstimatedById[REGISTRATION_TX_IDS.setEthAddress]).toBe(isEstimated)
   })
 
   it('collapses everything before the cooldown into one step on a bundling wallet', () => {
@@ -273,6 +321,11 @@ describe('useRegistrationTransactions before a run', () => {
         'Deploy resolver',
         'Submit commitment',
         expect.stringMatching(/^Approve /),
+      ])
+      // The register bundle carries the ETH address.
+      expect(result.current.transactions[1]?.steps).toEqual([
+        'Register name',
+        'Set ETH address',
       ])
     } finally {
       wallet.canBatchAtomically = false
@@ -290,6 +343,7 @@ describe('useRegistrationTransactions before a run', () => {
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 
@@ -306,6 +360,7 @@ describe('useRegistrationTransactions before a run', () => {
       REGISTRATION_TX_IDS.commit,
       REGISTRATION_TX_IDS.approve,
       REGISTRATION_TX_IDS.register,
+      REGISTRATION_TX_IDS.setEthAddress,
     ])
   })
 })
