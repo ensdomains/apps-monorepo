@@ -158,8 +158,9 @@ const Banner = ({
 
 const OlderResolverDetail = ({ name }: { readonly name: string }) => (
   <>
-    The older ENS public resolver that <strong>{name}</strong> uses does not
-    support L2 and default primary names, so{' '}
+    The older ENS public resolver that{' '}
+    <strong className="font-medium">{name}</strong> uses does not support L2 and
+    default primary names, so{' '}
     {canUpgradeReplaceResolver(name) ? (
       <>
         either{' '}
