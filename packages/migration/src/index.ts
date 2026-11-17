@@ -37,7 +37,6 @@ export {
 } from './service/readRegistryRepairState'
 export {
   planRegistryRepair,
-  REGISTRY_REPAIR_ROOT_ROLES,
   type RegistryRepairPlan,
   RegistryRepairPlanError,
 } from './service/registryRepair'

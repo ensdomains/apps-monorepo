@@ -1,12 +1,9 @@
-import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { describe, expect, it } from 'vitest'
 import {
   getRegistryRepairCase,
   shouldShowSubnameOwnerNotice,
   shouldShowUpgradeCard,
 } from './registryRepairCase'
-
-const { ROLE_REGISTRAR, ROLE_SET_PARENT } = registryRoles
 
 describe('getRegistryRepairCase', () => {
   const run = (
@@ -16,7 +13,6 @@ describe('getRegistryRepairCase', () => {
       isPendingUpgrade: true,
       isConnected: true,
       canSwitchParent: true,
-      rootRoles: ROLE_REGISTRAR | ROLE_SET_PARENT,
       occupants: { count: 3, thirdPartyCount: 0 },
       ...overrides,
     })
@@ -31,17 +27,14 @@ describe('getRegistryRepairCase', () => {
       'viewer',
     ],
     ['unknown switch rights', { canSwitchParent: undefined }, 'unknown'],
-    ['unread root roles', { rootRoles: undefined }, 'unknown'],
-    ['every role, owning every subname (Case A)', {}, 'owns-all'],
+    ['owning every subname (Case A)', {}, 'owns-all'],
     [
-      'every role, someone else owning a subname (Case B)',
+      'someone else owning a subname (Case B)',
       { occupants: { count: 3, thirdPartyCount: 1 } },
       'shared',
     ],
     ['unread ownership', { occupants: undefined }, 'unknown'],
     ['ownership bigname cannot count', { occupants: null }, 'unknown'],
-    ['no registrar role', { rootRoles: ROLE_SET_PARENT }, 'viewer'],
-    ['no set-parent role', { rootRoles: ROLE_REGISTRAR }, 'viewer'],
   ] as const)('with %s: %s', (_case, overrides, expected) => {
     expect(run(overrides)).toBe(expected)
   })

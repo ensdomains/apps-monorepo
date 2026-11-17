@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
-import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
-import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { getIsRegistryPendingUpgradeQueryOptions } from '../queries/getIsRegistryPendingUpgrade'
 import { settledData } from '../utils/pendingUpgradeRegistry'
 import {
@@ -45,24 +43,12 @@ export const useRegistryRepairCase = (
   })
   const canSwitchParent = isRoleLoading ? undefined : hasRole
 
-  const rootRoles = useQuery({
-    ...getNameRolesForAccountQueryOptions({
-      registryAddress: registryAddress ?? zeroAddress,
-      resource: ROOT_RESOURCE_ID,
-      account: account ?? zeroAddress,
-    }),
-    enabled: Boolean(registryAddress && account) && isPendingUpgrade === true,
-  })
-
   const occupants = useQuery({
     ...getRegistryOccupantsQueryOptions({
       address: registryAddress ?? zeroAddress,
       account: account ?? zeroAddress,
     }),
-    enabled:
-      Boolean(registryAddress && account) &&
-      canSwitchParent === true &&
-      rootRoles.data !== undefined,
+    enabled: Boolean(registryAddress && account) && canSwitchParent === true,
   })
 
   return {
@@ -72,7 +58,6 @@ export const useRegistryRepairCase = (
         registries && (registryAddress ? isPendingUpgrade : false),
       isConnected: Boolean(account),
       canSwitchParent,
-      rootRoles: settledData(rootRoles)?.raw,
       occupants: settledData(occupants),
     }),
     registryAddress,

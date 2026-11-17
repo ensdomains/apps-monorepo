@@ -131,7 +131,6 @@ describe('planRegistryRepair', () => {
   })
 
   it.each([
-    ['no roles at all', ALICE, makeState()],
     [
       'no set-parent role',
       CONTROLLER,
@@ -158,6 +157,34 @@ describe('planRegistryRepair', () => {
       )
     },
   )
+
+  describe('an account without root roles on the registry', () => {
+    const ADMINS = makeState().rootRoles
+
+    it("deploys the replacement with the original's admins and the account holding their roles", () => {
+      const [deploy] = plan(makeState(), { account: ALICE })._unsafeUnwrap()
+        .copyCalls
+      const initialize = decode(deploy?.data ?? '0x').args?.[2] as Hex
+
+      expect(
+        decodeFunctionData({
+          abi: userRegistryInitializeSnippet,
+          data: initialize,
+        }).args,
+      ).toEqual([[...ADMINS, { account: ALICE, roleBitmap: ALL }]])
+    })
+
+    it('resumes a copy it started without reading its own admin roles as a divergence', () => {
+      const existing = makeState({
+        rootRoles: [...ADMINS, { account: ALICE, roleBitmap: ALL }],
+      })
+
+      expect(
+        plan(makeState(), { account: ALICE, existing })._unsafeUnwrap()
+          .copyCalls,
+      ).toEqual([])
+    })
+  })
 
   it('refuses to grant admin roles to anyone but the owner, which only `register` can do', () => {
     const state = makeState({

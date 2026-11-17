@@ -31,7 +31,7 @@ import {
 const VERSION_BITS = 0xffff_ffffn
 
 /** Root roles the account needs on the registry being upgraded: registering the names and setting the replacement's parent. */
-export const REGISTRY_REPAIR_ROOT_ROLES =
+const REGISTRY_REPAIR_ROOT_ROLES =
   registryRoles.ROLE_REGISTRAR | registryRoles.ROLE_SET_PARENT
 
 export type RegistryRepairPlan = {
@@ -85,6 +85,29 @@ const findUngrantable = (
         (grant.roleBitmap & ~settable) !== 0n,
     )
   })
+}
+
+/** The replacement's root roles: the original's, and an account without the roles to copy gets every role the original's admins hold. */
+const withRunnerRootRoles = (
+  state: RegistryRepairState,
+  account: Address,
+): RegistryRepairState => {
+  const accountRoot = rolesOf(state.rootRoles, account)
+  if ((accountRoot & REGISTRY_REPAIR_ROOT_ROLES) === REGISTRY_REPAIR_ROOT_ROLES)
+    return state
+  const adminRoles = state.rootRoles.reduce(
+    (all, grant) => all | grant.roleBitmap,
+    0n,
+  )
+  return {
+    ...state,
+    rootRoles: [
+      ...state.rootRoles.filter(
+        (grant) => !isAddressEqual(grant.account, account),
+      ),
+      { account, roleBitmap: accountRoot | adminRoles },
+    ],
+  }
 }
 
 const findPlanProblem = (
@@ -231,7 +254,7 @@ const resumeCopyCalls = ({
 
 /** Calls that copy a registry into `replacement` and switch its parent name to it; `existing` (the replacement's state, or null) resumes a stopped copy. */
 export const planRegistryRepair = ({
-  state,
+  state: original,
   existing,
   children,
   account,
@@ -243,13 +266,15 @@ export const planRegistryRepair = ({
   readonly state: RegistryRepairState
   readonly existing: RegistryRepairState | null
   readonly children: readonly RegistryChild[]
-  /** The account that sends the calls; it must be able to register and grant on the replacement. */
+  /** The account that sends the calls; it must be able to switch the parent name, which the caller checks. */
   readonly account: Address
   readonly factory: Address
   readonly implementation: Address
   readonly salt: bigint
   readonly replacement: Address
 }): Result<RegistryRepairPlan, RegistryRepairPlanError> => {
+  // The parent's owner may run the upgrade without the original's root roles; it becomes an admin of the replacement too.
+  const state = withRunnerRootRoles(original, account)
   const problem = findPlanProblem(state, account)
   if (problem) return err(problem)
 
