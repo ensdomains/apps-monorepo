@@ -1,6 +1,7 @@
 import { requireChainId } from '@ens-apps/config'
 import {
   buildHcaDeploymentCall,
+  getDestinationContracts,
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import {
@@ -57,6 +58,10 @@ import {
   assertCopyMigrationReadiness,
   assertCopySourcesFresh,
 } from './copyMigrationReadiness'
+import {
+  copyParentNames,
+  readCurrentParentRegistries,
+} from './currentParentRegistries'
 import { decodeMigrationError } from './decodeMigrationError'
 import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
 import { approvalNeedsFor } from './migrationApprovalNeeds'
@@ -1415,7 +1420,12 @@ const releaseChangedHelperRecovery = async (params: {
         operations: submission.operations,
         migrationHelper: submission.migrationHelper ?? previousHelper,
         signal: params.ctx.submissionGate.signal,
-        currentParentRegistries: params.plan.currentParentRegistries,
+        currentParentRegistries: await readCurrentParentRegistries({
+          publicClient: params.ctx.publicClient,
+          contracts: getDestinationContracts(scope.chainId),
+          hca: scope.hca,
+          parentNames: copyParentNames(submission.operations),
+        }),
       })
       if (status === 'success') {
         persistSubmittedAtomicMigrationBatch(scope, {

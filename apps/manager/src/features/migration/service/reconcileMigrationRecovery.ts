@@ -156,14 +156,16 @@ export const reconcileMigrationRecovery = async (params: RecoveryParams) => {
       journal: settled,
     }
   }
+  const currentParentRegistries = await readCurrentParentRegistries({
+    publicClient: params.publicClient,
+    contracts: getDestinationContracts(params.scope.chainId),
+    hca: params.scope.hca,
+    parentNames: copyParentNames(
+      attempts.flatMap(({ operations }) => operations),
+    ),
+  })
   for (const attempt of attempts) {
     params.signal?.throwIfAborted()
-    const currentParentRegistries = await readCurrentParentRegistries({
-      publicClient: params.publicClient,
-      contracts: getDestinationContracts(params.scope.chainId),
-      hca: params.scope.hca,
-      parentNames: copyParentNames(attempt.operations),
-    })
     for (const hash of await getCandidateHashes(params, attempt)) {
       if (
         await settleVerifiedAttempt(

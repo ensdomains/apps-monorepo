@@ -43,6 +43,7 @@ const mocks = vi.hoisted(() => ({
   assertLockedResolverReplacementRecordSafety: vi.fn(),
   verifyMigrationRecoveryTransaction: vi.fn(),
   restoreMigrationCompletionCheckpoint: vi.fn(),
+  readCurrentParentRegistries: vi.fn(),
 }))
 
 vi.mock('./buildMigrationPlan', async (importOriginal) => ({
@@ -101,6 +102,11 @@ vi.mock('./migrationCompletionCheckpoint', async (importOriginal) => ({
   verifyMigrationRecoveryTransaction: mocks.verifyMigrationRecoveryTransaction,
   restoreMigrationCompletionCheckpoint:
     mocks.restoreMigrationCompletionCheckpoint,
+}))
+
+vi.mock('./currentParentRegistries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./currentParentRegistries')>()),
+  readCurrentParentRegistries: mocks.readCurrentParentRegistries,
 }))
 
 vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
@@ -683,6 +689,7 @@ beforeEach(() => {
     },
   )
   mocks.verifyMigrationRecoveryTransaction.mockResolvedValue('success')
+  mocks.readCurrentParentRegistries.mockResolvedValue(new Map())
   mocks.restoreMigrationCompletionCheckpoint.mockResolvedValue(null)
   mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
     status: 'complete',
@@ -1381,6 +1388,9 @@ describe('executeMigration HCA orchestration', () => {
       const currentParentRegistries = new Map([
         ['example.eth', '0x00000000000000000000000000000000000000c1' as const],
       ])
+      mocks.readCurrentParentRegistries.mockResolvedValue(
+        currentParentRegistries,
+      )
       const plan: MigrationPlan = {
         ...bulkPlan(),
         classified: [],
@@ -1389,7 +1399,6 @@ describe('executeMigration HCA orchestration', () => {
         requiresReconciliation: true,
         requiresFreshDeploymentPreview: true,
         temporaryRegistrationApproval,
-        currentParentRegistries,
         preflight: {
           skipFetchProfilesPhase: true,
           migrationApprovals: [],

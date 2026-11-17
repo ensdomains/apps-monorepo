@@ -1,3 +1,5 @@
+import { requireEnsChain } from '@ens-apps/config'
+import { parentNameOf } from '@ens-apps/migration'
 import type { DestinationContracts } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { universalHelperFindRegistriesSnippet } from '@ensdomains/ensjs-abi/v2/universalHelper'
@@ -22,8 +24,6 @@ type ParentRegistryContracts = Pick<
   DestinationContracts,
   'verifiableFactory' | 'userRegistryImpl'
 >
-
-const EMPTY_PARENT_REGISTRIES: ReadonlyMap<string, Address> = new Map()
 
 /** Copy parents already on chain before this run; none when nothing is left to plan. */
 export const completedCopyParentNames = (params: {
@@ -54,8 +54,10 @@ export const copyParentNames = (
 ): readonly string[] => [
   ...new Set(
     operations.flatMap(({ name, action }) => {
-      const parentName = name.split('.').slice(1).join('.')
-      return action === 'copy' && parentName !== 'eth' ? [parentName] : []
+      const parentName = parentNameOf(name)
+      return action === 'copy' && parentName && parentName !== 'eth'
+        ? [parentName]
+        : []
     }),
   ),
 ]
@@ -123,25 +125,18 @@ export const findCurrentParentRegistries = async (params: {
   readonly hca: Address
   readonly parentNames: readonly string[]
 }): Promise<ReadonlyMap<string, Address>> => {
-  if (params.parentNames.length === 0) return EMPTY_PARENT_REGISTRIES
   const entries = await Promise.all(
     [...new Set(params.parentNames)].map((parentName) =>
-      Promise.resolve()
-        .then(() => readCertifiedRegistry({ ...params, parentName }))
-        .then(
-          (registry) =>
-            registry === undefined ? [] : [[parentName, registry] as const],
-          (cause: unknown) => {
-            throw new ParentRegistryReadError({ parentName, cause })
-          },
-        ),
+      readCertifiedRegistry({ ...params, parentName }).then(
+        (registry) =>
+          registry === undefined ? [] : [[parentName, registry] as const],
+        (cause: unknown) => {
+          throw new ParentRegistryReadError({ parentName, cause })
+        },
+      ),
     ),
   )
   return new Map(entries.flat())
-}
-
-const unknownChain = (): never => {
-  throw new Error('The client has no chain to find the universal helper on')
 }
 
 // A revert is the chain's answer (not a registry, or not from the factory); only a failed request rejects.
@@ -170,7 +165,10 @@ export const readCurrentParentRegistries = (params: {
         params.publicClient
           .readContract({
             address: getChainContractAddress({
-              chain: params.publicClient.chain ?? unknownChain(),
+              chain: requireEnsChain(
+                params.publicClient,
+                'parent registry lookup',
+              ),
               contract: 'ensUniversalHelper',
             }),
             abi: universalHelperFindRegistriesSnippet,

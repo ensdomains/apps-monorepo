@@ -552,7 +552,6 @@ const orderPlannedNamesParentFirst = (
 
 const buildUserRegistryAddresses = (params: {
   readonly hca: Address
-  readonly classified: readonly ClassifiedName[]
   readonly registryContext: readonly ClassifiedName[]
   readonly currentParentRegistries?: ReadonlyMap<string, Address>
 }): ReadonlyMap<string, Address> => {
@@ -1321,7 +1320,6 @@ const buildNameExecutions = (params: {
   const ordered = orderPlannedNamesParentFirst(params.classified)
   const userRegistries = buildUserRegistryAddresses({
     hca: params.hca,
-    classified: params.classified,
     registryContext: params.registryContext,
     currentParentRegistries: params.currentParentRegistries,
   })
