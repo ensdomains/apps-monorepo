@@ -30,7 +30,7 @@ const meta = {
   ],
   args: {
     avatarLoading: false,
-    displayExpiryDate: new Date('2028-10-14T00:00:00Z'),
+    expiryDate: new Date('2028-10-14T00:00:00Z'),
     name: 'example.eth',
     owner: OWNER,
     records: recordsWith({ description: 'Builder of things' }),
