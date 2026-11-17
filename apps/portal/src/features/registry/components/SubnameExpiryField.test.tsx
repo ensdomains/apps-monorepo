@@ -1,41 +1,43 @@
-import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import { SECONDS_PER_DAY } from '@/lib/constants/duration'
-import { createTestQueryClient } from '@/test-utils/providers'
+import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
+import { expect, it, vi } from 'vitest'
+import {
+  DEFAULT_SUBNAME_EXPIRY,
+  type SubnameExpiry,
+} from '../utils/subnameExpiry'
 import { SubnameExpiryField } from './SubnameExpiryField'
 
-const CHAKRI_EXPIRY = Math.floor(Date.now() / 1000) + 30 * SECONDS_PER_DAY
-
-/** Unix-second expiries by name; null never expires. */
-const EXPIRIES: Readonly<Record<string, number | null>> = {
-  'right.chakri.eth': null,
-  'chakri.eth': CHAKRI_EXPIRY,
+const Harness = ({
+  onChange,
+}: {
+  readonly onChange: (expiry: SubnameExpiry) => void
+}) => {
+  const [expiry, setExpiry] = useState(DEFAULT_SUBNAME_EXPIRY)
+  return (
+    <SubnameExpiryField
+      expiry={expiry}
+      onExpiryChange={(next) => {
+        setExpiry(next)
+        onChange(next)
+      }}
+    />
+  )
 }
 
-vi.mock('@/features/profile/hooks/useRegistrationData', () => ({
-  getRegistrationDataQueryOptions: ({ name }: { name: string }) => ({
-    queryKey: ['registrationData', name],
-    queryFn: () => ({ expiry: EXPIRIES[name] ?? null }),
-  }),
-}))
+it('hides the expiry under Advanced settings, and ticking it sets one year', async () => {
+  const onChange = vi.fn()
+  const user = userEvent.setup()
+  render(<Harness onChange={onChange} />)
 
-describe('SubnameExpiryField', () => {
-  it('warns with the name above that expires first, though the parent never does', async () => {
-    render(
-      <QueryClientProvider client={createTestQueryClient()}>
-        <SubnameExpiryField
-          parentName="right.chakri.eth"
-          expiry={{ type: 'span', span: { type: 'years', years: 1 } }}
-          onExpiryChange={vi.fn()}
-        />
-      </QueryClientProvider>,
-    )
-
-    expect(
-      await screen.findByText(/^chakri\.eth expires on/),
-    ).toHaveTextContent(
-      'The subname stops resolving then, unless chakri.eth is renewed.',
-    )
+  expect(screen.queryByLabelText(/Set an expiry/)).toBeNull()
+  await user.click(screen.getByRole('button', { name: 'Advanced settings' }))
+  await user.click(screen.getByLabelText(/Set an expiry/))
+  expect(onChange).toHaveBeenLastCalledWith({
+    type: 'span',
+    span: { type: 'years', years: 1 },
   })
+
+  await user.click(screen.getByLabelText(/Set an expiry/))
+  expect(onChange).toHaveBeenLastCalledWith(DEFAULT_SUBNAME_EXPIRY)
 })

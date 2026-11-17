@@ -31,6 +31,7 @@ import { AddressNameInput } from '@/features/address/components/AddressNameInput
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getSubnameLabelStatusQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import { SubnameExpiryField } from '@/features/registry/components/SubnameExpiryField'
 import { prepareCreateSubnameSubmit } from '@/features/registry/helpers/prepareCreateSubnameSubmit'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
@@ -47,7 +48,6 @@ import {
 import {
   DEFAULT_SUBNAME_EXPIRY,
   getSubnameExpirySeconds,
-  readSubnameExpiryClock,
   type SubnameExpiry,
 } from '@/features/registry/utils/subnameExpiry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -241,7 +241,10 @@ const CreateSubnameForm = ({
 
     setSubmission({
       write: writeResult.value,
-      expires: getSubnameExpirySeconds(expiry, readSubnameExpiryClock()),
+      expires: getSubnameExpirySeconds(expiry, {
+        today: getStartOfToday(),
+        nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
+      }),
     })
     if (connectedAddress) attempt.start(connectedAddress)
   }
@@ -324,7 +327,6 @@ const CreateSubnameForm = ({
 
         {target.protocol === 'ENSv2' && (
           <SubnameExpiryField
-            parentName={name}
             expiry={expiry}
             onExpiryChange={setExpiry}
             disabled={isSubmitting || isSuccess}

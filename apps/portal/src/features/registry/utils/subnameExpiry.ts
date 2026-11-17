@@ -1,6 +1,5 @@
 import { match } from 'ts-pattern'
 import { maxUint64 } from 'viem'
-import { getStartOfToday } from '@/features/register/utils/registrationDuration'
 import {
   type ExtensionSpan,
   getExtensionTargetDate,
@@ -19,12 +18,6 @@ type SubnameExpiryClock = {
 
 export const DEFAULT_SUBNAME_EXPIRY: SubnameExpiry = { type: 'none' }
 
-/** The clock read at the edge, for the pure functions below. */
-export const readSubnameExpiryClock = (): SubnameExpiryClock => ({
-  today: getStartOfToday(),
-  nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
-})
-
 /** The registry `expiry` to register with; `max(uint64)` never expires. */
 export const getSubnameExpirySeconds = (
   expiry: SubnameExpiry,
@@ -40,26 +33,3 @@ export const getSubnameExpirySeconds = (
       return nowSeconds + BigInt(Math.max(days, 1) * SECONDS_PER_DAY)
     })
     .exhaustive()
-
-type NameExpiry = { readonly name: string; readonly expirySeconds: bigint }
-
-/** The name above that expires first, or null when none of them expires. */
-export const getFirstToExpire = (
-  names: readonly { readonly name: string; readonly expiry: number | null }[],
-): NameExpiry | null =>
-  names.reduce<NameExpiry | null>(
-    (first, { name, expiry }) =>
-      expiry === null || (first && first.expirySeconds <= BigInt(expiry))
-        ? first
-        : { name, expirySeconds: BigInt(expiry) },
-    null,
-  )
-
-/** Whether a picked expiry outlasts the parent, whose expiry stops the subname resolving first. */
-export const isPastParentExpiry = (
-  expiry: SubnameExpiry,
-  clock: SubnameExpiryClock,
-  parentExpirySeconds: bigint,
-): boolean =>
-  expiry.type === 'span' &&
-  getSubnameExpirySeconds(expiry, clock) > parentExpirySeconds
