@@ -6,25 +6,31 @@ import {
 } from './walletConnection.machine'
 
 const input = {
-  isConnected: false,
-  isSignInNeeded: true,
   isAccountSettled: false,
-  isSigning: false,
-  hasSignInError: false,
 } as const
 
 it('closes the picker on eager reconnection without starting the sign-in step', () => {
   const actor = createActor(walletConnectionMachine, { input }).start()
+  actor.send({ type: 'AUTH_CHANGED', isSignInNeeded: true })
   actor.send({ type: 'OPEN' })
-  actor.send({ type: 'CONNECTED', isReconnected: true })
-  expect(actor.getSnapshot().matches('closed')).toBe(true)
+  actor.send({
+    type: 'CONNECTION_CHANGED',
+    isConnected: true,
+    isReconnected: true,
+  })
+  expect(actor.getSnapshot().matches({ dialog: 'closed' })).toBe(true)
   actor.stop()
 })
 
 it('does not open the dialog for a connection started outside it while the account prepares', () => {
   const actor = createActor(walletConnectionMachine, { input }).start()
-  actor.send({ type: 'CONNECTED', isReconnected: false })
-  expect(actor.getSnapshot().matches('closed')).toBe(true)
+  actor.send({ type: 'AUTH_CHANGED', isSignInNeeded: true })
+  actor.send({
+    type: 'CONNECTION_CHANGED',
+    isConnected: true,
+    isReconnected: false,
+  })
+  expect(actor.getSnapshot().matches({ dialog: 'closed' })).toBe(true)
   actor.stop()
 })
 

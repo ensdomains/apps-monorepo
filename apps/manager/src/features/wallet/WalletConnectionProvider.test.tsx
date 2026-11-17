@@ -8,7 +8,7 @@ import { render } from '@/utils/test-utils'
 import { WalletConnectionProvider } from './WalletConnectionProvider'
 
 const wagmiMock = vi.hoisted(() => ({
-  useConnection: vi.fn(),
+  getConnection: vi.fn(),
   useConnectors: vi.fn((): readonly Connector[] => []),
   useConnect: vi.fn(() => ({ mutateAsync: vi.fn() })),
   connectionEffects: vi.fn(),
@@ -19,7 +19,7 @@ const smartAccountMock = vi.hoisted(() => ({
   useSmartAccountContextSafe: vi.fn(),
 }))
 
-const useMutationMock = vi.hoisted(() => vi.fn())
+const signInMock = vi.hoisted(() => vi.fn())
 
 const walletDisconnectMock = vi.hoisted(() => ({
   disconnect: vi.fn(),
@@ -30,18 +30,20 @@ vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
     ...actual,
-    useConnection: wagmiMock.useConnection,
     useConnectors: wagmiMock.useConnectors,
     useConnect: wagmiMock.useConnect,
     useSwitchChain: wagmiMock.useSwitchChain,
-    useConnectionEffect: (
-      parameters: Parameters<typeof actual.useConnectionEffect>[0],
-    ) => {
-      wagmiMock.connectionEffects(parameters)
-      return actual.useConnectionEffect(parameters)
-    },
   }
 })
+
+vi.mock('@wagmi/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@wagmi/core')>()),
+  getConnection: wagmiMock.getConnection,
+  watchConnection: (_config: unknown, parameters: unknown) => {
+    wagmiMock.connectionEffects(parameters)
+    return () => {}
+  },
+}))
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => smartAccountMock)
 
@@ -53,13 +55,15 @@ vi.mock('@/lib/wallet', async (importOriginal) => {
   }
 })
 
-vi.mock('@tanstack/react-query', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
-  return {
-    ...actual,
-    useMutation: useMutationMock,
-  }
-})
+vi.mock(
+  '@/features/notifications/data/queries/auth',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/features/notifications/data/queries/auth')
+    >()),
+    signInBackend: signInMock,
+  }),
+)
 
 const pressKeys = (keys: string[]) => {
   for (const key of keys) {
@@ -67,25 +71,27 @@ const pressKeys = (keys: string[]) => {
   }
 }
 
-const showModal = ({
-  isError = false,
-  isPending = false,
-}: {
-  isError?: boolean
-  isPending?: boolean
-} = {}) => {
-  wagmiMock.useConnection.mockReturnValue({ isConnected: true })
+const showModal = () => {
+  wagmiMock.getConnection.mockReturnValue({
+    isConnected: true,
+    status: 'connected',
+  })
   smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
     isAccountReady: true,
     walletClient: { account: { address: '0xabc' } },
   })
-  useMutationMock.mockReturnValue({
-    isPending,
-    isError,
-    mutateAsync: vi.fn(),
+  signInMock.mockReset()
+  signInMock.mockImplementation(async () => {
+    backendAuthStore.trigger.signIn({ authKey: 'key', address: '0xabc' })
   })
   walletDisconnectMock.disconnect.mockReset()
   walletDisconnectMock.isDisconnecting = false
+}
+
+const failSignIn = async () => {
+  signInMock.mockRejectedValueOnce(new Error('User rejected signing'))
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+  await screen.findByRole('button', { name: 'Try again' })
 }
 
 describe('WalletConnectionProvider', () => {
@@ -96,7 +102,17 @@ describe('WalletConnectionProvider', () => {
     showModal()
   })
 
-  it('does not render visible skip controls', () => {
+  it('opens for a wallet restored while subscribing, without visible skip controls', () => {
+    wagmiMock.getConnection.mockReturnValue({
+      isConnected: false,
+      status: 'disconnected',
+    })
+    wagmiMock.connectionEffects.mockImplementationOnce(() => {
+      wagmiMock.getConnection.mockReturnValue({
+        isConnected: true,
+        status: 'connected',
+      })
+    })
     render(<WalletConnectionProvider />)
 
     expect(
@@ -128,7 +144,10 @@ describe('WalletConnectionProvider', () => {
   })
 
   it('does not dismiss when SKIP is typed while the modal is closed', () => {
-    wagmiMock.useConnection.mockReturnValue({ isConnected: false })
+    wagmiMock.getConnection.mockReturnValue({
+      isConnected: false,
+      status: 'disconnected',
+    })
 
     render(<WalletConnectionProvider />)
 
@@ -139,8 +158,8 @@ describe('WalletConnectionProvider', () => {
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
   })
 
-  it('does not dismiss when the sign-in mutation is pending', () => {
-    showModal({ isPending: true })
+  it('does not dismiss when signing is pending', () => {
+    signInMock.mockImplementation(() => new Promise(() => {}))
 
     render(<WalletConnectionProvider />)
 
@@ -148,6 +167,7 @@ describe('WalletConnectionProvider', () => {
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     pressKeys(['s', 'k', 'i', 'p'])
 
     expect(
@@ -164,10 +184,9 @@ describe('WalletConnectionProvider', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows a retry and dismiss action after sign-in fails', () => {
-    showModal({ isError: true })
-
+  it('shows a retry and dismiss action after sign-in fails', async () => {
     render(<WalletConnectionProvider />)
+    await failSignIn()
 
     expect(
       screen.getByText("Signing didn't go through. Please try again."),
@@ -177,10 +196,9 @@ describe('WalletConnectionProvider', () => {
     ).toBeInTheDocument()
   })
 
-  it('confirms what is lost before continuing without signing in', () => {
-    showModal({ isError: true })
-
+  it('confirms what is lost before continuing without signing in', async () => {
     render(<WalletConnectionProvider />)
+    await failSignIn()
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
@@ -200,9 +218,8 @@ describe('WalletConnectionProvider', () => {
   })
 
   it('reopens at sign-in after SKIP closes the skip confirmation', async () => {
-    showModal({ isError: true })
-
     render(<WalletConnectionProvider />)
+    await failSignIn()
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
@@ -224,28 +241,26 @@ describe('WalletConnectionProvider', () => {
     ).toBeInTheDocument()
   })
 
-  it('retries sign-in from the skip confirmation', () => {
-    showModal({ isError: true })
-    const { mutateAsync } = useMutationMock()
-
+  it('retries sign-in from the skip confirmation', async () => {
     render(<WalletConnectionProvider />)
+    await failSignIn()
+    signInMock.mockImplementation(() => new Promise(() => {}))
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
     )
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(mutateAsync).toHaveBeenCalledOnce()
+    expect(signInMock).toHaveBeenCalledTimes(2)
     expect(
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
   })
 
-  it('disables retry from the skip confirmation while the account prepares again', () => {
-    showModal({ isError: true })
-    const { mutateAsync } = useMutationMock()
+  it('disables retry from the skip confirmation while the account prepares again', async () => {
     const { rerender } = render(<WalletConnectionProvider />)
+    await failSignIn()
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
     )
@@ -260,7 +275,7 @@ describe('WalletConnectionProvider', () => {
     const retry = screen.getByRole('button', { name: 'Sign in' })
     expect(retry).toBeDisabled()
     fireEvent.click(retry)
-    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(signInMock).toHaveBeenCalledOnce()
   })
 
   it('disconnects the wallet so the user can switch accounts', () => {
@@ -327,10 +342,14 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
     wagmiMock.useConnect.mockReturnValue({
       mutateAsync: vi.fn(() =>
         gate.then(() => {
-          wagmiMock.useConnection.mockReturnValue({ isConnected: true })
-          wagmiMock.connectionEffects.mock.lastCall?.[0].onConnect({
-            isReconnected: false,
+          wagmiMock.getConnection.mockReturnValue({
+            isConnected: true,
+            status: 'connected',
           })
+          wagmiMock.connectionEffects.mock.lastCall?.[0].onChange(
+            { isConnected: true, status: 'connected' },
+            { isConnected: false, status: 'connecting' },
+          )
         }),
       ),
     })
@@ -375,15 +394,15 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
     vi.clearAllMocks()
     backendAuthStore.trigger.signOut()
     backendAuthStore.trigger.resetModal()
-    wagmiMock.useConnection.mockReturnValue({ isConnected: false })
+    wagmiMock.getConnection.mockReturnValue({
+      isConnected: false,
+      status: 'disconnected',
+    })
     wagmiMock.useConnectors.mockReturnValue([METAMASK, WALLETCONNECT])
     setAccount(false)
-    useMutationMock.mockReturnValue({
-      isPending: false,
-      isError: false,
-      mutateAsync: vi.fn(async () => {
-        backendAuthStore.trigger.signIn({ authKey: 'key', address: '0xabc' })
-      }),
+    signInMock.mockReset()
+    signInMock.mockImplementation(async () => {
+      backendAuthStore.trigger.signIn({ authKey: 'key', address: '0xabc' })
     })
   })
 
@@ -413,6 +432,20 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
 
+    wagmiMock.getConnection.mockReturnValue({
+      isConnected: false,
+      status: 'disconnected',
+    })
+    rerender(renderUi())
+    expect(screen.getByRole('alertdialog')).toBe(dialog)
+    expect(
+      screen.getByRole('button', { name: 'Preparing your account…' }),
+    ).toBeDisabled()
+
+    wagmiMock.getConnection.mockReturnValue({
+      isConnected: true,
+      status: 'connected',
+    })
     setAccount(true)
     rerender(renderUi())
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -470,7 +503,10 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
         backendAuthStore.trigger.dismissModal()
       }
       setAccount(true)
-      wagmiMock.useConnection.mockReturnValue({ isConnected: true })
+      wagmiMock.getConnection.mockReturnValue({
+        isConnected: true,
+        status: 'connected',
+      })
       wagmiMock.useConnect.mockReturnValue({
         mutateAsync: vi.fn(async () => {}),
       })
@@ -526,10 +562,14 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
     ])
     wagmiMock.useConnect.mockReturnValue({
       mutateAsync: vi.fn(async () => {
-        wagmiMock.useConnection.mockReturnValue({ isConnected: true })
-        wagmiMock.connectionEffects.mock.lastCall?.[0].onConnect({
-          isReconnected: false,
+        wagmiMock.getConnection.mockReturnValue({
+          isConnected: true,
+          status: 'connected',
         })
+        wagmiMock.connectionEffects.mock.lastCall?.[0].onChange(
+          { isConnected: true, status: 'connected' },
+          { isConnected: false, status: 'connecting' },
+        )
       }),
     })
     const { rerender } = openWalletList()
@@ -540,8 +580,14 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
     )
 
     act(() => {
-      wagmiMock.useConnection.mockReturnValue({ isConnected: false })
-      wagmiMock.connectionEffects.mock.lastCall?.[0].onDisconnect()
+      wagmiMock.getConnection.mockReturnValue({
+        isConnected: false,
+        status: 'disconnected',
+      })
+      wagmiMock.connectionEffects.mock.lastCall?.[0].onChange(
+        { isConnected: false, status: 'disconnected' },
+        { isConnected: true, status: 'connected' },
+      )
     })
     rerender(renderUi())
     fireEvent.click(screen.getByRole('button', { name: 'Open connect' }))

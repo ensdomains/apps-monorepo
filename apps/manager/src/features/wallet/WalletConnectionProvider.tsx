@@ -1,26 +1,20 @@
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
-import { useMutation } from '@tanstack/react-query'
-import { useMachine } from '@xstate/react'
-import { useSelector } from '@xstate/store-react'
-import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
-import { match } from 'ts-pattern'
 import {
-  type Connector,
-  useConnect,
-  useConnection,
-  useConnectionEffect,
-  useSwitchChain,
-} from 'wagmi'
+  type GetConnectionReturnType,
+  getConnection,
+  watchConnection,
+} from '@wagmi/core'
+import { useMachine } from '@xstate/react'
+import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
+import { type Connector, useConnect, useSwitchChain } from 'wagmi'
+import { fromCallback, fromPromise } from 'xstate'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
+import { signInBackend } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { useWalletDisconnect } from '@/lib/wallet'
-import {
-  connectWallet,
-  WALLETCONNECT_ID,
-} from '@/lib/wallet/stacks/custom/connect.helpers'
+import { connectWallet } from '@/lib/wallet/stacks/custom/connect.helpers'
 import { WalletPicker } from '@/lib/wallet/stacks/custom/WalletPicker'
 import { ConnectModalContext } from '@/lib/wallet/useConnectModal'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -31,7 +25,44 @@ import {
 } from './walletConnection.machine'
 
 const machine = walletConnectionMachine.provide({
-  actions: { dismissAuth: () => backendAuthStore.trigger.dismissModal() },
+  actors: {
+    observeConnection: fromCallback(({ sendBack }) => {
+      const report = (
+        connection: GetConnectionReturnType,
+        previous?: GetConnectionReturnType,
+      ) => {
+        if (connection.status === previous?.status) return
+        if (connection.isConnected || connection.status === 'disconnected') {
+          sendBack({
+            type: 'CONNECTION_CHANGED',
+            isConnected: connection.isConnected,
+            isReconnected: previous?.status === 'reconnecting',
+          })
+        }
+      }
+      const unsubscribe = watchConnection(wagmiConfig, { onChange: report })
+      report(getConnection(wagmiConfig))
+      return unsubscribe
+    }),
+    observeAuth: fromCallback(({ sendBack }) => {
+      const report = () => {
+        const { authKey, modalDismissed } = backendAuthStore.get().context
+        sendBack({
+          type: 'AUTH_CHANGED',
+          isSignInNeeded: !authKey && !modalDismissed,
+        })
+      }
+      const subscription = backendAuthStore.subscribe(report)
+      report()
+      return () => subscription.unsubscribe()
+    }),
+    signIn: fromPromise(({ input }) => signInBackend({ walletClient: input })),
+  },
+  actions: {
+    dismissAuth: () => backendAuthStore.trigger.dismissModal(),
+    reportSignInError: (_, { error }) =>
+      console.error('Failed to sign in:', error),
+  },
 })
 const focusOnMount = (element: HTMLElement | null) => element?.focus()
 
@@ -40,46 +71,37 @@ export const WalletConnectionProvider = ({
 }: {
   readonly children?: ReactNode
 }) => {
-  const { isConnected } = useConnection()
   const account = useSmartAccountContextSafe()
-  const isSignInNeeded = useSelector(
-    backendAuthStore,
-    (state) => !state.context.authKey && state.context.modalDismissed === false,
-  )
-  const signIn = useMutation(signInBackendMutation)
   const { disconnect, isDisconnecting } = useWalletDisconnect()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
   const isAccountSettled = isSmartAccountSettled(account)
-  const session = useMemo(
-    () => ({
-      isConnected,
-      isSignInNeeded,
-      isAccountSettled,
-      isSigning: signIn.isPending,
-      hasSignInError: signIn.isError,
+  const walletClient = account?.walletClient ?? null
+  const [state, send] = useMachine(
+    machine.provide({
+      actors: {
+        connect: fromPromise(({ input }) =>
+          connectWallet(input, wagmiConfig.chains, {
+            connect: connectAsync,
+            switchChain: switchChainAsync,
+          }),
+        ),
+      },
     }),
-    [
-      isConnected,
-      isSignInNeeded,
-      isAccountSettled,
-      signIn.isPending,
-      signIn.isError,
-    ],
+    {
+      input: {
+        isAccountSettled,
+      },
+    },
   )
-  const [state, send, actor] = useMachine(machine, { input: session })
   useEffect(() => {
-    send({ type: 'SESSION_UPDATED', session })
-  }, [send, session])
-  useConnectionEffect({
-    onConnect: ({ isReconnected }) =>
-      send({ type: 'CONNECTED', isReconnected }),
-    onDisconnect: () => send({ type: 'DISCONNECTED' }),
-  })
+    send({ type: 'ACCOUNT_UPDATED', isAccountSettled })
+  }, [send, isAccountSettled])
 
   const openConnectModal = useCallback(() => send({ type: 'OPEN' }), [send])
   const isOpen = state.hasTag('open')
   const isAuth = state.hasTag('auth')
+  const isSigning = state.hasTag('signing')
   const connectModalOpen = isOpen && state.context.entry === 'connect'
   const value = useMemo(
     () => ({ openConnectModal, connectModalOpen }),
@@ -87,36 +109,17 @@ export const WalletConnectionProvider = ({
   )
 
   useHotkeySequence(['S', 'K', 'I', 'P'], () => send({ type: 'SKIP' }), {
-    enabled: isAuth && !signIn.isPending,
+    enabled: isAuth,
     ignoreInputs: true,
     preventDefault: false,
     stopPropagation: false,
     timeout: 1000,
   })
 
-  const handleConnect = async (connector: Connector) => {
-    const event = {
-      type: 'CONNECT',
-      connectorId: connector.uid,
-      usesOwnModal: connector.id === WALLETCONNECT_ID,
-    } as const
-    if (!actor.getSnapshot().can(event)) return
-    send(event)
-    const outcome = await connectWallet(connector, wagmiConfig.chains, {
-      connect: connectAsync,
-      switchChain: switchChainAsync,
-    })
-    send({ type: 'CONNECT_RESULT', outcome, usesOwnModal: event.usesOwnModal })
-  }
-  const handleSignIn = async () => {
-    if (!account?.walletClient || !actor.getSnapshot().can({ type: 'SIGN_IN' }))
-      return
-    send({ type: 'SIGN_IN' })
-    try {
-      await signIn.mutateAsync({ walletClient: account.walletClient })
-    } catch (error) {
-      console.error('Failed to sign in:', error)
-    }
+  const handleConnect = (connector: Connector) =>
+    send({ type: 'CONNECT', connector })
+  const handleSignIn = () => {
+    if (walletClient) send({ type: 'SIGN_IN', walletClient })
   }
   const preventAuthDismissal = (event: Event) => {
     if (isAuth) event.preventDefault()
@@ -142,42 +145,32 @@ export const WalletConnectionProvider = ({
           role={isAuth ? 'alertdialog' : 'dialog'}
           showCloseButton={!isAuth}
         >
-          {match(state.value)
-            .with('choosing', () => (
-              <WalletPicker
-                error={
-                  state.context.connection.status === 'failed'
-                    ? state.context.connection.message
-                    : undefined
-                }
-                onConnect={handleConnect}
-                pendingConnectorId={
-                  'connectorId' in state.context.connection
-                    ? state.context.connection.connectorId
-                    : undefined
-                }
-              />
-            ))
-            .with('signIn', 'confirmSkip', () => (
-              <SignInContent
-                actions={{
-                  signIn: handleSignIn,
-                  skip: () => send({ type: 'SKIP' }),
-                  confirmSkip: () => send({ type: 'CONFIRM_SKIP' }),
-                  disconnect: () => void disconnect(),
-                }}
-                isConfirmingSkip={state.matches('confirmSkip')}
-                status={{
-                  isPending: signIn.isPending,
-                  isError: signIn.isError,
-                  isPreparing: !state.context.session.isAccountSettled,
-                  isDisconnecting,
-                  hasWalletClient: Boolean(account?.walletClient),
-                }}
-                titleRef={focusOnMount}
-              />
-            ))
-            .otherwise(() => null)}
+          {state.matches({ dialog: 'choosing' }) && (
+            <WalletPicker
+              error={state.context.connectionError}
+              onConnect={handleConnect}
+              pendingConnectorId={state.context.pendingConnectorId}
+            />
+          )}
+          {isAuth && (
+            <SignInContent
+              actions={{
+                signIn: handleSignIn,
+                skip: () => send({ type: 'SKIP' }),
+                confirmSkip: () => send({ type: 'CONFIRM_SKIP' }),
+                disconnect: () => void disconnect(),
+              }}
+              isConfirmingSkip={state.hasTag('confirmSkip')}
+              status={{
+                isPending: isSigning,
+                isError: state.hasTag('signInError'),
+                isPreparing: !isAccountSettled,
+                isDisconnecting,
+                hasWalletClient: Boolean(walletClient),
+              }}
+              titleRef={focusOnMount}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </ConnectModalContext.Provider>
