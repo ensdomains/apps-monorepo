@@ -1,69 +1,39 @@
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSelector } from '@xstate/store-react'
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react'
 import {
-  type GetConnectionReturnType,
-  getConnection,
-  watchConnection,
-} from '@wagmi/core'
-import { useMachine } from '@xstate/react'
-import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
-import { type Connector, useConnect, useSwitchChain } from 'wagmi'
-import { fromCallback, fromPromise } from 'xstate'
+  type Connector,
+  useConnect,
+  useConnection,
+  useConnectionEffect,
+  useSwitchChain,
+} from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { signInBackend } from '@/features/notifications/data/queries/auth'
+import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { useWalletDisconnect } from '@/lib/wallet'
-import { connectWallet } from '@/lib/wallet/stacks/custom/connect.helpers'
+import {
+  connectWallet,
+  WALLETCONNECT_ID,
+} from '@/lib/wallet/stacks/custom/connect.helpers'
 import { WalletPicker } from '@/lib/wallet/stacks/custom/WalletPicker'
 import { ConnectModalContext } from '@/lib/wallet/useConnectModal'
 import { backendAuthStore } from '@/utils/backend-client'
 import { SignInContent } from './components/SignInContent'
 import {
+  getConnectedDialogStep,
+  getConnectionError,
+  getConnectionResultDialogStep,
   isSmartAccountSettled,
-  walletConnectionMachine,
-} from './walletConnection.machine'
+  shouldShowSignIn,
+  type WalletDialogStep,
+} from './walletConnection.helpers'
 
-const machine = walletConnectionMachine.provide({
-  actors: {
-    observeConnection: fromCallback(({ sendBack }) => {
-      const report = (
-        connection: GetConnectionReturnType,
-        previous?: GetConnectionReturnType,
-      ) => {
-        if (connection.status === previous?.status) return
-        if (connection.isConnected || connection.status === 'disconnected') {
-          sendBack({
-            type: 'CONNECTION_CHANGED',
-            isConnected: connection.isConnected,
-            isReconnected: previous?.status === 'reconnecting',
-          })
-        }
-      }
-      const unsubscribe = watchConnection(wagmiConfig, { onChange: report })
-      report(getConnection(wagmiConfig))
-      return unsubscribe
-    }),
-    observeAuth: fromCallback(({ sendBack }) => {
-      const report = () => {
-        const { authKey, modalDismissed } = backendAuthStore.get().context
-        sendBack({
-          type: 'AUTH_CHANGED',
-          isSignInNeeded: !authKey && !modalDismissed,
-        })
-      }
-      const subscription = backendAuthStore.subscribe(report)
-      report()
-      return () => subscription.unsubscribe()
-    }),
-    signIn: fromPromise(({ input }) => signInBackend({ walletClient: input })),
-  },
-  actions: {
-    dismissAuth: () => backendAuthStore.trigger.dismissModal(),
-    reportSignInError: (_, { error }) =>
-      console.error('Failed to sign in:', error),
-  },
-})
+const SIGN_IN_MUTATION_KEY = [{ scope: 'walletDialogSignIn' }] as const
+
 const focusOnMount = (element: HTMLElement | null) => element?.focus()
 
 export const WalletConnectionProvider = ({
@@ -71,56 +41,111 @@ export const WalletConnectionProvider = ({
 }: {
   readonly children?: ReactNode
 }) => {
+  const [step, setStep] = useState<WalletDialogStep>('closed')
+  const [isConfirmingSkip, setIsConfirmingSkip] = useState(false)
+  const { isConnected } = useConnection()
   const account = useSmartAccountContextSafe()
+  const isAccountSettled = isSmartAccountSettled(account)
+  const walletClient = account?.walletClient
+  const isSignInNeeded = useSelector(
+    backendAuthStore,
+    (state) => !state.context.authKey && state.context.modalDismissed === false,
+  )
+  const queryClient = useQueryClient()
+  const signIn = useMutation({
+    ...signInBackendMutation,
+    mutationKey: SIGN_IN_MUTATION_KEY,
+  })
   const { disconnect, isDisconnecting } = useWalletDisconnect()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
-  const isAccountSettled = isSmartAccountSettled(account)
-  const walletClient = account?.walletClient ?? null
-  const [state, send] = useMachine(
-    machine.provide({
-      actors: {
-        connect: fromPromise(({ input }) =>
-          connectWallet(input, wagmiConfig.chains, {
-            connect: connectAsync,
-            switchChain: switchChainAsync,
-          }),
-        ),
-      },
-    }),
-    {
-      input: {
-        isAccountSettled,
-      },
+  const connection = useMutation({
+    mutationFn: (connector: Connector) =>
+      connectWallet(connector, wagmiConfig.chains, {
+        connect: connectAsync,
+        switchChain: switchChainAsync,
+      }),
+  })
+  // Keep the request locked through chain switching; disconnect detaches its UI result.
+  const request = useRef<'owned' | 'detached' | null>(null)
+  useConnectionEffect({
+    onConnect: ({ isReconnected }) => {
+      const ownsConnection = request.current === 'owned'
+      setStep((current) =>
+        getConnectedDialogStep({
+          step: current,
+          ownsConnection,
+          isReconnected,
+        }),
+      )
     },
-  )
-  useEffect(() => {
-    send({ type: 'ACCOUNT_UPDATED', isAccountSettled })
-  }, [send, isAccountSettled])
+    onDisconnect: () => {
+      if (request.current !== null) request.current = 'detached'
+      setStep('closed')
+    },
+  })
 
-  const openConnectModal = useCallback(() => send({ type: 'OPEN' }), [send])
-  const isOpen = state.hasTag('open')
-  const isAuth = state.hasTag('auth')
-  const isSigning = state.hasTag('signing')
-  const connectModalOpen = isOpen && state.context.entry === 'connect'
+  const isSignInStep = step === 'signIn' || step === 'session'
+  const isAuth = shouldShowSignIn({
+    step,
+    isConnected,
+    isSignInNeeded,
+    isAccountSettled,
+  })
+  const isOpen = isAuth || step === 'wallets'
+  // Reset local UI choices when authentication completes or the prompt closes.
+  if (isSignInStep && !isAuth) setStep('closed')
+  if (isAuth && step === 'closed') setStep('session')
+  if (!isAuth && isConfirmingSkip) setIsConfirmingSkip(false)
+
+  const openConnectModal = useCallback(() => {
+    if (request.current === null) connection.reset()
+    setStep('wallets')
+  }, [connection.reset])
+  const connectModalOpen = isOpen && step !== 'closed' && step !== 'session'
   const value = useMemo(
     () => ({ openConnectModal, connectModalOpen }),
     [openConnectModal, connectModalOpen],
   )
 
-  useHotkeySequence(['S', 'K', 'I', 'P'], () => send({ type: 'SKIP' }), {
-    enabled: isAuth,
+  const handleConnect = async (connector: Connector) => {
+    if (request.current !== null) return
+    request.current = 'owned'
+    if (connector.id === WALLETCONNECT_ID) setStep('pairing')
+    try {
+      const outcome = await connection.mutateAsync(connector)
+      if (request.current === 'owned')
+        setStep((current) => getConnectionResultDialogStep(current, outcome))
+      else connection.reset()
+    } finally {
+      request.current = null
+    }
+  }
+  const handleSignIn = async () => {
+    if (
+      !walletClient ||
+      !isAccountSettled ||
+      queryClient.isMutating({ mutationKey: SIGN_IN_MUTATION_KEY }) > 0
+    )
+      return
+    setIsConfirmingSkip(false)
+    try {
+      await signIn.mutateAsync({ walletClient })
+    } catch (error) {
+      console.error('Failed to sign in:', error)
+    }
+  }
+  const handleSkip = () => {
+    if (queryClient.isMutating({ mutationKey: SIGN_IN_MUTATION_KEY }) === 0)
+      backendAuthStore.trigger.dismissModal()
+  }
+  useHotkeySequence(['S', 'K', 'I', 'P'], handleSkip, {
+    enabled: isAuth && !signIn.isPending,
     ignoreInputs: true,
     preventDefault: false,
     stopPropagation: false,
     timeout: 1000,
   })
-
-  const handleConnect = (connector: Connector) =>
-    send({ type: 'CONNECT', connector })
-  const handleSignIn = () => {
-    if (walletClient) send({ type: 'SIGN_IN', walletClient })
-  }
   const preventAuthDismissal = (event: Event) => {
     if (isAuth) event.preventDefault()
   }
@@ -130,7 +155,7 @@ export const WalletConnectionProvider = ({
       {children}
       <Dialog
         onOpenChange={(open) => {
-          if (!open) send({ type: 'DISMISS' })
+          if (!open && !isAuth) setStep('closed')
         }}
         open={isOpen}
       >
@@ -145,25 +170,30 @@ export const WalletConnectionProvider = ({
           role={isAuth ? 'alertdialog' : 'dialog'}
           showCloseButton={!isAuth}
         >
-          {state.matches({ dialog: 'choosing' }) && (
+          {step === 'wallets' && !isAuth && (
             <WalletPicker
-              error={state.context.connectionError}
+              error={getConnectionError(
+                connection.data,
+                connection.variables?.id,
+              )}
               onConnect={handleConnect}
-              pendingConnectorId={state.context.pendingConnectorId}
+              pendingConnectorId={
+                connection.isPending ? connection.variables?.uid : undefined
+              }
             />
           )}
           {isAuth && (
             <SignInContent
               actions={{
                 signIn: handleSignIn,
-                skip: () => send({ type: 'SKIP' }),
-                confirmSkip: () => send({ type: 'CONFIRM_SKIP' }),
+                skip: handleSkip,
+                confirmSkip: () => setIsConfirmingSkip(true),
                 disconnect: () => void disconnect(),
               }}
-              isConfirmingSkip={state.hasTag('confirmSkip')}
+              isConfirmingSkip={isConfirmingSkip}
               status={{
-                isPending: isSigning,
-                isError: state.hasTag('signInError'),
+                isPending: signIn.isPending,
+                isError: signIn.isError,
                 isPreparing: !isAccountSettled,
                 isDisconnecting,
                 hasWalletClient: Boolean(walletClient),

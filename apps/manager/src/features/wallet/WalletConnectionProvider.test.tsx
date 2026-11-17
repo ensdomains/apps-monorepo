@@ -30,20 +30,15 @@ vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
     ...actual,
+    useConnection: wagmiMock.getConnection,
+    useConnectionEffect: (
+      parameters: Parameters<typeof actual.useConnectionEffect>[0],
+    ) => wagmiMock.connectionEffects(parameters),
     useConnectors: wagmiMock.useConnectors,
     useConnect: wagmiMock.useConnect,
     useSwitchChain: wagmiMock.useSwitchChain,
   }
 })
-
-vi.mock('@wagmi/core', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@wagmi/core')>()),
-  getConnection: wagmiMock.getConnection,
-  watchConnection: (_config: unknown, parameters: unknown) => {
-    wagmiMock.connectionEffects(parameters)
-    return () => {}
-  },
-}))
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => smartAccountMock)
 
@@ -61,9 +56,19 @@ vi.mock(
     ...(await importOriginal<
       typeof import('@/features/notifications/data/queries/auth')
     >()),
-    signInBackend: signInMock,
+    signInBackendMutation: { mutationFn: signInMock },
   }),
 )
+
+const notifyConnection = (
+  connection: { readonly isConnected: boolean; readonly status: string },
+  previous: { readonly isConnected: boolean; readonly status: string },
+) => {
+  const effects = wagmiMock.connectionEffects.mock.lastCall?.[0]
+  if (connection.isConnected)
+    effects.onConnect({ isReconnected: previous.status === 'reconnecting' })
+  else effects.onDisconnect()
+}
 
 const pressKeys = (keys: string[]) => {
   for (const key of keys) {
@@ -102,17 +107,7 @@ describe('WalletConnectionProvider', () => {
     showModal()
   })
 
-  it('opens for a wallet restored while subscribing, without visible skip controls', () => {
-    wagmiMock.getConnection.mockReturnValue({
-      isConnected: false,
-      status: 'disconnected',
-    })
-    wagmiMock.connectionEffects.mockImplementationOnce(() => {
-      wagmiMock.getConnection.mockReturnValue({
-        isConnected: true,
-        status: 'connected',
-      })
-    })
+  it('does not render visible skip controls', () => {
     render(<WalletConnectionProvider />)
 
     expect(
@@ -251,7 +246,7 @@ describe('WalletConnectionProvider', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(signInMock).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(signInMock).toHaveBeenCalledTimes(2))
     expect(
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
@@ -346,7 +341,7 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
             isConnected: true,
             status: 'connected',
           })
-          wagmiMock.connectionEffects.mock.lastCall?.[0].onChange(
+          notifyConnection(
             { isConnected: true, status: 'connected' },
             { isConnected: false, status: 'connecting' },
           )
@@ -432,20 +427,12 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
 
-    wagmiMock.getConnection.mockReturnValue({
-      isConnected: false,
-      status: 'disconnected',
-    })
     rerender(renderUi())
     expect(screen.getByRole('alertdialog')).toBe(dialog)
     expect(
       screen.getByRole('button', { name: 'Preparing your account…' }),
     ).toBeDisabled()
 
-    wagmiMock.getConnection.mockReturnValue({
-      isConnected: true,
-      status: 'connected',
-    })
     setAccount(true)
     rerender(renderUi())
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -566,7 +553,7 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
           isConnected: true,
           status: 'connected',
         })
-        wagmiMock.connectionEffects.mock.lastCall?.[0].onChange(
+        notifyConnection(
           { isConnected: true, status: 'connected' },
           { isConnected: false, status: 'connecting' },
         )
@@ -584,7 +571,7 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
         isConnected: false,
         status: 'disconnected',
       })
-      wagmiMock.connectionEffects.mock.lastCall?.[0].onChange(
+      notifyConnection(
         { isConnected: false, status: 'disconnected' },
         { isConnected: true, status: 'connected' },
       )
