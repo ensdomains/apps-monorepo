@@ -3,18 +3,25 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
+  useReducer,
 } from 'react'
-import { useConnection } from 'wagmi'
-import { ConnectWalletDialog } from './ConnectWalletDialog'
+import { useConnectionEffect } from 'wagmi'
+import {
+  type ConnectFlow,
+  type ConnectFlowEvent,
+  isConnectDialogOpen,
+  nextConnectFlow,
+} from './connectFlow'
 
 type ConnectModalContextValue = {
   /** Open the wallet-selection modal. */
   openConnectModal: () => void
   /** Whether the modal is currently open. */
   connectModalOpen: boolean
+  /** Where a connect started from the dialog has got to. */
+  readonly connectFlow: ConnectFlow
+  readonly sendConnectFlow: (event: ConnectFlowEvent) => void
 }
 
 const ConnectModalContext = createContext<ConnectModalContextValue | null>(null)
@@ -27,34 +34,37 @@ const ConnectModalContext = createContext<ConnectModalContextValue | null>(null)
 const NOOP_CONNECT_MODAL: ConnectModalContextValue = {
   openConnectModal: () => {},
   connectModalOpen: false,
+  connectFlow: 'closed',
+  sendConnectFlow: () => {},
 }
 
-/**
- * Owns the custom wallet-selection modal. Consumed only by the app-level
- * `lib/wallet/useConnectModal` wrapper (the vendor abstraction) — never import
- * this hook from feature code. Mount once, inside `WagmiProvider`.
- */
+// Owns connect-flow state; BackendAuthModal renders the dialog below the smart-account provider.
 export const ConnectModalProvider = ({ children }: { children: ReactNode }) => {
-  const [open, setOpen] = useState(false)
-  const { isConnected } = useConnection()
+  const [connectFlow, sendConnectFlow] = useReducer(nextConnectFlow, 'closed')
+  const openConnectModal = useCallback(() => sendConnectFlow('opened'), [])
 
-  const openConnectModal = useCallback(() => setOpen(true), [])
-
-  // Close the modal once a connection lands (covers connections that complete
-  // outside the dialog, e.g. an eager reconnect).
-  useEffect(() => {
-    if (isConnected) setOpen(false)
-  }, [isConnected])
+  // Subscribe to connections, eager reconnects and disconnects.
+  const onConnect = useCallback(
+    ({ isReconnected }: { readonly isReconnected: boolean }) =>
+      sendConnectFlow(isReconnected ? 'reconnected' : 'connected'),
+    [],
+  )
+  const onDisconnect = useCallback(() => sendConnectFlow('disconnected'), [])
+  useConnectionEffect({ onConnect, onDisconnect })
 
   const value = useMemo(
-    () => ({ openConnectModal, connectModalOpen: open }),
-    [openConnectModal, open],
+    () => ({
+      openConnectModal,
+      connectModalOpen: isConnectDialogOpen(connectFlow),
+      connectFlow,
+      sendConnectFlow,
+    }),
+    [openConnectModal, connectFlow],
   )
 
   return (
     <ConnectModalContext.Provider value={value}>
       {children}
-      <ConnectWalletDialog onOpenChange={setOpen} open={open} />
     </ConnectModalContext.Provider>
   )
 }

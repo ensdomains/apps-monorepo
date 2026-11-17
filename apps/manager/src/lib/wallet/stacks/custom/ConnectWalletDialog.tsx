@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
+import { useCustomConnectModal } from './ConnectModalProvider'
 import {
   connectOnSupportedChain,
   isCoinbase,
@@ -98,15 +99,34 @@ type WalletOption = {
   | { readonly href: string; readonly connector?: never }
 )
 
+/** Which step the dialog shows, or `closed`. */
+export type ConnectDialogView = 'closed' | ConnectDialogStep
+type ConnectDialogStep = 'choose-wallet' | 'sign-in'
+
+// A stable ref callback announces sign-in and retains focus when the wallet list unmounts.
+const focusOnMount = (element: HTMLElement | null) => element?.focus()
+
 type ConnectWalletDialogProps = {
-  readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
+  readonly view: ConnectDialogView
+  /** Content of the sign-in step; rendered here so the dialog stays one root. */
+  readonly signInStep: (props: {
+    readonly titleRef: (element: HTMLElement | null) => void
+  }) => ReactNode
 }
 
 export const ConnectWalletDialog = ({
-  open,
-  onOpenChange,
+  view,
+  signInStep,
 }: ConnectWalletDialogProps) => {
+  const { sendConnectFlow } = useCustomConnectModal()
+  const open = view !== 'closed'
+  // Retain the last step during the closing animation to avoid flashing the wallet list.
+  const [shownStep, setShownStep] = useState<ConnectDialogStep>('choose-wallet')
+  if (view !== 'closed' && view !== shownStep) {
+    setShownStep(view)
+  }
+  const isSignInStep = shownStep === 'sign-in'
+
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
@@ -172,10 +192,13 @@ export const ConnectWalletDialog = ({
       error: e,
     })
 
-    if (usesOwnModal && isConnectionCancelled(e)) return
+    if (usesOwnModal && isConnectionCancelled(e)) {
+      sendConnectFlow('pairing-cancelled')
+      return
+    }
 
     setError(normalizeConnectError(e))
-    if (usesOwnModal) onOpenChange(true)
+    if (usesOwnModal) sendConnectFlow('pairing-failed')
   }
 
   const connect = async (connector: Connector) => {
@@ -191,10 +214,10 @@ export const ConnectWalletDialog = ({
 
     // WalletConnect renders its own full-screen QR modal, so close ours first
     // to avoid stacking; injected/Coinbase keep ours open with a per-row
-    // "Connecting…" state and dismiss it only on success.
+    // "Connecting…" state and move on to sign-in only on success.
     const usesOwnModal = connector.id === WALLETCONNECT_ID
     if (usesOwnModal) {
-      onOpenChange(false)
+      sendConnectFlow('pairing-started')
     }
 
     try {
@@ -207,7 +230,6 @@ export const ConnectWalletDialog = ({
         onChainSwitchFailed: (error) =>
           logger.error('[wallet] connected, but chain switch failed', error),
       })
-      onOpenChange(false)
     } catch (e) {
       handleConnectError(e, usesOwnModal)
     } finally {
@@ -293,31 +315,60 @@ export const ConnectWalletDialog = ({
     )
   }
 
+  // The sign-in step can't be dismissed, like the standalone sign-in modal.
+  const preventWhileSigningIn = (event: Event) => {
+    if (isSignInStep) event.preventDefault()
+  }
+
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="gap-5 p-8 sm:max-w-100">
-        <DialogHeader>
-          <DialogTitle>Connect a wallet</DialogTitle>
-        </DialogHeader>
+    <Dialog
+      onOpenChange={(isOpen) => {
+        if (!isOpen) sendConnectFlow('dismissed')
+      }}
+      open={open}
+    >
+      <DialogContent
+        className={cn('p-8 sm:max-w-100', isSignInStep ? 'gap-6' : 'gap-5')}
+        onEscapeKeyDown={preventWhileSigningIn}
+        onInteractOutside={preventWhileSigningIn}
+        // Preserve heading focus when reopening after WalletConnect pairing.
+        onOpenAutoFocus={preventWhileSigningIn}
+        // Like the standalone sign-in modal: it needs an answer to go on.
+        role={isSignInStep ? 'alertdialog' : 'dialog'}
+        showCloseButton={!isSignInStep}
+      >
+        {isSignInStep ? (
+          signInStep({ titleRef: focusOnMount })
+        ) : (
+          <>
+            <DialogHeader className="items-center text-center sm:text-center">
+              <DialogTitle className="font-medium text-ens-blue-midnight text-xl tracking-tight">
+                Connect a wallet
+              </DialogTitle>
+            </DialogHeader>
 
-        <div className="flex flex-col gap-2">
-          {prioritizedWallets.map(renderWallet)}
+            <div className="flex flex-col gap-2">
+              {prioritizedWallets.map(renderWallet)}
 
-          {discoveredWallets.length > 0 && (
-            <div className="mt-1 flex items-center gap-2 px-1">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-muted-foreground text-xs">Detected</span>
-              <span className="h-px flex-1 bg-border" />
+              {discoveredWallets.length > 0 && (
+                <div className="mt-1 flex items-center gap-2 px-1">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-muted-foreground text-xs">
+                    Detected
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
+
+              {discoveredWallets.map(renderWallet)}
             </div>
-          )}
 
-          {discoveredWallets.map(renderWallet)}
-        </div>
-
-        {error && (
-          <p className="text-destructive text-sm" role="alert">
-            {error}
-          </p>
+            {error && (
+              <p className="text-destructive text-sm" role="alert">
+                {error}
+              </p>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>

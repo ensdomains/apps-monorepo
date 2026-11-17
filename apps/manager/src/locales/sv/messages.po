@@ -554,7 +554,7 @@ msgstr ""
 msgid "Auth address:"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Authenticate to continue"
 msgstr ""
 
@@ -979,7 +979,7 @@ msgid "Content hash"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Continue"
 msgstr ""
 
@@ -1004,11 +1004,11 @@ msgstr ""
 msgid "Continue to Telegram if sign-in did not open automatically. You can keep using ENS Manager, or copy the sign-in link to another browser and return here afterward."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Continue without signing in"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Continue without signing in?"
 msgstr ""
 
@@ -1230,11 +1230,11 @@ msgid "Discard unresolved renewal?"
 msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Disconnect"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Disconnecting..."
 msgstr ""
 
@@ -2354,7 +2354,7 @@ msgstr ""
 msgid "Please finish connecting your wallet, then try again"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Please sign in with your connected wallet."
 msgstr ""
 
@@ -2376,6 +2376,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Preparing wallet..."
+msgstr ""
+
+#: src/features/wallet/components/SignInContent.tsx
+msgid "Preparing your account…"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -3147,7 +3151,7 @@ msgstr ""
 msgid "Sign approval"
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Sign in"
 msgstr ""
 
@@ -3187,16 +3191,16 @@ msgstr ""
 msgid "Signature cancelled. You can try again."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Signing didn't go through. Please try again."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Signing in is the recommended way to use the ENS App. It enables notifications for transfers and expirations, and saved items like favorites and searches."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Signing in..."
 msgstr ""
 
@@ -3781,7 +3785,7 @@ msgstr ""
 #: src/features/profile/components/view/ProfileView.tsx
 #: src/features/register-v2/workflow/pricing/components/PaymentAction.tsx
 #: src/features/renew/workflow/components/RenewalRouteError.tsx
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Try again"
 msgstr ""
 
@@ -4157,7 +4161,7 @@ msgstr ""
 msgid "Wallet account is not ready. Wait for your account to finish connecting, then try again."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "Wallet client missing, please reconnect your wallet and try again."
 msgstr ""
 
@@ -4368,7 +4372,7 @@ msgstr ""
 msgid "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
 msgstr ""
 
-#: src/features/wallet/components/BackendAuthModal.tsx
+#: src/features/wallet/components/SignInContent.tsx
 msgid "You can sign in anytime from your wallet menu."
 msgstr ""
 

@@ -7,3 +7,9 @@ export const useConnectModal = () => {
   const { openConnectModal, connectModalOpen } = useCustomConnectModal()
   return { openConnectModal, connectModalOpen }
 }
+
+// For BackendAuthModal, the sole owner of the wallet dialogs.
+export const useConnectFlow = () => {
+  const { connectFlow, sendConnectFlow } = useCustomConnectModal()
+  return { connectFlow, sendConnectFlow }
+}

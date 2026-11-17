@@ -155,10 +155,7 @@ export function getBackendAuthDialog(page: Page): Locator {
  *     introduces external flakiness).
  *   - The modal blocks pointer events on the rest of the page; until
  *     it closes, no test can interact with anything else.
- *   - The modal appears AFTER `smartAccount.isAccountReady`, which on a
- *     fresh fork can take 30-60 s (Rhinestone SCA deploy + HCA
- *     registration + session enable). The helper therefore needs a
- *     generous wait window.
+ *   - The integrated sign-in step appears before account preparation finishes; this helper still waits for preparation before skipping.
  *
  * Tests that want to exercise the SIWE flow itself should call
  * `signInBackendAuthModal` instead.
@@ -182,12 +179,24 @@ export async function dismissBackendAuthModal(
     return
   }
 
+  // Preserve the old readiness guarantee even when sign-in appears during account preparation.
+  await expect(
+    dialog.getByRole('button', {
+      name: 'Preparing your account…',
+      exact: true,
+    }),
+  ).toBeHidden({ timeout })
+  const overlaySlot =
+    (await dialog.getAttribute('data-slot')) === 'dialog-content'
+      ? 'dialog-overlay'
+      : 'alert-dialog-overlay'
+
   console.log('[manager-auth] BackendAuthModal visible — typing SKIP')
   await page.keyboard.type('skip', { delay: 50 })
 
-  // Wait for the dialog overlay to disappear so subsequent navigations
-  // are clean and pointer-events on the page are restored.
-  const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+  // Wait for the actual dialog and its overlay, whichever sign-in surface was shown.
+  await dialog.waitFor({ state: 'hidden', timeout: 10_000 })
+  const overlay = page.locator(`[data-slot="${overlaySlot}"]`)
   await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {
     // Best-effort: if the overlay lingers, downstream interactions
     // will hit retry logic via Playwright's auto-waiting anyway.
