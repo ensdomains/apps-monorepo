@@ -50,7 +50,8 @@ vi.mock('@/features/profile/service/profileExpiry', () => ({
   }),
   getProfileExpiryResultStatus: () => ({
     isInGrace: false,
-    displayExpiryDate: null,
+    expiryDate: null,
+    graceEndDate: null,
   }),
 }))
 

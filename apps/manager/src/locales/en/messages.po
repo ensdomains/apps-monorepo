@@ -1461,7 +1461,7 @@ msgstr "Existing balance"
 msgid "Expires"
 msgstr "Expires"
 
-#: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NameRow.tsx
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 
@@ -1657,6 +1657,12 @@ msgstr "Go to slide {0}"
 #: src/features/grace/components/GracePeriodBadge.tsx
 msgid "Grace period"
 msgstr "Grace period"
+
+#: src/features/dashboard/components/NameRow.tsx
+#: src/features/dashboard/components/PrimaryNameCard.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Grace period ends"
+msgstr "Grace period ends"
 
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Growing your corner of the decentralized web"
