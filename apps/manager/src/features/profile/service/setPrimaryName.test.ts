@@ -525,7 +525,8 @@ describe('setPrimaryNameWithEthFallback', () => {
       chainId: CHAIN_ID,
     })
 
-  const ownerSetName = {
+  type SentCall = { readonly to: Address; readonly data: Hex }
+  const ownerSetName: SentCall = {
     to: DEFAULT_ADAPTER,
     data: encodeFunctionData({
       abi: adapterAbi,
@@ -533,7 +534,7 @@ describe('setPrimaryNameWithEthFallback', () => {
       args: [EOA_OWNER, 'leon.eth'],
     }),
   }
-  const ownerClaim = {
+  const ownerClaim: SentCall = {
     to: REVERSE_ADAPTER,
     data: encodeFunctionData({
       abi: adapterAbi,
@@ -545,7 +546,7 @@ describe('setPrimaryNameWithEthFallback', () => {
   it.each<{
     readonly case: string
     readonly addrReverseResolver: Address
-    readonly sent: readonly { readonly to: Address; readonly data: Hex }[]
+    readonly sent: readonly SentCall[]
   }>([
     {
       case: 'writes default.reverse through the adapter',
