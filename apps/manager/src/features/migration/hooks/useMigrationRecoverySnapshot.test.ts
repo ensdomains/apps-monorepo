@@ -273,6 +273,39 @@ describe('useMigrationRecoverySnapshot', () => {
     ])
   })
 
+  it('does not delete a newer snapshot while discarding an unused snapshot', () => {
+    const newerSnapshot = makeRecoverySnapshot()
+    const unusedSnapshot: MigrationRecoverySnapshot = {
+      ...newerSnapshot,
+      remainingOperations: newerSnapshot.registryOperations,
+      completedOperations: [],
+    }
+
+    persistMigrationRecoverySnapshot(scope, newerSnapshot)
+    const storageKey = localStorage.key(0)
+    const newerStoredJournal = storageKey
+      ? localStorage.getItem(storageKey)
+      : null
+    if (!storageKey || !newerStoredJournal) {
+      throw new Error('Expected the migration journal to be stored')
+    }
+
+    persistMigrationRecoverySnapshot(scope, unusedSnapshot)
+    const getItem = localStorage.getItem.bind(localStorage)
+    const getItemSpy = vi
+      .spyOn(localStorage, 'getItem')
+      .mockImplementation((key) => {
+        if (getItemSpy.mock.calls.length === 2) {
+          localStorage.setItem(key, newerStoredJournal)
+        }
+        return getItem(key)
+      })
+
+    renderHook(() => useMigrationRecoverySnapshot())
+
+    expect(loadMigrationRecoverySnapshot(scope)).toEqual(newerSnapshot)
+  })
+
   it('deduplicates the global storage listener across hook instances', () => {
     const storageEventTarget = window as unknown as StorageEventTarget
     const addEventListener = vi.spyOn(storageEventTarget, 'addEventListener')
