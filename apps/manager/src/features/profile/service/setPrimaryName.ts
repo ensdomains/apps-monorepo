@@ -500,12 +500,6 @@ async function setPrimaryNameFromOwner({
     )
   }
 
-  await assertPrimaryNameForwardResolution(
-    publicClient,
-    cleanName,
-    ownerAddress,
-  )
-
   const calls = primaryNameAdapterCalls(
     'owner',
     ownerAddress,
@@ -515,6 +509,12 @@ async function setPrimaryNameFromOwner({
   const signer: Signer = { type: 'eoa', walletClient, connector }
 
   for (const { to, data, value } of calls) {
+    // Rechecked per transaction, so a name that stops resolving never clears addr.reverse.
+    await assertPrimaryNameForwardResolution(
+      publicClient,
+      cleanName,
+      ownerAddress,
+    )
     const txId = transactionManager.startTransaction(
       {
         type: 'custom',

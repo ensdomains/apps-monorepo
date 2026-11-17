@@ -583,6 +583,29 @@ describe('setPrimaryNameWithEthFallback', () => {
     },
   )
 
+  it('does not clear addr.reverse once the name stops resolving to the owner', async () => {
+    start.mockReturnValue('tx-name')
+    vi.mocked(getEnsAddress)
+      .mockResolvedValueOnce(EOA_OWNER)
+      .mockResolvedValueOnce(HCA_ADDRESS)
+
+    await expect(
+      submit(
+        paymentClient({
+          hca: 0n,
+          wallet: 0n,
+          addrReverseResolver: '0x00000000000000000000000000000000000000aa',
+        }),
+      ),
+    ).rejects.toThrow(/does not resolve to the owner/)
+
+    expect(start.mock.calls.map(([intent]) => intent)).toEqual([
+      expect.objectContaining({
+        request: expect.objectContaining(ownerSetName),
+      }),
+    ])
+  })
+
   it.each<{
     readonly case: string
     readonly reads: Parameters<typeof paymentClient>[0]
