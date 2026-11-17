@@ -188,3 +188,10 @@ export const LATEST_REGISTRATIONS = /* GraphQL */ `
     }
   }
 `
+
+/** Whether the subgraph has ever seen a resolver contract. */
+export const RESOLVER_EXISTS = /* GraphQL */ `
+  query ResolverExists($address: String!) {
+    resolvers(first: 1, where: { address: $address }) { id }
+  }
+`

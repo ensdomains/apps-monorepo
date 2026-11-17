@@ -11,6 +11,7 @@ import { toPowerName } from '../shared/powers'
 import { secondsToDate, toAccount, toHash } from '../shared/values'
 import type {
   RegistryRow,
+  ResolverActivity,
   ResolverBinding,
   RoleAssignment,
   V2Domain,
@@ -132,3 +133,13 @@ export const toPowersByName = (
         ],
       ]),
   )
+
+/** Indexed when either source has seen the contract act as a resolver: an event, a role, or a name bound to it. */
+export const isIndexedResolver = (
+  v2: ResolverActivity,
+  v1Rows: readonly unknown[],
+): boolean =>
+  (v2.resolver !== null &&
+    (v2.resolver.events.length > 0 || v2.resolver.roleHolderCount > 0)) ||
+  v2.resolvers.length > 0 ||
+  v1Rows.length > 0

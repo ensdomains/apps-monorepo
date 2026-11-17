@@ -25,6 +25,7 @@ import type {
   NameSummary,
   NamesForAddressQuery,
 } from '../reads/namesForAddress.types'
+import type { ResolverOverview } from '../reads/registry.types'
 import { readBlockTimestamps } from '../shared/blockTimestamps'
 import { createGraphqlTransport, type GraphqlRequest } from '../shared/graphql'
 import {
@@ -74,6 +75,7 @@ import {
 import * as V2 from './queries'
 import { type ResolverRecords, toRecordKeys } from './records'
 import {
+  isIndexedResolver,
   toPowersByName,
   toRegistry,
   toRegistryLabel,
@@ -85,6 +87,7 @@ import {
 import type {
   Connection,
   RegistryRow,
+  ResolverActivity,
   ResolverBinding,
   RoleAssignment,
   V2Domain,
@@ -908,7 +911,19 @@ export const createZigensIndexer = ({
         first: size,
         skip,
       })
-      return readMerged({
+      const isIndexed = ResultAsync.combine([
+        zigens<ResolverActivity>(
+          V2.RESOLVER_ACTIVITY,
+          { address: address.toLowerCase() },
+          signal,
+        ),
+        ensNode<{ resolvers: readonly unknown[] }>(
+          V1.RESOLVER_EXISTS,
+          { address: address.toLowerCase() },
+          signal,
+        ),
+      ]).map(([v2, { resolvers }]) => isIndexedResolver(v2, resolvers))
+      const boundNames = readMerged({
         cursor,
         pageSize: size,
         readFirst: (after) =>
@@ -937,11 +952,17 @@ export const createZigensIndexer = ({
         // ENSv2 bindings first, then ENSv1; neither schema orders them alike.
         compare: () => -1,
         keyOf: (bound) => bound.namehash,
-      }).map((boundNames) => ({
-        address: toAccount(address) ?? address,
-        mirrorRegistry: null,
-        boundNames,
-      }))
+      })
+      return ResultAsync.combine([isIndexed, boundNames]).map(
+        ([indexed, names]): ResolverOverview | null =>
+          indexed
+            ? {
+                address: toAccount(address) ?? address,
+                mirrorRegistry: null,
+                boundNames: names,
+              }
+            : null,
+      )
     },
 
     getResolverLinks: ({ address, pageSize, cursor }, options) => {

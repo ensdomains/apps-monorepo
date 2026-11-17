@@ -227,3 +227,14 @@ export const META = /* GraphQL */ `
     _meta { block { number } hasIndexingErrors }
   }
 `
+
+/** What zigens has seen of a resolver; it answers `resolver(id)` for any address, used or not. */
+export const RESOLVER_ACTIVITY = /* GraphQL */ `
+  query ResolverActivity($address: String!) {
+    resolver(id: $address) {
+      roleHolderCount
+      events(first: 1) { id }
+    }
+    resolvers(first: 1, where: { address: $address, protocol: "v2" }) { id }
+  }
+`

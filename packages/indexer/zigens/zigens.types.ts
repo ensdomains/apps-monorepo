@@ -103,3 +103,11 @@ export type ResolverBinding = Readonly<{
     owner: AccountRef
   }> | null
 }>
+
+export type ResolverActivity = Readonly<{
+  resolver: Readonly<{
+    roleHolderCount: number
+    events: readonly Readonly<{ id: string }>[]
+  }> | null
+  resolvers: readonly Readonly<{ id: string }>[]
+}>

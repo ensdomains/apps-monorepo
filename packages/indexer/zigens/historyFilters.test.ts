@@ -143,6 +143,12 @@ describe('toEventWhere kinds', () => {
     ).toEqual({ type_in: ['LabelRegistered', 'EACRolesChanged'] })
   })
 
+  it('keeps non-root role changes when they are asked for with root ones', () => {
+    expect(
+      toEventWhere({ kinds: ['RootPermissionChanged', 'EACRolesChanged'] }),
+    ).toEqual({ type_in: ['EACRolesChanged'] })
+  })
+
   it('narrows to the root resource when only root role changes are asked for', () => {
     expect(toEventWhere({ kinds: ['RootPermissionChanged'] })).toEqual({
       type_in: ['EACRolesChanged'],
