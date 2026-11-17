@@ -1,6 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, History } from 'lucide-react'
+import { Calendar, CalendarDays, History } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { NameCopyButton } from '@/components/atoms/NameCopyButton/NameCopyButton'
@@ -61,14 +61,14 @@ const PrimaryNameNameplate = ({
 }
 
 const getExpiryLabel = (params: {
-  readonly displayExpiryDate: Date | null
+  readonly expiryDate: Date | null
   readonly isLoading: boolean
   readonly isNonExpiring?: boolean
   readonly loadingLabel: string
 }) => {
   if (params.isLoading) return params.loadingLabel
   if (params.isNonExpiring) return NON_EXPIRING_DATE_LABEL
-  return formatDashboardDate(params.displayExpiryDate)
+  return formatDashboardDate(params.expiryDate)
 }
 
 export const PrimaryNameCard = ({
@@ -88,7 +88,7 @@ export const PrimaryNameCard = ({
     ...profileExpiryQuery(primaryName ?? ''),
     enabled: !!primaryName,
   })
-  const { isInGrace, displayExpiryDate } =
+  const { isInGrace, expiryDate, graceEndDate } =
     getProfileExpiryResultStatus(reverseExpiry)
 
   const registeredDate =
@@ -101,7 +101,7 @@ export const PrimaryNameCard = ({
     ? t`Loading...`
     : formatDashboardDate(registeredDate)
   const expiryLabel = getExpiryLabel({
-    displayExpiryDate,
+    expiryDate,
     isLoading: isReverseExpiryLoading,
     isNonExpiring: reverseExpiry?.isNonExpiring,
     loadingLabel: t`Loading...`,
@@ -186,6 +186,22 @@ export const PrimaryNameCard = ({
                   <span className="text-ens-quartz-700">{expiryLabel}</span>
                 </div>
               </div>
+              {graceEndDate ? (
+                <div className="flex items-center gap-2">
+                  <CalendarDays
+                    className="size-5 text-ens-quartz-400"
+                    strokeWidth={1.5}
+                  />
+                  <div className="flex flex-wrap items-center gap-x-1.5 text-base leading-normal">
+                    <span className="whitespace-nowrap text-ens-quartz-400">
+                      <Trans>Grace period ends</Trans>
+                    </span>
+                    <span className="whitespace-nowrap text-ens-quartz-700">
+                      {formatDashboardDate(graceEndDate)}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
