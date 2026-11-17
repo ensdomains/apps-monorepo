@@ -4,6 +4,7 @@ import {
   permissionedResolverInitializeSnippet,
   permissionedResolverSetAddressSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { reverseRegistrarAdapterClaimWithHcaSnippet } from '@ensdomains/ensjs-abi/v2/reverseRegistrarAdapter'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Address, Hex } from 'viem'
 import {
@@ -227,9 +228,8 @@ describe('buildRevealBatch ordering', () => {
     // claimWithHCA(address,address), with resolver 0 so it only clears.
     expect(last?.data).toBe(
       encodeFunctionData({
-        abi: parseAbi([
-          'function claimWithHCA(address addr, address resolver) returns (bytes32)',
-        ]),
+        abi: reverseRegistrarAdapterClaimWithHcaSnippet,
+        functionName: 'claimWithHCA',
         args: [WALLET, '0x0000000000000000000000000000000000000000'],
       }),
     )
