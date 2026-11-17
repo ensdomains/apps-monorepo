@@ -7,6 +7,7 @@ import { useSubnameOwnerNotice } from '../../hooks/useSubnameOwnerNotice'
 export const SubnameOwnerNotice = (props: {
   readonly name: string
   readonly owner: Address
+  readonly registryAddress: Address
   readonly protocolVersion: ProtocolVersion
 }) => {
   const { isShown, parentName } = useSubnameOwnerNotice(props)

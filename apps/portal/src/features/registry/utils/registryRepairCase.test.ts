@@ -67,6 +67,7 @@ describe('shouldShowSubnameOwnerNotice', () => {
     shouldShowSubnameOwnerNotice({
       isV2: true,
       isOwner: true,
+      isSubname: true,
       isPendingUpgrade: true,
       canUpgradeRegistry: false,
       ...overrides,
@@ -79,6 +80,7 @@ describe('shouldShowSubnameOwnerNotice', () => {
   it.each([
     ['an ENSv1 name', { isV2: false }],
     ['a visitor who does not own the subname', { isOwner: false }],
+    ['a 2LD', { isSubname: false }],
     ['a current registry', { isPendingUpgrade: false }],
     ['an unchecked registry', { isPendingUpgrade: undefined }],
     ['the account that can upgrade the registry', { canUpgradeRegistry: true }],

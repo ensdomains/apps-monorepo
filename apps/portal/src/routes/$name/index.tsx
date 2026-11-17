@@ -437,6 +437,7 @@ const Profile = ({
       <SubnameOwnerNotice
         name={name}
         owner={ownerQuery.data.owner}
+        registryAddress={ownerQuery.data.registryAddress}
         protocolVersion={resolvedProtocolVersion}
       />
 

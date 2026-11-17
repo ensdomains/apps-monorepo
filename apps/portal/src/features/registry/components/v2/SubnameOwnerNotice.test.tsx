@@ -7,19 +7,10 @@ import { SubnameOwnerNotice } from './SubnameOwnerNotice'
 
 const OWNER: Address = '0x00000000000000000000000000000000000000a1'
 const OUTDATED: Address = '0x00000000000000000000000000000000000000b1'
-const OWN_SUBREGISTRY: Address = '0x00000000000000000000000000000000000000c1'
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
   useConnection: () => ({ address: OWNER }),
-}))
-
-// The subname's own registry comes first, then the registry holding it.
-vi.mock('@/features/registry/hooks/useNameRegistryDiscovery', () => ({
-  getNameRegistriesQueryOptions: ({ name }: { readonly name: string }) => ({
-    queryKey: ['nameRegistries', name],
-    queryFn: async () => [OWN_SUBREGISTRY, OUTDATED],
-  }),
 }))
 
 vi.mock('@/features/registry/queries/getIsRegistryPendingUpgrade', () => ({
@@ -34,7 +25,10 @@ vi.mock('@/features/registry/queries/getIsRegistryPendingUpgrade', () => ({
 }))
 
 vi.mock('@/features/registry/hooks/useHasSetSubregistryRole', () => ({
-  useHasSetSubregistryRole: () => ({ hasRole: false, isLoading: false }),
+  useHasSetSubregistryRole: (name: string) => ({
+    hasRole: name === 'sub.jooooe.eth',
+    isLoading: false,
+  }),
 }))
 
 describe('SubnameOwnerNotice', () => {
@@ -44,6 +38,7 @@ describe('SubnameOwnerNotice', () => {
         <SubnameOwnerNotice
           name="sub.jooooe.eth"
           owner={OWNER}
+          registryAddress={OUTDATED}
           protocolVersion="ENSv2"
         />
       </QueryClientProvider>,
