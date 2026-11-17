@@ -34,10 +34,19 @@ vi.mock('../../hooks/useRegistryLabels', () => ({
   }),
 }))
 
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadge: ({ children }: { children?: React.ReactNode }) => (
+    <span>{children}</span>
+  ),
+}))
+
+/** Whether the registry's own name is still being read. */
+let isRegistryPending = false
 vi.mock('../../hooks/useRegistry', () => ({
   getRegistryInfoQueryOptions: () => ({
     queryKey: ['registryInfo'],
-    queryFn: () => ({ name: 'parent.eth' }),
+    queryFn: () =>
+      isRegistryPending ? new Promise(() => {}) : { name: 'parent.eth' },
   }),
 }))
 
@@ -62,26 +71,49 @@ describe('RegistryLabelsTable expiry', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-11-05T12:00:00Z'))
     isParentPending = false
+    isRegistryPending = false
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('counts each label down to when it stops resolving with its registry’s name', async () => {
+  it('dates each label by when it stops resolving, naming its registry’s name when that comes first', async () => {
     render(
       <QueryClientProvider client={createTestQueryClient()}>
         <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
       </QueryClientProvider>,
     )
 
-    expect(await screen.findByText('With its parent')).toBeInTheDocument()
-    expect(rowText('right')).toMatch(/100 daysWith its parent/)
-    expect(rowText('right')).not.toMatch(/Never/)
-    expect(rowText('beep')).toMatch(
-      /2 years \d+ daysStops resolving with its parent in 100 days/,
+    expect(await screen.findByText('right')).toBeInTheDocument()
+    expect(rowText('right')).toContain(
+      'February 13, 2027 · Expires with parent.eth',
     )
-    expect(rowText('soon')).toMatch(/10 days\d/)
+    expect(rowText('beep')).toContain(
+      'February 13, 2027 · Expires with parent.eth',
+    )
+    expect(rowText('soon')).toContain('November 15, 2026')
+    expect(rowText('soon')).not.toContain('Expires with')
+  })
+
+  it('waits for the registry’s name before showing any label’s expiry', async () => {
+    isRegistryPending = true
+    const queryClient = createTestQueryClient()
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['registryLabels'])?.status).toBe(
+        'success',
+      ),
+    )
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(screen.getByText('Loading labels...')).toBeInTheDocument()
+    expect(screen.queryByText('Never')).toBeNull()
   })
 
   it('waits for the names above before showing any label’s expiry', async () => {

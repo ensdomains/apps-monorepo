@@ -1,4 +1,5 @@
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
+import { EntityBadge } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
 import {
@@ -7,43 +8,54 @@ import {
   type NameStatusInput,
 } from '@/features/renew/utils/nameExtension'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
-import { getEarlierParentExpiry } from '@/utils/names/addressNames'
+import {
+  type AddressNameItem,
+  getResolvingExpiry,
+} from '@/utils/names/addressNames'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 
 /** The expiry's UTC day, so every viewer sees the contract's date. */
-const formatExpiry = (date: Date) =>
+export const formatExpiry = (date: Date) =>
   formatDateTime(
     unixSecondsToPlainDateUtc(Math.floor(date.getTime() / MS_PER_SECOND)),
   )
 
-/** A name's expiry date, its parent's for a subname that lapses with it, noting a parent that expires first. */
-export const NameExpiry = (props: NameStatusInput) =>
-  match(props)
-    .with({ expiryDate: P.instanceOf(Date) }, ({ expiryDate }) => {
-      const parentExpiryDate = getEarlierParentExpiry(props)
-      return (
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span>{formatExpiry(expiryDate)}</span>
-            {getNameStatus(props) === 'grace' && <GraceBadge />}
-          </div>
-          {parentExpiryDate && (
-            <span className="text-small text-muted-foreground">
-              Stops resolving with its parent on{' '}
-              {formatExpiry(parentExpiryDate)}
-            </span>
-          )}
-        </div>
-      )
-    })
-    .with({ parentExpiryDate: P.instanceOf(Date) }, ({ parentExpiryDate }) => (
-      <span className="whitespace-nowrap">
-        {formatExpiry(parentExpiryDate)} (Expires with parent)
+/** "· Expires with {name}" after a date a name above sets; the name links to it. */
+export const ExpiresWith = ({ name }: { readonly name?: string }) => (
+  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+    · Expires with{' '}
+    {name ? (
+      <EntityBadge variant="name" name={name} compact>
+        {name}
+      </EntityBadge>
+    ) : (
+      'parent'
+    )}
+  </span>
+)
+
+type NameExpiryProps = NameStatusInput &
+  Pick<AddressNameItem, 'parentExpiryName'>
+
+/** When a name stops resolving: its own expiry, or the first name above it to expire, named. */
+export const NameExpiry = (props: NameExpiryProps) =>
+  match(getResolvingExpiry(props))
+    .with({ type: 'own' }, ({ date }) => (
+      <div className="flex items-center gap-2">
+        <span>{formatExpiry(date)}</span>
+        {getNameStatus(props) === 'grace' && <GraceBadge />}
+      </div>
+    ))
+    .with({ type: 'parent' }, ({ date, name }) => (
+      <span className="flex flex-wrap items-center gap-x-1.5">
+        <span className="whitespace-nowrap">{formatExpiry(date)}</span>{' '}
+        <ExpiresWith name={name} />
       </span>
     ))
-    .with({ parentExpiryDate: null }, () => <span>Expires with parent</span>)
-    .otherwise(() => (
+    .with({ type: 'unread' }, () => <span>Expires with parent</span>)
+    .with({ type: 'none' }, () => (
       <Badge variant="secondary" className="text-small">
         Does not expire
       </Badge>
     ))
+    .exhaustive()

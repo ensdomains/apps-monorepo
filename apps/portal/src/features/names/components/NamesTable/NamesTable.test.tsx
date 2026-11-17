@@ -77,32 +77,34 @@ describe('NamesTable expiry cell', () => {
           {
             ...row('sub.parent.eth', null),
             parentExpiryDate: new Date(Date.UTC(2030, 5, 15)),
+            parentExpiryName: 'parent.eth',
           },
         ]}
       />,
     )
 
     expect(desktopRowText('sub.parent.eth')).toContain(
-      'June 15, 2030 (Expires with parent)',
+      'June 15, 2030 · Expires with parent.eth',
     )
   })
 
-  it('shows a subname’s own expiry, and when it stops resolving if the parent expires first', () => {
+  it('shows only the parent’s date, naming it, when the parent expires first', () => {
     render(
       <NamesTableHarness
         data={[
           {
             ...row('sub.parent.eth', new Date(Date.UTC(2034, 10, 4))),
             parentExpiryDate: new Date(Date.UTC(2030, 5, 15)),
+            parentExpiryName: 'parent.eth',
           },
         ]}
       />,
     )
 
-    expect(desktopRowText('sub.parent.eth')).toContain('November 4, 2034')
     expect(desktopRowText('sub.parent.eth')).toContain(
-      'Stops resolving with its parent on June 15, 2030',
+      'June 15, 2030 · Expires with parent.eth',
     )
+    expect(desktopRowText('sub.parent.eth')).not.toContain('2034')
   })
 
   describe('seen from a time zone a day ahead of UTC', () => {
@@ -136,24 +138,19 @@ describe('NamesTable expiry cell', () => {
       render(
         <NamesTableHarness
           data={[
-            {
-              ...row('sub.parent.eth', new Date(Date.UTC(2034, 10, 4, 23, 30))),
-              parentExpiryDate: new Date(Date.UTC(2030, 5, 15, 23, 30)),
-            },
+            row('sub.parent.eth', new Date(Date.UTC(2034, 10, 4, 23, 30))),
             {
               ...row('other.parent.eth', null),
               parentExpiryDate: new Date(Date.UTC(2029, 9, 13, 23, 30)),
+              parentExpiryName: 'parent.eth',
             },
           ]}
         />,
       )
 
       expect(desktopRowText('sub.parent.eth')).toContain('November 4, 2034')
-      expect(desktopRowText('sub.parent.eth')).toContain(
-        'Stops resolving with its parent on June 15, 2030',
-      )
       expect(desktopRowText('other.parent.eth')).toContain(
-        'October 13, 2029 (Expires with parent)',
+        'October 13, 2029 · Expires with parent.eth',
       )
     })
   })

@@ -1,5 +1,6 @@
 import type { NameRegistrationStatus } from '@ens-apps/indexer/reads'
 import type { SelectedName } from '@/features/renew/hooks/useRenewalTransactions'
+import { getResolvingExpiry } from '@/utils/names/addressNames'
 import { isCanonicalName, isNormalizedLabel } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -38,8 +39,10 @@ export const getNameStatus = (
   { expiryDate, parentExpiryDate, graceEndDate, status }: NameStatusInput,
   now = new Date(),
 ): string => {
-  if (!expiryDate)
-    return parentExpiryDate === undefined ? 'no-expiry' : 'expires-with-parent'
+  // Matches the date the lists show, so a row reading "Expires with" filters as one.
+  const shown = getResolvingExpiry({ expiryDate, parentExpiryDate }).type
+  if (shown === 'none') return 'no-expiry'
+  if (shown !== 'own') return 'expires-with-parent'
   if (status !== 'expired' && status !== 'released') return 'registered'
   if (!graceEndDate) return 'expired'
   if (now < graceEndDate) return 'grace'

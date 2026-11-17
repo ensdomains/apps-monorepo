@@ -45,7 +45,9 @@ const columns: ColumnDef<column>[] = [
   },
   {
     id: 'expiryDate',
-    header: 'Expiry',
+    // Half the table, so "{date} · Expires with {name}" fits on one line.
+    meta: { width: '50%' },
+    header: 'Expiration',
     cell: ({ row }) => <NameExpiry {...row.original} />,
   },
   {
@@ -105,6 +107,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             name={name.name}
             expiryDate={name.expiryDate}
             parentExpiryDate={name.parentExpiryDate}
+            parentExpiryName={name.parentExpiryName}
             graceEndDate={name.graceEndDate}
             status={name.status}
             relations={name.relations}
@@ -140,6 +143,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 name={name.name}
                 expiryDate={name.expiryDate}
                 parentExpiryDate={name.parentExpiryDate}
+                parentExpiryName={name.parentExpiryName}
                 graceEndDate={name.graceEndDate}
                 status={name.status}
                 relations={name.relations}

@@ -11,6 +11,7 @@ export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
   readonly parentExpiryDate?: Date | null
+  readonly parentExpiryName?: string
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations?: readonly AddressNameRelation[]
@@ -28,6 +29,7 @@ export const NameMobileCard = ({
   name,
   expiryDate,
   parentExpiryDate,
+  parentExpiryName,
   graceEndDate,
   status,
   relations = [],
@@ -72,6 +74,7 @@ export const NameMobileCard = ({
         <NameExpiry
           expiryDate={expiryDate}
           parentExpiryDate={parentExpiryDate}
+          parentExpiryName={parentExpiryName}
           graceEndDate={graceEndDate}
           status={status}
         />

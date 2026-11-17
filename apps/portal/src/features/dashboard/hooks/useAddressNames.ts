@@ -12,7 +12,7 @@ import {
   type AddressNameItem,
   byShownExpiry,
   ethAncestorsOf,
-  getEarliestExpiry,
+  getFirstToExpire,
   mergeAddressNames,
   toAddressNameItem,
   toLapsedItem,
@@ -67,7 +67,7 @@ const readParentExpiries = (
     .orElse(() => okAsync([]))
 
 /**
- * Gives each subname the earliest expiry of the names above it. Names already
+ * Gives each subname the name above it that expires first. Names already
  * listed are reused; the rest are looked up in batches.
  */
 const withParentExpiry = (
@@ -85,9 +85,13 @@ const withParentExpiry = (
     const expiryOf = new Map([...listed, ...batches.flat()])
     return items.map((item) => {
       const ancestors = ethAncestorsOf(item)
-      return ancestors.length > 0
-        ? { ...item, parentExpiryDate: getEarliestExpiry(ancestors, expiryOf) }
-        : item
+      if (ancestors.length === 0) return item
+      const first = getFirstToExpire(ancestors, expiryOf)
+      return {
+        ...item,
+        parentExpiryDate: first?.date ?? null,
+        parentExpiryName: first?.name,
+      }
     })
   })
 }

@@ -15,7 +15,6 @@ import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
 import {
   type AddressNameItem,
-  byResolvingExpiry,
   getResolvingExpiry,
 } from '@/utils/names/addressNames'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
@@ -24,11 +23,11 @@ import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 const INITIAL_COUNT = 4
 const WARNING_DAYS = 30
 
-const soonestToStop = (names: readonly AddressNameItem[]) =>
-  names.toSorted(byResolvingExpiry)
-
 const Expiry = (
-  row: Pick<AddressNameItem, 'expiryDate' | 'parentExpiryDate'>,
+  row: Pick<
+    AddressNameItem,
+    'expiryDate' | 'parentExpiryDate' | 'parentExpiryName'
+  >,
 ) => {
   const resolving = getResolvingExpiry(row)
   const plainDate = resolving.date
@@ -42,10 +41,9 @@ const Expiry = (
     ? formatExpiryDuration(plainDate, today)
     : undefined
   const isWarning = !!plainDate && today.until(plainDate).days <= WARNING_DAYS
-  const isWithParent = !!plainDate && resolving.type !== 'own'
 
   return (
-    <div className="flex shrink-0 flex-col items-start gap-0.5 sm:items-end">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 sm:w-1/2">
       <span
         className={cn(
           'shrink-0 whitespace-nowrap text-entity-name font-normal',
@@ -56,21 +54,18 @@ const Expiry = (
       >
         {isWarning && <TriangleAlert className="size-3.25" aria-hidden />}
         {match({ type: resolving.type, duration })
-          .with(
-            { type: 'parent', duration: undefined },
-            () => 'Expires with parent',
-          )
+          .with({ type: 'unread' }, () => 'Expires with parent')
           .with({ duration: undefined }, () => 'Does not expire')
-          .with(
-            { type: 'parentFirst', duration: 'Expired' },
-            () => 'Stopped resolving',
-          )
-          .with({ type: 'parentFirst' }, () => `Stops resolving in ${duration}`)
           .with({ duration: 'Expired' }, () => 'Expired')
           .otherwise(() => `Expires in ${duration}`)}
-      </span>
-      {isWithParent && (
-        <span className="text-small text-neutral-7">With its parent</span>
+      </span>{' '}
+      {resolving.type === 'parent' && resolving.name && (
+        <span className="inline-flex items-center gap-1.5 text-entity-name font-normal text-neutral-7">
+          with{' '}
+          <EntityBadge variant="name" name={resolving.name} compact>
+            {resolving.name}
+          </EntityBadge>
+        </span>
       )}
     </div>
   )
@@ -78,12 +73,8 @@ const Expiry = (
 
 export const YourNames = ({ address }: { readonly address: Address }) => {
   // Every name the wallet holds a relation to, granted subnames included,
-  // soonest to stop resolving first. bigname serves the whole list, so it
-  // pages locally.
-  const namesQuery = useQuery({
-    ...getAddressNamesQueryOptions({ address }),
-    select: soonestToStop,
-  })
+  // soonest expiry first. bigname serves the whole list, so it pages locally.
+  const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
   const names = namesQuery.data ?? []
 
   const loader = useListLoader({
@@ -117,11 +108,13 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
               name ? (
                 <li
                   key={name}
-                  className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center"
                 >
-                  <EntityBadge variant="name" name={name} showAvatar compact>
-                    <span title={name}>{truncateName(name)}</span>
-                  </EntityBadge>
+                  <div className="min-w-0 sm:w-1/2">
+                    <EntityBadge variant="name" name={name} showAvatar compact>
+                      <span title={name}>{truncateName(name)}</span>
+                    </EntityBadge>
+                  </div>
                   <Expiry {...row} />
                 </li>
               ) : null,

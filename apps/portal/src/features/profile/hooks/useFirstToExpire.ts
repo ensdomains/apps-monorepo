@@ -1,13 +1,13 @@
 import { useQueries } from '@tanstack/react-query'
-import { getEarliestExpiry } from '@/utils/names/addressNames'
+import { getFirstToExpire } from '@/utils/names/addressNames'
 import { getRegistrationDataQueryOptions } from './useRegistrationData'
 
-/** The earliest expiry among `names`; null when one couldn't be read or none expires. */
-export const useEarliestExpiry = (names: readonly string[]) => {
+/** The name among `names` that expires first; null when one couldn't be read or none expires. */
+export const useFirstToExpire = (names: readonly string[]) => {
   const queries = useQueries({
     queries: names.map((name) => getRegistrationDataQueryOptions({ name })),
   })
-  // An unread name is left out, so the earliest reads as unknown.
+  // An unread name is left out, so the first to expire reads as unknown.
   const expiryOf = new Map(
     names.flatMap((name, index) => {
       const query = queries[index]
@@ -17,7 +17,7 @@ export const useEarliestExpiry = (names: readonly string[]) => {
     }),
   )
   return {
-    earliestExpiry: getEarliestExpiry(names, expiryOf),
+    firstToExpire: getFirstToExpire(names, expiryOf),
     isLoading: queries.some((query) => query.isLoading),
   }
 }

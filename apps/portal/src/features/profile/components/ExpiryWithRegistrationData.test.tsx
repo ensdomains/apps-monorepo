@@ -36,6 +36,12 @@ vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
   useBlockExplorerTxUrl: () => undefined,
 }))
 
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadge: ({ children }: { children?: React.ReactNode }) => (
+    <span>{children}</span>
+  ),
+}))
+
 vi.mock('../hooks/useGraceStatus', () => ({
   useGraceStatus: () => ({ isInGrace: false, graceEndDate: null }),
 }))
@@ -57,26 +63,25 @@ const renderExpiry = (
   )
 
 describe('ExpiryWithRegistrationData', () => {
-  it('shows when a subname stops resolving with a parent that expires first', async () => {
+  it('shows the parent’s date, naming it, when it comes before the subname’s own', async () => {
     renderExpiry('beep.parent.eth')
 
-    expect(await screen.findByText('Stops resolving')).toBeInTheDocument()
-    expect(rowText('Expires')).toMatch(/2034/)
-    expect(rowText('Stops resolving')).toMatch(/2030/)
+    expect(await screen.findByText('Expires')).toBeInTheDocument()
+    expect(rowText('Expires')).toMatch(/2030.* · Expires with parent\.eth$/)
+    expect(rowText('Expires')).not.toMatch(/2034/)
   })
 
-  it('shows when a subname with no expiry of its own stops resolving', async () => {
+  it('shows the parent’s date for a subname with no expiry of its own', async () => {
     renderExpiry('right.parent.eth')
 
-    expect(await screen.findByText('Stops resolving')).toBeInTheDocument()
-    expect(rowText('Stops resolving')).toMatch(/2030/)
-    expect(screen.queryByText('Expires')).toBeNull()
+    expect(await screen.findByText('Expires')).toBeInTheDocument()
+    expect(rowText('Expires')).toMatch(/2030.* · Expires with parent\.eth$/)
   })
 
   it('leaves an ENSv1 subname, which outlives its parent’s lease, without the row', async () => {
     renderExpiry('v1.parent.eth', 'ENSv1')
 
     expect(await screen.findByText('Registered')).toBeInTheDocument()
-    expect(screen.queryByText('Stops resolving')).toBeNull()
+    expect(screen.queryByText('Expires')).toBeNull()
   })
 })

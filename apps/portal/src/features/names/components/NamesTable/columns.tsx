@@ -24,6 +24,7 @@ export type NameRow = {
   name: string | null
   expiryDate?: Date | null
   readonly parentExpiryDate?: Date | null
+  readonly parentExpiryName?: string
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations: readonly AddressNameRelation[]

@@ -127,26 +127,28 @@ describe('YourNames', () => {
     )
   })
 
-  it('counts a subname down to its parent’s expiry when that stops it first', async () => {
+  it('counts a subname down to the name above that stops it first, naming it', async () => {
     renderNames([
       {
         ...v2Name('outlives.parent.eth', 900n),
         parentExpiryDate: v2Name('parent.eth', 10n).expiryDate,
+        parentExpiryName: 'parent.eth',
       },
       {
         ...item('undated.parent.eth', null),
         parentExpiryDate: v2Name('parent.eth', 800n).expiryDate,
+        parentExpiryName: 'parent.eth',
       },
       { ...item('unread.parent.eth', null), parentExpiryDate: null },
     ])
 
     const rows = await screen.findAllByRole('listitem')
-    expect(within(rows[0]).getByText('Stops resolving in 10 days')).toHaveClass(
+    expect(within(rows[0]).getByText('Expires in 10 days')).toHaveClass(
       'bg-message-warning-fill',
     )
-    expect(rows[0]).toHaveTextContent('With its parent')
+    expect(rows[0]).toHaveTextContent(/Expires in 10 days with .*parent\.eth$/)
     expect(rows[1]).toHaveTextContent(
-      /undated\.parent\.ethExpires in 2 years \d+ daysWith its parent$/,
+      /undated\.parent\.ethExpires in 2 years \d+ days with .*parent\.eth$/,
     )
     expect(rows[2]).toHaveTextContent(/unread\.parent\.ethExpires with parent$/)
     expect(screen.queryByText('Does not expire')).toBeNull()

@@ -263,7 +263,7 @@ describe('getAddressNames', () => {
     )
   })
 
-  it('gives a deeper ENSv2 subname the earliest expiry of every name above it', async () => {
+  it('gives a deeper ENSv2 subname the name above it that expires first', async () => {
     const TEAM_EXPIRY = NOW_SECONDS + 86_400n * 20n
     answer([
       [
@@ -304,6 +304,7 @@ describe('getAddressNames', () => {
       expect.objectContaining({
         name: 'a.ops.team.parent.eth',
         parentExpiryDate: new Date(Number(TEAM_EXPIRY) * 1000),
+        parentExpiryName: 'team.parent.eth',
       }),
     )
   })

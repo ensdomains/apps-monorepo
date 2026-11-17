@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   byShownExpiry,
-  getEarlierParentExpiry,
-  getEarliestExpiry,
+  getFirstToExpire,
   getNamesAbove,
   getResolvingExpiry,
   isShownExpiryInRange,
@@ -18,7 +17,7 @@ describe('getNamesAbove', () => {
   })
 })
 
-describe('getEarliestExpiry', () => {
+describe('getFirstToExpire', () => {
   const at = (year: number) => new Date(Date.UTC(year, 0, 1))
   const expiryOf = new Map<string, Date | null>([
     ['ops.team.parent.eth', null],
@@ -26,43 +25,18 @@ describe('getEarliestExpiry', () => {
     ['parent.eth', at(2029)],
   ])
 
-  it('gives the earliest expiry above, passing names that never expire', () => {
+  it('gives the name above that expires first, passing names that never expire', () => {
     expect(
-      getEarliestExpiry(
+      getFirstToExpire(
         ['ops.team.parent.eth', 'team.parent.eth', 'parent.eth'],
         expiryOf,
       ),
-    ).toEqual(at(2028))
+    ).toEqual({ name: 'team.parent.eth', date: at(2028) })
   })
 
   it('gives none when a name above couldn’t be read', () => {
     expect(
-      getEarliestExpiry(['unread.parent.eth', 'parent.eth'], expiryOf),
-    ).toBeNull()
-  })
-})
-
-describe('getEarlierParentExpiry', () => {
-  const PARENT_EXPIRY = new Date(Date.UTC(2030, 5, 1))
-
-  it.each([
-    ['gives the parent’s for an own expiry after it', 2031, PARENT_EXPIRY],
-    ['gives none for an own expiry before it', 2029, null],
-  ])('%s', (_, ownYear, expected) => {
-    expect(
-      getEarlierParentExpiry({
-        expiryDate: new Date(Date.UTC(ownYear, 0, 1)),
-        parentExpiryDate: PARENT_EXPIRY,
-      }),
-    ).toEqual(expected)
-  })
-
-  it('gives none for a subname with no expiry of its own', () => {
-    expect(
-      getEarlierParentExpiry({
-        expiryDate: null,
-        parentExpiryDate: PARENT_EXPIRY,
-      }),
+      getFirstToExpire(['unread.parent.eth', 'parent.eth'], expiryOf),
     ).toBeNull()
   })
 })
@@ -70,6 +44,7 @@ describe('getEarlierParentExpiry', () => {
 describe('getResolvingExpiry', () => {
   const OWN = new Date(Date.UTC(2031, 0, 1))
   const PARENT = new Date(Date.UTC(2030, 5, 1))
+  const NAME = 'parent.eth'
 
   it.each([
     [
@@ -79,23 +54,28 @@ describe('getResolvingExpiry', () => {
     ],
     [
       'its own, when it comes before the parent’s',
-      { expiryDate: PARENT, parentExpiryDate: OWN },
+      { expiryDate: PARENT, parentExpiryDate: OWN, parentExpiryName: NAME },
       { type: 'own', date: PARENT },
     ],
     [
-      'the parent’s, when it comes first',
-      { expiryDate: OWN, parentExpiryDate: PARENT },
-      { type: 'parentFirst', date: PARENT },
+      'its own, on the same day as the parent’s',
+      { expiryDate: PARENT, parentExpiryDate: PARENT, parentExpiryName: NAME },
+      { type: 'own', date: PARENT },
     ],
     [
-      'the parent’s, for a subname with none of its own',
-      { expiryDate: null, parentExpiryDate: PARENT },
-      { type: 'parent', date: PARENT },
+      'the parent’s, named, when it comes first',
+      { expiryDate: OWN, parentExpiryDate: PARENT, parentExpiryName: NAME },
+      { type: 'parent', date: PARENT, name: NAME },
     ],
     [
-      'the parent’s, unknown when it couldn’t be read',
+      'the parent’s, named, for a subname with none of its own',
+      { expiryDate: null, parentExpiryDate: PARENT, parentExpiryName: NAME },
+      { type: 'parent', date: PARENT, name: NAME },
+    ],
+    [
+      'unread, when the parent’s couldn’t be read',
       { expiryDate: null, parentExpiryDate: null },
-      { type: 'parent', date: null },
+      { type: 'unread', date: null },
     ],
     [
       'none, for a name that never expires',
@@ -122,7 +102,7 @@ describe('isShownExpiryInRange', () => {
     ).toBe(true)
   })
 
-  it("prefers the name's own expiry and drops a row with none", () => {
+  it("uses the parent's expiry when it comes first, and drops a row with none", () => {
     expect(
       isShownExpiryInRange(
         {
@@ -131,7 +111,7 @@ describe('isShownExpiryInRange', () => {
         },
         range,
       ),
-    ).toBe(false)
+    ).toBe(true)
     expect(isShownExpiryInRange({ expiryDate: null }, range)).toBe(false)
   })
 })
