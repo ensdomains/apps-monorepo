@@ -8,7 +8,6 @@ import { Header } from '@/features/navigation/Header/Header'
 import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
-import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
 import { tw } from '@/utils/tailwind'
 
 interface LayoutProps {
@@ -73,7 +72,6 @@ export const Layout = ({ children }: LayoutProps) => {
           {children}
         </main>
       </GlobalBackButtonProvider>
-      <BackendAuthModal />
     </div>
   )
 }

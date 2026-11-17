@@ -338,7 +338,6 @@ describe('BackendAuthModal, connecting through the connect dialog', () => {
   const renderUi = () => (
     <ConnectModalProvider>
       <OpenConnect />
-      <BackendAuthModal />
     </ConnectModalProvider>
   )
 

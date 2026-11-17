@@ -1,6 +1,6 @@
 import { match } from 'ts-pattern'
 import type { SmartAccountContextValue } from '@/lib/smart-account'
-import type { ConnectDialogView, ConnectFlow } from '@/lib/wallet'
+import type { ConnectFlow } from '@/lib/wallet/stacks/custom/connectFlow'
 
 // A single view keeps the connect and standalone sign-in dialogs mutually exclusive.
 export type WalletDialogView =
@@ -43,13 +43,3 @@ export const isSmartAccountSettled = (
   > | null,
 ): boolean =>
   smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
-
-// The connect dialog's own step for a view; the other views close it.
-export const getConnectDialogView = (
-  view: WalletDialogView,
-): ConnectDialogView =>
-  match(view)
-    .returnType<ConnectDialogView>()
-    .with('choose-wallet', () => 'choose-wallet')
-    .with('sign-in-step', () => 'sign-in')
-    .otherwise(() => 'closed')

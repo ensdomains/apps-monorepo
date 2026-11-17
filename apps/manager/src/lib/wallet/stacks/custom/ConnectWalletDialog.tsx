@@ -9,9 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { WalletDialogView } from '@/features/wallet/walletDialogView'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
-import { useCustomConnectModal } from './ConnectModalProvider'
 import {
   connectOnSupportedChain,
   isCoinbase,
@@ -21,6 +21,7 @@ import {
   normalizeConnectError,
   WALLETCONNECT_ID,
 } from './connect.helpers'
+import type { ConnectFlowEvent } from './connectFlow'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
 
 type WalletRowProps = {
@@ -99,15 +100,14 @@ type WalletOption = {
   | { readonly href: string; readonly connector?: never }
 )
 
-/** Which step the dialog shows, or `closed`. */
-export type ConnectDialogView = 'closed' | ConnectDialogStep
-type ConnectDialogStep = 'choose-wallet' | 'sign-in'
+type ConnectDialogStep = 'choose-wallet' | 'sign-in-step'
 
 // A stable ref callback announces sign-in and retains focus when the wallet list unmounts.
 const focusOnMount = (element: HTMLElement | null) => element?.focus()
 
 type ConnectWalletDialogProps = {
-  readonly view: ConnectDialogView
+  readonly view: WalletDialogView
+  readonly onFlowEvent: (event: ConnectFlowEvent) => void
   /** Content of the sign-in step; rendered here so the dialog stays one root. */
   readonly signInStep: (props: {
     readonly titleRef: (element: HTMLElement | null) => void
@@ -116,16 +116,16 @@ type ConnectWalletDialogProps = {
 
 export const ConnectWalletDialog = ({
   view,
+  onFlowEvent,
   signInStep,
 }: ConnectWalletDialogProps) => {
-  const { sendConnectFlow } = useCustomConnectModal()
-  const open = view !== 'closed'
+  const open = view === 'choose-wallet' || view === 'sign-in-step'
   // Retain the last step during the closing animation to avoid flashing the wallet list.
   const [shownStep, setShownStep] = useState<ConnectDialogStep>('choose-wallet')
-  if (view !== 'closed' && view !== shownStep) {
+  if (open && view !== shownStep) {
     setShownStep(view)
   }
-  const isSignInStep = shownStep === 'sign-in'
+  const isSignInStep = shownStep === 'sign-in-step'
 
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()
@@ -193,12 +193,12 @@ export const ConnectWalletDialog = ({
     })
 
     if (usesOwnModal && isConnectionCancelled(e)) {
-      sendConnectFlow('pairing-cancelled')
+      onFlowEvent('pairing-cancelled')
       return
     }
 
     setError(normalizeConnectError(e))
-    if (usesOwnModal) sendConnectFlow('pairing-failed')
+    if (usesOwnModal) onFlowEvent('pairing-failed')
   }
 
   const connect = async (connector: Connector) => {
@@ -217,7 +217,7 @@ export const ConnectWalletDialog = ({
     // "Connecting…" state and move on to sign-in only on success.
     const usesOwnModal = connector.id === WALLETCONNECT_ID
     if (usesOwnModal) {
-      sendConnectFlow('pairing-started')
+      onFlowEvent('pairing-started')
     }
 
     try {
@@ -323,7 +323,7 @@ export const ConnectWalletDialog = ({
   return (
     <Dialog
       onOpenChange={(isOpen) => {
-        if (!isOpen) sendConnectFlow('dismissed')
+        if (!isOpen) onFlowEvent('dismissed')
       }}
       open={open}
     >

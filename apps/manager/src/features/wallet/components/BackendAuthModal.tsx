@@ -9,14 +9,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
-import { ConnectWalletDialog, useConnectFlow } from '@/lib/wallet'
+import { ConnectWalletDialog } from '@/lib/wallet/stacks/custom/ConnectWalletDialog'
+import type {
+  ConnectFlow,
+  ConnectFlowEvent,
+} from '@/lib/wallet/stacks/custom/connectFlow'
 import { backendAuthStore } from '@/utils/backend-client'
 import { useBackendSignIn } from '../hooks/useBackendSignIn'
-import {
-  getConnectDialogView,
-  getWalletDialogView,
-  isSmartAccountSettled,
-} from '../walletDialogView'
+import { getWalletDialogView, isSmartAccountSettled } from '../walletDialogView'
 import { SignInContent, type SignInSlots } from './SignInContent'
 
 const ALERT_DIALOG_SLOTS: SignInSlots = {
@@ -33,17 +33,24 @@ const DIALOG_SLOTS: SignInSlots = {
   Footer: DialogFooter,
 }
 
-// Owns both wallet dialogs below the smart-account provider so only one is shown.
-export const BackendAuthModal = () => {
+const NOOP_FLOW_EVENT = () => {}
+
+type BackendAuthModalProps = {
+  readonly connectFlow?: ConnectFlow
+  readonly onFlowEvent?: (event: ConnectFlowEvent) => void
+}
+
+export const BackendAuthModal = ({
+  connectFlow = 'closed',
+  onFlowEvent = NOOP_FLOW_EVENT,
+}: BackendAuthModalProps) => {
   const isSignInNeeded = useSelector(
     backendAuthStore,
     (state) => !state.context.authKey && state.context.modalDismissed === false,
   )
-  const { connectFlow, sendConnectFlow } = useConnectFlow()
   useEffect(() => {
-    if (connectFlow === 'signing-in' && !isSignInNeeded)
-      sendConnectFlow('finished')
-  }, [isSignInNeeded, connectFlow, sendConnectFlow])
+    if (connectFlow === 'signing-in' && !isSignInNeeded) onFlowEvent('finished')
+  }, [isSignInNeeded, connectFlow, onFlowEvent])
   const { isConnected: isWalletConnected } = useConnection()
 
   // Sign in with the smart account's wallet client, once it is live.
@@ -65,6 +72,7 @@ export const BackendAuthModal = () => {
   return (
     <>
       <ConnectWalletDialog
+        onFlowEvent={onFlowEvent}
         signInStep={({ titleRef }) => (
           <SignInContent
             footerClassName="grid grid-cols-1 *:w-full"
@@ -74,7 +82,7 @@ export const BackendAuthModal = () => {
             titleRef={titleRef}
           />
         )}
-        view={getConnectDialogView(view)}
+        view={view}
       />
       <AlertDialog.Root open={view === 'standalone-sign-in'}>
         <AlertDialog.Content

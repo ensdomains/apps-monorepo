@@ -3,6 +3,7 @@ import { I18nProvider } from '@lingui/react'
 import { PHProvider } from '@/lib/posthog/provider'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { WalletLifecycle, WalletProvider } from '@/lib/wallet'
+import { ConnectModalProvider } from '@/lib/wallet/stacks/custom/ConnectModalProvider'
 import { ConnectionCookieSync } from './ConnectionCookieSync'
 
 export const RootProviders = ({ children }: { children: React.ReactNode }) => (
@@ -14,7 +15,9 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => (
       <ConnectionCookieSync />
       <WalletLifecycle />
       <PHProvider>
-        <SmartAccountContextProvider>{children}</SmartAccountContextProvider>
+        <SmartAccountContextProvider>
+          <ConnectModalProvider>{children}</ConnectModalProvider>
+        </SmartAccountContextProvider>
       </PHProvider>
     </WalletProvider>
   </I18nProvider>

@@ -1,8 +1,6 @@
 import { CustomWalletStack } from './stacks/CustomWalletStack'
 
-// Thin entry for the wallet layer — mounts the vendor stack (the custom wagmi
-// stack today) so a second vendor can slot in here without touching
-// RootProviders.
+// Provides wallet transport; RootProviders composes dialogs below the smart-account provider.
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => (
   <CustomWalletStack>{children}</CustomWalletStack>
 )
