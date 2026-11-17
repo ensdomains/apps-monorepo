@@ -201,12 +201,15 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
 
   return (
     <>
-      <DataTable
-        columns={columns}
-        data={labels
-          .slice(0, loader.shown)
-          .map((label) => ({ ...label, ...parentExpiry }))}
-      />
+      {/* Room for the expiry beside the fixed columns, so a narrow screen scrolls instead of overlapping them. */}
+      <div className="[&_table]:min-w-170">
+        <DataTable
+          columns={columns}
+          data={labels
+            .slice(0, loader.shown)
+            .map((label) => ({ ...label, ...parentExpiry }))}
+        />
+      </div>
       <ListLoader {...loader} />
     </>
   )
