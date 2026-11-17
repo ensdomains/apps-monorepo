@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
+import { MANAGER_UPGRADE_URL } from '@/lib/constants/domain'
 import type { AddressResolutionRow } from './types'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
@@ -206,23 +207,32 @@ describe('AddressResolutionSidebar', () => {
         },
       }) as Row<AddressResolutionRow>
 
-    it('warns the owner before setting a default primary name', () => {
+    it('explains the resolver in the mismatch banner instead of offering a primary name', () => {
       renderSidebar(defaultRow(OWNER), RESOLVER, OLDER_RESOLVER)
 
-      expect(screen.getByText('Update the resolver first')).toBeInTheDocument()
+      const changeResolver = screen.getByRole('link', {
+        name: 'change the resolver',
+      })
+      expect(changeResolver.parentElement).toHaveTextContent(
+        'The set address does not resolve back to this name on Default chains. The older ENS public resolver that attacker.eth uses does not support L2 and default primary names, so either upgrade the name to ENSv2 or change the resolver.',
+      )
+      expect(changeResolver).toHaveAttribute('href', '/$name/change-resolver')
       expect(
-        screen.getByRole('link', { name: 'Change resolver' }),
-      ).toHaveAttribute('href', '/$name/change-resolver')
+        screen.getByRole('link', { name: 'upgrade the name to ENSv2' }),
+      ).toHaveAttribute('href', MANAGER_UPGRADE_URL)
+      expect(
+        screen.queryByRole('button', { name: 'Set primary name' }),
+      ).not.toBeInTheDocument()
     })
 
-    it('does not warn a visitor who cannot set the primary name', () => {
+    it('does not explain the resolver to a visitor who cannot set the primary name', () => {
       connectedAddress = VISITOR
       isOwner = false
 
       renderSidebar(defaultRow(VISITOR), RESOLVER, OLDER_RESOLVER)
 
       expect(
-        screen.queryByText('Update the resolver first'),
+        screen.queryByRole('link', { name: 'change the resolver' }),
       ).not.toBeInTheDocument()
     })
   })
