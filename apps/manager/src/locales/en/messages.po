@@ -804,6 +804,10 @@ msgstr "Checking your subnames"
 msgid "Choose a different name (reserved key)"
 msgstr "Choose a different name (reserved key)"
 
+#: src/lib/wallet/stacks/custom/WalletPicker.tsx
+msgid "Choose a wallet to connect to the ENS App."
+msgstr "Choose a wallet to connect to the ENS App."
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"

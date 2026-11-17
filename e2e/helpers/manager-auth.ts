@@ -119,8 +119,7 @@ export async function connectWithHeadlessWallet(
  * (sessions already enabled or feature flag off).
  *
  * The modal is a Radix `Dialog`, so its overlay slot is `dialog-overlay` —
- * NOT `alert-dialog-overlay`, which belongs to the BackendAuth dialog. We
- * wait for that exact overlay to disappear so the test doesn't race forward
+ * We wait for the overlay to disappear so the test does not race forward
  * while the session dialog is still closing (and still blocking the page).
  */
 export async function clickThroughEnableSessions(page: Page): Promise<void> {
@@ -186,17 +185,12 @@ export async function dismissBackendAuthModal(
       exact: true,
     }),
   ).toBeHidden({ timeout })
-  const overlaySlot =
-    (await dialog.getAttribute('data-slot')) === 'dialog-content'
-      ? 'dialog-overlay'
-      : 'alert-dialog-overlay'
-
   console.log('[manager-auth] BackendAuthModal visible — typing SKIP')
   await page.keyboard.type('skip', { delay: 50 })
 
-  // Wait for the actual dialog and its overlay, whichever sign-in surface was shown.
+  // Wait for the shared wallet dialog and its overlay to close.
   await dialog.waitFor({ state: 'hidden', timeout: 10_000 })
-  const overlay = page.locator(`[data-slot="${overlaySlot}"]`)
+  const overlay = page.locator('[data-slot="dialog-overlay"]')
   await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {
     // Best-effort: if the overlay lingers, downstream interactions
     // will hit retry logic via Playwright's auto-waiting anyway.
@@ -252,7 +246,7 @@ export async function signInBackendAuthModal(
     )
   })
 
-  const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+  const overlay = page.locator('[data-slot="dialog-overlay"]')
   await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
 }
 

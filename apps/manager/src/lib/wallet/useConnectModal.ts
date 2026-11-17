@@ -19,9 +19,9 @@ export const useConnectModal = (): ConnectModalContextValue => {
   if (!context) {
     if (import.meta.env.DEV) {
       console.warn(
-        'useConnectModal: no ConnectModalProvider found. This is ' +
+        'useConnectModal: no WalletConnectionProvider found. This is ' +
           'usually a stale hot-reload boundary — reload the page. If it ' +
-          'persists, a consumer is rendering outside ConnectModalProvider.',
+          'persists, a consumer is rendering outside WalletConnectionProvider.',
       )
     }
     return NOOP_CONNECT_MODAL

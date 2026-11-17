@@ -1,9 +1,9 @@
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
+import { WalletConnectionProvider } from '@/features/wallet/WalletConnectionProvider'
 import { PHProvider } from '@/lib/posthog/provider'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { WalletLifecycle, WalletProvider } from '@/lib/wallet'
-import { ConnectModalProvider } from '@/lib/wallet/stacks/custom/ConnectModalProvider'
 import { ConnectionCookieSync } from './ConnectionCookieSync'
 
 export const RootProviders = ({ children }: { children: React.ReactNode }) => (
@@ -16,7 +16,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => (
       <WalletLifecycle />
       <PHProvider>
         <SmartAccountContextProvider>
-          <ConnectModalProvider>{children}</ConnectModalProvider>
+          <WalletConnectionProvider>{children}</WalletConnectionProvider>
         </SmartAccountContextProvider>
       </PHProvider>
     </WalletProvider>

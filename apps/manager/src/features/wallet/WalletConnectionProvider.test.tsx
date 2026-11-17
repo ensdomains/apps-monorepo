@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Connector } from 'wagmi'
 import { wagmiConfig } from '@/lib/wagmi'
 import { useConnectModal } from '@/lib/wallet'
-import { ConnectModalProvider } from '@/lib/wallet/stacks/custom/ConnectModalProvider'
 import { backendAuthStore } from '@/utils/backend-client'
 import { render } from '@/utils/test-utils'
+import { WalletConnectionProvider } from './WalletConnectionProvider'
 
 const wagmiMock = vi.hoisted(() => ({
   useConnection: vi.fn(),
@@ -61,8 +61,6 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
   }
 })
 
-import { BackendAuthModal } from './BackendAuthModal'
-
 const pressKeys = (keys: string[]) => {
   for (const key of keys) {
     fireEvent.keyDown(document, { key, code: `Key${key.toUpperCase()}` })
@@ -90,7 +88,7 @@ const showModal = ({
   walletDisconnectMock.isDisconnecting = false
 }
 
-describe('BackendAuthModal', () => {
+describe('WalletConnectionProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     backendAuthStore.trigger.signOut()
@@ -99,7 +97,7 @@ describe('BackendAuthModal', () => {
   })
 
   it('does not render visible skip controls', () => {
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     expect(
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
@@ -113,7 +111,7 @@ describe('BackendAuthModal', () => {
   })
 
   it('dismisses the modal when SKIP is typed while it is open', async () => {
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     expect(
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
@@ -132,7 +130,7 @@ describe('BackendAuthModal', () => {
   it('does not dismiss when SKIP is typed while the modal is closed', () => {
     wagmiMock.useConnection.mockReturnValue({ isConnected: false })
 
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 
@@ -144,7 +142,7 @@ describe('BackendAuthModal', () => {
   it('does not dismiss when the sign-in mutation is pending', () => {
     showModal({ isPending: true })
 
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     expect(
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
@@ -159,7 +157,7 @@ describe('BackendAuthModal', () => {
   })
 
   it('only offers to continue without signing in after sign-in fails', () => {
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     expect(
       screen.queryByRole('button', { name: 'Continue without signing in' }),
@@ -169,7 +167,7 @@ describe('BackendAuthModal', () => {
   it('shows a retry and dismiss action after sign-in fails', () => {
     showModal({ isError: true })
 
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     expect(
       screen.getByText("Signing didn't go through. Please try again."),
@@ -182,7 +180,7 @@ describe('BackendAuthModal', () => {
   it('confirms what is lost before continuing without signing in', () => {
     showModal({ isError: true })
 
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
@@ -204,7 +202,7 @@ describe('BackendAuthModal', () => {
   it('reopens at sign-in after SKIP closes the skip confirmation', async () => {
     showModal({ isError: true })
 
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
@@ -230,7 +228,7 @@ describe('BackendAuthModal', () => {
     showModal({ isError: true })
     const { mutateAsync } = useMutationMock()
 
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue without signing in' }),
@@ -244,8 +242,29 @@ describe('BackendAuthModal', () => {
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
   })
 
+  it('disables retry from the skip confirmation while the account prepares again', () => {
+    showModal({ isError: true })
+    const { mutateAsync } = useMutationMock()
+    const { rerender } = render(<WalletConnectionProvider />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue without signing in' }),
+    )
+
+    smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
+      isAccountReady: false,
+      error: null,
+      walletClient: { account: { address: '0xabc' } },
+    })
+    rerender(<WalletConnectionProvider />)
+
+    const retry = screen.getByRole('button', { name: 'Sign in' })
+    expect(retry).toBeDisabled()
+    fireEvent.click(retry)
+    expect(mutateAsync).not.toHaveBeenCalled()
+  })
+
   it('disconnects the wallet so the user can switch accounts', () => {
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }))
 
@@ -253,7 +272,7 @@ describe('BackendAuthModal', () => {
   })
 
   it('does not dismiss when Escape is pressed', () => {
-    render(<BackendAuthModal />)
+    render(<WalletConnectionProvider />)
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
@@ -264,7 +283,7 @@ describe('BackendAuthModal', () => {
   })
 })
 
-describe('BackendAuthModal, connecting through the connect dialog', () => {
+describe('WalletConnectionProvider, connecting through the connect dialog', () => {
   const APP_CHAIN_ID = wagmiConfig.chains[0].id
 
   const makeConnector = (fields: Partial<Connector>): Connector =>
@@ -336,15 +355,17 @@ describe('BackendAuthModal, connecting through the connect dialog', () => {
   }
 
   const renderUi = () => (
-    <ConnectModalProvider>
+    <WalletConnectionProvider>
       <OpenConnect />
-    </ConnectModalProvider>
+    </WalletConnectionProvider>
   )
 
   const openWalletList = () => {
     const view = render(renderUi())
-    fireEvent.click(screen.getByRole('button', { name: 'Open connect' }))
+    const trigger = screen.getByRole('button', { name: 'Open connect' })
+    fireEvent.click(trigger)
     return {
+      trigger,
       ...view,
       dialog: screen.getByRole('dialog', { name: 'Connect a wallet' }),
     }
@@ -398,8 +419,8 @@ describe('BackendAuthModal, connecting through the connect dialog', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     })
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
   it('closes the sign-in step when SKIP is typed', async () => {
@@ -413,29 +434,35 @@ describe('BackendAuthModal, connecting through the connect dialog', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     })
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(backendAuthStore.get().context.modalDismissed).toBe(true)
   })
 
-  it.each(['signed-in', 'skipped'] as const)(
-    'finishes a connect with existing %s state so a later sign-in request is standalone',
-    async (authState) => {
+  it.each([
+    ['signed-in', 'MetaMask'],
+    ['skipped', 'WalletConnect'],
+  ] as const)(
+    'finishes an already-connected %s wallet through %s so a later sign-in request is standalone',
+    async (authState, connectorName) => {
       if (authState === 'signed-in') {
         backendAuthStore.trigger.signIn({ authKey: 'key', address: '0xabc' })
       } else {
         backendAuthStore.trigger.dismissModal()
       }
       setAccount(true)
-      const connect = deferConnect()
-      openWalletList()
+      wagmiMock.useConnection.mockReturnValue({ isConnected: true })
+      wagmiMock.useConnect.mockReturnValue({
+        mutateAsync: vi.fn(async () => {}),
+      })
+      const { trigger } = openWalletList()
 
-      fireEvent.click(screen.getByRole('button', { name: /MetaMask/ }))
-      await act(async () => connect.resolve())
-
-      expect(
-        screen.getByRole('button', { name: 'Open connect' }),
-      ).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(
+        screen.getByRole('button', { name: new RegExp(connectorName) }),
+      )
+      await waitFor(() =>
+        expect(trigger).toHaveAttribute('aria-expanded', 'false'),
+      )
       act(() => {
         backendAuthStore.trigger.signOut()
         backendAuthStore.trigger.resetModal()
@@ -445,7 +472,8 @@ describe('BackendAuthModal, connecting through the connect dialog', () => {
         await screen.findByRole('alertdialog', {
           name: 'Authenticate to continue',
         }),
-      ).toHaveAttribute('data-slot', 'alert-dialog-content')
+      ).toHaveAttribute('data-slot', 'dialog-content')
+      expect(trigger).toHaveAttribute('aria-expanded', 'false')
     },
   )
 
