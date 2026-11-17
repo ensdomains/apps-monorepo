@@ -34,12 +34,14 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     () => '0x1111111111111111111111111111111111111111',
   ),
   planHcaIntentFunding: vi.fn(),
+  quoteHcaIntentFeeUsdc: vi.fn(),
   transactionManager: { startTransaction: vi.fn() },
   waitForTransaction: vi.fn(async () => ({ hash: '0xhash' as Hex })),
 }))
 
 import {
   planHcaIntentFunding,
+  quoteHcaIntentFeeUsdc,
   type RhinestoneSigner,
   transactionManager,
   waitForTransaction,
@@ -52,6 +54,7 @@ vi.mock('viem/actions', () => ({ getEnsAddress: vi.fn() }))
 import {
   addrReverseNode,
   setPrimaryName,
+  setPrimaryNameWithEthFallback,
   setPrimaryNameWithHca,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
@@ -459,6 +462,68 @@ describe('setPrimaryNameWithHca funding', () => {
     ).rejects.toThrow(/does not control the owner address/)
 
     expect(start).not.toHaveBeenCalled()
+  })
+})
+
+describe('setPrimaryNameWithEthFallback', () => {
+  const quote = vi.mocked(quoteHcaIntentFeeUsdc)
+
+  // USDC balances by holder, the wallet's wei, and no stale addr.reverse.
+  const paymentClient = (usdc: { hca: bigint; wallet: bigint }) =>
+    ({
+      readContract: vi.fn(
+        async ({
+          functionName,
+          args,
+        }: {
+          functionName: string
+          args: readonly Address[]
+        }) =>
+          functionName === 'balanceOf'
+            ? args[0] === HCA_ADDRESS
+              ? usdc.hca
+              : usdc.wallet
+            : zeroAddress,
+      ),
+      getBalance: vi.fn(async () => 10n ** 16n),
+      estimateContractGas: vi.fn(async () => 60_000n),
+      estimateFeesPerGas: vi.fn(async () => ({ maxFeePerGas: 2_000_000_000n })),
+      // A partial client: the fallback reads only these four methods.
+    }) as unknown as PublicClient
+
+  const submit = (publicClient: PublicClient) =>
+    setPrimaryNameWithEthFallback({
+      name: 'leon',
+      signer: hcaSigner,
+      ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
+      publicClient,
+      chainId: CHAIN_ID,
+    })
+
+  it('sends the direct ETH-paid transactions when there is no USDC', async () => {
+    start.mockReturnValueOnce('tx-forward').mockReturnValueOnce('tx-reverse')
+
+    await submit(paymentClient({ hca: 0n, wallet: 0n }))
+
+    expect(planFunding).not.toHaveBeenCalled()
+    expect(quote).not.toHaveBeenCalled()
+    expect(start.mock.calls.map(([intent]) => intent)).toMatchObject([
+      { request: { type: 'eoa', to: DEFAULT_REVERSE } },
+      { request: { type: 'eoa', to: REVERSE } },
+    ])
+  })
+
+  it('keeps the USDC intent when the wallet covers the quoted fee', async () => {
+    quote.mockResolvedValueOnce(200_000n)
+
+    await submit(paymentClient({ hca: 0n, wallet: 500_000n }))
+
+    expect(planFunding).toHaveBeenCalledOnce()
+    expect(start).toHaveBeenCalledOnce()
+    expect(firstStartArg()).toMatchObject({
+      request: { type: 'rhinestone-intent' },
+    })
   })
 })
 
