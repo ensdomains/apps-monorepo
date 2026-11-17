@@ -7,8 +7,9 @@ import { Storage } from 'happy-dom'
 import { createElement, type ReactNode } from 'react'
 import type { Address } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useChainId, useConfig } from 'wagmi'
+import { useChainId, useConfig, useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { SAFE_WALLET_CONNECTOR } from '@/test-utils/safeWallet.fixture'
 import { getCommemorativeNftContractAddress } from './config'
 import { MAINNET_NFT_TEST_ADDRESS } from './config.fixture'
 import {
@@ -29,6 +30,7 @@ import {
   commemorativeNftClaimedQueryOptions,
   commemorativeNftEligibilityQueryOptions,
 } from './queries'
+import { readCommemorativeNftSafeSubmissionBlock } from './safeExecutionHistory'
 import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftFlow } from './useCommemorativeNftFlow'
 import {
@@ -63,7 +65,11 @@ vi.mock('@/config', async () => {
     },
   }
 })
-vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
+vi.mock('wagmi', () => ({
+  useChainId: vi.fn(),
+  useConfig: vi.fn(),
+  useConnection: vi.fn(),
+}))
 vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
 vi.mock('@/lib/smart-account', () => ({ useSmartAccountContext: vi.fn() }))
 vi.mock('../service/userRegistryMigration', () => ({
@@ -94,6 +100,10 @@ vi.mock('./contract', async (importOriginal) => ({
   claimCommemorativeNft: vi.fn(),
   readCommemorativeNftClaimed: vi.fn(),
   waitForCommemorativeNftClaimReceipt: vi.fn(),
+}))
+vi.mock('./safeExecutionHistory', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./safeExecutionHistory')>()),
+  readCommemorativeNftSafeSubmissionBlock: vi.fn(),
 }))
 vi.mock('./eligibility', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./eligibility')>()),
@@ -229,6 +239,7 @@ describe('commemorative NFT flow session', () => {
     })
     vi.mocked(useChainId).mockReturnValue(1)
     vi.mocked(useConfig).mockReturnValue(wagmiConfig)
+    vi.mocked(useConnection, { partial: true }).mockReturnValue({})
     featureFlag.mockReturnValue(true)
     vi.mocked(useSmartAccountContext, { partial: true }).mockReturnValue({
       ownerAddress,
@@ -239,6 +250,9 @@ describe('commemorative NFT flow session', () => {
     readClaimed.mockResolvedValue(false)
     claim.mockResolvedValue(transactionHash)
     waitForReceipt.mockResolvedValue(confirmedReceipt)
+    vi.mocked(readCommemorativeNftSafeSubmissionBlock).mockResolvedValue(
+      undefined,
+    )
   })
 
   afterEach(() => {
@@ -894,6 +908,10 @@ describe('commemorative NFT flow session', () => {
   })
 
   it('can check an unknown receipt outcome without allowing another mint', async () => {
+    vi.mocked(readCommemorativeNftSafeSubmissionBlock).mockResolvedValue(42n)
+    vi.mocked(useConnection, { partial: true }).mockReturnValue({
+      connector: SAFE_WALLET_CONNECTOR,
+    })
     waitForReceipt.mockResolvedValueOnce({
       status: 'pending',
       hash: transactionHash,
@@ -913,6 +931,9 @@ describe('commemorative NFT flow session', () => {
     await waitFor(() => expect(result.current.state.status).toBe('minted'))
     expect(claim).toHaveBeenCalledTimes(1)
     expect(waitForReceipt).toHaveBeenCalledTimes(2)
+    expect(waitForReceipt.mock.calls[0]?.[0].connector).toBe(
+      SAFE_WALLET_CONNECTOR,
+    )
   })
 
   it.each([true, false])(

@@ -781,6 +781,10 @@ msgstr ""
 msgid "Checking whether your resolver is already deployed"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Checking which names can be upgraded"
+msgstr ""
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Checking your account…"
 msgstr ""
@@ -1146,6 +1150,14 @@ msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Couldn't revoke sessions. Please try again."
+msgstr ""
+
+#: src/features/migration/service/migrationRecipientError.ts
+msgid "Couldn't verify whether {recipient} can receive upgraded names. Try again before changing your wallet settings."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't verify whether your wallet can receive upgraded names. Please try again."
 msgstr ""
 
 #: src/features/migration/service/migrationPreparationError.ts
@@ -1653,6 +1665,12 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBadge.tsx
 msgid "Grace period"
+msgstr ""
+
+#: src/features/dashboard/components/NameRow.tsx
+#: src/features/dashboard/components/PrimaryNameCard.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Grace period ends"
 msgstr ""
 
 #: src/features/weave-registration/lib/weaveSteps.ts
@@ -3597,6 +3615,10 @@ msgstr ""
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr ""
 
+#: src/features/migration/service/migrationRecipientError.ts
+msgid "The wallet {recipient} cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "There was a problem reaching the notification service. Please try again in a moment."
 msgstr ""
@@ -4678,6 +4700,10 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet asks you to approve the payment if needed, then to confirm the renewal transaction."
+msgstr ""
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your wallet cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx

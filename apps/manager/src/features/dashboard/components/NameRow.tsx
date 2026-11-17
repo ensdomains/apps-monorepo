@@ -4,7 +4,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
-import { Check, CircleAlert, Heart, History } from 'lucide-react'
+import { CalendarDays, Check, CircleAlert, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -62,6 +62,7 @@ interface NameRowProps {
   readonly status?: NameStatus | null
   readonly expiringInDays?: number | null
   readonly expiryLabel?: string | null
+  readonly graceEndLabel?: string | null
   readonly cta?: NameRowCta | null
   readonly isFavorite?: boolean
   readonly showFavoriteButton?: boolean
@@ -511,17 +512,33 @@ const ExpiryText = ({ display }: { readonly display: ExpiryDisplay }) =>
 
 const ExpiryDetails = ({
   display,
+  graceEndLabel,
   cta,
   label,
   renewalProtocol,
-}: Pick<NameRowProps, 'cta' | 'label' | 'renewalProtocol'> & {
+}: Pick<NameRowProps, 'graceEndLabel' | 'cta' | 'label' | 'renewalProtocol'> & {
   readonly display: ExpiryDisplay
 }) => {
   if (display.kind === 'none' && !cta) return null
 
   return (
     <div className="flex items-center justify-between gap-3">
-      <ExpiryText display={display} />
+      {graceEndLabel ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ExpiryText display={display} />
+          <div className="flex items-center gap-2">
+            <CalendarDays className="size-4 shrink-0 text-ens-quartz-360" />
+            <span className="font-sans text-ens-quartz-380 text-sm">
+              <Trans>Grace period ends</Trans>
+            </span>
+            <span className="font-sans text-ens-quartz-550 text-sm">
+              {graceEndLabel}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <ExpiryText display={display} />
+      )}
       {cta && (
         <RowCta
           cta={cta}
@@ -545,6 +562,7 @@ export const NameRow = ({
   status = null,
   expiringInDays = null,
   expiryLabel = null,
+  graceEndLabel = null,
   cta = null,
   isFavorite = false,
   showFavoriteButton = false,
@@ -605,6 +623,7 @@ export const NameRow = ({
       <ExpiryDetails
         cta={cta}
         display={getExpiryDisplay({ expiryLabel, expiringInDays, isInGrace })}
+        graceEndLabel={graceEndLabel}
         label={label}
         renewalProtocol={renewalProtocol}
       />

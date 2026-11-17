@@ -63,27 +63,11 @@ export const getDaysSinceExpiry = (
 ): number =>
   Math.max(0, Math.ceil((now.getTime() - expiryDate.getTime()) / MS_PER_DAY))
 
-export const getDisplayExpiryDate = (
-  expiryDate: Date | null | undefined,
-  protocol: RenewalProtocol,
-  now: Date = new Date(),
-): Date | null => {
-  const date = normalizeExpiryDate(expiryDate)
-  return match(date)
-    .with(P.nullish, () => null)
-    .when(
-      (value) => isInGracePeriod(value, protocol, now),
-      (value) => getGraceEndDate(value, protocol),
-    )
-    .otherwise((value) => value)
-}
-
 export type NameExpiryStatus = {
   readonly expiryDate: Date | null
   readonly isInGrace: boolean
   readonly graceEndDate: Date | null
   readonly daysSinceExpiry: number | null
-  readonly displayExpiryDate: Date | null
   readonly isPastGrace: boolean
 }
 
@@ -99,7 +83,6 @@ export const getSubnameExpiryStatus = (
     isInGrace: false,
     graceEndDate: null,
     daysSinceExpiry: null,
-    displayExpiryDate: date,
     isPastGrace: !!date && now >= date,
   }
 }
@@ -119,7 +102,6 @@ export const getServedExpiryStatus = (
     isInGrace,
     graceEndDate: isInGrace ? graceEnd : null,
     daysSinceExpiry: date && isInGrace ? getDaysSinceExpiry(date, now) : null,
-    displayExpiryDate: isInGrace ? graceEnd : date,
     isPastGrace: !!date && now >= (graceEnd ?? date),
   }
 }
@@ -137,7 +119,6 @@ export const getNameExpiryStatus = (
     isInGrace: inGrace,
     graceEndDate: date && inGrace ? getGraceEndDate(date, protocol) : null,
     daysSinceExpiry: date && inGrace ? getDaysSinceExpiry(date, now) : null,
-    displayExpiryDate: getDisplayExpiryDate(date, protocol, now),
     isPastGrace: isPastGracePeriod(date, protocol, now),
   }
 }
