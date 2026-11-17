@@ -6,6 +6,7 @@ import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getTLD, isClaimable } from '@/utils/ens/tldHelpers'
 import { isAscii } from '@/utils/token/ascii'
+import { getAddressLikeNameError } from '@/utils/token/nameValidation'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import type { DnsImportStep, DnsImportType } from '../types'
 import { CustomTldMessage } from './CustomTldMessage'
@@ -69,6 +70,18 @@ export const DnsImportFlow = ({
             Importing domain names with non-ASCII characters is not supported.
           </p>
         }
+      />
+    )
+  }
+
+  const addressLikeError = getAddressLikeNameError(name, 'imported')
+  if (addressLikeError) {
+    return (
+      <MessageCard
+        variant="warning"
+        icon={<CircleAlert className="size-6" strokeWidth={1.5} />}
+        title="Not importable"
+        description={<p>{addressLikeError}</p>}
       />
     )
   }

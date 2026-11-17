@@ -4,10 +4,12 @@ import { BadgeCheck } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Address } from 'viem'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
+import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getTLD } from '@/utils/ens/tldHelpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getAddressLikeNameError } from '@/utils/token/nameValidation'
 import { useDnsOffchainName } from '../hooks/useDnsOffchainName'
 import { getDnsTldStatusQueryOptions } from '../queries/getDnsTldStatus'
 import { CustomTldMessage } from './CustomTldMessage'
@@ -33,9 +35,11 @@ const InlineCode = ({ children }: { readonly children: ReactNode }) => (
 const DnsOffchainNameMessage = ({
   name,
   address,
+  importError,
 }: {
   readonly name: string
   readonly address: Address
+  readonly importError: string | null
 }) => {
   const navigate = useNavigate()
   return (
@@ -47,19 +51,24 @@ const DnsOffchainNameMessage = ({
         <p>
           This DNS name is already active in ENS through its{' '}
           <strong>ENS1</strong> TXT record, resolving to{' '}
-          <span className="font-mono">{truncateAddress(address)}</span>. It has
-          no registry entry — importing it onchain adds one, along with a token.
+          <span className="font-mono">{truncateAddress(address)}</span>.{' '}
+          {importError ??
+            'It has no registry entry — importing it onchain adds one, along with a token.'}
         </p>
       }
-      actionButton={{
-        label: 'Import onchain',
-        onClick: () =>
-          void navigate({
-            to: '/import/$name',
-            params: { name },
-            search: { type: 'onchain', step: 'start' },
-          }),
-      }}
+      actionButton={
+        importError
+          ? undefined
+          : {
+              label: 'Import onchain',
+              onClick: () =>
+                void navigate({
+                  to: '/import/$name',
+                  params: { name },
+                  search: { type: 'onchain', step: 'start' },
+                }),
+            }
+      }
       className={IMPORT_COLUMN_CLASS}
     />
   )
@@ -93,9 +102,25 @@ export const DnsClaimableMessage = ({ name }: { readonly name: string }) => {
     return <CustomTldMessage tld={tld} />
   }
 
+  const importError = getAddressLikeNameError(name, 'imported')
   const { resolvedAddress } = offchain
   if (resolvedAddress) {
-    return <DnsOffchainNameMessage name={name} address={resolvedAddress} />
+    return (
+      <DnsOffchainNameMessage
+        name={name}
+        address={resolvedAddress}
+        importError={importError}
+      />
+    )
+  }
+
+  if (importError) {
+    return (
+      <InvalidNameMessage
+        title="Name can’t be imported"
+        description={importError}
+      />
+    )
   }
 
   return (

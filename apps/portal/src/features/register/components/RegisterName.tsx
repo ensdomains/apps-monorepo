@@ -233,7 +233,7 @@ const RegisterNameFlow = ({ name }: RegisterNameProps) => {
 
 /** Refused before the flow mounts, so a run stored for the name never resumes. */
 export const RegisterName = ({ name }: RegisterNameProps) => {
-  const addressLikeError = getAddressLikeNameError(name)
+  const addressLikeError = getAddressLikeNameError(name, 'registered')
   return addressLikeError ? (
     <InvalidNameMessage
       title="Name can’t be registered"

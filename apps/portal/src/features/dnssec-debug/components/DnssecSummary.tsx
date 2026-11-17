@@ -1,3 +1,4 @@
+import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { Link } from '@tanstack/react-router'
 import { ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react'
 import { match } from 'ts-pattern'
@@ -43,6 +44,10 @@ const needsRegistrarHelp = (verdict: DnssecVerdict): boolean =>
     verdict.path === null &&
     (verdict.check.id === 'ds-records' || verdict.check.id === 'ds-match'))
 
+/** A name that reads like a wallet address can't be imported, so no setup is offered. */
+const canSetUpRecords = (verdict: DnssecVerdict, name: string): boolean =>
+  verdict.kind === 'no-records' && !isAddressLikeName(name)
+
 type DnssecSummaryProps = {
   readonly name: string
   readonly verdict: DnssecVerdict
@@ -70,7 +75,7 @@ export const DnssecSummary = ({ name, verdict }: DnssecSummaryProps) => {
             items={DNSSEC_HELP_LINKS}
           />
         )}
-        {verdict.kind === 'no-records' && (
+        {canSetUpRecords(verdict, name) && (
           <Button asChild className="self-start">
             <Link
               to="/import/$name"

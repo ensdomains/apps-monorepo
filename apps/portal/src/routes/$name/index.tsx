@@ -93,7 +93,7 @@ const AvailableNamePrompt = ({ name }: { readonly name: string }) => {
       <InvalidNameMessage title="Name too short" description={lengthError} />
     )
   }
-  const addressLikeError = getAddressLikeNameError(name)
+  const addressLikeError = getAddressLikeNameError(name, 'registered')
   if (addressLikeError) {
     return (
       <InvalidNameMessage
