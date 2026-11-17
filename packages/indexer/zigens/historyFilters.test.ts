@@ -4,6 +4,7 @@ import type { HistoryEvent } from '../reads/history.types'
 import {
   isWithinHistoryFilter,
   toEventsWhere,
+  toEventWhere,
   toHistoryStart,
 } from './historyFilters'
 
@@ -132,5 +133,32 @@ describe('isWithinHistoryFilter', () => {
     },
   ])('keeps $case: $kept', ({ filter, timestamp, kept }) => {
     expect(isWithinHistoryFilter(filter)(registration(timestamp))).toBe(kept)
+  })
+})
+
+describe('toEventWhere kinds', () => {
+  it('reads every kind asked for, not only root role changes', () => {
+    expect(
+      toEventWhere({ kinds: ['RootPermissionChanged', 'LabelRegistered'] }),
+    ).toEqual({ type_in: ['LabelRegistered', 'EACRolesChanged'] })
+  })
+
+  it('narrows to the root resource when only root role changes are asked for', () => {
+    expect(toEventWhere({ kinds: ['RootPermissionChanged'] })).toEqual({
+      type_in: ['EACRolesChanged'],
+      resource: '0x0',
+    })
+  })
+
+  it('reads a bigname kind from the zigens types that produce it', () => {
+    expect(toEventWhere({ kinds: ['ResolverChanged'] })).toEqual({
+      type_in: ['ResolverUpdated'],
+    })
+  })
+
+  it('matches nothing when the types and kinds exclude each other', () => {
+    expect(
+      toEventWhere({ types: ['transfer'], kinds: ['ResolverChanged'] }),
+    ).toBeNull()
   })
 })

@@ -230,6 +230,12 @@ const byBlock =
   (order: 'asc' | 'desc' | undefined) => (a: HistoryEvent, b: HistoryEvent) =>
     (order === 'asc' ? 1 : -1) * ((a.blockNumber ?? 0) - (b.blockNumber ?? 0))
 
+// Adds subject terms to a filter, keeping a null that matches nothing.
+const withWhere = (
+  where: Readonly<Record<string, unknown>> | null,
+  subject: Readonly<Record<string, unknown>>,
+) => where && { ...subject, ...where }
+
 const EMPTY_HISTORY: Page<HistoryEvent> = {
   items: [],
   nextCursor: null,
@@ -378,23 +384,26 @@ export const createZigensIndexer = ({
     )
   }
 
+  // A null filter cannot match any zigens type, so the source is empty.
   const readV2Events = (
-    where: Readonly<Record<string, unknown>>,
+    where: Readonly<Record<string, unknown>> | null,
     order: 'asc' | 'desc' | undefined,
     after: string | undefined,
     pageSize: number,
     context: EventContext,
     signal?: AbortSignal,
-  ) =>
-    zigens<{ eventConnection: Connection<V2Event> }>(
-      V2.EVENT_CONNECTION,
-      { where, first: pageSize, after, orderDirection: order ?? 'desc' },
-      signal,
-    ).map(({ eventConnection }) =>
-      fromConnection(eventConnection, (event) =>
-        toHistoryEvent(event, context),
-      ),
-    )
+  ): ResultAsync<SourcePage<HistoryEvent>, IndexerReadError> =>
+    where === null
+      ? okAsync(EMPTY_PAGE)
+      : zigens<{ eventConnection: Connection<V2Event> }>(
+          V2.EVENT_CONNECTION,
+          { where, first: pageSize, after, orderDirection: order ?? 'desc' },
+          signal,
+        ).map(({ eventConnection }) =>
+          fromConnection(eventConnection, (event) =>
+            toHistoryEvent(event, context),
+          ),
+        )
 
   /** ENSv1 event times: the registration date for each latest registration, then block timestamps over RPC. */
   const readEventTimes = (events: readonly V1Event[], signal?: AbortSignal) => {
@@ -669,7 +678,9 @@ export const createZigensIndexer = ({
             pageSize,
             readFirst: (after) =>
               readV2Events(
-                { namehash: v2.id, ...toEventWhere({ ...query, from }) },
+                withWhere(toEventWhere({ ...query, from }), {
+                  namehash: v2.id,
+                }),
                 query.order,
                 after,
                 pageSize,
@@ -756,11 +767,10 @@ export const createZigensIndexer = ({
         pageSize,
         readFirst: (after) =>
           readV2Events(
-            {
+            withWhere(toEventWhere(query), {
               involved: query.address.toLowerCase(),
               protocol: 'v2',
-              ...toEventWhere(query),
-            },
+            }),
             order,
             after,
             pageSize,

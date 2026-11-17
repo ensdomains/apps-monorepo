@@ -67,7 +67,7 @@ describe('toHistoryEvent', () => {
         `{"label":"afasf","tokenId":${TOKEN_ID},"owner":"0xda53c38ffacb571f904587e46a8ebf3f5f45e945","paymentToken":"0x1c7d4b196cb0c7b01d743fbc6116a902379c7238","basePrice":0,"premium":5}`,
       ),
       type: 'registration',
-      kind: 'NameRegistered',
+      kind: 'RegistrationGranted',
       data: {
         action: 'registration_granted',
         owner: '0xda53c38ffacb571f904587e46a8ebf3f5f45e945',
@@ -90,7 +90,7 @@ describe('toHistoryEvent', () => {
         `{"operator":"0xf633e7fc17e2bbe0d0965d18ec1821dcb754a3d3","from":"0x0000000000000000000000000000000000000000","to":"0xda53c38ffacb571f904587e46a8ebf3f5f45e945","id":${TOKEN_ID},"value":1}`,
       ),
       type: 'transfer',
-      kind: 'Transfer',
+      kind: 'TokenControlTransferred',
       data: {
         action: 'token_transferred',
         from: '0x0000000000000000000000000000000000000000',

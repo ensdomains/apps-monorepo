@@ -221,13 +221,14 @@ describe('createZigensIndexer', () => {
     )._unsafeUnwrap()
 
     expect(
-      page.items.map(({ logIndex, timestamp }) => [
+      page.items.map(({ kind, logIndex, timestamp }) => [
+        kind,
         logIndex,
         timestamp?.getTime(),
       ]),
     ).toEqual([
-      [60, 1690405056000],
-      [12, 1690405000000],
+      ['RegistrationGranted', 60, 1690405056000],
+      ['ResolverChanged', 12, 1690405000000],
     ])
     expect(getBlock).toHaveBeenCalledTimes(1)
     expect(getBlock).toHaveBeenCalledWith(numberToHex(3970143))

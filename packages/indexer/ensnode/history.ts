@@ -1,6 +1,7 @@
 import type {
   HistoryEvent,
   HistoryEventData,
+  HistoryEventKind,
   HistoryEventType,
 } from '../reads/history.types'
 import { toAccount, toHash } from '../shared/values'
@@ -106,6 +107,21 @@ const toMapped = (event: V1Event, chainId: number): Mapped | null => {
   }
 }
 
+// The subgraph's event types in bigname's kind vocabulary; wrapping changes who holds authority.
+const V1_KINDS: Readonly<Record<string, HistoryEventKind>> = {
+  NameRegistered: 'RegistrationGranted',
+  NameRenewed: 'RegistrationRenewed',
+  ExpiryExtended: 'ExpiryChanged',
+  NameTransferred: 'TokenControlTransferred',
+  Transfer: 'TokenControlTransferred',
+  NewOwner: 'TokenControlTransferred',
+  WrappedTransfer: 'TokenControlTransferred',
+  NewResolver: 'ResolverChanged',
+  NameWrapped: 'AuthorityTransferred',
+  NameUnwrapped: 'AuthorityTransferred',
+  FusesSet: 'PermissionChanged',
+}
+
 // ENSNode event ids are `<chainId>-<block>-<logIndex>`.
 const toLogIndex = (id: string) => {
   const logIndex = Number(id.split('-').at(-1))
@@ -134,7 +150,7 @@ export const toV1HistoryEvent = (
     transactionHash: toHash(event.transactionID),
     logIndex: toLogIndex(event.id),
     contractAddress: null,
-    kind: event.__typename,
+    kind: V1_KINDS[event.__typename] ?? null,
     type: mapped.type,
     data: Object.fromEntries(
       Object.entries(mapped.data).filter(([, value]) => value !== undefined),

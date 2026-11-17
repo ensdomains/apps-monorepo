@@ -78,7 +78,9 @@ type Input = Readonly<{
 /** How one zigens event type becomes a bigname row. */
 type Mapper = Readonly<{
   type: HistoryEventType
-  toKind?: (input: Input) => HistoryEventKind
+  // Every kind it can produce, so a `kinds` filter can find the zigens types behind it.
+  kinds: readonly HistoryEventKind[]
+  toKind: (input: Input) => HistoryEventKind
   toData: (input: Input) => HistoryEventData[HistoryEventType]
 }>
 
@@ -109,9 +111,15 @@ const toCoinType = ({ data }: Input) => {
   return Number.isSafeInteger(coinType) ? coinType : undefined
 }
 
+// bigname names the raw event kind; zigens types map onto its vocabulary.
+const fixed = (kind: HistoryEventKind) => ({
+  kinds: [kind],
+  toKind: () => kind,
+})
+
 const TEXT_RECORD: Mapper = {
   type: 'record',
-  toKind: () => 'RecordChanged',
+  ...fixed('RecordChanged'),
   toData: (input) => ({
     action: 'record_changed',
     key:
@@ -123,7 +131,7 @@ const TEXT_RECORD: Mapper = {
 
 const ADDRESS_RECORD: Mapper = {
   type: 'record',
-  toKind: () => 'RecordChanged',
+  ...fixed('RecordChanged'),
   toData: (input) => {
     const coinType = toCoinType(input)
     return {
@@ -140,6 +148,7 @@ const ADDRESS_RECORD: Mapper = {
 const MAPPERS: Readonly<Record<string, Mapper>> = {
   LabelRegistered: {
     type: 'registration',
+    ...fixed('LabelRegistered'),
     toData: (input) => ({
       action: 'registration_granted',
       owner: account(input.data.owner),
@@ -153,6 +162,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   NameRegistered: {
     type: 'registration',
+    ...fixed('RegistrationGranted'),
     toData: (input) => ({
       action: 'registration_granted',
       owner: account(input.data.owner),
@@ -171,6 +181,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   NameRenewed: {
     type: 'renewal',
+    ...fixed('RegistrationRenewed'),
     toData: ({ data }) => ({
       action: 'registration_renewed',
       expires_at: str(data.expires),
@@ -178,6 +189,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   ExpiryUpdated: {
     type: 'expiry',
+    ...fixed('ExpiryChanged'),
     toData: ({ data }) => ({
       action: 'expiry_changed',
       expires_at: str(data.newExpiry ?? data.expiry),
@@ -185,10 +197,12 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   LabelUnregistered: {
     type: 'release',
+    ...fixed('RegistrationReleased'),
     toData: () => ({ action: 'registration_released' }),
   },
   Transfer: {
     type: 'transfer',
+    ...fixed('TokenControlTransferred'),
     toData: (input) => ({
       action: 'token_transferred',
       // The zero address marks a mint, which the screens rely on seeing.
@@ -200,6 +214,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   ResolverUpdated: {
     type: 'resolver',
+    ...fixed('ResolverChanged'),
     toData: ({ data, context }) => ({
       action: 'resolver_changed',
       resolver: contractRef(context.chainId, data.resolver),
@@ -207,6 +222,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   Linked: {
     type: 'resolver',
+    ...fixed('ResolverRecordLinked'),
     toData: ({ event, data, context }) => ({
       action: 'resolver_record_linked',
       record_id: str(data.recordId ?? data.id),
@@ -220,6 +236,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   AddressChanged: ADDRESS_RECORD,
   SubregistryUpdated: {
     type: 'subregistry',
+    ...fixed('SubregistryChanged'),
     toData: ({ data, context }) => ({
       action: 'subregistry_changed',
       canonical_id: str(data.canonicalId),
@@ -228,6 +245,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   ReverseClaimed: {
     type: 'primary_name',
+    ...fixed('ReverseChanged'),
     toData: ({ data }) => ({
       action: 'reverse_claimed',
       address: account(data.address ?? data.addr),
@@ -236,6 +254,7 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
   },
   EACRolesChanged: {
     type: 'permission',
+    kinds: ['RootPermissionChanged', 'EACRolesChanged'],
     toKind: (input) =>
       isRoot(input) ? 'RootPermissionChanged' : 'EACRolesChanged',
     toData: (input) => {
@@ -266,6 +285,14 @@ export const toZigensTypes = (
     .filter(([, { type }]) => types.includes(type))
     .map(([zigensType]) => zigensType)
 
+/** zigens event types that produce each bigname kind, for a `kinds` filter. */
+export const toZigensTypesForKinds = (
+  kinds: readonly HistoryEventKind[],
+): readonly string[] =>
+  Object.entries(MAPPERS)
+    .filter(([, mapper]) => mapper.kinds.some((kind) => kinds.includes(kind)))
+    .map(([zigensType]) => zigensType)
+
 /** Drops `undefined` keys, which bigname omits on the wire. */
 const compact = <Data extends object>(data: Data): Data =>
   Object.fromEntries(
@@ -290,7 +317,7 @@ export const toHistoryEvent = (
     transactionHash: toHash(event.transactionHash),
     logIndex: null,
     contractAddress: toAccount(event.contractAddress),
-    kind: mapper.toKind?.(input) ?? event.type,
+    kind: mapper.toKind(input),
     type: mapper.type,
     data: compact(mapper.toData(input)),
   } as HistoryEvent
