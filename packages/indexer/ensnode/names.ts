@@ -84,6 +84,7 @@ export const toV1NameDetail = (
   createdAt: secondsToDate(domain.createdAt),
   migratedAt: null,
   unresolvableReason: null,
+  addressCoinTypes: null,
 })
 
 /** The relations `address` holds to an ENSv1 name. */

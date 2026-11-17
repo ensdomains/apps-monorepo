@@ -4,7 +4,7 @@ import {
 } from '@ens-apps/utils/gracePeriod'
 import { Result } from 'neverthrow'
 import { normalize } from 'viem/ens'
-import { toExactSeconds } from './adapters'
+import { toExactSeconds, toExpirySeconds } from './adapters'
 import type { BignameClient } from './client'
 import { readAllCollectionPages } from './paging'
 import { MAX_PAGE_SIZE } from './time'
@@ -85,3 +85,52 @@ export const readGraceNames = (
       ),
     { signal },
   ).map((rows) => rows.filter((row) => isInV2Grace(row, address, nowSeconds)))
+
+/** A `.eth` name the address let lapse (expired in grace, released after), its lease ending after `since`. */
+export const isLapsedName = (
+  row: AddressName,
+  address: Address,
+  sinceSeconds: bigint,
+  nowSeconds: bigint,
+): boolean => {
+  const expiry = toExpirySeconds(row)
+  return (
+    (row.status === 'expired' || row.status === 'released') &&
+    row.lapsed_registration?.release_kind === 'expired' &&
+    row.lapsed_registration.owner?.toLowerCase() === address.toLowerCase() &&
+    expiry !== null &&
+    sinceSeconds < expiry &&
+    expiry <= nowSeconds &&
+    isEth2ld(row.name)
+  )
+}
+
+/** The address's lapsed `.eth` names in either era, from a `relation=former_owner` read over the expiry window. */
+export const readLapsedNames = (
+  client: Pick<BignameClient, 'addressNames'>,
+  address: Address,
+  sinceSeconds: bigint,
+  nowSeconds: bigint,
+  signal?: AbortSignal,
+) =>
+  readAllCollectionPages(
+    (cursor, pageSignal) =>
+      client.addressNames(
+        address,
+        {
+          namespace: 'ens',
+          relation: 'former_owner',
+          parent: 'eth',
+          sort: 'expires_at',
+          order: 'asc',
+          expires_after: String(sinceSeconds),
+          expires_before: String(nowSeconds + 1n),
+          page_size: MAX_PAGE_SIZE,
+          ...(cursor !== undefined && { cursor }),
+        },
+        { signal: pageSignal },
+      ),
+    { signal },
+  ).map((rows) =>
+    rows.filter((row) => isLapsedName(row, address, sinceSeconds, nowSeconds)),
+  )

@@ -42,6 +42,8 @@ export type NameDetail = Readonly<{
    * with no resolver. Null when it resolves, or when that is not proven.
    */
   unresolvableReason: 'no_live_ens_v2_entry' | 'ens_v2_path_no_resolver' | null
+  /** Coin types the name has an address record for; null when the backend cannot list them. */
+  addressCoinTypes: readonly string[] | null
 }>
 
 /** Resolves to null when the backend has not indexed the name at all. */

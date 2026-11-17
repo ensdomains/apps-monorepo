@@ -6,13 +6,20 @@ export type NamesQuery = Readonly<{
   names: readonly string[]
 }>
 
-/** `getNames`: each name's detail, null when it is not indexed. */
+/** `getNames`: each name's detail, null when it is not indexed or not fully read. */
 export type NamesResult = readonly (NameDetail | null)[]
 
 export type GraceNamesQuery = Readonly<{
   address: Address
   /** ENSv2 `.eth` names still renewable at this instant. */
   now: Date
+}>
+
+export type LapsedNamesQuery = Readonly<{
+  address: Address
+  now: Date
+  /** Only names whose expiry (an ENSv1 name's lease) is after this. */
+  since: Date
 }>
 
 export type SubnamesQuery = PageQuery &
@@ -23,8 +30,13 @@ export type SubnamesQuery = PageQuery &
     includeCounts?: boolean
   }>
 
-/** The ENSv1 NameWrapper state of a name. */
-export type WrapperState = 'unwrapped' | 'wrapped' | 'emancipated' | 'locked'
+/** The ENSv1 NameWrapper state of a name; `unknown` when the backend cannot tell. */
+export type WrapperState =
+  | 'unwrapped'
+  | 'wrapped'
+  | 'emancipated'
+  | 'locked'
+  | 'unknown'
 
 /** A direct child as the subnames lists render it, ordered by name. */
 export type Subname = Readonly<{

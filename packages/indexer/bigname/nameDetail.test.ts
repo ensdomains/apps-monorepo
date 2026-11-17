@@ -48,6 +48,7 @@ describe('readNameDetail', () => {
       createdAt: new Date('2026-09-28T11:29:36Z'),
       migratedAt: null,
       unresolvableReason: null,
+      addressCoinTypes: null,
     })
   })
 
@@ -76,6 +77,28 @@ describe('readNameDetail', () => {
     )._unsafeUnwrap()
 
     expect(detail?.unresolvableReason).toBe('no_live_ens_v2_entry')
+  })
+
+  it('lists the address coin types still set, keeping ones of unknown value', async () => {
+    const { client } = clientWith(
+      envelope({
+        ...record,
+        records: {
+          seen_addresses: ['60', '0', '2147483658'],
+          addresses: { '60': '0x01', '0': null },
+          seen_texts: [],
+          texts: {},
+          abis: {},
+          seen_singletons: [],
+        },
+      }),
+    )
+
+    const detail = (
+      await readNameDetail(client)({ name: 'alice.eth' })
+    )._unsafeUnwrap()
+
+    expect(detail?.addressCoinTypes).toEqual(['60', '2147483658'])
   })
 
   it('keeps an unsupported name identifiable with no protocol', async () => {

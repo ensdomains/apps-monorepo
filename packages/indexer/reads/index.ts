@@ -5,6 +5,11 @@ export type * from './history.types'
 export type * from './nameDetail.types'
 export type * from './names.types'
 export type * from './namesForAddress.types'
-export { readAllNames, readNamesPage } from './paging'
+export {
+  readAllItems,
+  readAllNames,
+  readNamesPage,
+  retryStaleRead,
+} from './paging'
 export type * from './records.types'
 export type * from './registry.types'

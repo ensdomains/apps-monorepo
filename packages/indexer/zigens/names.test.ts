@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { V1Domain } from '../ensnode/ensnode.types'
-import { pickNameDetail } from './names'
+import type { NameSummary } from '../reads/namesForAddress.types'
+import { isStillHeld, pickNameDetail, withReservation } from './names'
 import type { V2Domain } from './zigens.types'
 
 const NAME_WRAPPER = '0x0635513f179d50a207757e05759cbd106d7dfce8'
@@ -75,6 +76,7 @@ describe('pickNameDetail', () => {
       createdAt: new Date('2026-11-17T10:36:24Z'),
       migratedAt: null,
       unresolvableReason: null,
+      addressCoinTypes: null,
     })
   })
 
@@ -111,6 +113,26 @@ describe('pickNameDetail', () => {
     expect(pickNameDetail(reservation, v1(), CONTEXT)?.protocol).toBe('v1')
   })
 
+  it.each([
+    { case: 'holds', expiryDate: 2030000000, status: 'active' },
+    { case: 'has run out', expiryDate: 2010000000, status: 'expired' },
+  ])(
+    'calls an ENSv1 name past its lease $status while its reservation $case',
+    ({ expiryDate, status }) => {
+      const reservation = v2({
+        owner: { id: '0x0000000000000000000000000000000000000000' },
+        expiryDate,
+      })
+      // The lease (2007950758) has ended; the subgraph grace runs to 2015726758.
+      const at = { ...CONTEXT, now: new Date(2012000000 * 1000) }
+
+      expect(
+        pickNameDetail(reservation, v1({ wrappedDomain: null }), at)
+          ?.registrationStatus,
+      ).toBe(status)
+    },
+  )
+
   it('is null when neither deployment knows the name', () => {
     expect(pickNameDetail(undefined, undefined, CONTEXT)).toBeNull()
   })
@@ -123,5 +145,57 @@ describe('pickNameDetail', () => {
       pickNameDetail(v2(), undefined, { ...CONTEXT, now: new Date(at) })
         ?.registrationStatus,
     ).toBe(status)
+  })
+})
+
+const SUMMARY: NameSummary = {
+  name: 'alice.eth',
+  displayName: 'alice.eth',
+  namehash: '0x01',
+  protocol: 'v1',
+  relations: ['owner'],
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'active',
+  expiresAt: null,
+  servedExpiry: null,
+  graceEndsAt: null,
+  registeredAt: null,
+  createdAt: null,
+}
+
+describe('isStillHeld', () => {
+  it.each([
+    { protocol: 'v2', status: 'active', held: true },
+    { protocol: 'v2', status: 'expired', held: false },
+    { protocol: 'v1', status: 'expired', held: true },
+    { protocol: 'v1', status: 'released', held: false },
+  ] as const)(
+    'is $held for an $protocol name $status',
+    ({ protocol, status, held }) => {
+      expect(
+        isStillHeld({ ...SUMMARY, protocol, registrationStatus: status }),
+      ).toBe(held)
+    },
+  )
+})
+
+describe('withReservation', () => {
+  it('serves a run-out reservation’s expiry without making the name active', () => {
+    const reservation = v2({
+      owner: { id: '0x0000000000000000000000000000000000000000' },
+      expiryDate: 1793081508,
+    })
+
+    expect(
+      withReservation(
+        { ...SUMMARY, protocol: 'v1', registrationStatus: 'expired' },
+        reservation,
+        new Date(1794944112 * 1000),
+      ),
+    ).toMatchObject({
+      registrationStatus: 'expired',
+      servedExpiry: 1793081508n,
+    })
   })
 })

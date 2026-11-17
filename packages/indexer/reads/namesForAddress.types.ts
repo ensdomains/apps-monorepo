@@ -29,6 +29,8 @@ export type NamesForAddressQuery = Readonly<{
   parent?: string
   sort?: 'name' | 'expiry' | 'registered' | 'created'
   order?: 'asc' | 'desc'
+  /** `registration` lists a wrapped or migrated name once per registration. Default `name`. */
+  distinctBy?: 'name' | 'registration'
   includeCounts?: boolean
   /** Read the powers `address` holds on each name. */
   includeRoles?: boolean

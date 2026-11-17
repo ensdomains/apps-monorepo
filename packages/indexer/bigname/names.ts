@@ -22,9 +22,12 @@ const toWrapper = (facts: EnsV1Facts | undefined): Subname['wrapper'] => {
   const state = facts.wrapper_state
   return {
     state:
-      state === 'wrapped' || state === 'emancipated' || state === 'locked'
+      state === 'unwrapped' ||
+      state === 'wrapped' ||
+      state === 'emancipated' ||
+      state === 'locked'
         ? state
-        : 'unwrapped',
+        : 'unknown',
     fuses: facts.wrapper_fuses?.fuses ?? 0,
     parentCannotControl: facts.wrapper_fuses?.parent_cannot_control ?? false,
     expiresAt: toDate(facts.wrapper_expires_at),
@@ -63,14 +66,13 @@ export const toGraceSummary = (row: AddressName): NameSummary => ({
 
 const DECIMAL = /^\d+$/
 
-/** Null when bigname has no record inventory for the name. */
 export const toRecordKeys = ({
   resolver,
   inventory,
-}: NameRecords): RecordKeys | null =>
-  inventory
+}: NameRecords): RecordKeys => ({
+  resolver: toAddress(resolver?.address),
+  inventory: inventory
     ? {
-        resolver: toAddress(resolver?.address),
         knownKeys: inventory.known_keys,
         unsetKeys: inventory.unset_keys,
         unsupportedKeys: inventory.unsupported_keys,
@@ -79,7 +81,8 @@ export const toRecordKeys = ({
             ?.filter((type) => DECIMAL.test(type))
             .map(BigInt) ?? null,
       }
-    : null
+    : null,
+})
 
 export const toSyncStatus = (
   data: StatusData,

@@ -19,12 +19,12 @@ export type Page<Item> = Readonly<{
   totalCount: number | null
 }>
 
+/** `partial`: the backend knows of entries it did not list; `unsupported`: it cannot list them at all. */
+export type Completeness = 'full' | 'partial' | 'unsupported'
+
 /** A page from a read whose backend can say it left something out. */
 export type AuditedPage<Item> = Page<Item> &
-  Readonly<{
-    /** False when the backend knows of entries it could not list. */
-    isComplete: boolean
-  }>
+  Readonly<{ completeness: Completeness }>
 
 /** Where and when an onchain observation was emitted. */
 export type EventPosition = Readonly<{

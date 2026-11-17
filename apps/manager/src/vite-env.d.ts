@@ -9,6 +9,8 @@ interface ImportMetaEnv extends Readonly<Cloudflare.Env> {
   readonly VITE_RPC_URL_SERVER?: string
   readonly VITE_L2_RPC_URLS?: string
   readonly VITE_BIGNAME_API_URL?: string
+  /** Indexer backend: bigname (default), goldsky or zigens. */
+  readonly VITE_INDEXER?: string
 }
 
 interface ImportMeta {

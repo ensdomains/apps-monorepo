@@ -10,6 +10,7 @@ import type {
 import type { NameDetail, NameDetailQuery } from './nameDetail.types'
 import type {
   GraceNamesQuery,
+  LapsedNamesQuery,
   NamesQuery,
   NamesResult,
   Subname,
@@ -41,21 +42,25 @@ type Read<Query, Result> = (
 export type IndexerClient = Readonly<{
   /** Null when the name is not indexed at all. */
   getNameDetail: Read<NameDetailQuery, NameDetail | null>
+  /** Null for a name the backend has not indexed or could not fully read. */
   getNames: Read<NamesQuery, NamesResult>
   getNamesForAddress: Read<NamesForAddressQuery, Page<NameSummary>>
   /** Every ENSv2 `.eth` name the address held and can still renew in grace. */
   getGraceNames: Read<GraceNamesQuery, readonly NameSummary[]>
+  /** `.eth` names in either era the address held until they lapsed, and nobody has registered since. */
+  getLapsedNames: Read<LapsedNamesQuery, readonly NameSummary[]>
   /** An unindexed parent reads as an empty page. */
   getSubnames: Read<SubnamesQuery, Page<Subname>>
-  /** Null when no record inventory is available. */
+  /** Null when the name is not indexed. */
   getRecordKeys: Read<RecordKeysQuery, RecordKeys | null>
-  /** An unindexed name reads as an empty page. */
-  getNameHistory: Read<NameHistoryQuery, Page<HistoryEvent>>
+  /** Null when the name is not indexed. */
+  getNameHistory: Read<NameHistoryQuery, Page<HistoryEvent> | null>
   getAddressHistory: Read<AddressHistoryQuery, Page<HistoryEvent>>
   getEvents: Read<EventsQuery, Page<HistoryEvent>>
   /** Null when the registry is not indexed. */
   getRegistry: Read<RegistryQuery, Registry | null>
-  getRegistryLabels: Read<RegistryLabelsQuery, Page<RegistryLabel>>
+  /** Null when the registry is not indexed. */
+  getRegistryLabels: Read<RegistryLabelsQuery, Page<RegistryLabel> | null>
   /** Null when the resolver is not indexed. */
   getResolver: Read<ResolverQuery, ResolverOverview | null>
   getResolverLinks: Read<ResolverCollectionQuery, AuditedPage<ResolverLink>>

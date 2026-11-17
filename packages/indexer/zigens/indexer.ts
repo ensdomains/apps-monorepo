@@ -43,18 +43,24 @@ import {
   secondsToDate,
   toAccount,
   toUnixSeconds,
+  V1_GRACE_SECONDS,
   V2_GRACE_SECONDS,
 } from '../shared/values'
 import {
   isChildOf,
+  isLapsedInWindow,
   MAX_NAMES,
   type Sorted,
+  toBatches,
+  toOffsetPage,
   toRelations,
   toSortedComparator,
   toV1SortKey,
   toV1Variables,
   toV2SortKey,
+  toV2Terms,
   toV2Variables,
+  ZIGENS_NAME_LIMIT,
 } from './filters'
 import { type EventContext, toHistoryEvent } from './history'
 import {
@@ -68,9 +74,11 @@ import {
 } from './historyFilters'
 import {
   isRegisteredV2,
+  isStillHeld,
   pickNameDetail,
   toV2NameSummary,
   toV2Subname,
+  withReservation,
 } from './names'
 import * as V2 from './queries'
 import { type ResolverRecords, toRecordKeys } from './records'
@@ -220,6 +228,32 @@ const readAllEdges = <Node>(
     signal,
   })
 
+/** Every page of an ENSNode list, which pages by `skip`. */
+const readAllSkipped = <Row>(
+  readPage: (
+    skip: number,
+    first: number,
+    signal?: AbortSignal,
+  ) => ResultAsync<readonly Row[], IndexerReadError>,
+  signal: AbortSignal | undefined,
+) =>
+  readAllPages({
+    readPage: (cursor, pageSignal) => {
+      const skip = toSkip(cursor)
+      return readPage(skip, MAX_NAMES, pageSignal).map((rows) => ({
+        rows,
+        nextCursor:
+          rows.length === MAX_NAMES ? String(skip + rows.length) : null,
+      }))
+    },
+    isStaleError: isNeverStale,
+    toStopError,
+    signal,
+  })
+
+const namesOf = (domains: readonly Readonly<{ name: string | null }>[]) =>
+  domains.flatMap(({ name }) => (name ? [name] : []))
+
 const EMPTY_SUBNAMES: Page<Subname> = {
   items: [],
   nextCursor: null,
@@ -269,11 +303,17 @@ export const createZigensIndexer = ({
   const eventContext: EventContext = { chainId, roleContract: 'registry' }
 
   const readV2Domains = (names: readonly string[], signal?: AbortSignal) =>
-    zigens<{ domains: readonly V2Domain[] }>(
-      V2.DOMAINS_BY_NAMES,
-      { names },
-      signal,
-    ).map(({ domains }) => domains.filter((domain) => domain.protocol === 'v2'))
+    ResultAsync.combine(
+      toBatches(names, ZIGENS_NAME_LIMIT).map((batch) =>
+        zigens<{ domains: readonly V2Domain[] }>(
+          V2.DOMAINS_BY_NAMES,
+          { names: batch },
+          signal,
+        ).map(({ domains }) => domains),
+      ),
+    ).map((batches) =>
+      batches.flat().filter((domain) => domain.protocol === 'v2'),
+    )
 
   const readV1Domains = (names: readonly string[], signal?: AbortSignal) =>
     ensNode<{ domains: readonly V1Domain[] }>(
@@ -281,6 +321,13 @@ export const createZigensIndexer = ({
       { names },
       signal,
     ).map(({ domains }) => domains)
+
+  /** ENSv2 rows of these names, reservations of ENSv1 names included, by name. */
+  const readReservations = (names: readonly string[], signal?: AbortSignal) =>
+    readV2Domains(names, signal).map(
+      (domains) =>
+        new Map(domains.map((domain) => [domain.name ?? '', domain])),
+    )
 
   const readNames = (names: readonly string[], signal?: AbortSignal) =>
     ResultAsync.combine([
@@ -313,37 +360,60 @@ export const createZigensIndexer = ({
     powersByName: ReadonlyMap<string, readonly string[]>,
     after: string | undefined,
     signal?: AbortSignal,
-  ) => {
+  ): ResultAsync<SourcePage<Sorted<NameSummary>>, IndexerReadError> => {
     const pageSize = toPageSize(query.pageSize)
-    const variables = toV2Variables(
-      query,
-      [...powersByName.keys()],
-      after,
-      pageSize,
-    )
-    if (query.protocol === 'v1' || variables === null) {
-      return okAsync<SourcePage<Sorted<NameSummary>>, IndexerReadError>(
-        EMPTY_PAGE,
+    const roleNames = [...powersByName.keys()]
+    const terms = toV2Terms(query, roleNames)
+    if (query.protocol === 'v1' || terms.length === 0) {
+      return okAsync(EMPTY_PAGE)
+    }
+    const toRow = (domain: V2Domain) => {
+      if (query.parent && !isChildOf(domain.name ?? '', query.parent)) {
+        return null
+      }
+      const item = toV2NameSummary(domain, {
+        address: query.address,
+        now: now(),
+        powersByName,
+        includeCounts: query.includeCounts,
+        includeRoles: query.includeRoles,
+      })
+      return query.resolvesTo || isStillHeld(item)
+        ? { item, key: toV2SortKey(domain, query) }
+        : null
+    }
+    const readConnection = (
+      anyOf: typeof terms,
+      cursor: string | undefined,
+      first: number,
+      pageSignal?: AbortSignal,
+    ) =>
+      zigens<{ domainConnection: Connection<V2Domain> }>(
+        V2.DOMAIN_CONNECTION,
+        toV2Variables(query, anyOf, cursor, first),
+        pageSignal,
+      ).map(({ domainConnection }) => domainConnection)
+    if (roleNames.length <= ZIGENS_NAME_LIMIT) {
+      return readConnection(terms, after, pageSize, signal).map((connection) =>
+        fromConnection(connection, toRow),
       )
     }
-    return zigens<{ domainConnection: Connection<V2Domain> }>(
-      V2.DOMAIN_CONNECTION,
-      variables,
-      signal,
-    ).map(({ domainConnection }) =>
-      fromConnection(domainConnection, (domain) =>
-        query.parent && !isChildOf(domain.name ?? '', query.parent)
-          ? null
-          : {
-              item: toV2NameSummary(domain, {
-                address: query.address,
-                now: now(),
-                powersByName,
-                includeCounts: query.includeCounts,
-                includeRoles: query.includeRoles,
-              }),
-              key: toV2SortKey(domain, query),
-            },
+    // Too many role names for one filter: read each term in full, then page the union.
+    return ResultAsync.combine(
+      terms.map((term) =>
+        readAllEdges(
+          (cursor, pageSignal) =>
+            readConnection([term], cursor, MAX_PAGE_SIZE, pageSignal),
+          signal,
+        ),
+      ),
+    ).map((lists) =>
+      toOffsetPage(
+        [...new Map(lists.flat().map((domain) => [domain.id, domain])).values()]
+          .flatMap((domain) => toRow(domain) ?? [])
+          .sort(toSortedComparator(query)),
+        after,
+        pageSize,
       ),
     )
   }
@@ -355,7 +425,10 @@ export const createZigensIndexer = ({
   ) => {
     const pageSize = toPageSize(query.pageSize)
     const skip = toSkip(cursor)
-    const variables = toV1Variables(query, skip, pageSize)
+    const variables = toV1Variables(query, skip, pageSize, {
+      now: now(),
+      nameWrapper,
+    })
     if (query.protocol === 'v2' || variables === null) {
       return okAsync<SourcePage<Sorted<NameSummary>>, IndexerReadError>(
         EMPTY_PAGE,
@@ -366,23 +439,32 @@ export const createZigensIndexer = ({
       V1.DOMAINS,
       variables,
       signal,
-    ).map(({ domains }) =>
-      fromSkipPage(domains, skip, pageSize, (domain) =>
-        query.resolvesTo ||
-        toV1Relations(domain, query.address, nameWrapper).some((relation) =>
-          relations.includes(relation),
-        )
-          ? {
-              item: toV1NameSummary(domain, {
-                address: query.address,
-                now: now(),
-                nameWrapper,
-                includeCounts: query.includeCounts,
-                includeRoles: query.includeRoles,
-              }),
-              key: toV1SortKey(domain, query),
-            }
-          : null,
+    ).andThen(({ domains }) =>
+      readReservations(namesOf(domains), signal).map((reservations) =>
+        fromSkipPage(domains, skip, pageSize, (domain) => {
+          if (
+            !query.resolvesTo &&
+            !toV1Relations(domain, query.address, nameWrapper).some(
+              (relation) => relations.includes(relation),
+            )
+          ) {
+            return null
+          }
+          const item = withReservation(
+            toV1NameSummary(domain, {
+              address: query.address,
+              now: now(),
+              nameWrapper,
+              includeCounts: query.includeCounts,
+              includeRoles: query.includeRoles,
+            }),
+            reservations.get(domain.name ?? ''),
+            now(),
+          )
+          return query.resolvesTo || isStillHeld(item)
+            ? { item, key: toV1SortKey(domain, query) }
+            : null
+        }),
       ),
     )
   }
@@ -595,6 +677,82 @@ export const createZigensIndexer = ({
       )
     },
 
+    getLapsedNames: ({ address, now: at, since }, options) => {
+      const signal = options?.signal
+      const account = address.toLowerCase()
+      const v2 = readAllEdges(
+        (after, pageSignal) =>
+          zigens<{ domainConnection: Connection<V2Domain> }>(
+            V2.DOMAIN_CONNECTION,
+            {
+              where: {
+                owner: account,
+                name_ends_with: '.eth',
+                // zigens takes unix seconds as a GraphQL Int.
+                expiry_lte: Number(toUnixSeconds(at)),
+                expiry_gt: Number(toUnixSeconds(since)),
+                includeUnreachable: true,
+              },
+              first: MAX_PAGE_SIZE,
+              after,
+              orderBy: 'expiryDate',
+              orderDirection: 'asc',
+            },
+            pageSignal,
+          ).map(({ domainConnection }) => domainConnection),
+        signal,
+      ).map((domains) =>
+        domains.map((domain) =>
+          toV2NameSummary(domain, {
+            address,
+            now: at,
+            powersByName: new Map(),
+          }),
+        ),
+      )
+      // A `.eth` 2LD's subgraph expiry is its lease plus the grace.
+      const v1 = readAllSkipped(
+        (skip, first, pageSignal) =>
+          ensNode<{ domains: readonly V1Domain[] }>(
+            V1.DOMAINS,
+            {
+              where: {
+                parent: namehash('eth'),
+                or: [{ registrant: account }, { wrappedOwner: account }],
+                expiryDate_gt: (
+                  toUnixSeconds(since) + V1_GRACE_SECONDS
+                ).toString(),
+                expiryDate_lte: (
+                  toUnixSeconds(at) + V1_GRACE_SECONDS
+                ).toString(),
+              },
+              first,
+              skip,
+              orderBy: 'expiryDate',
+              orderDirection: 'asc',
+            },
+            pageSignal,
+          ).map(({ domains }) => domains),
+        signal,
+      ).andThen((domains) =>
+        readReservations(namesOf(domains), signal).map((reservations) =>
+          domains.map((domain) =>
+            withReservation(
+              toV1NameSummary(domain, { address, now: at, nameWrapper }),
+              reservations.get(domain.name ?? ''),
+              at,
+            ),
+          ),
+        ),
+      )
+      return ResultAsync.combine([v2, v1]).map((sources) =>
+        sources
+          .flat()
+          .filter((summary) => isLapsedInWindow(summary, since, at))
+          .map((summary) => ({ ...summary, relations: [] })),
+      )
+    },
+
     getSubnames: (query, options) =>
       ResultAsync.combine([
         readV2Domains([query.name], options?.signal),
@@ -674,6 +832,9 @@ export const createZigensIndexer = ({
         readV2Domains([query.name], signal),
         readV1Domains([query.name], signal),
       ]).andThen(([[v2], [v1]]) => {
+        if (!v2 && !v1) {
+          return okAsync<Page<HistoryEvent> | null, IndexerReadError>(null)
+        }
         if (v2 && isRegisteredV2(v2)) {
           const from = toHistoryStart(query, secondsToDate(v2.registrationDate))
           return readMerged({
@@ -891,15 +1052,16 @@ export const createZigensIndexer = ({
         },
         options?.signal,
       ).map(({ registry }) => {
-        const connection = registry?.labelConnection
+        if (!registry) return null
+        const connection = registry.labelConnection
         return {
-          items: (connection?.edges ?? []).map(({ node }) =>
+          items: connection.edges.map(({ node }) =>
             toRegistryLabel(node, query.includeCounts),
           ),
-          nextCursor: connection?.pageInfo.hasNextPage
+          nextCursor: connection.pageInfo.hasNextPage
             ? connection.pageInfo.endCursor
             : null,
-          totalCount: connection?.totalCount ?? null,
+          totalCount: connection.totalCount ?? null,
         }
       }),
 
@@ -976,7 +1138,7 @@ export const createZigensIndexer = ({
         items: resolvers.flatMap((binding) => toResolverLink(binding) ?? []),
         nextCursor: resolvers.length === size ? String(skip + size) : null,
         totalCount: null,
-        isComplete: true,
+        completeness: 'full',
       }))
     },
 
@@ -997,7 +1159,7 @@ export const createZigensIndexer = ({
           ? roleConnection.pageInfo.endCursor
           : null,
         totalCount: roleConnection.totalCount,
-        isComplete: true,
+        completeness: 'full',
       })),
 
     getPermissions: ({ registry, pageSize, cursor }, options) =>
@@ -1019,7 +1181,7 @@ export const createZigensIndexer = ({
           : null,
         totalCount: roleConnection.totalCount,
         // zigens lists every root assignment; there are no registry operators to leave out.
-        isComplete: true,
+        completeness: 'full',
         hasUnlistedOperators: false,
       })),
 

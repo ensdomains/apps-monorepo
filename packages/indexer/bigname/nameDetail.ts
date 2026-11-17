@@ -32,6 +32,7 @@ type DetailRecord = Pick<
   | 'created_at'
   | 'migrated_at'
   | 'unresolvable_reason'
+  | 'records'
 >
 
 export const toNameDetail = (record: DetailRecord): NameDetail => ({
@@ -52,6 +53,12 @@ export const toNameDetail = (record: DetailRecord): NameDetail => ({
   createdAt: toDate(record.created_at),
   migratedAt: toDate(record.migrated_at),
   unresolvableReason: record.unresolvable_reason ?? null,
+  // Seen address coin types, minus the cleared ones.
+  addressCoinTypes: record.records
+    ? record.records.seen_addresses.filter(
+        (coinType) => record.records?.addresses[coinType] !== null,
+      )
+    : null,
 })
 
 // A 404, or a 200 whose read_status is not_found, means the name is not indexed:

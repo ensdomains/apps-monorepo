@@ -104,9 +104,9 @@ export const toRelations = (
 
 export const toReadError = (error: BignameError): IndexerReadError => {
   const kind =
-    error.code === 'stale'
-      ? 'stale'
-      : error.code === 'invalid_input' || error.code === 'unsupported'
+    error.code === 'stale' || error.code === 'unsupported'
+      ? error.code
+      : error.code === 'invalid_input'
         ? 'rejected'
         : 'unavailable'
   return new IndexerReadError({ kind, message: error.message, cause: error })

@@ -6,13 +6,24 @@ import {
   toV1SortKey,
   toV1Variables,
   toV2SortKey,
+  toV2Terms,
   toV2Variables,
 } from './filters'
 
 const ADDRESS = '0xDA53c38ffacb571f904587e46a8ebf3f5f45e945'
 const LOWER = ADDRESS.toLowerCase()
+const V1_CONTEXT = {
+  now: new Date('2026-11-17T00:00:00Z'),
+  nameWrapper: '0x0635513F179D50A207757E05759CbD106d7dFcE8',
+}
+const WRAPPED = {
+  and: [
+    { wrappedOwner: LOWER },
+    { owner: '0x0635513f179d50a207757e05759cbd106d7dfce8' },
+  ],
+}
 
-describe('toV2Variables', () => {
+describe('toV2Terms', () => {
   it.each([
     {
       case: 'every relation',
@@ -30,23 +41,27 @@ describe('toV2Variables', () => {
       or: [{ name_in: ['a.eth'] }],
     },
   ])('matches $case', ({ relations, or }) => {
-    expect(
-      toV2Variables({ address: ADDRESS, relations }, ['a.eth'], undefined, 50)
-        ?.where.or,
-    ).toEqual(or)
+    expect(toV2Terms({ address: ADDRESS, relations }, ['a.eth'])).toEqual(or)
   })
 
   it('matches nothing for a role holder with no roles', () => {
     expect(
-      toV2Variables(
-        { address: ADDRESS, relations: ['role_holder'] },
-        [],
-        undefined,
-        50,
-      ),
-    ).toBeNull()
+      toV2Terms({ address: ADDRESS, relations: ['role_holder'] }, []),
+    ).toEqual([])
   })
 
+  it('names at most 32 role names a term, the most a zigens filter takes', () => {
+    const names = Array.from({ length: 65 }, (_, index) => `n${index}.eth`)
+
+    expect(
+      toV2Terms({ address: ADDRESS, relations: ['role_holder'] }, names).map(
+        (term) => (Array.isArray(term.name_in) ? term.name_in.length : 0),
+      ),
+    ).toEqual([32, 32, 1])
+  })
+})
+
+describe('toV2Variables', () => {
   it('sends the text, migration and parent filters in zigens terms', () => {
     expect(
       toV2Variables(
@@ -59,7 +74,7 @@ describe('toV2Variables', () => {
           sort: 'expiry',
           order: 'desc',
         },
-        [],
+        [{ owner: LOWER }],
         'cursor',
         25,
       ),
@@ -83,29 +98,46 @@ describe('toV1Variables', () => {
     {
       case: 'an owner through any token',
       relations: ['owner'] as const,
-      or: [{ registrant: LOWER }, { wrappedOwner: LOWER }, { owner: LOWER }],
+      or: [{ registrant: LOWER }, WRAPPED, { owner: LOWER }],
     },
     {
       case: 'a manager through the registry or the wrapper',
       relations: ['manager'] as const,
-      or: [{ wrappedOwner: LOWER }, { owner: LOWER }],
+      or: [WRAPPED, { owner: LOWER }],
     },
   ])('matches $case', ({ relations, or }) => {
     expect(
-      toV1Variables({ address: ADDRESS, relations }, 0, 50)?.where.or,
-    ).toEqual(or)
+      toV1Variables({ address: ADDRESS, relations }, 0, 50, V1_CONTEXT)?.where
+        .and[0],
+    ).toEqual({ or })
+  })
+
+  it('reads only names still held, the subgraph expiry of a 2LD counting its grace', () => {
+    expect(
+      toV1Variables({ address: ADDRESS }, 0, 50, V1_CONTEXT)?.where.and[1],
+    ).toEqual({ or: [{ expiryDate_gt: '1794873600' }, { expiryDate: null }] })
+  })
+
+  it('reads every name an address resolves to, held or not', () => {
+    expect(
+      toV1Variables({ address: ADDRESS, resolvesTo: true }, 0, 50, V1_CONTEXT)
+        ?.where.and,
+    ).toEqual([{ or: [{ resolvedAddress: LOWER }] }])
   })
 
   it.each([
     { case: 'migrated names', query: { migratedOnly: true } },
     { case: 'role holders', query: { relations: ['role_holder'] as const } },
   ])('has no ENSv1 names for $case', ({ query }) => {
-    expect(toV1Variables({ address: ADDRESS, ...query }, 0, 50)).toBeNull()
+    expect(
+      toV1Variables({ address: ADDRESS, ...query }, 0, 50, V1_CONTEXT),
+    ).toBeNull()
   })
 
   it('reads direct children by the parent node', () => {
     expect(
-      toV1Variables({ address: ADDRESS, parent: 'eth' }, 0, 50)?.where.parent,
+      toV1Variables({ address: ADDRESS, parent: 'eth' }, 0, 50, V1_CONTEXT)
+        ?.where.parent,
     ).toBe('0x93cdeb708b7545dc668eb9280176169d1c33cfd8ed6f04690a0bcc88a93fc4ae')
   })
 })
@@ -117,23 +149,6 @@ describe('isChildOf', () => {
     ['eth', 'eth', false],
   ])('%s under %s is %s', (name, parent, expected) => {
     expect(isChildOf(name, parent)).toBe(expected)
-  })
-})
-
-describe('toV2Variables role names', () => {
-  it('matches every role name, in batches the schema accepts', () => {
-    const names = Array.from({ length: 2001 }, (_, index) => `n${index}.eth`)
-
-    const or = toV2Variables(
-      { address: ADDRESS, relations: ['role_holder'] },
-      names,
-      undefined,
-      50,
-    )?.where.or
-
-    expect(
-      or?.map((filter) => ('name_in' in filter ? filter.name_in.length : 0)),
-    ).toEqual([1000, 1000, 1])
   })
 })
 

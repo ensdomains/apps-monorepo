@@ -9,7 +9,7 @@ const ENSNODE = 'https://ensnode.example/subgraph'
 const ADDRESS = '0xda53c38ffacb571f904587e46a8ebf3f5f45e945'
 
 const v2 = (name: string): V2Domain => ({
-  id: `0x${name.length.toString(16).padStart(64, '0')}`,
+  id: namehash(name),
   name,
   labelName: name.split('.')[0] ?? null,
   labelhash: `0x${'1'.repeat(64)}`,
@@ -108,6 +108,7 @@ describe('createZigensIndexer', () => {
       }),
       [`${ZIGENS} DomainConnection`]: ({ after, first }) =>
         connection(['a.eth', 'c.eth', 'e.eth'], after, first),
+      [`${ZIGENS} DomainsByNames`]: () => ({ domains: [] }),
       [`${ENSNODE} Domains`]: ({ skip, first }) => ({
         domains: ['b.eth', 'd.eth']
           .slice(Number(skip), Number(skip) + Number(first))
@@ -130,6 +131,115 @@ describe('createZigensIndexer', () => {
       first.items.map(({ name, protocol }) => `${name}:${protocol}`),
     ).toEqual(['a.eth:v2', 'b.eth:v1'])
     expect(second.items.map(({ name }) => name)).toEqual(['c.eth', 'd.eth'])
+  })
+
+  it('pages every name when the role names are too many for one zigens filter', async () => {
+    const roleNames = Array.from(
+      { length: 33 },
+      (_, index) => `r${String(index).padStart(2, '0')}.eth`,
+    )
+    const { indexer, fetch } = indexerWith({
+      [`${ZIGENS} RoleConnection`]: () => ({
+        roleConnection: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          totalCount: roleNames.length,
+          edges: roleNames.map((name) => ({
+            cursor: name,
+            node: {
+              id: name,
+              resource: '0x1',
+              account: ADDRESS,
+              contractAddress: '0x01',
+              roleBitmap: '0x1',
+              permissions: ['registrar'],
+              blockNumber: 1,
+              transactionHash: '0x01',
+              timestamp: 1,
+              name,
+            },
+          })),
+        },
+      }),
+      // Each term is read on its own: the owner, or at most 32 role names.
+      [`${ZIGENS} DomainConnection`]: ({ where, after, first }) => {
+        const term = (where as { or: readonly Record<string, unknown>[] }).or[0]
+        const names = Array.isArray(term?.name_in)
+          ? term.name_in.map(String)
+          : ['a.eth', 'r00.eth']
+        return connection(names, after, first)
+      },
+      [`${ENSNODE} Domains`]: () => ({ domains: [] }),
+      [`${ZIGENS} DomainsByNames`]: () => ({ domains: [] }),
+    })
+    const read = (cursor?: string) =>
+      indexer.getNamesForAddress({
+        address: ADDRESS,
+        relations: ['owner', 'role_holder'],
+        sort: 'name',
+        order: 'asc',
+        pageSize: 30,
+        cursor,
+      })
+
+    const first = (await read())._unsafeUnwrap()
+    const second = (await read(first.nextCursor ?? undefined))._unsafeUnwrap()
+
+    expect([...first.items, ...second.items].map(({ name }) => name)).toEqual([
+      'a.eth',
+      ...roleNames,
+    ])
+    expect(second.nextCursor).toBeNull()
+    expect(
+      fetch.mock.calls.every(
+        ([, init]) =>
+          !String(init?.body).includes('name_in') ||
+          (JSON.parse(String(init?.body)).variables.where.or[0].name_in
+            ?.length ?? 0) <= 32,
+      ),
+    ).toBe(true)
+  })
+
+  it('lists an ENSv1 name as lapsed only while no ENSv2 reservation holds it', async () => {
+    // Both leases ended on 2 November; the subgraph expiry adds the 90-day grace.
+    const lapsed = (name: string): V1Domain => ({
+      ...v1(name),
+      expiryDate: '1801425756',
+      registration: {
+        registrationDate: '1762113756',
+        expiryDate: '1793649756',
+      },
+    })
+    const { indexer } = indexerWith({
+      [`${ZIGENS} DomainConnection`]: () => connection([], undefined, 100),
+      [`${ENSNODE} Domains`]: ({ skip }) => ({
+        domains:
+          Number(skip) === 0 ? [lapsed('brewing.eth'), lapsed('gone.eth')] : [],
+      }),
+      // brewing.eth holds a reservation until 2027-01-01, the way bigname serves it active.
+      [`${ZIGENS} DomainsByNames`]: () => ({
+        domains: [
+          {
+            ...v2('brewing.eth'),
+            owner: { id: '0x0000000000000000000000000000000000000000' },
+            expiryDate: 1799006556,
+          },
+        ],
+      }),
+    })
+
+    const names = (
+      await indexer.getLapsedNames({
+        address: ADDRESS,
+        now: new Date('2026-11-17T12:00:00Z'),
+        since: new Date('2026-10-18T12:00:00Z'),
+      })
+    )._unsafeUnwrap()
+
+    expect(
+      names.map(
+        ({ name, registrationStatus }) => `${name}:${registrationStatus}`,
+      ),
+    ).toEqual(['gone.eth:expired'])
   })
 
   it('fails a merged read when either source fails, rather than lose its half', async () => {
@@ -221,7 +331,7 @@ describe('createZigensIndexer', () => {
     )._unsafeUnwrap()
 
     expect(
-      page.items.map(({ kind, logIndex, timestamp }) => [
+      page?.items.map(({ kind, logIndex, timestamp }) => [
         kind,
         logIndex,
         timestamp?.getTime(),

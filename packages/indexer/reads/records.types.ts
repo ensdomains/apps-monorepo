@@ -6,10 +6,8 @@ export type RecordKeysQuery = Readonly<{
   resolver?: Address
 }>
 
-/** A name's record keys at its resolver, in bigname's record-key grammar (`text:<key>`, `addr:<coinType>`, `contenthash`). */
-export type RecordKeys = Readonly<{
-  /** The resolver read; null when the name has none. */
-  resolver: Address | null
+/** Record keys in bigname's record-key grammar (`text:<key>`, `addr:<coinType>`, `contenthash`). */
+export type RecordInventory = Readonly<{
   /** Keys with a value. */
   knownKeys: readonly string[]
   /** Keys that were set and since cleared. */
@@ -18,4 +16,12 @@ export type RecordKeys = Readonly<{
   unsupportedKeys: readonly string[]
   /** ABI content types set, ascending; null when they cannot be listed. */
   abiContentTypes: readonly bigint[] | null
+}>
+
+/** A name's record keys at its resolver. */
+export type RecordKeys = Readonly<{
+  /** The resolver read; null when the name has none. */
+  resolver: Address | null
+  /** Null when the backend indexes the name but keeps no inventory for it. */
+  inventory: RecordInventory | null
 }>

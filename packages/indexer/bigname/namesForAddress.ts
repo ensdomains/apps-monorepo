@@ -59,6 +59,7 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   match: query.contains === undefined ? undefined : 'contains',
   sort: query.sort && SORT_FIELDS[query.sort],
   order: query.order,
+  dedupe: query.distinctBy,
   include: toInclude(query),
   page_size: query.pageSize,
   cursor: query.cursor,

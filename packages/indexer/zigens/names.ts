@@ -8,6 +8,7 @@ import { toRegistrationStatus } from '../shared/status'
 import {
   addMs,
   isEth2ld,
+  MS_PER_SECOND,
   secondsToBigint,
   secondsToDate,
   toAccount,
@@ -63,6 +64,7 @@ export const toV2NameDetail = (domain: V2Domain, now: Date): NameDetail => ({
   createdAt: secondsToDate(domain.createdAt),
   migratedAt: null,
   unresolvableReason: null,
+  addressCoinTypes: null,
 })
 
 type SummaryContext = Readonly<{
@@ -108,6 +110,47 @@ export const toV2NameSummary = (
   }),
 })
 
+/** An ENSv2 reservation of an ENSv1 name: no owner yet, unexpired. */
+export const isLiveReservation = (
+  domain: Pick<V2Domain, 'protocol' | 'owner' | 'expiryDate'> | undefined,
+  now: Date,
+): domain is Pick<V2Domain, 'protocol' | 'owner'> & { expiryDate: number } =>
+  domain !== undefined &&
+  domain.protocol === 'v2' &&
+  !isRegisteredV2(domain) &&
+  domain.expiryDate !== null &&
+  domain.expiryDate * MS_PER_SECOND > now.getTime()
+
+/** As bigname serves it: a reservation's expiry is the ENSv1 name's served expiry, and while live it keeps the name active past its lease. */
+export const withReservation = (
+  summary: NameSummary,
+  reservation: Pick<V2Domain, 'protocol' | 'owner' | 'expiryDate'> | undefined,
+  now: Date,
+): NameSummary => {
+  if (
+    summary.protocol !== 'v1' ||
+    reservation?.protocol !== 'v2' ||
+    isRegisteredV2(reservation) ||
+    reservation.expiryDate === null
+  ) {
+    return summary
+  }
+  return {
+    ...summary,
+    servedExpiry: BigInt(reservation.expiryDate),
+    ...(isLiveReservation(reservation, now) && {
+      registrationStatus: 'active',
+    }),
+  }
+}
+
+/** Whether the address still holds a name it is listed for: bigname drops an ENSv2 name at expiry and an ENSv1 one when its grace ends. */
+export const isStillHeld = (summary: NameSummary): boolean =>
+  summary.protocol === 'v2'
+    ? summary.registrationStatus === 'active'
+    : summary.registrationStatus === 'active' ||
+      summary.registrationStatus === 'expired'
+
 /** A detail from whichever deployment answers for the name. */
 export const pickNameDetail = (
   v2: V2Domain | undefined,
@@ -115,7 +158,12 @@ export const pickNameDetail = (
   context: V1Context,
 ): NameDetail | null => {
   if (v2 && isRegisteredV2(v2)) return toV2NameDetail(v2, context.now)
-  if (v1) return toV1NameDetail(v1, context)
+  if (v1) {
+    const detail = toV1NameDetail(v1, context)
+    return isLiveReservation(v2, context.now)
+      ? { ...detail, registrationStatus: 'active' }
+      : detail
+  }
   return v2 ? toV2NameDetail(v2, context.now) : null
 }
 

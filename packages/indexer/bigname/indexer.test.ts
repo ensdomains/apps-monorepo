@@ -85,6 +85,21 @@ describe('createBignameIndexer', () => {
       call: (indexer) => indexer.getSubnames({ name: 'nobody.eth' }),
       empty: { items: [], nextCursor: null, totalCount: 0 },
     },
+    {
+      read: 'name history',
+      call: (indexer) => indexer.getNameHistory({ name: 'nobody.eth' }),
+      empty: null,
+    },
+    {
+      read: 'registry labels',
+      call: (indexer) => indexer.getRegistryLabels({ address: REGISTRY }),
+      empty: null,
+    },
+    {
+      read: 'record keys',
+      call: (indexer) => indexer.getRecordKeys({ name: 'nobody.eth' }),
+      empty: null,
+    },
   ])(
     'reads $read bigname has never indexed as empty',
     async ({ call, empty }) => {
@@ -121,6 +136,115 @@ describe('createBignameIndexer', () => {
     expect(
       result._unsafeUnwrap().map((detail) => detail?.name ?? null),
     ).toEqual(['alice.eth', null])
+  })
+
+  it('answers null for a name bigname could not fully read', async () => {
+    const { indexer } = indexerWith(
+      createBignameIndexer,
+      envelope([
+        {
+          input: { name: 'alice.eth' },
+          kind: 'name',
+          status: 'ok',
+          record: {
+            name: 'alice.eth',
+            display_name: 'alice.eth',
+            namespace: 'ens',
+            namehash: '0xabc',
+            read_status: 'stale',
+            authority: 'ens_v2',
+          },
+        },
+      ]),
+    )
+
+    const result = await indexer.getNames({ names: ['alice.eth'] })
+
+    expect(result._unsafeUnwrap()).toEqual([null])
+  })
+
+  it('keeps the resolver of a name indexed without a record inventory', async () => {
+    const { indexer } = indexerWith(
+      createBignameIndexer,
+      envelope({ resolver: { address: RESOLVER.toLowerCase() } }),
+    )
+
+    const keys = await indexer.getRecordKeys({ name: 'alice.eth' })
+
+    expect(keys._unsafeUnwrap()).toEqual({
+      resolver: RESOLVER.toLowerCase(),
+      inventory: null,
+    })
+  })
+
+  it('keeps a grant scoped to a setter argument under the argument’s own hash', async () => {
+    const { indexer } = indexerWith(
+      createBignameIndexer,
+      json({
+        data: [
+          {
+            address: '0x0000000000000000000000000000000000000001',
+            registration_id: null,
+            powers: ['set_text'],
+            record_resource: {
+              kind: 'argument',
+              hash: '0x02',
+              selectors: [{ kind: 'text', hash: '0x03', key_bytes: '0x6869' }],
+            },
+          },
+        ],
+        meta: { as_of: {}, completeness: 'partial' },
+      }),
+    )
+
+    const page = (
+      await indexer.getResolverRoles({ address: RESOLVER })
+    )._unsafeUnwrap()
+
+    expect(page.completeness).toBe('partial')
+    expect(page.items[0]?.recordResource).toEqual({
+      kind: 'text',
+      hash: '0x02',
+      key: '0x6869',
+    })
+  })
+
+  it('reports a wrapper state bigname cannot tell as unknown', async () => {
+    const { indexer } = indexerWith(
+      createBignameIndexer,
+      envelope([
+        {
+          name: 'sub.alice.eth',
+          display_name: 'sub.alice.eth',
+          namehash: '0xabc',
+          authority: 'ens_v1',
+          ens_v1: { wrapper_state: 'lapsed' },
+        },
+      ]),
+    )
+
+    const page = (
+      await indexer.getSubnames({ name: 'alice.eth' })
+    )._unsafeUnwrap()
+
+    expect(page.items[0]?.wrapper?.state).toBe('unknown')
+  })
+
+  it('tells a request bigname cannot answer from one it refuses', async () => {
+    const { indexer } = indexerWith(
+      createBignameIndexer,
+      apiError('unsupported', 422),
+      apiError('invalid_input', 400),
+    )
+    const read = () =>
+      indexer.getNamesForAddress({
+        address: RESOLVER,
+        resolvesTo: true,
+        coinType: 'evm',
+      })
+
+    expect((await read())._unsafeUnwrapErr().kind).toBe('unsupported')
+    expect((await read())._unsafeUnwrapErr().kind).toBe('rejected')
   })
 
   it('reports the indexed block of its own chain', async () => {

@@ -14,18 +14,20 @@ export type ResolverRecords = Readonly<{
 /** The record keys set at a resolver, in bigname's record-key grammar. */
 export const toRecordKeys = (resolver: ResolverRecords | null): RecordKeys => ({
   resolver: toAccount(resolver?.address),
-  knownKeys: [
-    ...(resolver?.texts ?? []).map((key) => `text:${key}`),
-    ...(resolver?.coinTypes ?? []).map((coinType) => `addr:${coinType}`),
-    ...(resolver?.contentHash ? ['contenthash'] : []),
-  ],
-  // Neither indexer keeps cleared keys or keys it cannot serve.
-  unsetKeys: [],
-  unsupportedKeys: [],
-  abiContentTypes:
-    resolver?.abis === undefined
-      ? null
-      : (resolver.abis ?? [])
-          .map((type) => BigInt(type))
-          .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+  inventory: {
+    knownKeys: [
+      ...(resolver?.texts ?? []).map((key) => `text:${key}`),
+      ...(resolver?.coinTypes ?? []).map((coinType) => `addr:${coinType}`),
+      ...(resolver?.contentHash ? ['contenthash'] : []),
+    ],
+    // Neither indexer keeps cleared keys or keys it cannot serve.
+    unsetKeys: [],
+    unsupportedKeys: [],
+    abiContentTypes:
+      resolver?.abis === undefined
+        ? null
+        : (resolver.abis ?? [])
+            .map((type) => BigInt(type))
+            .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+  },
 })

@@ -12,7 +12,7 @@ import {
   zeroHash,
 } from 'viem'
 
-const MS_PER_SECOND = 1000
+export const MS_PER_SECOND = 1000
 // The largest instant a JavaScript Date can hold.
 const MAX_DATE_SECONDS = 8.64e12
 
@@ -66,6 +66,7 @@ export const toHash = (value: string | null | undefined): Hex => {
   return lower && isHex(lower) ? lower : zeroHash
 }
 
+export const V1_GRACE_SECONDS = BigInt(V1_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 export const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
 
 /** A Date as whole unix seconds. */

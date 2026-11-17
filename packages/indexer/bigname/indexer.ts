@@ -7,10 +7,11 @@ import type {
   NameHistoryQuery,
 } from '../reads/history.types'
 import { DEFAULT_TIMEOUT_MS } from '../shared/graphql'
+import { toUnixSeconds } from '../shared/values'
 import { toReadError } from './adapters'
 import { type BignameClientOptions, createBignameClient } from './client'
 import type { BignameError } from './errors'
-import { readGraceNames } from './grace'
+import { readGraceNames, readLapsedNames } from './grace'
 import { toHistoryEvent } from './history'
 import { readNameDetail, toNameDetail } from './nameDetail'
 import { toGraceSummary, toRecordKeys, toSubname, toSyncStatus } from './names'
@@ -118,7 +119,8 @@ export const createBignameIndexer = ({
         )
         .map(({ data }) =>
           data.map((result) =>
-            result.status === 'ok' && result.record
+            // A record bigname could not fully read is no answer; callers fall back.
+            result.status === 'ok' && result.record?.read_status === 'ok'
               ? toNameDetail(result.record)
               : null,
           ),
@@ -128,10 +130,16 @@ export const createBignameIndexer = ({
     getNamesForAddress: readNamesForAddress(client),
 
     getGraceNames: ({ address, now }, options) =>
-      readGraceNames(
+      readGraceNames(client, address, toUnixSeconds(now), options?.signal)
+        .map((rows) => rows.map(toGraceSummary))
+        .mapErr(toReadError),
+
+    getLapsedNames: ({ address, now, since }, options) =>
+      readLapsedNames(
         client,
         address,
-        BigInt(Math.floor(now.getTime() / 1000)),
+        toUnixSeconds(since),
+        toUnixSeconds(now),
         options?.signal,
       )
         .map((rows) => rows.map(toGraceSummary))
@@ -196,7 +204,7 @@ export const createBignameIndexer = ({
           options,
         )
         .map(toHistoryPage)
-        .orElse(orWhenNotFound(EMPTY_PAGE)),
+        .orElse(orWhenNotFound(null)),
 
     getAddressHistory: (query, options) =>
       client
@@ -256,7 +264,7 @@ export const createBignameIndexer = ({
           options,
         )
         .map(toRegistryLabels)
-        .mapErr(toReadError),
+        .orElse(orWhenNotFound(null)),
 
     getResolver: ({ address, pageSize, cursor }, options) =>
       client

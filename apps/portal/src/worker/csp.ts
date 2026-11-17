@@ -20,7 +20,7 @@
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'
-import { envConfig } from '@/config'
+import { envConfig, indexerSelection } from '@/config'
 import {
   CUSTOM_RPC_CANDIDATE_COOKIE,
   CUSTOM_RPC_COOKIE,
@@ -62,10 +62,11 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexer, resolved in `@/config`.
-  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
-    (origin): origin is string => origin !== null,
-  ),
+  // The indexer, resolved in `@/config`: bigname, Goldsky, or zigens and ENSNode.
+  ...Object.entries(indexerSelection)
+    .filter(([key]) => key !== 'backend')
+    .map(([, url]) => originFromEnvUrl(url))
+    .filter((origin): origin is string => origin !== null),
   // ENS-owned hosts: the fund/faucet API (sepolia.app-api.ens.domains,
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env ENS
   // hosts don't silently break a flow.

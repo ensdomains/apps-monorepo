@@ -19,6 +19,7 @@ export {
   isStale,
 } from './errors'
 export { readGraceNames } from './grace'
+export { toHistoryEvent } from './history'
 export { readNameDetail } from './nameDetail'
 export { readNamesForAddress } from './namesForAddress'
 export { readAllCollectionPages, readAllEnvelopes } from './paging'

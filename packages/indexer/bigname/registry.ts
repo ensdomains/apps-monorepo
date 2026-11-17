@@ -20,13 +20,12 @@ const toPage = <Row, Item>(
   totalCount: page?.total_count ?? null,
 })
 
-// `partial` and `unsupported` both mean rows the backend knows of and did not list.
 const toAuditedPage = <Row, Item>(
   envelope: T.Envelope<readonly Row[]>,
   toItem: (row: Row) => Item,
 ): AuditedPage<Item> => ({
   ...toPage(envelope, toItem),
-  isComplete: (envelope.meta.completeness ?? 'full') === 'full',
+  completeness: envelope.meta.completeness ?? 'full',
 })
 
 export const toRegistry = (registry: T.Registry): Registry => ({
@@ -108,7 +107,7 @@ const toSelector = (selector: T.RecordResourceSelector): RecordResource => {
       return {
         kind: selector.kind,
         hash: selector.hash,
-        key: selector.key ?? null,
+        key: selector.key ?? selector.key_bytes ?? null,
       }
     case 'abi':
       return {
@@ -127,14 +126,14 @@ const toSelector = (selector: T.RecordResourceSelector): RecordResource => {
   }
 }
 
-// An `argument` resource authorizes several setters; the screens show the first.
+// An `argument` resource authorizes several setters; the screens show the first, under the argument's own hash.
 const toRecordResource = (
   resource: T.RecordResource | undefined,
 ): RecordResource | null => {
   if (!resource) return null
   if (resource.kind !== 'argument') return toSelector(resource)
   const [first] = resource.selectors
-  return first ? toSelector(first) : null
+  return first ? { ...toSelector(first), hash: resource.hash } : null
 }
 
 export const toResolverRoles = (
