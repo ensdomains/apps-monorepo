@@ -7,6 +7,10 @@ describe('isAddressLikeName', () => {
   it.each([
     ['an EVM address', `${VITALIK}.eth`],
     ['an EVM address missing a character', `${VITALIK.slice(0, -1)}.eth`],
+    [
+      'an EVM address with its middle cut out',
+      `${VITALIK.slice(0, 10)}${VITALIK.slice(-12)}.eth`,
+    ],
     ['a 32-byte 0x key (Sui, Aptos)', `0x${'ab12'.repeat(16)}.eth`],
     [
       'a checksummed EVM address',
@@ -23,10 +27,18 @@ describe('isAddressLikeName', () => {
     ['a Bitcoin P2PKH address', '1a1zp1ep5qgefi2dmptftl5slmv7divfna.eth'],
     ['a Bitcoin P2SH address', '3j98t1wpez73cnmqviecrnyiwrnqrhwnly.eth'],
     ['a short Bitcoin P2PKH address', '1boatslrhzbwx9t7e8m3vgnbmqn6p4.eth'],
+    [
+      'a Bitcoin P2PKH address with few digits',
+      '1LfdMrcyu1TfXrVTKoEAtYMRdgkySWFNSk.eth',
+    ],
     ['a Solana address', '9wzdxwbbmkg8ztbnmquxvqrayrzzdsgydlvl9zytawwm.eth'],
     [
       'a Solana address as copied, before normalisation',
       '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM.eth',
+    ],
+    [
+      'a Solana address with few digits',
+      '4CCfxWgJFwbMqiJdK8bexFCvJhoPJgFLwXZBQCWgjutS.eth',
     ],
     [
       'a Solana address with clustered digits',
