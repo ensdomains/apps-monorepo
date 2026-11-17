@@ -90,6 +90,11 @@ const UNSET_PUBKEY = {
   result: [zeroHash, zeroHash],
 } as const
 
+const RECOVERY_CHAIN = {
+  id: 11155111,
+  contracts: { ensUniversalHelper: { address: zeroAddress } },
+}
+
 const publicClientWithProfileResults = (
   results: readonly {
     readonly status: 'success'
@@ -99,7 +104,7 @@ const publicClientWithProfileResults = (
   ({
     // The recovery plan resolves its chain from the client and refuses a
     // client without one.
-    chain: { id: 11155111 },
+    chain: RECOVERY_CHAIN,
     getCode: vi.fn().mockResolvedValue('0x'),
     multicall: vi.fn(() => Promise.resolve(results)),
     readContract: vi.fn().mockResolvedValue(false),
@@ -519,11 +524,6 @@ describe('buildMigrationPlan gas preview', () => {
   })
 })
 
-const RECOVERY_CHAIN = {
-  id: 11155111,
-  contracts: { ensUniversalHelper: { address: zeroAddress } },
-}
-
 describe('buildMigrationRecoveryPlan', () => {
   it('keeps the reviewed bulk strategy when capabilities change', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
@@ -711,18 +711,17 @@ describe('buildMigrationRecoveryPlan', () => {
   it('stops with a retryable read failure when a parent registry cannot be read', async () => {
     const { snapshot } = makeRecoveryTree()
 
+    const publicClient = publicClientWithProfileResults()
+    vi.mocked(publicClient.readContract).mockRejectedValue(
+      new HttpRequestError({ url: 'https://rpc' }),
+    )
+
     await expect(
       buildMigrationRecoveryPlan({
         snapshot,
         hcaAddress: HCA,
         migrationOwner: OWNER,
-        publicClient: {
-          chain: RECOVERY_CHAIN,
-          getCode: vi.fn().mockResolvedValue('0x'),
-          readContract: vi
-            .fn()
-            .mockRejectedValue(new HttpRequestError({ url: 'https://rpc' })),
-        } as unknown as PublicClient,
+        publicClient,
       }),
     ).rejects.toMatchObject({ reason: 'read-failed' })
   })

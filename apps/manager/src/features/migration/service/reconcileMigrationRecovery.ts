@@ -187,6 +187,15 @@ export const reconcileMigrationRecovery = async (params: RecoveryParams) => {
   }
 }
 
+/** Polls while attempts are unresolved, and after a failed check, which leaves no data to tell. */
+export const getRecoveryRefetchInterval = ({
+  hasFailed,
+  hasUnresolvedAttempts,
+}: {
+  readonly hasFailed: boolean
+  readonly hasUnresolvedAttempts: boolean | undefined
+}): number | false => (hasFailed || hasUnresolvedAttempts ? 10_000 : false)
+
 export const getMigrationRecoveryQueryOptions = (params: {
   readonly scope: MigrationBatchJournalScope | undefined
   readonly publicClient: PublicClient | undefined
@@ -214,6 +223,9 @@ export const getMigrationRecoveryQueryOptions = (params: {
     retry: false,
     refetchOnWindowFocus: 'always',
     refetchInterval: (query) =>
-      query.state.data?.hasUnresolvedAttempts ? 10_000 : false,
+      getRecoveryRefetchInterval({
+        hasFailed: query.state.status === 'error',
+        hasUnresolvedAttempts: query.state.data?.hasUnresolvedAttempts,
+      }),
   })
 }
