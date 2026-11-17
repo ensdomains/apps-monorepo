@@ -47,6 +47,50 @@ describe('pending commemorative NFT claim storage', () => {
     ).toBe('empty')
     expect(() => assertPendingNftClaimStorageReady(claim)).toThrow()
   })
+
+  it('round-trips an onchain Safe history cursor as a decimal string', () => {
+    const safeClaim = { ...claim, safeExecutionSearchFromBlock: 42n }
+    savePendingNftClaim(safeClaim)
+    const key = localStorage.key(0)
+    if (!key) throw new Error('Missing persisted claim')
+    const serialized = localStorage.getItem(key)
+    if (!serialized) throw new Error('Missing persisted data')
+    expect(JSON.parse(serialized)).toEqual({
+      ...claim,
+      safeExecutionSearchFromBlock: '42',
+    })
+    const reloadedStorage = new Storage()
+    reloadedStorage.setItem(key, serialized)
+    vi.stubGlobal('localStorage', reloadedStorage)
+    expect(readPendingNftClaim(claim)).toEqual({
+      status: 'pending',
+      claim: safeClaim,
+    })
+  })
+
+  it.each([null, -1n, 42, '42'])(
+    'rejects a malformed in-memory Safe history cursor: %s',
+    (safeExecutionSearchFromBlock) => {
+      expect(
+        isPendingNftClaim({ ...claim, safeExecutionSearchFromBlock }, claim),
+      ).toBe(false)
+    },
+  )
+
+  it.each(['-1', '1.5', '1e3', '', null, 42])(
+    'keeps malformed serialized Safe history metadata blocked: %s',
+    (safeExecutionSearchFromBlock) => {
+      savePendingNftClaim(claim)
+      const key = localStorage.key(0)
+      if (!key) throw new Error('Missing persisted claim')
+      localStorage.setItem(
+        key,
+        JSON.stringify({ ...claim, safeExecutionSearchFromBlock }),
+      )
+      expect(readPendingNftClaim(claim).status).toBe('unavailable')
+      expect(() => assertPendingNftClaimStorageReady(claim)).toThrow()
+    },
+  )
   it.each([
     { version: 2 },
     { chainId: 1 },
