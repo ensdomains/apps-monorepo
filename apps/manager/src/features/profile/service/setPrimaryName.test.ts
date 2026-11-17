@@ -46,6 +46,14 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import {
+  defaultReverseRegistrarAdapterSetNameSnippet,
+  defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
+} from '@ensdomains/ensjs-abi/v2/defaultReverseRegistrarAdapter'
+import {
+  reverseRegistrarAdapterClaimSnippet,
+  reverseRegistrarAdapterClaimWithHcaSnippet,
+} from '@ensdomains/ensjs-abi/v2/reverseRegistrarAdapter'
 import { encodeFunctionData, parseAbi, zeroAddress } from 'viem'
 import { getEnsAddress } from 'viem/actions'
 
@@ -70,10 +78,12 @@ const EOA_OWNER = '0x3333333333333333333333333333333333333333' as Address
 const CHAIN_ID = 11155111
 const publicClient = {} as PublicClient
 
-const adapterAbi = parseAbi([
-  'function setNameWithHCA(address addr, string name)',
-  'function claimWithHCA(address addr, address resolver) returns (bytes32)',
-])
+const adapterAbi = [
+  ...defaultReverseRegistrarAdapterSetNameSnippet,
+  ...defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
+  ...reverseRegistrarAdapterClaimSnippet,
+  ...reverseRegistrarAdapterClaimWithHcaSnippet,
+] as const
 
 const hcaSigner = {
   type: 'rhinestone',
@@ -515,14 +525,10 @@ describe('setPrimaryNameWithEthFallback', () => {
       chainId: CHAIN_ID,
     })
 
-  const ownerAdapterAbi = parseAbi([
-    'function setName(address account, string name)',
-    'function claim(address account, address resolver) returns (bytes32)',
-  ])
   const ownerSetName = {
     to: DEFAULT_ADAPTER,
     data: encodeFunctionData({
-      abi: ownerAdapterAbi,
+      abi: adapterAbi,
       functionName: 'setName',
       args: [EOA_OWNER, 'leon.eth'],
     }),
@@ -530,7 +536,7 @@ describe('setPrimaryNameWithEthFallback', () => {
   const ownerClaim = {
     to: REVERSE_ADAPTER,
     data: encodeFunctionData({
-      abi: ownerAdapterAbi,
+      abi: adapterAbi,
       functionName: 'claim',
       args: [EOA_OWNER, zeroAddress],
     }),

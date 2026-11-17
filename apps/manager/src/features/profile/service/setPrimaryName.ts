@@ -18,6 +18,14 @@ import {
   reverseRegistrarSetNameSnippet,
 } from '@ensdomains/ensjs/contracts'
 import {
+  defaultReverseRegistrarAdapterSetNameSnippet,
+  defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
+} from '@ensdomains/ensjs-abi/v2/defaultReverseRegistrarAdapter'
+import {
+  reverseRegistrarAdapterClaimSnippet,
+  reverseRegistrarAdapterClaimWithHcaSnippet,
+} from '@ensdomains/ensjs-abi/v2/reverseRegistrarAdapter'
+import {
   type Address,
   encodeFunctionData,
   erc20Abi,
@@ -56,12 +64,15 @@ export interface SetPrimaryNameParams {
   onTxId?: (txId: string) => void
 }
 
-const reverseAdapterAbi = parseAbi([
-  'function setNameWithHCA(address addr, string name)',
-  'function claimWithHCA(address addr, address resolver) returns (bytes32)',
-  'function setName(address account, string name)',
-  'function claim(address account, address resolver) returns (bytes32)',
-])
+const defaultReverseAdapterAbi = [
+  ...defaultReverseRegistrarAdapterSetNameSnippet,
+  ...defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
+] as const
+
+const reverseAdapterAbi = [
+  ...reverseRegistrarAdapterClaimSnippet,
+  ...reverseRegistrarAdapterClaimWithHcaSnippet,
+] as const
 
 const registryResolverAbi = parseAbi([
   'function resolver(bytes32 node) view returns (address)',
@@ -142,7 +153,7 @@ const primaryNameAdapterCalls = (
     to: envConfig.chain.contracts.ensDefaultReverseRegistrarAdapter.address,
     value: 0n,
     data: encodeFunctionData({
-      abi: reverseAdapterAbi,
+      abi: defaultReverseAdapterAbi,
       functionName: ADAPTER_FUNCTIONS[caller].setName,
       args: [ownerAddress, cleanName],
     }),
