@@ -193,6 +193,34 @@ const PUBLIC_CLIENT = {
   waitForTransactionReceipt: waitForReceiptMock,
 } as unknown as PublicClient
 
+// Retry reconciliation that finds alice.eth not yet moved, so a fallback would prompt again.
+const INCOMPLETE_ALICE = {
+  status: 'incomplete',
+  verification: {
+    batchIndex: 0,
+    status: 'confirmed',
+    results: [{ expectationId: 'alice.eth:name-owner', satisfied: false }],
+  },
+  mismatches: [{ expectationId: 'alice.eth:name-owner' }],
+} as const
+
+const stubWebLocks = () => {
+  const held = new Set<string>()
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: async (name: string, callback: () => Promise<unknown>) => {
+        held.add(name)
+        try {
+          return await callback()
+        } finally {
+          held.delete(name)
+        }
+      },
+      query: async () => ({ held: [...held].map((name) => ({ name })) }),
+    },
+  })
+}
+
 const setHcaApprovalActive = () => {
   mocks.checkMigrationApprovals.mockResolvedValue({
     ethRegistryHcaApproved: true,
@@ -3000,6 +3028,134 @@ describe('executeMigration HCA orchestration', () => {
         hca: HCA,
       }),
     ).toEqual([])
+  })
+
+  it('keeps a still-pending journaled batch indeterminate instead of prompting again', async () => {
+    persistSubmittedAtomicMigrationBatch(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        intentId: 'pending-intent',
+        hash: hashFor(9),
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
+    getTransactionReceiptMock.mockRejectedValueOnce(
+      new Error('transaction receipt not found'),
+    )
+    getTransactionMock.mockResolvedValueOnce({
+      hash: hashFor(9),
+      from: OWNER,
+      nonce: 4,
+      blockNumber: null,
+    })
+    getTransactionCountMock.mockResolvedValueOnce(4)
+    // The token has not moved yet, so a state fallback would prompt again.
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue(INCOMPLETE_ALICE)
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      cause: { name: 'SubmittedAtomicMigrationIndeterminateError' },
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+    expect(
+      loadSubmittedAtomicMigrationBatches({
+        chainId: 11155111,
+        owner: OWNER,
+        hca: HCA,
+      }).map(({ hash }) => hash),
+    ).toEqual([hashFor(9)])
+  })
+
+  it('keeps an unrecorded intent indeterminate while the wallet has a pending transaction', async () => {
+    persistPendingAtomicMigrationIntent(
+      { chainId: 11155111, owner: OWNER, hca: HCA },
+      {
+        id: 'unsaved-hash-intent',
+        names: ['alice.eth'],
+        operations: [{ name: 'alice.eth', action: 'migrate' }],
+      },
+    )
+    const countFor = ({ blockTag }: { readonly blockTag: string }) =>
+      Promise.resolve(blockTag === 'pending' ? 5 : 4)
+    getTransactionCountMock
+      .mockImplementationOnce(countFor)
+      .mockImplementationOnce(countFor)
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue(INCOMPLETE_ALICE)
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      cause: {
+        name: 'AtomicMigrationIntentIndeterminateError',
+        intentId: 'unsaved-hash-intent',
+      },
+    })
+    expect(mocks.startTransaction).not.toHaveBeenCalled()
+  })
+
+  it('keeps an intent indeterminate while an earlier run still has its wallet prompt open', async () => {
+    stubWebLocks()
+    const closeEarlierPrompt = new AbortController()
+    mocks.waitForTransactionHash.mockImplementationOnce(
+      () =>
+        new Promise<Hex>((_, reject) =>
+          closeEarlierPrompt.signal.addEventListener('abort', () =>
+            reject(new Error('closed')),
+          ),
+        ),
+    )
+    const earlierRun = runExecute().catch((cause: unknown) => cause)
+    await vi.waitFor(() =>
+      expect(mocks.startTransaction).toHaveBeenCalledOnce(),
+    )
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue(INCOMPLETE_ALICE)
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      cause: { name: 'AtomicMigrationIntentIndeterminateError' },
+    })
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+
+    closeEarlierPrompt.abort()
+    await earlierRun
+    await runExecute({ reconcileBeforeSubmit: true })
+
+    expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps an intent indeterminate after an account switch stopped its wait while the prompt may be open', async () => {
+    stubWebLocks()
+    const { TransactionStoppedError } = await vi.importActual<
+      typeof import('@ens-apps/transaction-manager')
+    >('@ens-apps/transaction-manager')
+    mocks.waitForTransactionHash.mockRejectedValueOnce(
+      new TransactionStoppedError('tx-1'),
+    )
+    await expect(runExecute()).rejects.toBeDefined()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    mocks.reconcileAtomicMigrationBatch.mockResolvedValue(INCOMPLETE_ALICE)
+
+    const error = await runExecute({ reconcileBeforeSubmit: true }).catch(
+      (cause: unknown) => cause,
+    )
+
+    expect(error).toMatchObject({
+      name: 'MigrationError',
+      cause: { name: 'AtomicMigrationIntentIndeterminateError' },
+    })
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
   })
 
   it('reconciles an already-complete batch only when its attempt was recorded', async () => {

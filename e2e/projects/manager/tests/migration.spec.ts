@@ -25,6 +25,7 @@ import {
   getTextRecord,
 } from '@ensdomains/ensjs/public'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
+import { Web3RequestKind } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import {
   type Address,
@@ -37,7 +38,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import { setV1RecordsOn, type V1Records } from '../../../fixtures/v1-records.js'
-import { publicClient } from '../../../helpers/anvil-client.js'
+import { publicClient, testClient } from '../../../helpers/anvil-client.js'
 import { isRealBigname } from '../../../helpers/bigname-sync.js'
 import {
   assertLockedTokenRoute,
@@ -52,6 +53,7 @@ import {
   readPlan,
   rootRow,
   selectOnlyRoots,
+  UPGRADE_OUTCOMES,
   upgradeCountingPrompts,
 } from '../../../helpers/migration-flow.js'
 import {
@@ -611,5 +613,86 @@ test.describe('ENS V1 → V2 migration — names the controllers cannot claim', 
     ).toContainText(/already (been )?upgraded|already migrated/i, {
       timeout: 15_000,
     })
+  })
+})
+
+test.describe('ENS V1 → V2 migration — a retry while the upgrade transaction is pending (WEB-1978)', () => {
+  test.describe.configure({ timeout: 600_000 })
+
+  test('reopening the upgrade while its transaction is in the mempool opens no second upgrade prompt', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+  }) => {
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const makeV1Name = createMakeV1Name({ userAccount: owner })
+    const name = await makeV1Name({ label: `mm039-${Date.now().toString(36)}` })
+    const label = labelOf(name)
+    await serveV1Names(page, {
+      ownerAddress: owner.address,
+      roots: [{ kind: 'registration', label }],
+    })
+    await openMigrationFlow(page)
+    await expect(rootRow(page, name)).toBeVisible({ timeout: 60_000 })
+    await selectOnlyRoots(page, [name])
+    const plan = await readPlan(page)
+    const sends = () =>
+      wallet.getPendingRequestCount(Web3RequestKind.SendTransaction)
+
+    try {
+      const upgrade = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
+      await expect(upgrade).toBeEnabled({ timeout: 180_000 })
+      await upgrade.click()
+      for (let prompt = 1; prompt < plan.count; prompt++) {
+        await expect.poll(sends, { timeout: 120_000 }).toBeGreaterThanOrEqual(1)
+        await wallet.authorize(Web3RequestKind.SendTransaction)
+      }
+      // The upgrade batch is the last prompt: keep it in the mempool.
+      await expect.poll(sends, { timeout: 120_000 }).toBeGreaterThanOrEqual(1)
+      await testClient.setAutomine(false)
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      await expect
+        .poll(
+          async () =>
+            Number(
+              (
+                (await testClient.request({
+                  method: 'txpool_status' as never,
+                })) as { pending: string }
+              ).pending,
+            ),
+          { timeout: 30_000 },
+        )
+        .toBeGreaterThanOrEqual(1)
+      await assertV2Reserved(label)
+
+      await page.reload()
+      await openMigrationFlow(page)
+      const retry = page.getByRole('button', { name: /^Upgrade \d+ names?$/ })
+      await expect(retry).toBeEnabled({ timeout: 180_000 })
+      await retry.click()
+      await expect(
+        page.getByText(UPGRADE_OUTCOMES.retryBlocked).first(),
+      ).toBeVisible({ timeout: 120_000 })
+      expect(
+        sends(),
+        'no second upgrade prompt while the first is pending',
+      ).toBe(0)
+      await assertV2Reserved(label)
+
+      await testClient.setAutomine(true)
+      await testClient.mine({ blocks: 1 })
+      await assertUnlockedTokenRoute(label, namehash(name), { wrapped: false })
+      await expectOwnerRoles(label, owner.address)
+
+      await page.reload()
+      await openMigrationFlow(page)
+      await expect(
+        page.getByText('No eligible names found for this wallet'),
+      ).toBeVisible({ timeout: 60_000 })
+      expect(sends(), 'reopening after it confirmed asks for nothing').toBe(0)
+    } finally {
+      await testClient.setAutomine(true)
+    }
   })
 })

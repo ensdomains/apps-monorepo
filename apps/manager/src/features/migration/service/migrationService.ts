@@ -24,6 +24,7 @@ import {
   isAddressEqual,
   namehash,
   type PublicClient,
+  TransactionNotFoundError,
   type TransactionReceipt,
 } from 'viem'
 import {
@@ -99,6 +100,10 @@ import {
   verifyMigrationRecoveryTransaction,
 } from './migrationCompletionCheckpoint'
 import {
+  acquireMigrationIntentLease,
+  readHeldMigrationIntentIds,
+} from './migrationIntentLease'
+import {
   assertLockedMigrationResolversUnchanged,
   assertNoLiveSubregistryOverwrite,
   checkDeterministicMigrationResolverReadiness,
@@ -120,10 +125,19 @@ import { planSetupBundles } from './planSetupBundles'
 import type { RpcSubnameInventory } from './readRpcSubnameInventory'
 import { checkRetainedManagerResolvers } from './retainedManagerResolver'
 import {
+  canReadStateForSubmittedBatch,
+  type SubmittedBatchLookup,
+} from './submittedBatchLookup'
+import {
   assertSubnameRecreationUnchanged,
   assertSupportedSubnameMigration,
 } from './subnameRecreation'
 import { assertSubnameRecreationSnapshotCurrent } from './subnameRecreationError'
+import {
+  canReadStateForUnrecordedIntent,
+  mayLeaveWalletPromptOpen,
+  type UnrecordedIntentEvidence,
+} from './unrecordedIntent'
 import {
   reconcileAtomicMigrationBatch,
   verifyAtomicMigrationBatch,
@@ -1656,6 +1670,100 @@ const unresolvedIntentIdsFor = (params: {
   return unresolvedIntentIds
 }
 
+const releaseLeaseUnlessPromptOpen = (
+  release: () => void,
+  error: unknown,
+): void => {
+  if (!mayLeaveWalletPromptOpen(error)) release()
+}
+
+/** Records an attempt under its intent lease, so a retry elsewhere can see the prompt is live. */
+const recordLeasedAttempt = async (
+  scope: MigrationBatchJournalScope,
+  attempt: Parameters<typeof persistPendingAtomicMigrationAttempt>[1],
+): Promise<() => void> => {
+  const release = await acquireMigrationIntentLease(scope, attempt.intent.id)
+  try {
+    persistPendingAtomicMigrationAttempt(scope, attempt)
+    return release
+  } catch (error) {
+    release()
+    throw error
+  }
+}
+
+const readWalletActivity = async (
+  publicClient: PublicClient,
+  address: Address,
+): Promise<UnrecordedIntentEvidence['wallet']> => {
+  try {
+    const [pending, confirmed] = await Promise.all([
+      publicClient.getTransactionCount({ address, blockTag: 'pending' }),
+      publicClient.getTransactionCount({ address, blockTag: 'latest' }),
+    ])
+    return pending > confirmed ? 'pending' : 'idle'
+  } catch {
+    return 'unknown'
+  }
+}
+
+const intentLease = (
+  heldIntentIds: ReadonlySet<string> | undefined,
+  intentId: string,
+): UnrecordedIntentEvidence['lease'] => {
+  if (!heldIntentIds) return 'unsupported'
+  return heldIntentIds.has(intentId) ? 'held' : 'free'
+}
+
+const assertUnrecordedIntentsSettled = async (params: {
+  readonly ctx: MigrationCtx
+  readonly scope: MigrationBatchJournalScope
+  readonly intents: ReturnType<typeof loadPendingAtomicMigrationIntents>
+}): Promise<void> => {
+  if (params.intents.length === 0) return
+  const [heldIntentIds, wallet] = await Promise.all([
+    readHeldMigrationIntentIds(params.scope),
+    readWalletActivity(params.ctx.publicClient, params.ctx.walletAddress),
+  ])
+  const blocked = params.intents.find(
+    ({ id }) =>
+      !canReadStateForUnrecordedIntent({
+        lease: intentLease(heldIntentIds, id),
+        wallet,
+      }),
+  )
+  if (!blocked) return
+  throw new AtomicMigrationIntentIndeterminateError({
+    message:
+      'An earlier upgrade wallet prompt may still be open, or its transaction is still pending. It will not be retried automatically.',
+    intentId: blocked.id,
+    names: blocked.names,
+  })
+}
+
+const lookupSubmittedBatch = async (
+  publicClient: PublicClient,
+  hash: Hex,
+): Promise<SubmittedBatchLookup> => {
+  try {
+    const transaction = await publicClient.getTransaction({ hash })
+    if (transaction.blockNumber !== null) return { status: 'mined' }
+    const confirmedNonce = await publicClient.getTransactionCount({
+      address: transaction.from,
+      blockTag: 'latest',
+    })
+    return {
+      status: 'pending',
+      nonce: BigInt(transaction.nonce),
+      confirmedNonce: BigInt(confirmedNonce),
+    }
+  } catch (cause) {
+    return cause instanceof TransactionNotFoundError
+      ? { status: 'not-found' }
+      : { status: 'unavailable' }
+  }
+}
+
 const reconcileJournaledSubmission = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -1677,7 +1785,13 @@ const reconcileJournaledSubmission = async (params: {
   } catch (error) {
     if (
       params.allowStateFallback &&
-      error instanceof SubmittedAtomicMigrationIndeterminateError
+      error instanceof SubmittedAtomicMigrationIndeterminateError &&
+      canReadStateForSubmittedBatch(
+        await lookupSubmittedBatch(
+          params.ctx.publicClient,
+          params.submission.hash,
+        ),
+      )
     ) {
       return 'unresolved'
     }
@@ -1800,6 +1914,11 @@ const reconcileSubmittedAtomicBatches = async (params: {
     expectedNames,
     executions,
     allowStateFallback: params.allowStateFallback,
+  })
+  await assertUnrecordedIntentsSettled({
+    ctx: params.ctx,
+    scope,
+    intents: intents.filter(({ id }) => unresolvedIntentIds.includes(id)),
   })
   const unresolvedSubmissions: (RecoveredSubmittedBatch & {
     readonly intentId: string
@@ -2477,7 +2596,7 @@ const executeRemainingAtomicBatches = async (params: {
       operations: batch.operations,
     }
     params.ctx.submissionGate.signal.throwIfAborted()
-    persistPendingAtomicMigrationAttempt(journalScope, {
+    const releaseIntentLease = await recordLeasedAttempt(journalScope, {
       recovery: recoverySnapshotFor(
         params.plan,
         remaining,
@@ -2502,6 +2621,7 @@ const executeRemainingAtomicBatches = async (params: {
         removeSubmittedAtomicMigrationBatch(journalScope, previousHash)
       }
       removePendingAtomicMigrationIntent(journalScope, intent.id)
+      releaseIntentLease()
     }
 
     try {
@@ -2551,6 +2671,7 @@ const executeRemainingAtomicBatches = async (params: {
       params.ctx.tracker.finishBatchStep(batch, 'atomic-batch')
       params.ctx.tracker.emit('Batch confirmed', hash, batch.operations)
     } catch (error) {
+      releaseLeaseUnlessPromptOpen(releaseIntentLease, error)
       if (!submittedHash && isUserRejection(error)) {
         removePendingAtomicMigrationIntent(journalScope, intent.id)
       }
