@@ -1,22 +1,35 @@
+import { orSafeExecution } from '@ens-apps/transaction-manager'
+import { ResultFn } from '@ens-apps/utils/neverthrow'
 import {
+  type Connector,
   getPublicClient,
   getTransaction,
   readContract,
   type Config as WagmiConfig,
   writeContract,
 } from '@wagmi/core'
+import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
   encodeFunctionData,
   getAddress,
   type Hex,
   parseAbi,
+  type WaitForTransactionReceiptParameters,
 } from 'viem'
 import { waitForTransactionReceipt } from 'viem/actions'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { withRequestDeadline } from '../service/requestDeadline'
 import { getCommemorativeNftContractAddress } from './config'
+import {
+  type CommemorativeNftClaimSettlement,
+  getCommemorativeNftReceiptDecision,
+  getFailedCommemorativeNftClaimOutcome,
+  getHistoricalCommemorativeNftSafeSettlement,
+  getVerifiedCommemorativeNftClaimOutcome,
+} from './contract.helpers'
 import type { PendingNftClaim } from './pendingClaim'
+import { readHistoricalCommemorativeNftSafeExecution } from './safeExecutionHistory'
 
 const COMMEMORATIVE_NFT_ABI = parseAbi([
   'function claim(bytes32[] proof)',
@@ -192,10 +205,15 @@ export type CommemorativeNftClaimReceiptResult = {
   readonly hash: Hex
 }
 
+const CLAIM_RECEIPT_TIMEOUT_MS = 5 * 60 * 1_000
+
 export const waitForCommemorativeNftClaimReceipt = async (params: {
   readonly wagmiConfig: WagmiConfig
   readonly pendingClaim: PendingNftClaim
+  /** The wallet's connector. A Safe{Wallet} one answers with safeTxHashes. */
+  readonly connector?: Connector
   readonly onReplaced?: (hash: Hex) => void
+  readonly onHistoryProgress?: (fromBlock: bigint) => void
   readonly signal?: AbortSignal
 }): Promise<CommemorativeNftClaimReceiptResult> => {
   const { pendingClaim } = params
@@ -219,58 +237,139 @@ export const waitForCommemorativeNftClaimReceipt = async (params: {
     )
   let hash = pendingClaim.hash
   let replacementReason: 'cancelled' | 'replaced' | 'repriced' | undefined
-  try {
-    const receipt = await withRequestDeadline(
-      () =>
-        waitForTransactionReceipt(publicClient, {
+  const receiptOf = (receipt: WaitForTransactionReceiptParameters) =>
+    fromPromise(
+      waitForTransactionReceipt(publicClient, {
+        pollingInterval: 2_000,
+        ...receipt,
+      }),
+      (cause) => cause,
+    )
+  const waitForSettlement = ResultFn(async function* (signal: AbortSignal) {
+    const historical = yield* fromPromise(
+      readHistoricalCommemorativeNftSafeExecution({
+        publicClient,
+        connector: params.connector,
+        ownerAddress: pendingClaim.ownerAddress,
+        safeTxHash: pendingClaim.hash,
+        searchFromBlock: pendingClaim.safeExecutionSearchFromBlock,
+        onHistoryProgress: params.onHistoryProgress,
+        signal,
+      }),
+      (cause) => cause,
+    )
+    const direct = historical
+      ? receiptOf({ hash: historical.transactionHash }).andThen((receipt) =>
+          getHistoricalCommemorativeNftSafeSettlement({
+            receipt,
+            isSuccess: historical.isSuccess,
+            safeTxHash: pendingClaim.hash,
+          }),
+        )
+      : receiptOf({
           hash,
-          pollingInterval: 2_000,
-          timeout: 5 * 60 * 1_000,
+          timeout: CLAIM_RECEIPT_TIMEOUT_MS,
           onReplaced: (replacement) => {
             hash = replacement.transactionReceipt.transactionHash
             replacementReason = replacement.reason
             params.onReplaced?.(hash)
           },
-        }),
-      { signal: params.signal, timeoutMs: 5 * 60 * 1_000 },
-    )
-    hash = receipt.transactionHash
-    if (replacementReason === 'cancelled') return { status: 'cancelled', hash }
-    if (replacementReason === 'replaced') return { status: 'replaced', hash }
-    if (receipt.status !== 'success') return { status: 'reverted', hash }
+        }).map(
+          (receipt): CommemorativeNftClaimSettlement => ({
+            receipt,
+            kind: 'direct',
+          }),
+        )
+    const settlement = yield* orSafeExecution({
+      publicClient,
+      connector: params.connector,
+      account: pendingClaim.ownerAddress,
+      id: pendingClaim.hash,
+      timeout: CLAIM_RECEIPT_TIMEOUT_MS,
+      direct,
+      settle: (transactionHash) =>
+        receiptOf({ hash: transactionHash }).map(
+          (receipt): CommemorativeNftClaimSettlement => ({
+            receipt,
+            kind: 'safe',
+          }),
+        ),
+      signal,
+    })
+    return ok(settlement)
+  })
+  const settled = fromPromise(
+    withRequestDeadline(async (signal) => waitForSettlement(signal), {
+      signal: params.signal,
+      timeoutMs: CLAIM_RECEIPT_TIMEOUT_MS,
+    }),
+    (cause) => cause,
+  ).andThen((result) => result)
+
+  const verifyClaim = ResultFn(async function* (
+    settlement: CommemorativeNftClaimSettlement,
+  ) {
+    const { receipt } = settlement
+    hash =
+      settlement.kind === 'safe' ? pendingClaim.hash : receipt.transactionHash
+    const decision = getCommemorativeNftReceiptDecision({
+      settlement,
+      replacementReason,
+    })
+    if (decision !== 'verify')
+      return ok<CommemorativeNftClaimReceiptResult>({ status: decision, hash })
 
     // A successful same-nonce replacement can be an unrelated transfer. Check
     // the transaction itself as persisted data and replacement events are not
     // proof that this owner called the configured NFT claim.
-    const transaction = await withRequestDeadline(
-      () =>
-        getTransaction(params.wagmiConfig, {
-          chainId: pendingClaim.chainId,
+    if (settlement.kind === 'direct') {
+      const transaction = yield* fromPromise(
+        withRequestDeadline(
+          () =>
+            getTransaction(params.wagmiConfig, {
+              chainId: pendingClaim.chainId,
+              hash,
+            }),
+          { signal: params.signal },
+        ),
+        (cause) => cause,
+      )
+      if (
+        transaction.from.toLowerCase() !==
+          pendingClaim.ownerAddress.toLowerCase() ||
+        transaction.to?.toLowerCase() !== contractAddress.toLowerCase() ||
+        transaction.value !== 0n ||
+        transaction.input.toLowerCase() !==
+          pendingClaim.expectedClaimData.toLowerCase()
+      ) {
+        return ok<CommemorativeNftClaimReceiptResult>({
+          status: 'replaced',
           hash,
-        }),
-      { signal: params.signal },
-    )
-    if (
-      transaction.from.toLowerCase() !==
-        pendingClaim.ownerAddress.toLowerCase() ||
-      transaction.to?.toLowerCase() !== contractAddress.toLowerCase() ||
-      transaction.value !== 0n ||
-      transaction.input.toLowerCase() !==
-        pendingClaim.expectedClaimData.toLowerCase()
-    ) {
-      return { status: 'replaced', hash }
+        })
+      }
     }
-    const claimed = await readCommemorativeNftClaimed({
-      wagmiConfig: params.wagmiConfig,
-      chainId: pendingClaim.chainId,
-      ownerAddress: pendingClaim.ownerAddress,
-      blockNumber: receipt.blockNumber,
-      signal: params.signal,
-    })
-    return { status: claimed ? 'confirmed' : 'pending', hash }
-  } catch {
-    // Neither an RPC error nor the foreground deadline proves a transaction
-    // failed. Preserve its hash and prevent resubmission until reconciled.
-    return { status: 'pending', hash }
-  }
+    const hasClaimed = yield* fromPromise(
+      readCommemorativeNftClaimed({
+        wagmiConfig: params.wagmiConfig,
+        chainId: pendingClaim.chainId,
+        ownerAddress: pendingClaim.ownerAddress,
+        blockNumber: receipt.blockNumber,
+        signal: params.signal,
+      }),
+      (cause) => cause,
+    )
+    return ok(
+      getVerifiedCommemorativeNftClaimOutcome({
+        settlement,
+        submittedHash: pendingClaim.hash,
+        hasClaimed,
+      }),
+    )
+  })
+
+  return settled.andThen(verifyClaim).match(
+    (outcome) => outcome,
+    // An RPC error or the foreground deadline does not prove failure.
+    (cause) => getFailedCommemorativeNftClaimOutcome({ cause, hash }),
+  )
 }
