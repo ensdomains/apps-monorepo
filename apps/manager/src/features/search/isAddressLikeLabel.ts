@@ -1,6 +1,6 @@
 // Labels are ENSIP-15 normalised, so case-sensitive encodings (base58) arrive
 // lowercased. The patterns below match the lowercased shape.
-const EVM_ADDRESS_LIKE = /^0x[0-9a-f]{38,}$/
+const EVM_ADDRESS_LIKE = /^0x[0-9a-f]{20,}$/
 const BITCOIN_BECH32_LIKE = /^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{36,62}$/
 // Base58: Bitcoin legacy addresses start with 1 or 3 and run 26 to 35
 // characters; Solana keys run 32 to 44

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { isAddressLikeLabel } from './isAddressLikeLabel'
 
+const HEX_20 = 'd8da6bf26964af9d7eed'
+
 describe('isAddressLikeLabel', () => {
   it.each([
     ['an EVM address', '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'],
@@ -8,6 +10,9 @@ describe('isAddressLikeLabel', () => {
       'an EVM address missing a character',
       '0xd8da6bf26964af9d7eed9e03e53415d37aa9604',
     ],
+    // Shares the first 6 and last 4 hex with the address above
+    ['a 37-hex EVM look-alike', '0xd8da6bf26964af9d7eed9e03e53415d376045'],
+    ['a 0x label with exactly 20 hex', `0x${HEX_20}`],
     ['a 32-byte 0x key (Sui, Aptos)', `0x${'ab12'.repeat(16)}`],
     ['a Bitcoin SegWit address', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq'],
     [
@@ -36,6 +41,7 @@ describe('isAddressLikeLabel', () => {
     ['a plain word', 'vitalik'],
     ['a short 0x vanity name', '0xvitalik'],
     ['a short hex name', '0xdeadbeef'],
+    ['a 0x label with 19 hex', `0x${HEX_20.slice(0, 19)}`],
     ['a long name ending in a year', 'thebestcoffeeshopinnewyorkcity2024'],
     ['a long all-letter name', 'thisisaverylongnamethatsomeonemightregister'],
     [

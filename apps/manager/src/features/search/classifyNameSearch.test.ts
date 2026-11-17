@@ -86,6 +86,23 @@ describe('classifyNameSearch', () => {
       })
     })
 
+    it('refuses a free 37-hex look-alike a shortened address hides', () => {
+      const name = '0xd8da6bf26964af9d7eed9e03e53415d376045.eth'
+
+      expect(
+        classifyNameSearch({
+          kind: {
+            type: 'eth-2ld',
+            name,
+            label: '0xd8da6bf26964af9d7eed9e03e53415d376045',
+          },
+          existence: { status: 'unowned' },
+          availability: { status: 'available' },
+          tldSupport: { status: 'skipped' },
+        }),
+      ).toEqual({ type: 'invalid', name, reason: 'address-like' })
+    })
+
     it('stays reachable when already registered', () => {
       expect(
         classifyNameSearch({
