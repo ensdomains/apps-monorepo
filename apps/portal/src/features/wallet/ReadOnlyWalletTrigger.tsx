@@ -4,8 +4,8 @@ import {
 } from '@ens-apps/utils/readOnlyWallet'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import type { Address } from 'viem'
+import { getEnsAddress } from 'viem/actions'
 import { normalize } from 'viem/ens'
-import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { wagmiConfig } from '@/lib/wagmi'
 
 type ReadOnlyWalletTriggerProps = {
@@ -22,9 +22,8 @@ const resolveInput = async (input: string): Promise<Address | null> => {
   if (!value) return null
 
   try {
-    return await resolveAddressOrName({
-      client: wagmiConfig.getClient(),
-      nameOrAddress: normalize(value),
+    return await getEnsAddress(wagmiConfig.getClient(), {
+      name: normalize(value),
     })
   } catch {
     return null
