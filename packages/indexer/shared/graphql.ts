@@ -1,4 +1,5 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import type { FormattedExecutionResult, GraphQLFormattedError } from 'graphql'
 import { err, ok, ResultAsync } from 'neverthrow'
 import { IndexerReadError } from '../reads/errors'
 
@@ -9,7 +10,7 @@ export class GraphqlRequestError extends TaggedError('GRAPHQL_REQUEST_ERROR')<{
   readonly cause: unknown
   readonly url: string
   readonly status?: number
-  readonly errors?: readonly unknown[]
+  readonly errors?: readonly GraphQLFormattedError[]
 }> {}
 
 export type GraphqlTransportOptions = Readonly<{
@@ -34,14 +35,16 @@ const toReadError = (
 
 const hasErrors = (
   body: unknown,
-): body is Readonly<{ errors: readonly unknown[] }> =>
+): body is Required<Pick<FormattedExecutionResult, 'errors'>> =>
   typeof body === 'object' &&
   body !== null &&
   'errors' in body &&
   Array.isArray(body.errors) &&
   body.errors.length > 0
 
-const hasData = <Data>(body: unknown): body is Readonly<{ data: Data }> =>
+const hasData = <Data>(
+  body: unknown,
+): body is Required<Pick<FormattedExecutionResult<Data>, 'data'>> =>
   typeof body === 'object' && body !== null && 'data' in body && !!body.data
 
 /** One GraphQL endpoint: GraphQL errors are `rejected`; network failures, timeouts, 429 and 5xx are `unavailable`. */
@@ -56,7 +59,7 @@ export const createGraphqlTransport = ({
     extra: Readonly<{
       cause?: unknown
       status?: number
-      errors?: readonly unknown[]
+      errors?: readonly GraphQLFormattedError[]
     }> = {},
   ) =>
     toReadError(
