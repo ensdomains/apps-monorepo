@@ -18,6 +18,7 @@ import { packetToBytes } from 'viem/ens'
 import { getChainContractAddress } from 'viem/utils'
 import type { ClassifiedName } from './classifyNames'
 import type { MigrationJournalOperation } from './migrationBatchJournal'
+import { withRequestDeadline } from './requestDeadline'
 import { computeUserRegistryAddress } from './userRegistryMigration'
 
 type ParentRegistryContracts = Pick<
@@ -62,12 +63,18 @@ export const copyParentNames = (
   ),
 ]
 
+/** The replacement a parent now points at; the map is keyed by lowercase name. */
+export const currentParentRegistryOf = (
+  currentParentRegistries: ReadonlyMap<string, Address>,
+  parentName: string,
+): Address | undefined => currentParentRegistries.get(parentName.toLowerCase())
+
 export const parentUserRegistryFor = (params: {
   readonly hca: Address
   readonly parentName: string
   readonly currentParentRegistries: ReadonlyMap<string, Address>
 }): Address =>
-  params.currentParentRegistries.get(params.parentName) ??
+  currentParentRegistryOf(params.currentParentRegistries, params.parentName) ??
   computeUserRegistryAddress(params)
 
 /** A copy's registry is the one the HCA deployed, or the certified replacement its parent now points at. */
@@ -118,7 +125,7 @@ const readCertifiedRegistry = async (params: {
     : undefined
 }
 
-/** Parents whose name now points at a certified UserRegistry other than the computed one; a failed read rejects. */
+/** Parents whose name now points at a certified UserRegistry other than the computed one, keyed by lowercase name; a failed read rejects. */
 export const findCurrentParentRegistries = async (params: {
   readonly reads: ParentRegistryReads
   readonly userRegistryImpl: Address
@@ -126,14 +133,15 @@ export const findCurrentParentRegistries = async (params: {
   readonly parentNames: readonly string[]
 }): Promise<ReadonlyMap<string, Address>> => {
   const entries = await Promise.all(
-    [...new Set(params.parentNames)].map((parentName) =>
-      readCertifiedRegistry({ ...params, parentName }).then(
-        (registry) =>
-          registry === undefined ? [] : [[parentName, registry] as const],
-        (cause: unknown) => {
-          throw new ParentRegistryReadError({ parentName, cause })
-        },
-      ),
+    [...new Set(params.parentNames.map((name) => name.toLowerCase()))].map(
+      (parentName) =>
+        readCertifiedRegistry({ ...params, parentName }).then(
+          (registry) =>
+            registry === undefined ? [] : [[parentName, registry] as const],
+          (cause: unknown) => {
+            throw new ParentRegistryReadError({ parentName, cause })
+          },
+        ),
     ),
   )
   return new Map(entries.flat())
@@ -152,41 +160,47 @@ const zeroOnRevert = (error: unknown): Address => {
   throw error
 }
 
-/** {@link findCurrentParentRegistries} over a public client. */
-export const readCurrentParentRegistries = (params: {
+/** {@link findCurrentParentRegistries} over a public client; a client without the helper contract throws before any read. */
+export const readCurrentParentRegistries = async (params: {
   readonly publicClient: Pick<PublicClient, 'readContract' | 'chain'>
   readonly contracts: ParentRegistryContracts
   readonly hca: Address
   readonly parentNames: readonly string[]
-}): Promise<ReadonlyMap<string, Address>> =>
-  findCurrentParentRegistries({
+  readonly signal?: AbortSignal
+}): Promise<ReadonlyMap<string, Address>> => {
+  if (params.parentNames.length === 0) return new Map()
+  const universalHelper = getChainContractAddress({
+    chain: requireEnsChain(params.publicClient, 'parent registry lookup'),
+    contract: 'ensUniversalHelper',
+  })
+  const { signal } = params
+  return findCurrentParentRegistries({
     reads: {
       getNameRegistry: (name) =>
-        params.publicClient
-          .readContract({
-            address: getChainContractAddress({
-              chain: requireEnsChain(
-                params.publicClient,
-                'parent registry lookup',
-              ),
-              contract: 'ensUniversalHelper',
+        withRequestDeadline(
+          () =>
+            params.publicClient.readContract({
+              address: universalHelper,
+              abi: universalHelperFindRegistriesSnippet,
+              functionName: 'findRegistries',
+              args: [toHex(packetToBytes(name))],
             }),
-            abi: universalHelperFindRegistriesSnippet,
-            functionName: 'findRegistries',
-            args: [toHex(packetToBytes(name))],
-          })
-          .then(([registry]) => registry ?? zeroAddress, zeroOnRevert),
+          { signal },
+        ).then(([registry]) => registry ?? zeroAddress, zeroOnRevert),
       verifyContract: (registry) =>
-        params.publicClient
-          .readContract({
-            address: params.contracts.verifiableFactory,
-            abi: verifiableFactoryVerifyContractSnippet,
-            functionName: 'verifyContract',
-            args: [registry],
-          })
-          .catch(zeroOnRevert),
+        withRequestDeadline(
+          () =>
+            params.publicClient.readContract({
+              address: params.contracts.verifiableFactory,
+              abi: verifiableFactoryVerifyContractSnippet,
+              functionName: 'verifyContract',
+              args: [registry],
+            }),
+          { signal },
+        ).catch(zeroOnRevert),
     },
     userRegistryImpl: params.contracts.userRegistryImpl,
     hca: params.hca,
     parentNames: params.parentNames,
   })
+}

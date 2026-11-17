@@ -3732,6 +3732,32 @@ describe('durable migration completion handoff', () => {
   })
 })
 
+it("reads the current registry of a completed copy's parent before discarding its journal entry", async () => {
+  const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+  const completed = { name: 'foo.example.eth', action: 'copy' as const }
+  persistSubmittedAtomicMigrationBatch(scope, {
+    intentId: 'older-copy',
+    hash: hashFor(9),
+    names: [completed.name],
+    operations: [completed],
+  })
+  mocks.readCurrentParentRegistries.mockRejectedValue(new Error('stop'))
+
+  await expect(
+    runExecute({
+      plan: {
+        ...planFor([]),
+        registryContext: [classifiedFor('alice')],
+        priorCompletedOperations: [completed],
+      },
+      reconcileBeforeSubmit: true,
+    }),
+  ).rejects.toBeDefined()
+  expect(mocks.readCurrentParentRegistries).toHaveBeenCalledWith(
+    expect.objectContaining({ parentNames: ['example.eth'] }),
+  )
+})
+
 it.each([false, true])(
   'verifies older completed receipt journals before deleting them (forged=%s)',
   async (forged) => {

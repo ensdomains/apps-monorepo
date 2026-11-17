@@ -163,6 +163,7 @@ export const reconcileMigrationRecovery = async (params: RecoveryParams) => {
     parentNames: copyParentNames(
       attempts.flatMap(({ operations }) => operations),
     ),
+    signal: params.signal,
   })
   for (const attempt of attempts) {
     params.signal?.throwIfAborted()

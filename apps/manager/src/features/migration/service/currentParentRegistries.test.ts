@@ -16,6 +16,7 @@ import {
   findCurrentParentRegistries,
   isAcceptedParentRegistry,
   type ParentRegistryReads,
+  parentUserRegistryFor,
   readCurrentParentRegistries,
 } from './currentParentRegistries'
 import { computeUserRegistryAddress } from './userRegistryMigration'
@@ -81,6 +82,26 @@ describe('findCurrentParentRegistries', () => {
     },
   )
 
+  it('keys the map by lowercase name, so a lookup in any case finds it', async () => {
+    const result = await findCurrentParentRegistries({
+      reads: {
+        getNameRegistry: async () => UPGRADED,
+        verifyContract: async () => V2_CONTRACTS.UserRegistryImpl,
+      },
+      userRegistryImpl: V2_CONTRACTS.UserRegistryImpl,
+      hca: HCA,
+      parentNames: ['Example.ETH'],
+    })
+
+    expect(
+      parentUserRegistryFor({
+        hca: HCA,
+        parentName: 'EXAMPLE.eth',
+        currentParentRegistries: result,
+      }),
+    ).toBe(UPGRADED)
+  })
+
   it('does not ask the factory about a parent still at its computed registry', async () => {
     const verifyContract = vi.fn(async () => V2_CONTRACTS.UserRegistryImpl)
     await find({ getNameRegistry: async () => COMPUTED, verifyContract })
@@ -123,7 +144,7 @@ describe('findCurrentParentRegistries', () => {
 
 describe('readCurrentParentRegistries', () => {
   const HELPER: Address = '0x00000000000000000000000000000000000000e1'
-  const read = (readContract: () => Promise<unknown>) =>
+  const read = (readContract: () => Promise<unknown>, signal?: AbortSignal) =>
     readCurrentParentRegistries({
       publicClient: {
         readContract,
@@ -138,6 +159,7 @@ describe('readCurrentParentRegistries', () => {
       },
       hca: HCA,
       parentNames: [PARENT],
+      signal,
     })
 
   it('reads a revert as no certified registry', async () => {
@@ -172,6 +194,37 @@ describe('readCurrentParentRegistries', () => {
       .mockResolvedValueOnce(V2_CONTRACTS.UserRegistryImpl)
 
     expect(await read(readContract)).toEqual(new Map([[PARENT, UPGRADED]]))
+  })
+
+  it('throws before reading when the client has no universal helper', async () => {
+    const readContract = vi.fn<() => Promise<unknown>>()
+    const reading = readCurrentParentRegistries({
+      publicClient: { readContract, chain: sepolia } as Pick<
+        PublicClient,
+        'readContract' | 'chain'
+      >,
+      contracts: {
+        verifiableFactory: '0x00000000000000000000000000000000000000f1',
+        userRegistryImpl: V2_CONTRACTS.UserRegistryImpl,
+      },
+      hca: HCA,
+      parentNames: [PARENT],
+    })
+
+    await expect(reading).rejects.not.toMatchObject({
+      _tag: 'ParentRegistryReadError',
+    })
+    expect(readContract).not.toHaveBeenCalled()
+  })
+
+  it('stops waiting on a read once the caller aborts', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const reading = read(() => new Promise(() => undefined), controller.signal)
+
+    await expect(reading).rejects.toMatchObject({
+      _tag: 'ParentRegistryReadError',
+    })
   })
 
   it('rejects when the request itself fails', async () => {

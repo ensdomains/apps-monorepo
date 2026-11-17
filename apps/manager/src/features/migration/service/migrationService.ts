@@ -1403,6 +1403,12 @@ const releaseChangedHelperRecovery = async (params: {
     readonly hash: Hex
   }[] = []
   try {
+    const currentParentRegistries = await readJournalParentRegistries({
+      publicClient: params.ctx.publicClient,
+      scope,
+      submissions: initialJournal.submitted,
+      signal: params.ctx.submissionGate.signal,
+    })
     for (const submission of initialJournal.submitted) {
       const relation = classifyMigrationRecoverySubmission({
         registryOperations: initialSnapshot.registryOperations,
@@ -1420,12 +1426,7 @@ const releaseChangedHelperRecovery = async (params: {
         operations: submission.operations,
         migrationHelper: submission.migrationHelper ?? previousHelper,
         signal: params.ctx.submissionGate.signal,
-        currentParentRegistries: await readCurrentParentRegistries({
-          publicClient: params.ctx.publicClient,
-          contracts: getDestinationContracts(scope.chainId),
-          hca: scope.hca,
-          parentNames: copyParentNames(submission.operations),
-        }),
+        currentParentRegistries,
       })
       if (status === 'success') {
         persistSubmittedAtomicMigrationBatch(scope, {
@@ -1696,6 +1697,25 @@ const reconcileJournaledSubmission = async (params: {
   }
 }
 
+/** The current registries of the parents these journaled submissions copied names under. */
+const readJournalParentRegistries = (params: {
+  readonly publicClient: PublicClient
+  readonly scope: MigrationBatchJournalScope
+  readonly submissions: readonly {
+    readonly operations: readonly MigrationJournalOperation[]
+  }[]
+  readonly signal?: AbortSignal
+}): Promise<ReadonlyMap<string, Address>> =>
+  readCurrentParentRegistries({
+    publicClient: params.publicClient,
+    contracts: getDestinationContracts(params.scope.chainId),
+    hca: params.scope.hca,
+    parentNames: copyParentNames(
+      params.submissions.flatMap(({ operations }) => operations),
+    ),
+    signal: params.signal,
+  })
+
 const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
   readonly onCurrentDeploymentCheckpoint: () => void
   readonly publicClient: PublicClient
@@ -1747,22 +1767,30 @@ const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
   }
   for (const submission of params.submissions) {
     assertActionsMatch(submission.operations, 'submission')
-    if (isHistoricalMigrationSubmission(submission)) continue
-    if (
+  }
+  const completed = params.submissions.filter(
+    (submission) =>
+      !isHistoricalMigrationSubmission(submission) &&
       !includesCurrentName(submission.names) &&
-      submission.operations.every(isDurablyCompleted)
-    ) {
-      await verifyAndPersistMigrationCompletionCheckpoint({
-        publicClient: params.publicClient,
-        scope: params.scope,
-        transactionHash: submission.hash,
-        operations: submission.operations,
-        currentParentRegistries: params.plan.currentParentRegistries,
-      })
-      params.onCurrentDeploymentCheckpoint()
-      removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
-      removePendingAtomicMigrationIntent(params.scope, submission.intentId)
-    }
+      submission.operations.every(isDurablyCompleted),
+  )
+  // The plan only knows the parents it still plans under; these may sit under others.
+  const currentParentRegistries = await readJournalParentRegistries({
+    publicClient: params.publicClient,
+    scope: params.scope,
+    submissions: completed,
+  })
+  for (const submission of completed) {
+    await verifyAndPersistMigrationCompletionCheckpoint({
+      publicClient: params.publicClient,
+      scope: params.scope,
+      transactionHash: submission.hash,
+      operations: submission.operations,
+      currentParentRegistries,
+    })
+    params.onCurrentDeploymentCheckpoint()
+    removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
+    removePendingAtomicMigrationIntent(params.scope, submission.intentId)
   }
   return {
     intents: params.intents.filter((intent) =>

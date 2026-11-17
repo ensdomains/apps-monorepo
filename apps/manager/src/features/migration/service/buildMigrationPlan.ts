@@ -1135,6 +1135,7 @@ export const buildMigrationRecoveryPlan = async (params: {
       registryContext,
       remaining: classified,
     }),
+    signal,
   }).catch((cause: unknown) => {
     if (!(cause instanceof ParentRegistryReadError)) throw cause
     throw new CopyMigrationReadinessError({
