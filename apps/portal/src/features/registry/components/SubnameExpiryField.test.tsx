@@ -25,19 +25,20 @@ const Harness = ({
   )
 }
 
-it('hides the expiry under Advanced settings, and ticking it sets one year', async () => {
+it('shows the description and picker only once Set expiration is ticked, a year out', async () => {
   const onChange = vi.fn()
   const user = userEvent.setup()
   render(<Harness onChange={onChange} />)
 
-  expect(screen.queryByLabelText(/Set an expiry/)).toBeNull()
-  await user.click(screen.getByRole('button', { name: 'Advanced settings' }))
-  await user.click(screen.getByLabelText(/Set an expiry/))
+  expect(screen.queryByText(/The new owner loses it/)).toBeNull()
+  await user.click(screen.getByRole('checkbox', { name: /Set expiration/ }))
   expect(onChange).toHaveBeenLastCalledWith({
     type: 'span',
     span: { type: 'years', years: 1 },
   })
+  expect(screen.getByText(/The new owner loses it/)).toBeInTheDocument()
 
-  await user.click(screen.getByLabelText(/Set an expiry/))
+  await user.click(screen.getByRole('checkbox', { name: /Set expiration/ }))
   expect(onChange).toHaveBeenLastCalledWith(DEFAULT_SUBNAME_EXPIRY)
+  expect(screen.queryByText(/The new owner loses it/)).toBeNull()
 })

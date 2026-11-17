@@ -116,6 +116,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
             showCheckbox={false}
+            expiryLabel="Expiration"
           />
         ))}
       </div>
@@ -152,6 +153,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 recordCount={name.recordCount}
                 subdomainCount={name.subdomainCount}
                 showCheckbox={false}
+                expiryLabel="Expiration"
               />
             ))}
           </div>

@@ -23,6 +23,8 @@ export interface NameMobileCardProps {
   isSelected?: boolean
   onSelectChange?: (selected: boolean) => void
   showCheckbox?: boolean
+  /** The expiry heading; the dashboard calls it "Expiration". */
+  readonly expiryLabel?: string
 }
 
 export const NameMobileCard = ({
@@ -39,6 +41,7 @@ export const NameMobileCard = ({
   isSelected = false,
   onSelectChange,
   showCheckbox = true,
+  expiryLabel = 'Expiry',
 }: NameMobileCardProps) => {
   const hasRoles = relations.length > 0
   const showRecordsSubnames =
@@ -69,7 +72,9 @@ export const NameMobileCard = ({
       </div>
 
       {/* Expiry section */}
-      <div className="text-base font-medium text-muted-foreground">Expiry</div>
+      <div className="text-base font-medium text-muted-foreground">
+        {expiryLabel}
+      </div>
       <div className="text-base">
         <NameExpiry
           expiryDate={expiryDate}

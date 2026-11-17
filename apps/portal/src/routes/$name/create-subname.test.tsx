@@ -400,7 +400,7 @@ describe('create subname under a V2 parent', () => {
     it.each([
       ['no expiry of its own when left unticked', false, maxUint64],
       [
-        'the date a year out when Set an expiry is ticked',
+        'the date a year out when Set expiration is ticked',
         true,
         NOW_SECONDS + 365n * 86_400n,
       ],
@@ -412,10 +412,7 @@ describe('create subname under a V2 parent', () => {
       await waitFor(() => expect(submit()).toBeEnabled())
       if (isTicked) {
         await userEvent.click(
-          screen.getByRole('button', { name: 'Advanced settings' }),
-        )
-        await userEvent.click(
-          screen.getByRole('checkbox', { name: /Set an expiry/ }),
+          screen.getByRole('checkbox', { name: /Set expiration/ }),
         )
       }
 
