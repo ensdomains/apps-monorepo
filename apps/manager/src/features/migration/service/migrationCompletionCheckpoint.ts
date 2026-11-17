@@ -16,8 +16,10 @@ import {
 import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { dnsEncodeName } from '../utils/dnsEncodeName'
 import {
+  copyParentNames,
   currentParentRegistryOf,
   isAcceptedParentRegistry,
+  readCurrentParentRegistries,
 } from './currentParentRegistries'
 import type {
   MigrationBatchJournalScope,
@@ -434,7 +436,6 @@ export const verifyMigrationRecoveryTransaction = async (params: {
 export const restoreMigrationCompletionCheckpoint = async (params: {
   readonly scope: MigrationBatchJournalScope
   readonly publicClient: PublicClient
-  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly signal?: AbortSignal
   readonly storage?: StorageLike
 }): Promise<MigrationJournalOperation | null> => {
@@ -449,7 +450,20 @@ export const restoreMigrationCompletionCheckpoint = async (params: {
   )
   if (!checkpoint) return null
   const operation = await withRequestDeadline(
-    (signal) => verifyCheckpoint({ ...params, checkpoint, signal }),
+    async (signal) =>
+      verifyCheckpoint({
+        ...params,
+        checkpoint,
+        signal,
+        // A saved copy may sit under a parent upgraded since; only the proof itself names that parent.
+        currentParentRegistries: await readCurrentParentRegistries({
+          publicClient: params.publicClient,
+          contracts: getDestinationContracts(params.scope.chainId),
+          hca: params.scope.hca,
+          parentNames: copyParentNames([checkpoint.operation]),
+          signal,
+        }),
+      }),
     { signal: params.signal, timeoutMs: 30_000 },
   )
   rememberVerifiedCheckpoint(

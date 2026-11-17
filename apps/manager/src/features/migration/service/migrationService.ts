@@ -2803,7 +2803,6 @@ export const executeMigration = async (params: {
         scope: batchJournalScope(ctx),
         publicClient,
         signal: params.submissionGate.signal,
-        currentParentRegistries: plan.currentParentRegistries,
       })
       if (!restored)
         throw new Error('No current-deployment completion proof is available')
