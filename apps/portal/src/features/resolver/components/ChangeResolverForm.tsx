@@ -1,12 +1,7 @@
 import { LATEST_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  ArrowLeftIcon,
-  ArrowUpRight,
-  ChevronDown,
-  CircleCheckIcon,
-} from 'lucide-react'
+import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
@@ -156,20 +151,23 @@ const ResolverAddressField = ({
           className="mt-0.5"
         />
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
+          <p>
             <label htmlFor="resolver-choice-latest" className="cursor-pointer">
-              Use latest resolver
+              Use the latest ENS Public Resolver.
             </label>
             {etherscanHref ? (
-              <ExternalLink
-                href={etherscanHref}
-                className="inline-flex items-center gap-1 text-p text-primary underline-offset-4 hover:underline"
-              >
-                Etherscan
-                <ArrowUpRight className="size-3.5" />
-              </ExternalLink>
+              <>
+                {' '}
+                <ExternalLink
+                  href={etherscanHref}
+                  className="text-primary underline underline-offset-4"
+                >
+                  View on Etherscan
+                </ExternalLink>
+                .
+              </>
             ) : null}
-          </div>
+          </p>
           {resolverChoice.isOnLatest ? (
             <p className="text-p text-muted-foreground">
               You are on the latest resolver

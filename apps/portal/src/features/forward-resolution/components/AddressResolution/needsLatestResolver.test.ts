@@ -2,7 +2,10 @@ import { supportedL1Chains } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
-import { getNeedsLatestResolver } from './needsLatestResolver'
+import {
+  canUpgradeReplaceResolver,
+  getNeedsLatestResolver,
+} from './needsLatestResolver'
 
 const SEPOLIA = supportedL1Chains.sepolia
 const LATEST: Address = '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5'
@@ -73,4 +76,14 @@ describe('getNeedsLatestResolver', () => {
       ).toBe(expected)
     },
   )
+})
+
+describe('canUpgradeReplaceResolver', () => {
+  it.each([
+    ['a .eth 2LD', 'onshow.eth', true],
+    ['a subname, which keeps its resolver', 'sub.onshow.eth', false],
+    ['a DNS name', 'example.com', false],
+  ])('%s', (_, name, expected) => {
+    expect(canUpgradeReplaceResolver(name)).toBe(expected)
+  })
 })
