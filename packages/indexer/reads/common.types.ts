@@ -19,6 +19,26 @@ export type Page<Item> = Readonly<{
   totalCount: number | null
 }>
 
+/** A page from a read whose backend can say it left something out. */
+export type AuditedPage<Item> = Page<Item> &
+  Readonly<{
+    /** False when the backend knows of entries it could not list. */
+    isComplete: boolean
+  }>
+
+/** Where and when an onchain observation was emitted. */
+export type EventPosition = Readonly<{
+  blockNumber: number
+  timestamp: Date | null
+  transactionHash: Hex | null
+}>
+
+/** Every collection read takes these; `cursor` comes from the previous page. */
+export type PageQuery = Readonly<{
+  pageSize?: number
+  cursor?: string
+}>
+
 /** Per-read options; `signal` cancels the request in flight. */
 export type ReadOptions = Readonly<{ signal?: AbortSignal }>
 

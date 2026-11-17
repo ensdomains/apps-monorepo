@@ -11,7 +11,30 @@ import {
 import type { BignameClient } from './client'
 import type { NameRecord } from './types'
 
-const toNameDetail = (record: NameRecord): NameDetail => ({
+/** The fields a name record and a lookup record share. */
+type DetailRecord = Pick<
+  NameRecord,
+  | 'name'
+  | 'display_name'
+  | 'namehash'
+  | 'read_status'
+  | 'authority'
+  | 'owner'
+  | 'manager'
+  | 'registrant'
+  | 'resolver'
+  | 'status'
+  | 'ens_v1'
+  | 'expires_at'
+  | 'grace_ends_at'
+  | 'registered_at'
+  | 'registration_id'
+  | 'created_at'
+  | 'migrated_at'
+  | 'unresolvable_reason'
+>
+
+export const toNameDetail = (record: DetailRecord): NameDetail => ({
   name: record.name,
   displayName: record.display_name,
   namehash: record.namehash,

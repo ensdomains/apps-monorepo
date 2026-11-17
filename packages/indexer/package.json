@@ -2,10 +2,11 @@
   "name": "@ens-apps/indexer",
   "version": "1.0.0",
   "license": "MIT",
-  "description": "bigname client and shared indexer reads for ENS apps",
+  "description": "Backend-neutral indexer reads for ENS apps: bigname, Goldsky, and zigens with ENSNode",
   "type": "module",
   "private": true,
   "exports": {
+    ".": "./index.ts",
     "./bigname": "./bigname/index.ts",
     "./reads": "./reads/index.ts"
   },

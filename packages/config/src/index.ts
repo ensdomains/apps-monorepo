@@ -10,8 +10,16 @@ export {
   orderedRpcUrls,
 } from './buildConfig.ts'
 export {
+  type IndexerSelection,
+  type ResolveIndexerInput,
+  resolveIndexer,
+} from './indexer.ts'
+export {
   ENS_NETWORKS,
   type EnsNetwork,
+  INDEXER_BACKENDS,
+  type IndexerBackend,
+  type IndexerEndpoints,
   isEnsNetwork,
   NETWORKS,
   type NetworkEndpoints,

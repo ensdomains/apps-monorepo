@@ -16,6 +16,8 @@ export type NamesForAddressQuery = Readonly<{
   relations?: readonly NameRelation[]
   /** Names whose ETH address record is `address`, instead of `relations`. */
   resolvesTo?: boolean
+  /** With `resolvesTo`: the coin type to match, or `evm` for every EVM chain. Default 60. */
+  coinType?: number | 'evm'
   protocol?: ProtocolVersion
   /** Only names with a proven move from v1 to v2. */
   migratedOnly?: boolean
@@ -64,6 +66,8 @@ export type NameSummary = Readonly<{
   recordCount?: number
   /** Only with `includeRoles`: the distinct powers `address` holds on the name and its registry. */
   heldPowers?: readonly string[]
+  /** Only with `resolvesTo`: the coin types whose address record matched. */
+  resolvedCoinTypes?: readonly number[]
 }>
 
 export type ReadNamesForAddress = (

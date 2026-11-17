@@ -6,6 +6,8 @@ import type * as T from './types'
 export type BignameClientOptions = {
   /** Injected for tests and for runtimes that wrap fetch. */
   readonly fetch?: typeof fetch
+  /** Route prefix; Goldsky serves the same routes under `v2`. Defaults to `v1`. */
+  readonly apiVersion?: 'v1' | 'v2'
 }
 
 /** Per-call options; `signal` cancels the request in flight. */
@@ -102,6 +104,7 @@ export const createBignameClient = (
 ) => {
   const base = baseUrl.replace(/\/+$/, '')
   const fetchImpl = options.fetch ?? globalThis.fetch
+  const version = `/${options.apiVersion ?? 'v1'}`
 
   const send = ResultFn(async function* (
     path: string,
@@ -154,24 +157,28 @@ export const createBignameClient = (
 
   return {
     status: (options?: RequestOptions) =>
-      request<T.StatusData>('/v1/status', undefined, options),
+      request<T.StatusData>(`${version}/status`, undefined, options),
     names: (query: T.NamesQuery, options?: RequestOptions) =>
-      request<readonly T.NameListingRow[]>('/v1/names', query, options),
+      request<readonly T.NameListingRow[]>(`${version}/names`, query, options),
     name: (name: string, query?: T.NameRecordQuery, options?: RequestOptions) =>
-      request<T.NameRecord>(`/v1/names/${seg(name)}`, query, options),
+      request<T.NameRecord>(`${version}/names/${seg(name)}`, query, options),
     nameRecords: (
       name: string,
       query?: T.NameRecordsQuery,
       options?: RequestOptions,
     ) =>
-      request<T.NameRecords>(`/v1/names/${seg(name)}/records`, query, options),
+      request<T.NameRecords>(
+        `${version}/names/${seg(name)}/records`,
+        query,
+        options,
+      ),
     subnames: (
       name: string,
       query?: T.SubnamesQuery,
       options?: RequestOptions,
     ) =>
       request<readonly T.Subname[]>(
-        `/v1/names/${seg(name)}/subnames`,
+        `${version}/names/${seg(name)}/subnames`,
         query,
         options,
       ),
@@ -181,7 +188,7 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<readonly T.NameHistoryRow[]>(
-        `/v1/names/${seg(name)}/history`,
+        `${version}/names/${seg(name)}/history`,
         query,
         options,
       ),
@@ -191,7 +198,7 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<readonly T.AddressName[]>(
-        `/v1/addresses/${seg(address)}/names`,
+        `${version}/addresses/${seg(address)}/names`,
         query,
         options,
       ),
@@ -201,15 +208,15 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<readonly T.EventRow[]>(
-        `/v1/addresses/${seg(address)}/history`,
+        `${version}/addresses/${seg(address)}/history`,
         query,
         options,
       ),
     events: (query?: T.EventsQuery, options?: RequestOptions) =>
-      request<readonly T.EventRow[]>('/v1/events', query, options),
+      request<readonly T.EventRow[]>(`${version}/events`, query, options),
     permissions: (query: T.PermissionsQuery, options?: RequestOptions) =>
       request<readonly T.PermissionRow[], T.PermissionsResponse>(
-        '/v1/permissions',
+        `${version}/permissions`,
         query,
         options,
       ),
@@ -220,12 +227,12 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<T.NameRecords>(
-        `/v1/resolvers/${chainId}/${seg(address)}/records`,
+        `${version}/resolvers/${chainId}/${seg(address)}/records`,
         query,
         options,
       ),
     lookup: (body: T.LookupRequest, options?: RequestOptions) =>
-      request<readonly T.LookupResult[]>('/v1/lookup', undefined, {
+      request<readonly T.LookupResult[]>(`${version}/lookup`, undefined, {
         ...options,
         body,
       }),
@@ -236,7 +243,7 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<T.Registry>(
-        `/v1/registries/${chainId}/${seg(address)}`,
+        `${version}/registries/${chainId}/${seg(address)}`,
         query,
         options,
       ),
@@ -247,7 +254,7 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<readonly T.RegistryLabel[]>(
-        `/v1/registries/${chainId}/${seg(address)}/labels`,
+        `${version}/registries/${chainId}/${seg(address)}/labels`,
         query,
         options,
       ),
@@ -258,7 +265,7 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<T.ResolverOverview>(
-        `/v1/resolvers/${chainId}/${seg(address)}`,
+        `${version}/resolvers/${chainId}/${seg(address)}`,
         query,
         options,
       ),
@@ -269,7 +276,7 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<readonly T.ResolverLink[]>(
-        `/v1/resolvers/${chainId}/${seg(address)}/links`,
+        `${version}/resolvers/${chainId}/${seg(address)}/links`,
         query,
         options,
       ),
@@ -280,7 +287,7 @@ export const createBignameClient = (
       options?: RequestOptions,
     ) =>
       request<readonly T.ResolverRole[]>(
-        `/v1/resolvers/${chainId}/${seg(address)}/roles`,
+        `${version}/resolvers/${chainId}/${seg(address)}/roles`,
         query,
         options,
       ),

@@ -51,6 +51,7 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
     : query.relations?.length
       ? query.relations
       : 'any',
+  coin_type: query.resolvesTo ? query.coinType : undefined,
   authority: query.protocol && AUTHORITIES[query.protocol],
   is_migrated: query.migratedOnly ? 'true' : undefined,
   parent: query.parent,
@@ -101,6 +102,11 @@ const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   ...(row.record_count !== undefined && { recordCount: row.record_count }),
   ...(row.role_summary !== undefined && {
     heldPowers: toHeldPowers(row, address),
+  }),
+  ...((row.resolutions ?? row.resolution) !== undefined && {
+    resolvedCoinTypes: (
+      row.resolutions ?? (row.resolution ? [row.resolution] : [])
+    ).map(({ coin_type }) => coin_type),
   }),
 })
 
