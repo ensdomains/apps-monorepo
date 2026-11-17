@@ -16,7 +16,10 @@ import {
   restoreMigrationCompletionCheckpoint,
   verifyAndPersistMigrationCompletionCheckpoint,
 } from './migrationCompletionCheckpoint'
-import { reconcileMigrationRecovery } from './reconcileMigrationRecovery'
+import {
+  getRecoveryRefetchInterval,
+  reconcileMigrationRecovery,
+} from './reconcileMigrationRecovery'
 
 const operations = [{ name: 'alice.eth', action: 'migrate' as const }]
 const intent = { id: 'closed-tab', names: ['alice.eth'], operations }
@@ -255,4 +258,19 @@ describe('reconcileMigrationRecovery', () => {
 
     expect(loadMigrationBatchJournal(test.scope)).toEqual(before)
   })
+})
+
+describe('getRecoveryRefetchInterval', () => {
+  it.each([
+    ['unresolved attempts', false, true, 10_000],
+    ['a failed check', true, undefined, 10_000],
+    ['everything settled', false, false, false],
+  ] as const)(
+    'with %s: %s',
+    (_case, hasFailed, hasUnresolvedAttempts, expected) => {
+      expect(
+        getRecoveryRefetchInterval({ hasFailed, hasUnresolvedAttempts }),
+      ).toBe(expected)
+    },
+  )
 })

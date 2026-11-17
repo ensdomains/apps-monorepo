@@ -15,6 +15,10 @@ import {
 } from 'viem'
 import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { dnsEncodeName } from '../utils/dnsEncodeName'
+import {
+  currentParentRegistryOf,
+  isAcceptedParentRegistry,
+} from './currentParentRegistries'
 import type {
   MigrationBatchJournalScope,
   MigrationJournalOperation,
@@ -236,6 +240,7 @@ const verifyCheckpointOperation = async (params: {
   readonly helper: Address
   readonly executions: readonly InnerExecution[]
   readonly read: ProofRead
+  readonly currentParentRegistries: ReadonlyMap<string, Address>
 }): Promise<void> => {
   if (!validOperation(params.operation))
     throw new Error('Migration checkpoint name is invalid')
@@ -248,11 +253,21 @@ const verifyCheckpointOperation = async (params: {
       throw new Error('Migration checkpoint registry is missing')
   }
   if (params.operation.action === 'copy') {
+    const parentName = parents.join('.')
     const expectedRegistry = computeUserRegistryAddress({
       hca: params.hca,
-      parentName: parents.join('.'),
+      parentName,
     })
-    if (!isAddressEqual(registry, expectedRegistry))
+    if (
+      !isAcceptedParentRegistry({
+        registry,
+        expectedRegistry,
+        currentRegistry: currentParentRegistryOf(
+          params.currentParentRegistries,
+          parentName,
+        ),
+      })
+    )
       throw new Error('Migration checkpoint copy registry is invalid')
     const implementation = await params.read(params.factory, 'verifyContract', [
       registry,
@@ -287,6 +302,7 @@ const verifyCheckpoint = async (params: {
   readonly operations?: readonly MigrationJournalOperation[]
   readonly migrationHelper?: Address
   readonly allowReverted?: boolean
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly signal: AbortSignal
 }): Promise<MigrationJournalOperation | null> => {
   const { publicClient, scope, checkpoint, signal } = params
@@ -369,6 +385,7 @@ const verifyCheckpoint = async (params: {
       helper: params.migrationHelper ?? contracts.migrationHelper,
       executions,
       read,
+      currentParentRegistries: params.currentParentRegistries ?? new Map(),
     })
   }
   signal.throwIfAborted()
@@ -382,6 +399,7 @@ export const verifyMigrationRecoveryTransaction = async (params: {
   readonly transactionHash: Hex
   readonly operations: readonly MigrationJournalOperation[]
   readonly migrationHelper: Address
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly signal?: AbortSignal
 }): Promise<'success' | 'reverted'> => {
   const operation = params.operations[0]
@@ -416,6 +434,7 @@ export const verifyMigrationRecoveryTransaction = async (params: {
 export const restoreMigrationCompletionCheckpoint = async (params: {
   readonly scope: MigrationBatchJournalScope
   readonly publicClient: PublicClient
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly signal?: AbortSignal
   readonly storage?: StorageLike
 }): Promise<MigrationJournalOperation | null> => {
@@ -447,6 +466,7 @@ export const verifyAndPersistMigrationCompletionCheckpoint = async (params: {
   readonly publicClient: PublicClient
   readonly transactionHash: Hex
   readonly operations: readonly MigrationJournalOperation[]
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly signal?: AbortSignal
   readonly storage?: StorageLike
 }): Promise<void> => {

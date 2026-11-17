@@ -863,6 +863,128 @@ describe('assertCopyMigrationReadiness — V2 route safety', () => {
     )
   })
 
+  const upgradedParentReadiness = (
+    currentParentRegistries?: ReadonlyMap<string, Address>,
+  ) => {
+    const read = retryRead({
+      routes: [
+        {
+          registry: CONFLICT,
+          parentRegistry: V2_CONTRACTS.ETHRegistry,
+          label: root.label,
+        },
+        {
+          registry: rootRegistry,
+          parentRegistry: V2_CONTRACTS.ETHRegistry,
+          label: root.label,
+        },
+      ],
+      targetRegistry: CONFLICT,
+      targetState: {
+        status: 0,
+        expiry: 0n,
+        latestOwner: zeroAddress,
+        tokenId: 1n,
+        resource: 2n,
+      },
+    })
+    return assertCopyMigrationReadiness({
+      publicClient: makeClient({
+        getCode: contractCodeAt([
+          V2_CONTRACTS.ETHRegistry,
+          rootRegistry,
+          CONFLICT,
+        ]),
+        read: (request) =>
+          request.functionName === 'verifyContract' &&
+          sameAddress(request.args?.[0] as Address, rootRegistry)
+            ? OTHER
+            : read(request),
+      }),
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [copy],
+      registryContext: [root, copy],
+      currentParentRegistries,
+    })
+  }
+
+  it('rejects the outdated computed registry of a parent upgraded elsewhere', async () => {
+    await expectReason(upgradedParentReadiness(), 'uncertified-registry')
+  })
+
+  it('accepts a parent upgraded to a certified replacement registry', async () => {
+    await expect(
+      upgradedParentReadiness(new Map([[root.domain.name, CONFLICT]])),
+    ).resolves.toBeInstanceOf(Map)
+  })
+
+  const grandchildReadiness = (isChildMoved: boolean) => {
+    const grandchild = registryCopy({
+      id: '0x04',
+      name: 'bar.foo.example.eth',
+      label: 'bar',
+      parentName: 'foo.example.eth',
+    })
+    const childRegistry = computeUserRegistryAddress({
+      hca: HCA,
+      parentName: copy.domain.name,
+    })
+    const read = retryRead({
+      routes: [
+        {
+          registry: CONFLICT,
+          parentRegistry: V2_CONTRACTS.ETHRegistry,
+          label: root.label,
+        },
+        {
+          registry: childRegistry,
+          parentRegistry: CONFLICT,
+          label: copy.label,
+        },
+      ],
+      targetRegistry: childRegistry,
+      targetState: {
+        status: 0,
+        expiry: 0n,
+        latestOwner: zeroAddress,
+        tokenId: 1n,
+        resource: 2n,
+      },
+    })
+    return assertCopyMigrationReadiness({
+      publicClient: makeClient({
+        getCode: contractCodeAt([
+          V2_CONTRACTS.ETHRegistry,
+          rootRegistry,
+          CONFLICT,
+          childRegistry,
+        ]),
+        read: (request) =>
+          !isChildMoved &&
+          request.functionName === 'getParent' &&
+          sameAddress(request.address, childRegistry)
+            ? [rootRegistry, copy.label]
+            : read(request),
+      }),
+      hca: HCA,
+      wallet: WALLET,
+      remaining: [grandchild],
+      registryContext: [root, copy, grandchild],
+      currentParentRegistries: new Map([[root.domain.name, CONFLICT]]),
+    })
+  }
+
+  it('accepts a completed child the upgrade moved onto the replacement registry', async () => {
+    await expect(grandchildReadiness(true)).resolves.toBeInstanceOf(Map)
+  })
+
+  it('rejects a completed child still pointing at the registry it was upgraded from', async () => {
+    await expect(grandchildReadiness(false)).rejects.toMatchObject({
+      reason: 'registry-parent-mismatch',
+    })
+  })
+
   it('rejects an available target with prior V2 history', async () => {
     const client = makeClient({
       getCode: contractCodeAt([V2_CONTRACTS.ETHRegistry, rootRegistry]),

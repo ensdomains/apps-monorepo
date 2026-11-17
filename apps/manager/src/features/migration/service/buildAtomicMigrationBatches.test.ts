@@ -1576,3 +1576,33 @@ describe('buildAtomicMigrationBatches', () => {
     )
   })
 })
+
+describe('parents upgraded to a replacement registry', () => {
+  const UPGRADED: Address = '0x00000000000000000000000000000000000000c1'
+  const root = makeName('example.eth', {
+    action: 'migrate',
+    tokenType: 'unwrapped',
+    parentName: 'eth',
+    label: 'example',
+  })
+  const child = makeName('foo.example.eth', {
+    action: 'copy',
+    tokenType: 'registry-child',
+    parentName: 'example.eth',
+    label: 'foo',
+    sourceExpiry: (1n << 64n) - 1n,
+  })
+
+  it('registers the child of a completed parent in its registry', async () => {
+    const plan = await buildPlan({
+      classified: [child],
+      registryContext: [root, child],
+      currentParentRegistries: new Map([['example.eth', UPGRADED]]),
+    })
+    const registration = plan.batches[0]?.innerExecutions.find(
+      ({ phase }) => phase === 'copy-register',
+    )
+
+    expect(registration?.call.to).toBe(UPGRADED)
+  })
+})

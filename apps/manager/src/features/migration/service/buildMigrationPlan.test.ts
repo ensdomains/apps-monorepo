@@ -4,8 +4,10 @@ import { err, ok } from 'neverthrow'
 import {
   type Address,
   type Hex,
+  HttpRequestError,
   namehash,
   type PublicClient,
+  zeroAddress,
   zeroHash,
 } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -39,7 +41,8 @@ vi.mock('./buildAtomicMigrationBatches', async (importActual) => ({
   ...(await importActual<typeof import('./buildAtomicMigrationBatches')>()),
   buildAtomicMigrationBatches: vi.fn(),
 }))
-vi.mock('./copyMigrationReadiness', () => ({
+vi.mock('./copyMigrationReadiness', async (importActual) => ({
+  ...(await importActual<typeof import('./copyMigrationReadiness')>()),
   assertCopyMigrationReadiness: vi.fn(() => Promise.resolve()),
 }))
 const applySubnameRecreationMock = vi.hoisted(() => vi.fn())
@@ -87,6 +90,11 @@ const UNSET_PUBKEY = {
   result: [zeroHash, zeroHash],
 } as const
 
+const RECOVERY_CHAIN = {
+  id: 11155111,
+  contracts: { ensUniversalHelper: { address: zeroAddress } },
+}
+
 const publicClientWithProfileResults = (
   results: readonly {
     readonly status: 'success'
@@ -96,7 +104,7 @@ const publicClientWithProfileResults = (
   ({
     // The recovery plan resolves its chain from the client and refuses a
     // client without one.
-    chain: { id: 11155111 },
+    chain: RECOVERY_CHAIN,
     getCode: vi.fn().mockResolvedValue('0x'),
     multicall: vi.fn(() => Promise.resolve(results)),
     readContract: vi.fn().mockResolvedValue(false),
@@ -700,6 +708,24 @@ describe('buildMigrationRecoveryPlan', () => {
     expect(plan.preflight.migrationCleanupApprovals).toEqual([])
   })
 
+  it('stops with a retryable read failure when a parent registry cannot be read', async () => {
+    const { snapshot } = makeRecoveryTree()
+
+    const publicClient = publicClientWithProfileResults()
+    vi.mocked(publicClient.readContract).mockRejectedValue(
+      new HttpRequestError({ url: 'https://rpc' }),
+    )
+
+    await expect(
+      buildMigrationRecoveryPlan({
+        snapshot,
+        hcaAddress: HCA,
+        migrationOwner: OWNER,
+        publicClient,
+      }),
+    ).rejects.toMatchObject({ reason: 'read-failed' })
+  })
+
   it('rebuilds unsent copies with their completed root retained only as registry context', async () => {
     const { root, copy, snapshot } = makeRecoveryTree()
 
@@ -708,8 +734,9 @@ describe('buildMigrationRecoveryPlan', () => {
       hcaAddress: HCA,
       migrationOwner: OWNER,
       publicClient: {
-        chain: { id: 11155111 },
+        chain: RECOVERY_CHAIN,
         getCode: vi.fn().mockResolvedValue('0x'),
+        readContract: vi.fn().mockResolvedValue([]),
       } as unknown as PublicClient,
     })
 
@@ -775,8 +802,9 @@ describe('buildMigrationRecoveryPlan', () => {
         hcaAddress: HCA,
         migrationOwner: OWNER,
         publicClient: {
-          chain: { id: 11155111 },
+          chain: RECOVERY_CHAIN,
           getCode: vi.fn().mockResolvedValue('0x'),
+          readContract: vi.fn().mockResolvedValue([]),
         } as unknown as PublicClient,
       }),
     ).resolves.toBeDefined()

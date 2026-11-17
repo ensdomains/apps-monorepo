@@ -1,6 +1,7 @@
 import { requireChainId } from '@ens-apps/config'
 import {
   buildHcaDeploymentCall,
+  getDestinationContracts,
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import {
@@ -57,6 +58,10 @@ import {
   assertCopyMigrationReadiness,
   assertCopySourcesFresh,
 } from './copyMigrationReadiness'
+import {
+  copyParentNames,
+  readCurrentParentRegistries,
+} from './currentParentRegistries'
 import { decodeMigrationError } from './decodeMigrationError'
 import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
 import { approvalNeedsFor } from './migrationApprovalNeeds'
@@ -1398,6 +1403,12 @@ const releaseChangedHelperRecovery = async (params: {
     readonly hash: Hex
   }[] = []
   try {
+    const currentParentRegistries = await readJournalParentRegistries({
+      publicClient: params.ctx.publicClient,
+      scope,
+      submissions: initialJournal.submitted,
+      signal: params.ctx.submissionGate.signal,
+    })
     for (const submission of initialJournal.submitted) {
       const relation = classifyMigrationRecoverySubmission({
         registryOperations: initialSnapshot.registryOperations,
@@ -1415,6 +1426,7 @@ const releaseChangedHelperRecovery = async (params: {
         operations: submission.operations,
         migrationHelper: submission.migrationHelper ?? previousHelper,
         signal: params.ctx.submissionGate.signal,
+        currentParentRegistries,
       })
       if (status === 'success') {
         persistSubmittedAtomicMigrationBatch(scope, {
@@ -1685,6 +1697,25 @@ const reconcileJournaledSubmission = async (params: {
   }
 }
 
+/** The current registries of the parents these journaled submissions copied names under. */
+const readJournalParentRegistries = (params: {
+  readonly publicClient: PublicClient
+  readonly scope: MigrationBatchJournalScope
+  readonly submissions: readonly {
+    readonly operations: readonly MigrationJournalOperation[]
+  }[]
+  readonly signal?: AbortSignal
+}): Promise<ReadonlyMap<string, Address>> =>
+  readCurrentParentRegistries({
+    publicClient: params.publicClient,
+    contracts: getDestinationContracts(params.scope.chainId),
+    hca: params.scope.hca,
+    parentNames: copyParentNames(
+      params.submissions.flatMap(({ operations }) => operations),
+    ),
+    signal: params.signal,
+  })
+
 const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
   readonly onCurrentDeploymentCheckpoint: () => void
   readonly publicClient: PublicClient
@@ -1736,21 +1767,30 @@ const discardJournalEntriesAlreadyInRecoverySnapshot = async (params: {
   }
   for (const submission of params.submissions) {
     assertActionsMatch(submission.operations, 'submission')
-    if (isHistoricalMigrationSubmission(submission)) continue
-    if (
+  }
+  const completed = params.submissions.filter(
+    (submission) =>
+      !isHistoricalMigrationSubmission(submission) &&
       !includesCurrentName(submission.names) &&
-      submission.operations.every(isDurablyCompleted)
-    ) {
-      await verifyAndPersistMigrationCompletionCheckpoint({
-        publicClient: params.publicClient,
-        scope: params.scope,
-        transactionHash: submission.hash,
-        operations: submission.operations,
-      })
-      params.onCurrentDeploymentCheckpoint()
-      removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
-      removePendingAtomicMigrationIntent(params.scope, submission.intentId)
-    }
+      submission.operations.every(isDurablyCompleted),
+  )
+  // The plan only knows the parents it still plans under; these may sit under others.
+  const currentParentRegistries = await readJournalParentRegistries({
+    publicClient: params.publicClient,
+    scope: params.scope,
+    submissions: completed,
+  })
+  for (const submission of completed) {
+    await verifyAndPersistMigrationCompletionCheckpoint({
+      publicClient: params.publicClient,
+      scope: params.scope,
+      transactionHash: submission.hash,
+      operations: submission.operations,
+      currentParentRegistries,
+    })
+    params.onCurrentDeploymentCheckpoint()
+    removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
+    removePendingAtomicMigrationIntent(params.scope, submission.intentId)
   }
   return {
     intents: params.intents.filter((intent) =>
@@ -2143,6 +2183,7 @@ const buildNextAtomicBatch = async (params: {
     wallet: ctx.walletAddress,
     remaining,
     registryContext: plan.registryContext,
+    currentParentRegistries: plan.currentParentRegistries,
   })
   const resolverReadiness = await checkDeterministicMigrationResolverReadiness({
     publicClient: ctx.publicClient,
@@ -2173,6 +2214,7 @@ const buildNextAtomicBatch = async (params: {
     wallet: ctx.walletAddress,
     classified: remaining,
     registryContext: plan.registryContext,
+    currentParentRegistries: plan.currentParentRegistries,
     directRoutes,
     profiles: plan.profiles,
     defaultResolver: V2_CONTRACTS.DefaultResolver,
@@ -2441,6 +2483,7 @@ const executeRemainingAtomicBatches = async (params: {
       wallet: params.ctx.walletAddress,
       remaining,
       registryContext: params.plan.registryContext,
+      currentParentRegistries: params.plan.currentParentRegistries,
     })
     await assertSupportedSubnameMigration({
       publicClient: params.publicClient,
@@ -2688,6 +2731,7 @@ export const executeMigration = async (params: {
         wallet: executionPlan.migrationOwner,
         remaining: executionPlan.classified,
         registryContext: executionPlan.registryContext,
+        currentParentRegistries: executionPlan.currentParentRegistries,
       })
     } catch (cause) {
       throw new MigrationSourceChangedError({
@@ -2759,6 +2803,7 @@ export const executeMigration = async (params: {
         scope: batchJournalScope(ctx),
         publicClient,
         signal: params.submissionGate.signal,
+        currentParentRegistries: plan.currentParentRegistries,
       })
       if (!restored)
         throw new Error('No current-deployment completion proof is available')

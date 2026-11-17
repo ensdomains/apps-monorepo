@@ -49,7 +49,15 @@ import {
   withManagerRestorationOptIn,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
-import { assertCopyMigrationReadiness } from './copyMigrationReadiness'
+import {
+  assertCopyMigrationReadiness,
+  CopyMigrationReadinessError,
+} from './copyMigrationReadiness'
+import {
+  completedCopyParentNames,
+  ParentRegistryReadError,
+  readCurrentParentRegistries,
+} from './currentParentRegistries'
 import {
   type DirectMigrationRoute,
   resolveDirectMigrationRoutes,
@@ -102,6 +110,8 @@ export type MigrationPlan = {
   readonly classified: readonly ClassifiedName[]
   /** Immutable selected tree used to keep deterministic registry routes on retry. */
   readonly registryContext: readonly ClassifiedName[]
+  /** Completed parents whose name now points at a certified replacement registry. */
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly ineligible: readonly IneligibleName[]
   readonly groups: GroupedNames
   readonly preflight: MigrationPreflight
@@ -1113,6 +1123,29 @@ export const buildMigrationRecoveryPlan = async (params: {
   })
   signal?.throwIfAborted()
 
+  // A parent whose registry can't be read stops the plan with a retryable error, not a wrong verdict.
+  const currentParentRegistries = await readCurrentParentRegistries({
+    publicClient,
+    contracts: {
+      verifiableFactory: V2_CONTRACTS.VerifiableFactory,
+      userRegistryImpl: V2_CONTRACTS.UserRegistryImpl,
+    },
+    hca: hcaAddress,
+    parentNames: completedCopyParentNames({
+      registryContext,
+      remaining: classified,
+    }),
+    signal,
+  }).catch((cause: unknown) => {
+    if (!(cause instanceof ParentRegistryReadError)) throw cause
+    throw new CopyMigrationReadinessError({
+      message: `Could not read the current registry of "${cause.parentName}"`,
+      reason: 'read-failed',
+      ensName: cause.parentName,
+      cause,
+    })
+  })
+  signal?.throwIfAborted()
   const directMigrationExpiries =
     classified.length > 0
       ? await assertCopyMigrationReadiness({
@@ -1122,6 +1155,7 @@ export const buildMigrationRecoveryPlan = async (params: {
           remaining: classified,
           registryContext,
           recordedAttemptNames,
+          currentParentRegistries,
         })
       : new Map<string, bigint>()
   signal?.throwIfAborted()
@@ -1144,6 +1178,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     wallet: migrationOwner,
     classified,
     registryContext,
+    currentParentRegistries,
     directRoutes,
     profiles: snapshot.profiles,
     defaultResolver: V2_CONTRACTS.DefaultResolver,
@@ -1203,6 +1238,7 @@ export const buildMigrationRecoveryPlan = async (params: {
     migrationOwner,
     classified,
     registryContext,
+    currentParentRegistries,
     ineligible: [],
     groups,
     preflight: {
