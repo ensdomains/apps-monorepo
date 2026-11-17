@@ -14,6 +14,7 @@ import { AddressNameInput } from '@/features/address/components/AddressNameInput
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import type { UpgradeGate } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -64,6 +65,8 @@ type SendNameFormProps = {
    * registry roles.
    */
   readonly roleRevocations?: TransferRoleRevocations
+  /** V2 only: roles can't change on a registry that needs an upgrade, so revoking is off there. */
+  readonly roleGate?: UpgradeGate
   readonly transfer: TransferControls
   /** Protocol-specific notices, rendered under the irreversibility warning. */
   readonly notices?: ReactNode
@@ -244,14 +247,16 @@ const resolveOptions = ({
   options,
   detachVisibility,
   hasRoleHolders,
+  roleGate,
 }: {
   readonly options: Record<TransferOptionKey, boolean>
   readonly detachVisibility: TransferDetachTargets['isOptionVisible']
   readonly hasRoleHolders: boolean
+  readonly roleGate: UpgradeGate
 }) => {
   const visibility: Record<TransferOptionKey, boolean> = {
     ...detachVisibility,
-    revokeRoles: hasRoleHolders,
+    revokeRoles: hasRoleHolders && roleGate === 'open',
   }
 
   const effective: TransferOptions = {
@@ -297,6 +302,7 @@ export const SendNameForm = ({
   parentWarning,
   registryDetachImpact = null,
   roleRevocations = NO_ROLE_REVOCATIONS,
+  roleGate = 'open',
   transfer,
   notices,
 }: SendNameFormProps) => {
@@ -348,6 +354,7 @@ export const SendNameForm = ({
     options,
     detachVisibility: isOptionVisible,
     hasRoleHolders,
+    roleGate,
   })
 
   const { roleGrants, hasRemainingRoleHolders } = resolveRolePlan(
@@ -367,6 +374,7 @@ export const SendNameForm = ({
     !isPreparing &&
     isSettled &&
     roleRevocations.status === 'ready' &&
+    roleGate !== 'checking' &&
     !parentWarning?.isLoading &&
     !isDetachBlocked
 
@@ -476,6 +484,13 @@ export const SendNameForm = ({
         <span className="text-destructive text-p">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
+        </span>
+      )}
+
+      {hasValidRecipient && hasRoleHolders && roleGate === 'needs-upgrade' && (
+        <span className="text-muted-foreground text-p">
+          This name's registry must be upgraded before permissions can change,
+          so everyone else keeps their permissions after the transfer.
         </span>
       )}
 

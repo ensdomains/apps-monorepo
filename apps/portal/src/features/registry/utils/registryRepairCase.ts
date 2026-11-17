@@ -1,4 +1,5 @@
 import { match, P } from 'ts-pattern'
+import { type Address, isAddressEqual } from 'viem'
 import type { RegistryOccupants } from '../hooks/useRegistryOccupants'
 
 /** How the connected account relates to a registry that needs an upgrade: `owns-all` is Case A (WEB-2168), `shared` is Case B (WEB-2169). */
@@ -47,6 +48,17 @@ export const shouldShowUpgradeCard = ({
   readonly wasShown: boolean
 }): boolean =>
   repairCase === 'owns-all' || (repairCase === 'unknown' && wasShown)
+
+/** A page about one registry shows the card only while the name still points at that registry. */
+export const isUpgradeCardForPage = ({
+  pageRegistry,
+  nameRegistry,
+}: {
+  readonly pageRegistry: Address | undefined
+  readonly nameRegistry: Address | undefined
+}): boolean =>
+  pageRegistry === undefined ||
+  (nameRegistry !== undefined && isAddressEqual(pageRegistry, nameRegistry))
 
 /** Case C (WEB-2170): the connected account holds a subname in an outdated registry that someone else controls. */
 export const shouldShowSubnameOwnerNotice = ({

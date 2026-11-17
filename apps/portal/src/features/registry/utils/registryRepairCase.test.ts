@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   carriedSubnamesText,
   getRegistryRepairCase,
+  isUpgradeCardForPage,
   shouldShowSubnameOwnerNotice,
   shouldShowUpgradeCard,
 } from './registryRepairCase'
@@ -91,5 +92,19 @@ describe('carriedSubnamesText', () => {
     [undefined, 'Your subnames and their settings'],
   ] as const)('for %s', (count, expected) => {
     expect(carriedSubnamesText(count)).toBe(expected)
+  })
+})
+
+describe('isUpgradeCardForPage', () => {
+  const PAGE = '0x00000000000000000000000000000000000000a1'
+  const OTHER = '0x00000000000000000000000000000000000000b1'
+
+  it.each([
+    ['a page not about one registry', undefined, OTHER, true],
+    ['the name still on this registry', PAGE, PAGE, true],
+    ['the name now on another registry', PAGE, OTHER, false],
+    ["the name's registry not read yet", PAGE, undefined, false],
+  ] as const)('for %s: %s', (_case, pageRegistry, nameRegistry, expected) => {
+    expect(isUpgradeCardForPage({ pageRegistry, nameRegistry })).toBe(expected)
   })
 })

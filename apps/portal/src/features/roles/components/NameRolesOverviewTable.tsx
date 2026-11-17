@@ -12,6 +12,7 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
 import { RegistryRolesLockedNotice } from '@/features/registry/components/v2/RegistryRolesLockedNotice'
+import { RegistryUpdateNotice } from '@/features/registry/components/v2/RegistryUpdateNotice'
 import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import {
@@ -28,6 +29,7 @@ import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVers
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { canCallerSetManagerRole, permissions } from '@/lib/roles/permissions'
+import { getParentName } from '@/utils/ens/tldHelpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const V2NameRoles = ({
@@ -201,6 +203,8 @@ export const NameRolesOverviewTable = ({
   registryAddress: Address
 }) => {
   const [addUserOpen, setAddUserOpen] = useState(false)
+  // These roles live in the parent's registry, so the upgrade is the parent's.
+  const parentName = getParentName(name)
 
   const { address } = useConnection()
 
@@ -249,7 +253,15 @@ export const NameRolesOverviewTable = ({
           {truncateAddress(registryAddress)}
         </EntityBadge>
       </div>
-      {showUpgradeNote && <RegistryRolesLockedNotice />}
+      {parentName ? (
+        <RegistryUpdateNotice
+          name={parentName}
+          pageRegistry={registryAddress}
+          fallback={showUpgradeNote && <RegistryRolesLockedNotice />}
+        />
+      ) : (
+        showUpgradeNote && <RegistryRolesLockedNotice />
+      )}
       <V2NameRoles
         name={name}
         registryAddress={registryAddress}

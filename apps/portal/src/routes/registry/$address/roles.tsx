@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { RegistryAddUserSheet } from '@/features/registry/components/v2/RegistryAddUserSheet'
 import { RegistryRolesLockedNotice } from '@/features/registry/components/v2/RegistryRolesLockedNotice'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
+import { RegistryUpdateNotice } from '@/features/registry/components/v2/RegistryUpdateNotice'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import {
@@ -119,7 +120,15 @@ const RegistryRoles = ({ address }: { readonly address: Address }) => {
           {truncateAddress(address)}
         </EntityBadge>
       </div>
-      {showUpgradeNote && <RegistryRolesLockedNotice />}
+      {registry.name ? (
+        <RegistryUpdateNotice
+          name={registry.name}
+          pageRegistry={address}
+          fallback={showUpgradeNote && <RegistryRolesLockedNotice />}
+        />
+      ) : (
+        showUpgradeNote && <RegistryRolesLockedNotice />
+      )}
       <RegistryRolesTable address={address} disableEdit={roleGate !== 'open'} />
       {canEditRoles && (
         <RegistryAddUserSheet

@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 import type { Address } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
@@ -105,6 +106,9 @@ export const useRegistryUpdate = ({
       attempt.end()
     },
     finished: () => {
+      toast.success('Registry upgraded', {
+        description: `${name}'s subnames now resolve through the new registry. Open any of them to check its records.`,
+      })
       const invalidate = () =>
         queryClient.invalidateQueries({
           queryKey: getNameRegistriesQueryOptions({ name }).queryKey,

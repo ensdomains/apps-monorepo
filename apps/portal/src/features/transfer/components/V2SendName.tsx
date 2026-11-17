@@ -1,4 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
+import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
+import {
+  getUpgradeGate,
+  settledData,
+} from '@/features/registry/utils/pendingUpgradeRegistry'
 import { getParentName, is2LD } from '@/utils/ens/tldHelpers'
 import { useParentAuthority } from '../hooks/useParentAuthority'
 import { useRegistryDetachImpact } from '../hooks/useRegistryDetachImpact'
@@ -58,6 +64,10 @@ export const V2SendName = ({
     owner,
   })
 
+  const pendingUpgrade = useQuery(
+    getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
+  )
+
   const transfer = useTransferName({
     name,
     account: owner,
@@ -70,6 +80,7 @@ export const V2SendName = ({
       detachTargets={detachTargets}
       registryDetachImpact={registryDetachImpact}
       roleRevocations={roleRevocations}
+      roleGate={getUpgradeGate(settledData(pendingUpgrade))}
       parentWarning={
         parentName === null
           ? null

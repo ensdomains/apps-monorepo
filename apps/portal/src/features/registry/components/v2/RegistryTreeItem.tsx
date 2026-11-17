@@ -314,7 +314,7 @@ const RegistrySummaryDetails = ({
       {isReconfiguring ? (
         <ReconfigureRegistryForm name={name} onClose={onCloseReconfigure} />
       ) : (
-        <RegistryUpdateNotice name={name} />
+        <RegistryUpdateNotice name={name} isInTree />
       )}
     </Fragment>
   )
