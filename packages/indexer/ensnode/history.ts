@@ -4,7 +4,7 @@ import type {
   HistoryEventType,
 } from '../reads/history.types'
 import { toAccount, toHash } from '../shared/values'
-import type { V1Event } from './types'
+import type { V1Event } from './ensnode.types'
 
 const ref = (value: unknown): string | undefined =>
   typeof value === 'object' && value !== null && 'id' in value

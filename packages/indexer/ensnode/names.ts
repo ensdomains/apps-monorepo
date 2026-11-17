@@ -10,7 +10,7 @@ import {
   toAccount,
   toHash,
 } from '../shared/values'
-import type { V1Domain } from './types'
+import type { V1Domain } from './ensnode.types'
 
 /** What an ENSv1 row needs besides itself. */
 export type V1Context = Readonly<{

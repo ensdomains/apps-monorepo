@@ -1,3 +1,4 @@
+import { Result } from 'neverthrow'
 import { type Address, type Hex, isAddress, isHex } from 'viem'
 import type {
   HistoryEvent,
@@ -7,27 +8,33 @@ import type {
 } from '../reads/history.types'
 import { diffPowers, type RoleContract } from '../shared/powers'
 import { secondsToDate, toAccount, toHash } from '../shared/values'
-import type { V2Event } from './types'
+import type { V2Event } from './zigens.types'
 
-// zigens serializes uint256 values as bare JSON numbers, past what a double holds.
-const LONG_INTEGER = /([:[,]\s*)(-?\d{16,})(?=\s*[,\]}])/g
+// zigens sends uint256 as bare JSON numbers; strings match whole first, so their digits stay untouched.
+const STRING_OR_LONG_INTEGER =
+  /"(?:[^"\\]|\\.)*"|(?<![\w.])(-?\d{16,})(?![\w.])/g
 
-/** An event's `data` JSON, with long integers kept as decimal strings. */
+const parseJson = Result.fromThrowable(
+  (json: string): unknown =>
+    JSON.parse(
+      json.replace(STRING_OR_LONG_INTEGER, (match, integer?: string) =>
+        integer === undefined ? match : `"${integer}"`,
+      ),
+    ),
+  (cause) => cause,
+)
+
+/** An event's `data` JSON, with long integers kept as decimal strings; `{}` when it is not an object. */
 export const parseEventData = (
   data: string | null,
-): Readonly<Record<string, unknown>> => {
-  if (!data) return {}
-  try {
-    const parsed: unknown = JSON.parse(data.replace(LONG_INTEGER, '$1"$2"'))
-    return typeof parsed === 'object' &&
-      parsed !== null &&
-      !Array.isArray(parsed)
-      ? Object.fromEntries(Object.entries(parsed))
-      : {}
-  } catch {
-    return {}
-  }
-}
+): Readonly<Record<string, unknown>> =>
+  parseJson(data ?? '{}')
+    .map((parsed) =>
+      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+        ? Object.fromEntries(Object.entries(parsed))
+        : {},
+    )
+    .unwrapOr({})
 
 const str = (value: unknown): string | undefined =>
   typeof value === 'string'

@@ -1,5 +1,6 @@
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { type Client, namehash } from 'viem'
+import type { V1Domain, V1Event } from '../ensnode/ensnode.types'
 import { toV1HistoryEvent } from '../ensnode/history'
 import {
   toV1BoundName,
@@ -15,13 +16,15 @@ import {
   toRegistrationIds,
   toRegistrationTimes,
 } from '../ensnode/timestamps'
-import type { V1Domain, V1Event } from '../ensnode/types'
 import type { IndexerClient } from '../reads/client.types'
 import type { Page } from '../reads/common.types'
 import { IndexerReadError } from '../reads/errors'
-import type { HistoryEvent, HistoryEventKind } from '../reads/history.types'
+import type { HistoryEvent } from '../reads/history.types'
 import type { Subname, SubnamesQuery } from '../reads/names.types'
-import type { NamesForAddressQuery } from '../reads/namesForAddress.types'
+import type {
+  NameSummary,
+  NamesForAddressQuery,
+} from '../reads/namesForAddress.types'
 import { readBlockTimestamps } from '../shared/blockTimestamps'
 import { createGraphqlTransport, type GraphqlRequest } from '../shared/graphql'
 import {
@@ -38,16 +41,30 @@ import {
   isEth2ld,
   secondsToDate,
   toAccount,
-  V2_GRACE_MS,
+  toUnixSeconds,
+  V2_GRACE_SECONDS,
 } from '../shared/values'
 import {
   isChildOf,
+  MAX_NAMES,
+  type Sorted,
   toRelations,
-  toSummaryComparator,
+  toSortedComparator,
+  toV1SortKey,
   toV1Variables,
+  toV2SortKey,
   toV2Variables,
 } from './filters'
-import { type EventContext, toHistoryEvent, toZigensTypes } from './history'
+import { type EventContext, toHistoryEvent } from './history'
+import {
+  canMatchType,
+  type HistoryFilter,
+  isWithinHistoryFilter,
+  type RegistrationAnchor,
+  toEventsWhere,
+  toEventWhere,
+  toHistoryStart,
+} from './historyFilters'
 import {
   isRegisteredV2,
   pickNameDetail,
@@ -72,7 +89,7 @@ import type {
   RoleAssignment,
   V2Domain,
   V2Event,
-} from './types'
+} from './zigens.types'
 
 export type ZigensIndexerOptions = Readonly<{
   /** zigens GraphQL, read for ENSv2. */
@@ -93,9 +110,6 @@ export type ZigensIndexerOptions = Readonly<{
 const DEFAULT_PAGE_SIZE = 50
 // zigens rejects a page of full domain rows past its query-complexity budget.
 const MAX_PAGE_SIZE = 100
-// Both schemas cap `name_in` at 1000 names.
-const MAX_NAMES = 1000
-
 const toPageSize = (pageSize: number | undefined) =>
   Math.min(pageSize ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
 
@@ -216,33 +230,10 @@ const byBlock =
   (order: 'asc' | 'desc' | undefined) => (a: HistoryEvent, b: HistoryEvent) =>
     (order === 'asc' ? 1 : -1) * ((a.blockNumber ?? 0) - (b.blockNumber ?? 0))
 
-const keepKinds =
-  (kinds: readonly HistoryEventKind[] | undefined) => (event: HistoryEvent) =>
-    !kinds?.length ||
-    (event.kind !== null && kinds.some((kind) => kind === event.kind))
-
-const keepRecordKey =
-  (recordKey: string | undefined) => (event: HistoryEvent) =>
-    recordKey === undefined ||
-    (event.type === 'record' && event.data.key === recordKey)
-
-const toUnixSeconds = (date: Date | undefined) =>
-  date === undefined ? undefined : Math.floor(date.getTime() / 1000)
-
-type HistoryWindow = Readonly<{
-  types?: readonly HistoryEvent['type'][]
-  recordKey?: string
-  from?: Date
-  to?: Date
-}>
-
-const toEventWhere = (query: HistoryWindow) => {
-  const types = query.recordKey ? ['record' as const] : query.types
-  return {
-    ...(types?.length && { type_in: toZigensTypes(types) }),
-    ...(query.from && { timestamp_gte: toUnixSeconds(query.from) }),
-    ...(query.to && { timestamp_lte: toUnixSeconds(query.to) }),
-  }
+const EMPTY_HISTORY: Page<HistoryEvent> = {
+  items: [],
+  nextCursor: null,
+  totalCount: 0,
 }
 
 /** `IndexerClient` over zigens (ENSv2) and ENSNode (ENSv1); a merged read fails if either source fails. */
@@ -317,15 +308,14 @@ export const createZigensIndexer = ({
     const pageSize = toPageSize(query.pageSize)
     const variables = toV2Variables(
       query,
-      [...powersByName.keys()].slice(0, MAX_NAMES),
+      [...powersByName.keys()],
       after,
       pageSize,
     )
     if (query.protocol === 'v1' || variables === null) {
-      return okAsync<
-        SourcePage<ReturnType<typeof toV2NameSummary>>,
-        IndexerReadError
-      >(EMPTY_PAGE)
+      return okAsync<SourcePage<Sorted<NameSummary>>, IndexerReadError>(
+        EMPTY_PAGE,
+      )
     }
     return zigens<{ domainConnection: Connection<V2Domain> }>(
       V2.DOMAIN_CONNECTION,
@@ -335,13 +325,16 @@ export const createZigensIndexer = ({
       fromConnection(domainConnection, (domain) =>
         query.parent && !isChildOf(domain.name ?? '', query.parent)
           ? null
-          : toV2NameSummary(domain, {
-              address: query.address,
-              now: now(),
-              powersByName,
-              includeCounts: query.includeCounts,
-              includeRoles: query.includeRoles,
-            }),
+          : {
+              item: toV2NameSummary(domain, {
+                address: query.address,
+                now: now(),
+                powersByName,
+                includeCounts: query.includeCounts,
+                includeRoles: query.includeRoles,
+              }),
+              key: toV2SortKey(domain, query),
+            },
       ),
     )
   }
@@ -355,10 +348,9 @@ export const createZigensIndexer = ({
     const skip = toSkip(cursor)
     const variables = toV1Variables(query, skip, pageSize)
     if (query.protocol === 'v2' || variables === null) {
-      return okAsync<
-        SourcePage<ReturnType<typeof toV1NameSummary>>,
-        IndexerReadError
-      >(EMPTY_PAGE)
+      return okAsync<SourcePage<Sorted<NameSummary>>, IndexerReadError>(
+        EMPTY_PAGE,
+      )
     }
     const relations = toRelations(query)
     return ensNode<{ domains: readonly V1Domain[] }>(
@@ -371,13 +363,16 @@ export const createZigensIndexer = ({
         toV1Relations(domain, query.address, nameWrapper).some((relation) =>
           relations.includes(relation),
         )
-          ? toV1NameSummary(domain, {
-              address: query.address,
-              now: now(),
-              nameWrapper,
-              includeCounts: query.includeCounts,
-              includeRoles: query.includeRoles,
-            })
+          ? {
+              item: toV1NameSummary(domain, {
+                address: query.address,
+                now: now(),
+                nameWrapper,
+                includeCounts: query.includeCounts,
+                includeRoles: query.includeRoles,
+              }),
+              key: toV1SortKey(domain, query),
+            }
           : null,
       ),
     )
@@ -469,7 +464,7 @@ export const createZigensIndexer = ({
           ...(!includeExpired && {
             or: [
               { expiryDate: null },
-              { expiryDate_gt: String(toUnixSeconds(at)) },
+              { expiryDate_gt: toUnixSeconds(at).toString() },
             ],
           }),
         },
@@ -491,17 +486,13 @@ export const createZigensIndexer = ({
     )
   }
 
+  // zigens filters on the server too; ENSNode cannot, so every page passes through here.
   const filterHistory = (
     page: Page<HistoryEvent>,
-    query: Readonly<{
-      kinds?: readonly HistoryEventKind[]
-      recordKey?: string
-    }>,
+    filter: HistoryFilter,
   ): Page<HistoryEvent> => ({
     ...page,
-    items: page.items
-      .filter(keepKinds(query.kinds))
-      .filter(keepRecordKey(query.recordKey)),
+    items: page.items.filter(isWithinHistoryFilter(filter)),
   })
 
   return {
@@ -540,22 +531,22 @@ export const createZigensIndexer = ({
           readFirst: (after) =>
             readV2NamePage(query, powersByName, after, signal),
           readSecond: (cursor) => readV1NamePage(query, cursor, signal),
-          compare: toSummaryComparator(query),
-          keyOf: (summary) => summary.namehash,
+          compare: toSortedComparator(query),
+          keyOf: ({ item }) => item.namehash,
         }).map((page) => ({
           ...page,
           items: query.resolvesTo
-            ? page.items.map((summary) => ({
+            ? page.items.map(({ item: summary }) => ({
                 ...summary,
                 resolvedCoinTypes: [60],
               }))
-            : page.items,
+            : page.items.map(({ item }) => item),
         })),
       )
     },
 
     getGraceNames: ({ address, now: at }, options) => {
-      const nowSeconds = Math.floor(at.getTime() / 1000)
+      const nowSeconds = toUnixSeconds(at)
       return readAllEdges(
         (after, signal) =>
           zigens<{ domainConnection: Connection<V2Domain> }>(
@@ -564,8 +555,9 @@ export const createZigensIndexer = ({
               where: {
                 owner: address.toLowerCase(),
                 name_ends_with: '.eth',
-                expiry_lte: nowSeconds,
-                expiry_gt: nowSeconds - V2_GRACE_MS / 1000,
+                // zigens takes unix seconds as a GraphQL Int.
+                expiry_lte: Number(nowSeconds),
+                expiry_gt: Number(nowSeconds - V2_GRACE_SECONDS),
                 includeUnreachable: true,
               },
               first: MAX_PAGE_SIZE,
@@ -666,17 +658,12 @@ export const createZigensIndexer = ({
     getNameHistory: (query, options) => {
       const signal = options?.signal
       const pageSize = toPageSize(query.pageSize)
-      return readV2Domains([query.name], signal).andThen(([v2]) => {
+      return ResultAsync.combine([
+        readV2Domains([query.name], signal),
+        readV1Domains([query.name], signal),
+      ]).andThen(([[v2], [v1]]) => {
         if (v2 && isRegisteredV2(v2)) {
-          const from =
-            query.scope === 'registration' && v2.registrationDate !== null
-              ? new Date(
-                  Math.max(
-                    query.from?.getTime() ?? 0,
-                    v2.registrationDate * 1000,
-                  ),
-                )
-              : query.from
+          const from = toHistoryStart(query, secondsToDate(v2.registrationDate))
           return readMerged({
             cursor: query.cursor,
             pageSize,
@@ -692,8 +679,13 @@ export const createZigensIndexer = ({
             readSecond: () => okAsync(EMPTY_PAGE),
             compare: byBlock(query.order),
             keyOf: (event) => event.id,
-          }).map((page) => filterHistory(page, query))
+          }).map((page) => filterHistory(page, { ...query, from }))
         }
+        // The current registration began at its latest NameRegistered.
+        const v1From = toHistoryStart(
+          query,
+          secondsToDate(v1?.registration?.registrationDate),
+        )
         const id = namehash(query.name)
         const order = query.order ?? 'desc'
         const read = (domainSkip: number, registrationSkip: number) =>
@@ -749,18 +741,7 @@ export const createZigensIndexer = ({
             ),
           compare: byBlock(order),
           keyOf: (event) => event.id,
-        }).map((page) =>
-          filterHistory(
-            {
-              ...page,
-              items: page.items.filter(
-                (event) =>
-                  !query.types?.length || query.types.includes(event.type),
-              ),
-            },
-            query,
-          ),
-        )
+        }).map((page) => filterHistory(page, { ...query, from: v1From }))
       })
     },
 
@@ -768,6 +749,8 @@ export const createZigensIndexer = ({
       const signal = options?.signal
       const pageSize = toPageSize(query.pageSize)
       const order = query.order ?? 'desc'
+      // ENSNode lists only an address's registrations, so other types leave it out.
+      const hasV1Rows = canMatchType(query, 'registration')
       return readMerged({
         cursor: query.cursor,
         pageSize,
@@ -785,6 +768,11 @@ export const createZigensIndexer = ({
             signal,
           ),
         readSecond: (cursor) => {
+          if (!hasV1Rows) {
+            return okAsync<SourcePage<HistoryEvent>, IndexerReadError>(
+              EMPTY_PAGE,
+            )
+          }
           const skip = toSkip(cursor)
           return ensNode<{
             nameRegistereds: readonly (V1Event &
@@ -826,7 +814,7 @@ export const createZigensIndexer = ({
       }
       // A registration id is the versioned token id; its rows start at that registration.
       const registration: ResultAsync<
-        Readonly<{ id: string; registrationDate: number | null }> | null,
+        RegistrationAnchor | null,
         IndexerReadError
       > = query.registrationId
         ? zigens<{
@@ -835,39 +823,19 @@ export const createZigensIndexer = ({
               registrationDate: number | null
             }>[]
           }>(V2.DOMAIN_BY_TOKEN, { tokenId: query.registrationId }, signal).map(
-            ({ domains: [domain] }) => domain ?? null,
+            ({ domains: [domain] }) =>
+              domain
+                ? {
+                    namehash: domain.id,
+                    registeredAt: secondsToDate(domain.registrationDate),
+                  }
+                : null,
           )
         : okAsync<null, IndexerReadError>(null)
-      return registration.andThen((domain) => {
-        if (query.registrationId && !domain) {
-          return okAsync<Page<HistoryEvent>, IndexerReadError>({
-            items: [],
-            nextCursor: null,
-            totalCount: 0,
-          })
-        }
-        const roleFilter = query.kinds?.includes('RootPermissionChanged')
-          ? { type: 'EACRolesChanged', resource: '0x0' }
-          : {}
-        const where = {
-          ...toEventWhere(query),
-          ...roleFilter,
-          ...(query.name && { namehash: namehash(query.name) }),
-          ...(domain && {
-            namehash: domain.id,
-            ...(domain.registrationDate !== null && {
-              timestamp_gte: domain.registrationDate,
-            }),
-          }),
-          ...(query.address && { involved: query.address.toLowerCase() }),
-          // zigens lists the events a resolver emitted, not names pointed at it.
-          ...((query.resolver ?? query.contractAddress) && {
-            contractAddress: (
-              query.resolver ??
-              query.contractAddress ??
-              ''
-            ).toLowerCase(),
-          }),
+      return registration.andThen((anchor) => {
+        const where = toEventsWhere(query, anchor)
+        if (where === null) {
+          return okAsync<Page<HistoryEvent>, IndexerReadError>(EMPTY_HISTORY)
         }
         return readMerged({
           cursor: query.cursor,

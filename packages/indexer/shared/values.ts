@@ -65,3 +65,9 @@ export const toHash = (value: string | null | undefined): Hex => {
   const lower = value?.toLowerCase()
   return lower && isHex(lower) ? lower : zeroHash
 }
+
+export const V2_GRACE_SECONDS = BigInt(V2_GRACE_PERIOD_DAYS * SECONDS_PER_DAY)
+
+/** A Date as whole unix seconds. */
+export const toUnixSeconds = (date: Date): bigint =>
+  BigInt(Math.floor(date.getTime() / MS_PER_SECOND))

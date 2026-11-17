@@ -1,5 +1,5 @@
+import type { V1Domain } from '../ensnode/ensnode.types'
 import { toV1NameDetail, type V1Context } from '../ensnode/names'
-import type { V1Domain } from '../ensnode/types'
 import type { NameRelation } from '../reads/common.types'
 import type { NameDetail } from '../reads/nameDetail.types'
 import type { Subname } from '../reads/names.types'
@@ -14,7 +14,7 @@ import {
   toHash,
   V2_GRACE_MS,
 } from '../shared/values'
-import type { V2Domain } from './types'
+import type { V2Domain } from './zigens.types'
 
 const toName = (domain: V2Domain) => domain.name ?? domain.id
 

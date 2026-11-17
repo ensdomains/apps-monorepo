@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { V1Domain } from '../ensnode/types'
+import type { V1Domain } from '../ensnode/ensnode.types'
 import { pickNameDetail } from './names'
-import type { V2Domain } from './types'
+import type { V2Domain } from './zigens.types'
 
 const NAME_WRAPPER = '0x0635513f179d50a207757e05759cbd106d7dfce8'
 const HOLDER = '0x179a862703a4adfb29896552df9e307980d19285'

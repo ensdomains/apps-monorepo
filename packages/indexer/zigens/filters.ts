@@ -1,9 +1,11 @@
 import { namehash } from 'viem'
+import type { V1Domain } from '../ensnode/ensnode.types'
 import type { NameRelation } from '../reads/common.types'
-import type {
-  NameSummary,
-  NamesForAddressQuery,
-} from '../reads/namesForAddress.types'
+import type { NamesForAddressQuery } from '../reads/namesForAddress.types'
+import type { V2Domain } from './zigens.types'
+
+// Both schemas cap `name_in` at 1000 names.
+export const MAX_NAMES = 1000
 
 const ALL_RELATIONS: readonly NameRelation[] = [
   'owner',
@@ -49,6 +51,15 @@ const toTextFilter = (query: NamesForAddressQuery): Where =>
       ? { name_starts_with: query.prefix }
       : {}
 
+/** `items` in runs of at most `size`. */
+const toBatches = <T>(
+  items: readonly T[],
+  size: number,
+): readonly (readonly T[])[] =>
+  Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
+    items.slice(index * size, (index + 1) * size),
+  )
+
 /** zigens filter for a page of ENSv2 names, null when none can match; the owner is also the manager in ENSv2. */
 export const toV2Variables = (
   query: NamesForAddressQuery,
@@ -64,8 +75,8 @@ export const toV2Variables = (
         ...(relations.includes('owner') || relations.includes('manager')
           ? [{ owner: address }]
           : []),
-        ...(relations.includes('role_holder') && roleNames.length > 0
-          ? [{ name_in: roleNames }]
+        ...(relations.includes('role_holder')
+          ? toBatches(roleNames, MAX_NAMES).map((names) => ({ name_in: names }))
           : []),
       ]
   if (anyOf.length === 0) return null
@@ -118,21 +129,40 @@ export const toV1Variables = (
   }
 }
 
-const compareValues = <T extends string | number>(a: T | null, b: T | null) =>
+/** The value a source's server sorted a row by; merged pages compare these. */
+export type SortKey = string | number | null
+
+export type Sorted<Item> = Readonly<{ item: Item; key: SortKey }>
+
+const toNumber = (value: number | string | null) =>
+  value === null ? null : Number(value)
+
+export const toV2SortKey = (
+  domain: Pick<
+    V2Domain,
+    'name' | 'expiryDate' | 'registrationDate' | 'createdAt'
+  >,
+  query: NamesForAddressQuery,
+): SortKey => {
+  const field = V2_SORT[toOrder(query).sort]
+  return field === 'name' ? domain.name : domain[field]
+}
+
+export const toV1SortKey = (
+  domain: Pick<V1Domain, 'name' | 'expiryDate' | 'createdAt'>,
+  query: NamesForAddressQuery,
+): SortKey => {
+  const field = V1_SORT[toOrder(query).sort]
+  return field === 'name' ? domain.name : toNumber(domain[field])
+}
+
+// Nulls last ascending and first descending, as Postgres orders them.
+const compareKeys = (a: SortKey, b: SortKey) =>
   a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? -1 : 1
 
-const SORT_KEYS = {
-  name: (summary: NameSummary) => summary.name,
-  expiry: (summary: NameSummary) => summary.expiresAt?.getTime() ?? null,
-  registered: (summary: NameSummary) => summary.registeredAt?.getTime() ?? null,
-  created: (summary: NameSummary) => summary.createdAt?.getTime() ?? null,
-} as const
-
 /** The order both sources were read in, to merge their pages by. */
-export const toSummaryComparator = (query: NamesForAddressQuery) => {
-  const { sort, order } = toOrder(query)
-  const key: (summary: NameSummary) => string | number | null = SORT_KEYS[sort]
-  const direction = order === 'asc' ? 1 : -1
-  return (a: NameSummary, b: NameSummary) =>
-    direction * compareValues(key(a), key(b))
+export const toSortedComparator = (query: NamesForAddressQuery) => {
+  const direction = toOrder(query).order === 'asc' ? 1 : -1
+  return <Item>(a: Sorted<Item>, b: Sorted<Item>) =>
+    direction * compareKeys(a.key, b.key)
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseEventData, toHistoryEvent } from './history'
-import type { V2Event } from './types'
+import type { V2Event } from './zigens.types'
 
 const TX = '0xa4435ccd6a6f28124906fb1022f6fc9f154e10b7a90790a41a56acde019a0785'
 const TOKEN_ID =
@@ -26,6 +26,17 @@ describe('parseEventData', () => {
     expect(parseEventData(`{"tokenId":${TOKEN_ID},"value":1}`)).toEqual({
       tokenId: TOKEN_ID,
       value: 1,
+    })
+  })
+
+  it('leaves long digit runs inside a string alone', () => {
+    expect(
+      parseEventData(
+        '{"key":"invoice","value":"invoice:1234567890123456,paid \\"9999999999999999\\""}',
+      ),
+    ).toEqual({
+      key: 'invoice',
+      value: 'invoice:1234567890123456,paid "9999999999999999"',
     })
   })
 })

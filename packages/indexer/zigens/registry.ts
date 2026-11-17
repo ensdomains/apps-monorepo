@@ -14,7 +14,7 @@ import type {
   ResolverBinding,
   RoleAssignment,
   V2Domain,
-} from './types'
+} from './zigens.types'
 
 const ZERO_RESOURCE = /^0x0*$/
 

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { NameSummary } from '../reads/namesForAddress.types'
 import {
   isChildOf,
-  toSummaryComparator,
+  type Sorted,
+  toSortedComparator,
+  toV1SortKey,
   toV1Variables,
+  toV2SortKey,
   toV2Variables,
 } from './filters'
 
@@ -118,21 +120,56 @@ describe('isChildOf', () => {
   })
 })
 
-describe('toSummaryComparator', () => {
-  const summary = (name: string, expiresAt: Date | null) =>
-    ({ name, expiresAt }) as NameSummary
+describe('toV2Variables role names', () => {
+  it('matches every role name, in batches the schema accepts', () => {
+    const names = Array.from({ length: 2001 }, (_, index) => `n${index}.eth`)
 
-  it('orders by expiry with names that never expire last', () => {
-    const rows = [
-      summary('c', null),
-      summary('b', new Date(2)),
-      summary('a', new Date(1)),
-    ]
+    const or = toV2Variables(
+      { address: ADDRESS, relations: ['role_holder'] },
+      names,
+      undefined,
+      50,
+    )?.where.or
 
     expect(
+      or?.map((filter) => ('name_in' in filter ? filter.name_in.length : 0)),
+    ).toEqual([1000, 1000, 1])
+  })
+})
+
+describe('merge order', () => {
+  // A re-registered ENSv1 name: created long ago, so the subgraph sorts it by its creation.
+  const v1 = {
+    name: 'old.eth',
+    expiryDate: null,
+    createdAt: '1500000000',
+  } as const
+  const v2 = {
+    name: 'new.eth',
+    expiryDate: 1826469384,
+    registrationDate: 1600000000,
+    createdAt: 1600000000,
+  } as const
+
+  it('compares each row by the field its own source sorted on', () => {
+    const query = { address: ADDRESS, sort: 'registered' } as const
+
+    expect(toV1SortKey(v1, query)).toBe(1500000000)
+    expect(toV2SortKey(v2, query)).toBe(1600000000)
+  })
+
+  it('puts rows with no value last when ascending and first when descending', () => {
+    const rows: readonly Sorted<string>[] = [
+      { item: 'none', key: null },
+      { item: 'b', key: 2 },
+      { item: 'a', key: 1 },
+    ]
+    const order = (sortOrder: 'asc' | 'desc') =>
       [...rows]
-        .sort(toSummaryComparator({ address: ADDRESS, sort: 'expiry' }))
-        .map(({ name }) => name),
-    ).toEqual(['a', 'b', 'c'])
+        .sort(toSortedComparator({ address: ADDRESS, order: sortOrder }))
+        .map(({ item }) => item)
+
+    expect(order('asc')).toEqual(['a', 'b', 'none'])
+    expect(order('desc')).toEqual(['none', 'b', 'a'])
   })
 })

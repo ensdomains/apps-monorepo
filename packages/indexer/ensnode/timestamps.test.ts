@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import type { V1Event } from './ensnode.types'
 import {
   toEventTimes,
   toMissingBlocks,
   toRegistrationIds,
   toRegistrationTimes,
 } from './timestamps'
-import type { V1Event } from './types'
 
 const NODE =
   '0xeb4f647bea6caa36333c816d7b46fdcb05f9466ecacc140ea8c66faf15b3d9f1'

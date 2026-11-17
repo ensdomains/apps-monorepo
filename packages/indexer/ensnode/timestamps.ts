@@ -1,4 +1,4 @@
-import type { V1Event } from './types'
+import type { V1Event } from './ensnode.types'
 
 /** A `NameRegistered` row as `LATEST_REGISTRATIONS` returns it, newest first. */
 export type RegisteredRow = Readonly<{

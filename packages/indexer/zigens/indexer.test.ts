@@ -1,8 +1,8 @@
 import { createClient, custom, namehash, numberToHex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
-import type { V1Domain } from '../ensnode/types'
+import type { V1Domain } from '../ensnode/ensnode.types'
 import { createZigensIndexer, type ZigensIndexerOptions } from './indexer'
-import type { V2Domain } from './types'
+import type { V2Domain } from './zigens.types'
 
 const ZIGENS = 'https://zigens.example/graphql'
 const ENSNODE = 'https://ensnode.example/subgraph'
@@ -174,6 +174,7 @@ describe('createZigensIndexer', () => {
     const { indexer } = indexerWith(
       {
         [`${ZIGENS} DomainsByNames`]: () => ({ domains: [] }),
+        [`${ENSNODE} DomainsByNames`]: () => ({ domains: [v1('test.eth')] }),
         [`${ENSNODE} NameEvents`]: () => ({
           domain: {
             name: 'test.eth',

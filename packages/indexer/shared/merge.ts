@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow'
+import { err, ok, Result } from 'neverthrow'
 import { IndexerReadError } from '../reads/errors'
 
 /** A row and the source cursor that resumes right after it. */
@@ -28,36 +28,35 @@ export const encodeMergeCursor = (cursor: MergeCursor): string =>
 const isSourceCursor = (value: unknown): value is string | null | undefined =>
   value === undefined || value === null || typeof value === 'string'
 
+const toCursorError = (cause: unknown) =>
+  new IndexerReadError({
+    kind: 'rejected',
+    message: 'Not a cursor this indexer issued',
+    cause,
+  })
+
+const parseCursor = Result.fromThrowable(
+  (cursor: string): unknown => JSON.parse(atob(cursor)),
+  toCursorError,
+)
+
+const toMergeCursor = (
+  parsed: unknown,
+): Result<MergeCursor, IndexerReadError> => {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return err(toCursorError(parsed))
+  }
+  const first = 'first' in parsed ? parsed.first : undefined
+  const second = 'second' in parsed ? parsed.second : undefined
+  return isSourceCursor(first) && isSourceCursor(second)
+    ? ok({ first, second })
+    : err(toCursorError(parsed))
+}
+
 export const decodeMergeCursor = (
   cursor: string | undefined,
-): Result<MergeCursor, IndexerReadError> => {
-  if (cursor === undefined) return ok(START)
-  const rejected = (cause: unknown) =>
-    err(
-      new IndexerReadError({
-        kind: 'rejected',
-        message: 'Not a cursor this indexer issued',
-        cause,
-      }),
-    )
-  try {
-    const parsed: unknown = JSON.parse(atob(cursor))
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      !Array.isArray(parsed)
-    ) {
-      const first = 'first' in parsed ? parsed.first : undefined
-      const second = 'second' in parsed ? parsed.second : undefined
-      if (isSourceCursor(first) && isSourceCursor(second)) {
-        return ok({ first, second })
-      }
-    }
-    return rejected(parsed)
-  } catch (cause) {
-    return rejected(cause)
-  }
-}
+): Result<MergeCursor, IndexerReadError> =>
+  cursor === undefined ? ok(START) : parseCursor(cursor).andThen(toMergeCursor)
 
 type MergePagesParameters<Item> = Readonly<{
   first: SourcePage<Item>
