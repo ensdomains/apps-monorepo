@@ -8,7 +8,10 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useRegistryRepairCase } from '../../hooks/useRegistryRepairCase'
 import { useRegistryUpdate } from '../../hooks/useRegistryUpdate'
 import type { RegistryUpgradeStage } from '../../state/registryUpgrade.machine'
-import { shouldShowUpgradeCard } from '../../utils/registryRepairCase'
+import {
+  carriedSubnamesText,
+  shouldShowUpgradeCard,
+} from '../../utils/registryRepairCase'
 import type { RegistryUpdateFailure } from '../../utils/registryUpdate'
 import { RegistryPanel } from './RegistryPanel'
 
@@ -33,7 +36,7 @@ const FAILURE_MESSAGES: Readonly<Record<RegistryUpdateFailure, string>> = {
 
 /** Asks an account that can update the name's registry to do so. */
 export const RegistryUpdateNotice = ({ name }: { readonly name: string }) => {
-  const { repairCase, registryAddress, parentRegistry } =
+  const { repairCase, registryAddress, parentRegistry, subnameCount } =
     useRegistryRepairCase(name)
   const [wasShown, setWasShown] = useState(false)
   const isShown = shouldShowUpgradeCard({ repairCase, wasShown })
@@ -46,6 +49,7 @@ export const RegistryUpdateNotice = ({ name }: { readonly name: string }) => {
       name={name}
       registryAddress={registryAddress}
       parentRegistry={parentRegistry}
+      subnameCount={subnameCount}
     />
   )
 }
@@ -54,10 +58,12 @@ const RegistryUpdateCard = ({
   name,
   registryAddress,
   parentRegistry,
+  subnameCount,
 }: {
   readonly name: string
   readonly registryAddress: Address | undefined
   readonly parentRegistry: Address | undefined
+  readonly subnameCount: number | undefined
 }) => {
   const { start, stage, canStart, failure, transactions } = useRegistryUpdate({
     name,
@@ -71,8 +77,10 @@ const RegistryUpdateCard = ({
         <AlertTitle>Upgrade required</AlertTitle>
         <AlertDescription>
           This registry runs on an older version that has since been fixed.
-          Upgrade it to start creating subnames or change roles. Your subnames,
-          their owners and their roles will be copied to the new registry.
+          Upgrade it to create subnames or change roles.{' '}
+          {carriedSubnamesText(subnameCount)} will carry over. Inform other
+          users of the registry to use the newly upgraded registry going
+          forward.
         </AlertDescription>
       </Alert>
       {stage === 'planFailed' && failure && (

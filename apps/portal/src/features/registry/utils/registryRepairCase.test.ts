@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  carriedSubnamesText,
   getRegistryRepairCase,
   shouldShowSubnameOwnerNotice,
   shouldShowUpgradeCard,
@@ -80,5 +81,15 @@ describe('shouldShowSubnameOwnerNotice', () => {
     ['an unread upgrade role', { canUpgradeRegistry: undefined }],
   ] as const)('hides for %s', (_case, overrides) => {
     expect(run(overrides)).toBe(false)
+  })
+})
+
+describe('carriedSubnamesText', () => {
+  it.each([
+    [12, 'Your 12 subnames and their settings'],
+    [1, 'Your 1 subname and its settings'],
+    [undefined, 'Your subnames and their settings'],
+  ] as const)('for %s', (count, expected) => {
+    expect(carriedSubnamesText(count)).toBe(expected)
   })
 })

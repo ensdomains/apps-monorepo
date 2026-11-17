@@ -17,6 +17,8 @@ export type UseRegistryRepairCaseResult = {
   readonly registryAddress: Address | undefined
   /** The registry holding the name itself. */
   readonly parentRegistry: Address | undefined
+  /** How many subnames the registry holds, once counted. */
+  readonly subnameCount: number | undefined
 }
 
 /** Which registry update notice the connected account sees for a V2 name. */
@@ -62,5 +64,6 @@ export const useRegistryRepairCase = (
     }),
     registryAddress,
     parentRegistry: registries?.at(1) ?? undefined,
+    subnameCount: settledData(occupants)?.count,
   }
 }

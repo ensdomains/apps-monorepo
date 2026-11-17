@@ -70,3 +70,10 @@ export const shouldShowSubnameOwnerNotice = ({
   isSubname &&
   isPendingUpgrade === true &&
   canUpgradeRegistry === false
+
+/** The subnames the upgrade card says will carry over; without a count it doesn't guess one. */
+export const carriedSubnamesText = (count: number | undefined): string =>
+  match(count)
+    .with(undefined, () => 'Your subnames and their settings')
+    .with(1, () => 'Your 1 subname and its settings')
+    .otherwise((n) => `Your ${n} subnames and their settings`)
