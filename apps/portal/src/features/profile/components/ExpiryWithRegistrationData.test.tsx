@@ -14,17 +14,21 @@ const EXPIRIES: Readonly<Record<string, number | null>> = {
   'beep.parent.eth': OWN_EXPIRY,
   'right.parent.eth': null,
   'v1.parent.eth': null,
+  'sub.unread.eth': null,
 }
 
 vi.mock('../hooks/useRegistrationData', () => ({
   getRegistrationDataQueryOptions: ({ name }: { name: string }) => ({
     queryKey: ['registrationData', name],
-    queryFn: () => ({
-      createdAt: null,
-      registeredAt: REGISTERED_AT,
-      expiry: EXPIRIES[name] ?? null,
-      graceEnd: null,
-    }),
+    queryFn: () => {
+      if (name === 'unread.eth') throw new Error('read failed')
+      return {
+        createdAt: null,
+        registeredAt: REGISTERED_AT,
+        expiry: EXPIRIES[name] ?? null,
+        graceEnd: null,
+      }
+    },
   }),
   getRegistrationTxQueryOptions: () => ({
     queryKey: ['registrationTx'],
@@ -76,6 +80,21 @@ describe('ExpiryWithRegistrationData', () => {
 
     expect(await screen.findByText('Expires')).toBeInTheDocument()
     expect(rowText('Expires')).toMatch(/2030.* · Expires with parent\.eth$/)
+  })
+
+  it('shows a name’s own expiry alone when no name above sets it', async () => {
+    renderExpiry('parent.eth')
+
+    expect(await screen.findByText('Expires')).toBeInTheDocument()
+    expect(rowText('Expires')).toMatch(/2030/)
+    expect(rowText('Expires')).not.toMatch(/Expires with/)
+  })
+
+  it('says the subname expires with its parent when a name above couldn’t be read', async () => {
+    renderExpiry('sub.unread.eth')
+
+    expect(await screen.findByText('Expires')).toBeInTheDocument()
+    expect(rowText('Expires')).toMatch(/Expires with parent$/)
   })
 
   it('leaves an ENSv1 subname, which outlives its parent’s lease, without the row', async () => {

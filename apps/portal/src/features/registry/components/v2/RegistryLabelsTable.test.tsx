@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SECONDS_PER_DAY } from '@/lib/constants/duration'
 import { createTestQueryClient } from '@/test-utils/providers'
@@ -94,6 +95,24 @@ describe('RegistryLabelsTable expiry', () => {
     )
     expect(rowText('soon')).toContain('November 15, 2026')
     expect(rowText('soon')).not.toContain('Expires with')
+  })
+
+  it('sorts by the date shown, so a label with none of its own sorts by its registry’s name', async () => {
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
+      </QueryClientProvider>,
+    )
+    await screen.findByText('right')
+
+    await userEvent.click(screen.getByRole('button', { name: /Expiration/ }))
+
+    expect(
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => row.textContent?.match(/^(right|beep|soon)/)?.[0]),
+    ).toEqual(['soon', 'right', 'beep'])
   })
 
   it('waits for the registry’s name before showing any label’s expiry', async () => {
