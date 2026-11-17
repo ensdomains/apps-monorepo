@@ -48,8 +48,13 @@ export const RegistryUpdateNotice = ({
   readonly fallback?: ReactNode
   readonly isInTree?: boolean
 }) => {
-  const { repairCase, registryAddress, parentRegistry, subnameCount } =
-    useRegistryRepairCase(name)
+  const {
+    repairCase,
+    registryAddress,
+    parentRegistry,
+    subnameCount,
+    sharedRegistryNote,
+  } = useRegistryRepairCase(name)
   const [wasShown, setWasShown] = useState(false)
   const isShown =
     shouldShowUpgradeCard({ repairCase, wasShown }) &&
@@ -64,6 +69,7 @@ export const RegistryUpdateNotice = ({
       registryAddress={registryAddress}
       parentRegistry={parentRegistry}
       subnameCount={subnameCount}
+      sharedRegistryNote={sharedRegistryNote}
     />
   )
   return isInTree ? <RegistryPanel>{card}</RegistryPanel> : card
@@ -74,11 +80,13 @@ const RegistryUpdateCard = ({
   registryAddress,
   parentRegistry,
   subnameCount,
+  sharedRegistryNote,
 }: {
   readonly name: string
   readonly registryAddress: Address | undefined
   readonly parentRegistry: Address | undefined
   readonly subnameCount: number | undefined
+  readonly sharedRegistryNote: string | null
 }) => {
   const { start, stage, canStart, failure, transactions } = useRegistryUpdate({
     name,
@@ -98,6 +106,11 @@ const RegistryUpdateCard = ({
           forward.
         </AlertDescription>
       </Alert>
+      {sharedRegistryNote && (
+        <Alert className="p-5" variant="neutral">
+          <AlertDescription>{sharedRegistryNote}</AlertDescription>
+        </Alert>
+      )}
       {stage === 'planFailed' && failure && (
         <ErrorMessage compact description={FAILURE_MESSAGES[failure]} />
       )}

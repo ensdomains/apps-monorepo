@@ -3,6 +3,7 @@ import {
   carriedSubnamesText,
   getRegistryRepairCase,
   isUpgradeCardForPage,
+  sharedRegistryText,
   shouldShowSubnameOwnerNotice,
   shouldShowUpgradeCard,
 } from './registryRepairCase'
@@ -106,5 +107,48 @@ describe('isUpgradeCardForPage', () => {
     ["the name's registry not read yet", PAGE, undefined, false],
   ] as const)('for %s: %s', (_case, pageRegistry, nameRegistry, expected) => {
     expect(isUpgradeCardForPage({ pageRegistry, nameRegistry })).toBe(expected)
+  })
+})
+
+describe('sharedRegistryText', () => {
+  const run = (
+    referencedBy: readonly { readonly name: string | null }[],
+    hasMore = false,
+  ) => sharedRegistryText({ name: 'a.eth', referencedBy, hasMore })
+
+  it('says nothing when only this name uses the registry', () => {
+    expect(run([{ name: 'A.eth' }])).toBeNull()
+  })
+
+  it('names the one other name and what happens to it', () => {
+    expect(run([{ name: 'a.eth' }, { name: 'b.eth' }])).toBe(
+      "This registry is also used by b.eth. Upgrading only moves a.eth: b.eth keeps the old registry until its owner upgrades it or points it at a.eth's new registry.",
+    )
+  })
+
+  it.each([
+    [
+      'several names',
+      [{ name: 'b.eth' }, { name: 'c.eth' }],
+      false,
+      'b.eth, c.eth.',
+    ],
+    [
+      'more than it lists',
+      [
+        { name: 'b.eth' },
+        { name: 'c.eth' },
+        { name: 'd.eth' },
+        { name: 'e.eth' },
+      ],
+      false,
+      'b.eth, c.eth, d.eth and others.',
+    ],
+    ['a further page', [{ name: 'b.eth' }], true, 'b.eth and others.'],
+    ['only unnamed references', [{ name: null }], false, 'other names.'],
+  ] as const)('for %s', (_case, referencedBy, hasMore, subject) => {
+    expect(run(referencedBy, hasMore)).toBe(
+      `This registry is also used by ${subject} Upgrading only moves a.eth: those names keep the old registry until their owners upgrade them or point them at a.eth's new registry.`,
+    )
   })
 })

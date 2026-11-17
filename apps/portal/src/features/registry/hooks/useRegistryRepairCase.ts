@@ -6,9 +6,11 @@ import { settledData } from '../utils/pendingUpgradeRegistry'
 import {
   getRegistryRepairCase,
   type RegistryRepairCase,
+  sharedRegistryText,
 } from '../utils/registryRepairCase'
 import { useHasSetSubregistryRole } from './useHasSetSubregistryRole'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
+import { getRegistryInfoQueryOptions } from './useRegistry'
 import { getRegistryOccupantsQueryOptions } from './useRegistryOccupants'
 
 export type UseRegistryRepairCaseResult = {
@@ -19,6 +21,8 @@ export type UseRegistryRepairCaseResult = {
   readonly parentRegistry: Address | undefined
   /** How many subnames the registry holds, once counted. */
   readonly subnameCount: number | undefined
+  /** Other names sharing the registry, for the account that can upgrade it; null when none do or not read. */
+  readonly sharedRegistryNote: string | null
 }
 
 /** Which registry update notice the connected account sees for a V2 name. */
@@ -53,6 +57,12 @@ export const useRegistryRepairCase = (
     enabled: Boolean(registryAddress && account) && canSwitchParent === true,
   })
 
+  const registryInfo = useQuery({
+    ...getRegistryInfoQueryOptions({ address: registryAddress ?? zeroAddress }),
+    enabled: Boolean(registryAddress) && canSwitchParent === true,
+  })
+  const sharedRegistry = settledData(registryInfo)
+
   return {
     repairCase: getRegistryRepairCase({
       // No registry under the name: nothing to upgrade. Registries not read yet: unknown.
@@ -65,5 +75,12 @@ export const useRegistryRepairCase = (
     registryAddress,
     parentRegistry: registries?.at(1) ?? undefined,
     subnameCount: settledData(occupants)?.count,
+    sharedRegistryNote: sharedRegistry
+      ? sharedRegistryText({
+          name,
+          referencedBy: sharedRegistry.referencedBy,
+          hasMore: sharedRegistry.referencedByHasMore,
+        })
+      : null,
   }
 }

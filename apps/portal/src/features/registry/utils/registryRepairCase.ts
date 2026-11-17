@@ -89,3 +89,36 @@ export const carriedSubnamesText = (count: number | undefined): string =>
     .with(undefined, () => 'Your subnames and their settings')
     .with(1, () => 'Your 1 subname and its settings')
     .otherwise((n) => `Your ${n} subnames and their settings`)
+
+const MAX_LISTED_NAMES = 3
+
+const describeOthers = (
+  known: readonly string[],
+  hasUnlisted: boolean,
+): string => {
+  const listed = known.slice(0, MAX_LISTED_NAMES)
+  if (listed.length === 0) return 'other names'
+  const isCut = hasUnlisted || known.length > listed.length
+  return isCut ? `${listed.join(', ')} and others` : listed.join(', ')
+}
+
+/** Tells the upgrader which other names share the registry, since only `name` moves; null when none do. */
+export const sharedRegistryText = ({
+  name,
+  referencedBy,
+  hasMore,
+}: {
+  readonly name: string
+  readonly referencedBy: readonly { readonly name: string | null }[]
+  readonly hasMore: boolean
+}): string | null => {
+  const others = referencedBy.filter(
+    (entry) => entry.name?.toLowerCase() !== name.toLowerCase(),
+  )
+  if (others.length === 0 && !hasMore) return null
+  const known = others.flatMap((entry) => (entry.name ? [entry.name] : []))
+  const subject = describeOthers(known, hasMore || known.length < others.length)
+  if (others.length === 1 && known.length === 1 && !hasMore)
+    return `This registry is also used by ${subject}. Upgrading only moves ${name}: ${subject} keeps the old registry until its owner upgrades it or points it at ${name}'s new registry.`
+  return `This registry is also used by ${subject}. Upgrading only moves ${name}: those names keep the old registry until their owners upgrade them or point them at ${name}'s new registry.`
+}

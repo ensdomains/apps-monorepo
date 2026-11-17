@@ -32,6 +32,7 @@ The cases are decided in `utils/registryRepairCase.ts`.
 | Rule | Held by |
 | --- | --- |
 | Case A: on the name's Registry page, an account that can point the name at another registry (`ROLE_SET_SUBREGISTRY` on the name, from the name or the parent's root) and owns every subname in the registry sees "Upgrade required" with an "Upgrade registry" button. The card says how many subnames carry over (no number while the count is unknown) and asks them to tell the registry's other users to use the new registry. Holding the registry's root roles is not required (see "Who becomes an admin"). | `utils/registryRepairCase.test.ts` (`getRegistryRepairCase`, `carriedSubnamesText`) |
+| When other names also point at the registry (from the indexer's `referencedBy`), the card lists up to three of them and says the upgrade only moves this name: the others keep the old registry until their owners upgrade it themselves (they get the card on their own name) or point their name at this name's new registry. | `utils/registryRepairCase.test.ts` (`sharedRegistryText`) |
 | Ownership that can't be confirmed (still loading, or the indexer can't count it) shows nothing. Once shown, the card stays up while the case briefly reads as unknown, so an upgrade in progress isn't torn down. | `utils/registryRepairCase.test.ts` (`getRegistryRepairCase`, `shouldShowUpgradeCard`) |
 | Case B: when someone else owns at least one subname, the card is not shown. WEB-2169 offers it only after every known Case B registry has passed a Sepolia rehearsal. | `utils/registryRepairCase.test.ts` "someone else owning a subname (Case B)" row; `shouldShowUpgradeCard` "a Case B account, not offered yet" row |
 | Case C: on a subname's profile, its connected owner sees "Upgrade required" when the registry holding the subname needs an upgrade and they can't upgrade it themselves. The notice names the parent name and asks them to contact its owner. It is hidden for ENSv1 names, 2LDs, other visitors, a registry that is current or unchecked, an unread role, and the account that can upgrade (it gets the Case A card instead). | `utils/registryRepairCase.test.ts` (`shouldShowSubnameOwnerNotice`), `components/v2/SubnameOwnerNotice.test.tsx` |
@@ -72,7 +73,6 @@ The flow runs in `state/registryUpgrade.machine.ts`; the hook only supplies the 
 ## Known limits
 
 - Reserved labels, ERC1155 approvals and a custom metadata URI are not copied.
-- A registry can be the subregistry of more than one name. The upgrade only points the name it was started from at the copy; another name keeps the old registry. Telling that name's owner is planned as a follow-up.
 - Case B (someone else owns a subname) is not offered until WEB-2169.
 
 ## Before changing anything here
