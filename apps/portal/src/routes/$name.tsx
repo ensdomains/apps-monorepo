@@ -1,17 +1,19 @@
 import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { getDnsSecEnabled } from '@ens-apps/utils/dnssec'
+import { useQuery } from '@tanstack/react-query'
 import {
   createFileRoute,
   Outlet,
   redirect,
   useParams,
 } from '@tanstack/react-router'
-import { AddressLikeNameNotice } from '@/components/AddressLikeNameNotice'
+import { AlertTriangle } from 'lucide-react'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NonNormalizedNameWarning } from '@/components/NonNormalizedNameWarning'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageContainer } from '@/components/PageContainer'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -72,6 +74,12 @@ function RouteComponent() {
   const { name } = useParams({ from: '/$name' })
   useRememberName(name)
   const isValidName = isValidEnsName(name)
+  const isAddressLike = isValidName && isAddressLikeName(name)
+  // Prefetched by the loader. A free name gets the page's refusal instead.
+  const { data: availability } = useQuery({
+    ...getNameAvailabilityQueryOptions({ name }),
+    enabled: isAddressLike && isRegistrable(name),
+  })
 
   return (
     <SidebarProvider>
@@ -81,7 +89,16 @@ function RouteComponent() {
         <PageContainer>
           {isValidName ? (
             <>
-              {isAddressLikeName(name) && <AddressLikeNameNotice />}
+              {isAddressLike && !availability?.isAvailable && (
+                <Alert variant="warning">
+                  <AlertTriangle />
+                  <AlertTitle>This name looks like a wallet address</AlertTitle>
+                  <AlertDescription>
+                    Note: This name may resolve to another address, confirm the
+                    final address is the intended address.
+                  </AlertDescription>
+                </Alert>
+              )}
               <Outlet />
             </>
           ) : (
