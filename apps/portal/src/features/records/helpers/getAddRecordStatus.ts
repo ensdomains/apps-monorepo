@@ -25,10 +25,13 @@ const incomplete = (reason: string): AddRecordStatus => ({
 })
 
 const getAddressStatus = (key: string, value: string): AddRecordStatus => {
-  if (!key.trim()) return incomplete('Select a coin.')
   const coinType = getAddressRecordCoinType(key)
-  if (coinType.isErr())
-    return { status: 'invalid', message: coinType.error.message }
+  if (coinType.isErr()) {
+    const { kind, message } = coinType.error
+    return kind === 'missing'
+      ? incomplete(message)
+      : { status: 'invalid', message }
+  }
   if (!value.trim()) return incomplete('Enter an address.')
 
   // The same check the table runs once the row is added, so the two cannot disagree.

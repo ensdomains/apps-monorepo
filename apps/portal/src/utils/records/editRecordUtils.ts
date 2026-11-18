@@ -114,6 +114,7 @@ export class UnsupportedRecordCoinError extends TaggedError(
   'UnsupportedRecordCoinError',
 )<{
   readonly cause: unknown
+  readonly kind: 'missing' | 'unsupported'
   readonly message: string
 }> {}
 
@@ -122,7 +123,11 @@ export function getAddressRecordCoinType(
 ): Result<number, UnsupportedRecordCoinError> {
   if (!key.trim()) {
     return err(
-      new UnsupportedRecordCoinError({ cause: key, message: 'Select a coin.' }),
+      new UnsupportedRecordCoinError({
+        cause: key,
+        kind: 'missing',
+        message: 'Select a coin.',
+      }),
     )
   }
   const coinName = key.toLowerCase()
@@ -130,6 +135,7 @@ export function getAddressRecordCoinType(
     return err(
       new UnsupportedRecordCoinError({
         cause: key,
+        kind: 'unsupported',
         message: 'Unsupported coin. Select a supported coin.',
       }),
     )

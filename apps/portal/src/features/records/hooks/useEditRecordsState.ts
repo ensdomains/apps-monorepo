@@ -3,7 +3,6 @@ import type { NameRecord } from '@/features/records/components/RecordsTable/colu
 import {
   createNewRecord,
   type EditableRecord,
-  getAddressRecordCoinType,
   getRecordId,
   mergeRecordsWithChanges,
   type RecordType,
@@ -168,12 +167,7 @@ export function useEditRecordsState(originalRecords: NameRecord[]) {
 
   // Action dispatchers
   const addRecord = (recordType: RecordType, key: string, value: string) => {
-    if (recordType === 'address') {
-      const coinType = getAddressRecordCoinType(key)
-      if (coinType.isErr()) return coinType.error.message
-    }
     dispatch({ type: 'ADD_RECORD', recordType, key, value })
-    return null
   }
 
   const deleteRecord = (record: EditableRecord) => {

@@ -48,21 +48,21 @@ describe('editRecordsReducer', () => {
       expect(result.newRecords[0]._uid).toBeDefined()
     })
 
-    it.each(['UNKNOWN', ''])(
-      'refuses coin %j without scheduling an ETH write or deletion',
-      (key) => {
-        for (const value of [
-          '',
-          '0x1234567890123456789012345678901234567890',
-        ]) {
-          const state = editRecordsReducer(initialEditRecordsState, {
-            type: 'ADD_RECORD',
-            recordType: 'address',
-            key,
-            value,
-          })
-          expect(state).toEqual(initialEditRecordsState)
-        }
+    it.each([
+      ['UNKNOWN', ''],
+      ['UNKNOWN', '0x1234567890123456789012345678901234567890'],
+      ['', ''],
+      ['', '0x1234567890123456789012345678901234567890'],
+    ])(
+      'refuses coin %j and value %j without scheduling an ETH write or deletion',
+      (key, value) => {
+        const state = editRecordsReducer(initialEditRecordsState, {
+          type: 'ADD_RECORD',
+          recordType: 'address',
+          key,
+          value,
+        })
+        expect(state).toEqual(initialEditRecordsState)
       },
     )
 

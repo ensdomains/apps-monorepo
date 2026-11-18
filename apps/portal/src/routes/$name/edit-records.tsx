@@ -2,13 +2,7 @@ import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import {
-  AlertCircle,
-  ArrowLeftIcon,
-  ChevronDown,
-  CirclePlus,
-  Search,
-} from 'lucide-react'
+import { AlertCircle, ArrowLeftIcon, ChevronDown, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useAccount, useConnection, useWalletClient } from 'wagmi'
@@ -26,13 +20,9 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { AddRecordButton } from '@/features/records/components/AddRecordButton'
 import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
@@ -258,7 +248,6 @@ const EditRecordsContent = ({
       : ''
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
-  const [addRecordError, setAddRecordError] = useState<string | null>(null)
   // Set when the value field is left, so an address is not flagged while it is still being typed.
   const [isValueTouched, setIsValueTouched] = useState(false)
   const addRecordStatus = getAddRecordStatus({
@@ -267,15 +256,13 @@ const EditRecordsContent = ({
     value: valueInput,
   })
   const canAddNewRecord = addRecordStatus.status === 'ready'
-  const addRecordFeedback = getAddRecordFeedback(
+  const { disabledReason, error: visibleAddRecordError } = getAddRecordFeedback(
     addRecordStatus,
     isValueTouched,
   )
-  const visibleAddRecordError = addRecordError ?? addRecordFeedback.error
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
-    setAddRecordError(null)
     setIsValueTouched(false)
     setPickedType(newType)
     setKeyInput('') // Reset key when type changes
@@ -443,9 +430,7 @@ const EditRecordsContent = ({
   const handleAddRecord = () => {
     if (!selectedType || !canAddNewRecord) return
 
-    const error = addRecord(selectedType, keyInput, valueInput)
-    setAddRecordError(error)
-    if (error) return
+    addRecord(selectedType, keyInput, valueInput)
 
     // Reset form
     setPickedType('')
@@ -509,10 +494,7 @@ const EditRecordsContent = ({
               </label>
               <CoinSelect
                 value={keyInput}
-                onChange={(value) => {
-                  setKeyInput(value)
-                  setAddRecordError(null)
-                }}
+                onChange={setKeyInput}
                 placeholder="Select coin..."
                 coinTypes={
                   editableTypes.address === 'all'
@@ -592,7 +574,7 @@ const EditRecordsContent = ({
               Action
             </span>
             <AddRecordButton
-              disabledReason={addRecordFeedback.disabledReason}
+              disabledReason={disabledReason}
               onClick={handleAddRecord}
             />
           </div>
@@ -604,7 +586,9 @@ const EditRecordsContent = ({
             className="mt-4 items-center [&>svg]:translate-y-0"
           >
             <AlertCircle />
-            <AlertDescription>{visibleAddRecordError}</AlertDescription>
+            <AlertDescription className="min-w-0 wrap-anywhere">
+              {visibleAddRecordError}
+            </AlertDescription>
           </Alert>
         )}
       </header>
@@ -708,35 +692,5 @@ const EditRecordsContent = ({
         ]}
       />
     </div>
-  )
-}
-
-// aria-disabled rather than disabled keeps the button focusable, so keyboard users get the tooltip too.
-const AddRecordButton = ({
-  disabledReason,
-  onClick,
-}: {
-  readonly disabledReason: string | null
-  readonly onClick: () => void
-}) => {
-  const button = (
-    <Button
-      type="button"
-      variant="default"
-      onClick={onClick}
-      aria-disabled={disabledReason ? true : undefined}
-      className="flex items-center gap-2 whitespace-nowrap aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-primary"
-    >
-      Add record
-      <CirclePlus className="size-4" />
-    </Button>
-  )
-  if (!disabledReason) return button
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent className="max-w-64">{disabledReason}</TooltipContent>
-    </Tooltip>
   )
 }
