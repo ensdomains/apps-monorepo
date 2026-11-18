@@ -76,13 +76,16 @@ const isNameRejection = (returnData: Hex): boolean =>
 
 // Viewing/editing commonly used fields remains possible while the index
 // is unavailable. Resolver replacement performs a separate warned import.
-const getRecordKeys = (name: string) =>
+const getRecordKeys = (name: string, heldTextKeys: readonly string[]) =>
   bigname
     .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => selectProfileRecordKeys(data.inventory))
-    .orElse(() => okAsync(selectProfileRecordKeys(undefined)))
+    .map(({ data }) => selectProfileRecordKeys(data.inventory, heldTextKeys))
+    .orElse(() => okAsync(selectProfileRecordKeys(undefined, heldTextKeys)))
 
-export const getProfileRecords = ResultFn(async function* (name: string) {
+export const getProfileRecords = ResultFn(async function* (
+  name: string,
+  heldTextKeys: readonly string[] = [],
+) {
   const debugProfiles = isMaybeDebugName(name)
     ? await loadDebugProfiles?.()
     : undefined
@@ -90,7 +93,7 @@ export const getProfileRecords = ResultFn(async function* (name: string) {
   if (debugProfile) return ok(debugProfile)
 
   const client = yield* safeGetClient()
-  const { texts, coins } = yield* getRecordKeys(name)
+  const { texts, coins } = yield* getRecordKeys(name, heldTextKeys)
 
   const v2Source = yield* fromPromise(
     (async () => {
@@ -247,5 +250,11 @@ export type ProfileRecordsResult = {
 export const profileRecordsQuery = (name: string) =>
   resultQueryOptions({
     queryKey: qk('profile', 'get_records', { name }),
-    queryFn: ({ queryKey: [{ name }] }) => getProfileRecords(name),
+    queryFn: ({ client, queryKey }) =>
+      getProfileRecords(
+        queryKey[0].name,
+        (client.getQueryData<ProfileRecordsResult>(queryKey)?.texts ?? []).map(
+          ({ key }) => key,
+        ),
+      ),
   })
