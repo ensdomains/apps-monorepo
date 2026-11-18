@@ -270,13 +270,13 @@ const temporaryRootRoles = (
   )
 }
 
-/** A stopped Case B run may have given its temporary roles back already; the copy is then what the original was. */
 // A role is revocable only by an admin of it, so the runner must hold the admin of every temporary role.
 const canGiveBack = (temporary: bigint, runnerRoles: bigint): boolean => {
   const admins = runnerRoles >> 128n
   return (temporary & ~((admins << 128n) | admins)) === 0n
 }
 
+/** A stopped Case B run may have given its temporary roles back already; the copy is then what the original was. */
 const isRelinquished = (
   original: RegistryRepairState,
   existing: RegistryRepairState | null,
