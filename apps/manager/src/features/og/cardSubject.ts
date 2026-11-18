@@ -7,6 +7,13 @@ export type OgCardSubject =
   | { readonly kind: 'invalid' }
   | { readonly kind: 'name'; readonly name: string }
 
+// Normalising takes more than linear time in the name's length.
+const OG_NAME_MAX_LENGTH = 1000
+
+/** The canonical name a card or its page's meta tags may show, if there is one. */
+export const normalizeOgCardName = (value: string): string | null =>
+  value.length > OG_NAME_MAX_LENGTH ? null : normalizeProfileName(value)
+
 /**
  * Decide which card `/og/<segment>.png` draws.
  *
@@ -24,7 +31,7 @@ export function getOgCardSubject(segment: string): OgCardSubject {
 
   if (!value.includes('.')) return { kind: 'generic' }
 
-  const name = normalizeProfileName(value)
+  const name = normalizeOgCardName(value)
 
   return name ? { kind: 'name', name } : { kind: 'invalid' }
 }

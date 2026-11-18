@@ -11,6 +11,7 @@ import {
   type NameFallbackReason,
 } from '@/components/NameFallbackCard'
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
+import { normalizeOgCardName } from '@/features/og/cardSubject'
 import { ProfileLoading } from '@/features/profile/components/view/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
 import { ReverseNameView } from '@/features/profile/components/view/ReverseNameView'
@@ -229,7 +230,7 @@ export const Route = createFileRoute('/$name/')({
     if (!loaderData) {
       // The route is `ssr: false`, so the loader never runs for the server
       // render a link-preview crawler reads — the name has to come from the URL.
-      const name = normalizeProfileName(params.name)
+      const name = normalizeOgCardName(params.name)
 
       if (name) {
         return {
