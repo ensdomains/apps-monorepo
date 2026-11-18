@@ -25,3 +25,27 @@ it('keeps keyboard focus when adding a row makes the button unavailable', async 
   expect(button).toHaveAttribute('aria-disabled', 'true')
   expect(button).toHaveFocus()
 })
+
+it('requires a new interaction after the button becomes available and then unavailable', async () => {
+  const user = userEvent.setup()
+  const onClick = () => {}
+  const disabledReason = 'Enter an address.'
+  const { rerender } = render(
+    <AddRecordButton disabledReason={disabledReason} onClick={onClick} />,
+  )
+  const button = screen.getByRole('button', { name: 'Add record' })
+
+  await user.hover(button)
+  expect(await screen.findByRole('tooltip')).toHaveTextContent(disabledReason)
+
+  rerender(<AddRecordButton disabledReason={null} onClick={onClick} />)
+  await user.unhover(button)
+  rerender(
+    <AddRecordButton disabledReason={disabledReason} onClick={onClick} />,
+  )
+
+  expect(screen.queryByRole('tooltip')).toBeNull()
+
+  await user.hover(button)
+  expect(await screen.findByRole('tooltip')).toHaveTextContent(disabledReason)
+})

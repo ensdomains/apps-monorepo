@@ -17,6 +17,9 @@ export const AddRecordButton = ({
   const [isTooltipOpen, setIsTooltipOpen] = useState(false)
   const isUnavailable = disabledReason !== null
 
+  // Radix suppresses close events once its controlled open prop is false.
+  if (disabledReason === null && isTooltipOpen) setIsTooltipOpen(false)
+
   return (
     <Tooltip
       open={isUnavailable && isTooltipOpen}
