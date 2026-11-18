@@ -5,6 +5,7 @@ import {
   getExtensionTargetDate,
 } from '@/features/renew/utils/extensionDurationPicker'
 import { SECONDS_PER_DAY } from '@/lib/constants/duration'
+import { dateToPlainDate } from '@/utils/temporal'
 
 /** A new ENSv2 subname's expiry: none of its own, or a span from today. */
 export type SubnameExpiry =
@@ -33,3 +34,22 @@ export const getSubnameExpirySeconds = (
       return nowSeconds + BigInt(Math.max(days, 1) * SECONDS_PER_DAY)
     })
     .exhaustive()
+
+/** Whether a subname's expiry can be moved later: `renew` never shortens one, so a subname with none of its own, or one already lapsed, can't. */
+export const canExtendExpiry = (
+  expiryDate: Date | null | undefined,
+  nowMs: number,
+): expiryDate is Date => !!expiryDate && expiryDate.getTime() > nowMs
+
+/** The registry expiry a picked span moves `expiryDate` to, counted in calendar days from its day as the picker shows it. */
+export const getExtendedExpirySeconds = (
+  expiryDate: Date,
+  span: ExtensionSpan,
+): bigint =>
+  getSubnameExpirySeconds(
+    { type: 'span', span },
+    {
+      today: dateToPlainDate(expiryDate),
+      nowSeconds: BigInt(Math.floor(expiryDate.getTime() / 1000)),
+    },
+  )

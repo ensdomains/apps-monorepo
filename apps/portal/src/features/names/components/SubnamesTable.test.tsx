@@ -386,6 +386,81 @@ describe('SubnamesTable', () => {
   })
 })
 
+describe('SubnamesTable expiration', () => {
+  // Midday UTC, so the shown UTC day is the same in every zone.
+  const OWN_EXPIRY = new Date(Date.UTC(2027, 5, 26, 12))
+
+  it('lists each ENSv2 subname’s own expiration, or that it has none', () => {
+    render(
+      <SubnamesTable
+        subnames={[
+          { ...createMockSubname('dated.test.eth'), expiryDate: OWN_EXPIRY },
+          { ...createMockSubname('undated.test.eth'), expiryDate: null },
+        ]}
+        name="test.eth"
+      />,
+    )
+
+    const table = within(screen.getByRole('table'))
+    expect(table.getByText('Expiration')).toBeInTheDocument()
+    expect(table.getByText('June 26, 2027')).toBeInTheDocument()
+    expect(table.getByText('No expiry of its own')).toBeInTheDocument()
+  })
+
+  it('leaves the expiration out for ENSv1 rows, which carry none', () => {
+    render(
+      <SubnamesTable
+        subnames={[createMockSubname('v1.test.eth')]}
+        name="test.eth"
+      />,
+    )
+
+    expect(
+      within(screen.getByRole('table')).queryByText('Expiration'),
+    ).toBeNull()
+  })
+
+  it('offers the change only on rows that can move later, and hands over the row', async () => {
+    const onChangeExpiration = vi.fn()
+    render(
+      <SubnamesTable
+        subnames={[
+          {
+            ...createMockSubname('dated.test.eth'),
+            expiryDate: OWN_EXPIRY,
+            canChangeExpiration: true,
+          },
+          {
+            ...createMockSubname('undated.test.eth'),
+            expiryDate: null,
+            canChangeExpiration: false,
+          },
+        ]}
+        name="test.eth"
+        onChangeExpiration={onChangeExpiration}
+      />,
+    )
+
+    const table = within(screen.getByRole('table'))
+    expect(
+      table.queryByRole('button', {
+        name: 'Change the expiration of undated.test.eth',
+      }),
+    ).toBeNull()
+    await userEvent.click(
+      table.getByRole('button', {
+        name: 'Change the expiration of dated.test.eth',
+      }),
+    )
+    expect(onChangeExpiration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'dated.test.eth',
+        expiryDate: OWN_EXPIRY,
+      }),
+    )
+  })
+})
+
 describe('SubnamesTable owner highlight', () => {
   // onshow.eth as the ticket saw it: seven subnames under one owner, delegate
   // and gov under another.

@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { match } from 'ts-pattern'
 import { type Address, keccak256, labelhash, toHex } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestQueryClient } from '@/test-utils/providers'
@@ -120,6 +121,8 @@ vi.mock('@/features/registry/hooks/useIsRegistry', () => ({
  * worth asking at all.
  */
 let hasRootUnregister = false
+/** Whether the caller holds ROLE_RENEW registry-wide, which gates changing an expiration. */
+let hasRootRenew = true
 const hasRolesParams = vi.fn()
 vi.mock('@/features/registry/hooks/useHasRoles', () => ({
   getHasRolesQueryOptions: (params: Record<string, unknown>) => {
@@ -133,9 +136,10 @@ vi.mock('@/features/registry/hooks/useHasRoles', () => ({
         ),
       ],
       queryFn: () =>
-        roles?.[0] === 'ROLE_UNREGISTER'
-          ? hasRootUnregister
-          : !('label' in params),
+        match(roles?.[0])
+          .with('ROLE_UNREGISTER', () => hasRootUnregister)
+          .with('ROLE_RENEW', () => hasRootRenew)
+          .otherwise(() => !('label' in params)),
     }
   },
 }))
@@ -253,6 +257,7 @@ beforeEach(() => {
   resourceRolesFetched.mockReset()
   subnames = []
   hasRootUnregister = false
+  hasRootRenew = true
   allowedResources = null
   protocolVersion = 'ENSv2'
   v1State = null
@@ -661,6 +666,53 @@ describe('subnames route role checks', () => {
   // WEB-1458 follow-up: with the delete gate now per row, selection has to
   // follow it. A table-wide checkbox over per-row permissions would let an
   // operator tick ten names and silently delete two.
+  it.each([
+    ['with ROLE_RENEW on the registry', true, null, ['dated']],
+    [
+      'with ROLE_RENEW on that subname only',
+      false,
+      new Set([BigInt(labelhash('dated')).toString()]),
+      ['dated'],
+    ],
+    ['without ROLE_RENEW', false, new Set<string>(), []],
+  ])(
+    'offers to change the expiration %s, only where its own expiry is still ahead',
+    async (_, hasRenewRole, allowed, offered) => {
+      hasRootRenew = hasRenewRole
+      allowedResources = allowed
+      const DAY_MS = 86_400_000
+      subnames = [
+        { expiryDate: new Date(Date.now() + 30 * DAY_MS), label: 'dated' },
+        { expiryDate: null, label: 'undated' },
+        { expiryDate: new Date(Date.now() - DAY_MS), label: 'lapsed' },
+      ].map(({ expiryDate, label }) => ({
+        name: `${label}.${NAME}`,
+        labelhash: labelhash(label),
+        owner: CONNECTED,
+        protocol: 'v2',
+        expiryDate,
+      }))
+
+      renderRoute()
+
+      const table = await screen.findByRole('table')
+      await waitFor(() =>
+        expect(hasRolesParams).toHaveBeenCalledWith(
+          expect.objectContaining({ roles: ['ROLE_RENEW'] }),
+        ),
+      )
+      await waitFor(() =>
+        expect(
+          within(table)
+            .queryAllByRole('button', { name: /^Change the expiration of / })
+            .map((button) => button.getAttribute('aria-label')),
+        ).toEqual(
+          offered.map((label) => `Change the expiration of ${label}.${NAME}`),
+        ),
+      )
+    },
+  )
+
   it('offers selection only for the rows the account can delete', async () => {
     const otherLabelhash = labelhash('cold')
     subnames = [
