@@ -34,16 +34,26 @@ vi.mock('@ens-apps/transaction-manager', () => ({
     () => '0x1111111111111111111111111111111111111111',
   ),
   planHcaIntentFunding: vi.fn(),
+  quoteHcaIntentFeeUsdc: vi.fn(),
   transactionManager: { startTransaction: vi.fn() },
   waitForTransaction: vi.fn(async () => ({ hash: '0xhash' as Hex })),
 }))
 
 import {
   planHcaIntentFunding,
+  quoteHcaIntentFeeUsdc,
   type RhinestoneSigner,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import {
+  defaultReverseRegistrarAdapterSetNameSnippet,
+  defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
+} from '@ensdomains/ensjs-abi/v2/defaultReverseRegistrarAdapter'
+import {
+  reverseRegistrarAdapterClaimSnippet,
+  reverseRegistrarAdapterClaimWithHcaSnippet,
+} from '@ensdomains/ensjs-abi/v2/reverseRegistrarAdapter'
 import { encodeFunctionData, parseAbi, zeroAddress } from 'viem'
 import { getEnsAddress } from 'viem/actions'
 
@@ -52,6 +62,7 @@ vi.mock('viem/actions', () => ({ getEnsAddress: vi.fn() }))
 import {
   addrReverseNode,
   setPrimaryName,
+  setPrimaryNameWithEthFallback,
   setPrimaryNameWithHca,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
@@ -67,10 +78,12 @@ const EOA_OWNER = '0x3333333333333333333333333333333333333333' as Address
 const CHAIN_ID = 11155111
 const publicClient = {} as PublicClient
 
-const adapterAbi = parseAbi([
-  'function setNameWithHCA(address addr, string name)',
-  'function claimWithHCA(address addr, address resolver) returns (bytes32)',
-])
+const adapterAbi = [
+  ...defaultReverseRegistrarAdapterSetNameSnippet,
+  ...defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
+  ...reverseRegistrarAdapterClaimSnippet,
+  ...reverseRegistrarAdapterClaimWithHcaSnippet,
+] as const
 
 const hcaSigner = {
   type: 'rhinestone',
@@ -459,6 +472,175 @@ describe('setPrimaryNameWithHca funding', () => {
     ).rejects.toThrow(/does not control the owner address/)
 
     expect(start).not.toHaveBeenCalled()
+  })
+})
+
+describe('setPrimaryNameWithEthFallback', () => {
+  const quote = vi.mocked(quoteHcaIntentFeeUsdc)
+
+  type Read = bigint | Error
+  const settle = async (read: Read) => {
+    if (read instanceof Error) throw read
+    return read
+  }
+
+  // USDC balances by holder and the wallet's wei (an Error fails that read), and the addr.reverse resolver.
+  const paymentClient = ({
+    hca,
+    wallet,
+    eth = 10n ** 16n,
+    addrReverseResolver = zeroAddress,
+  }: {
+    readonly hca: Read
+    readonly wallet: Read
+    readonly eth?: Read
+    readonly addrReverseResolver?: Address
+  }) =>
+    ({
+      readContract: vi.fn(
+        async ({
+          functionName,
+          args,
+        }: {
+          functionName: string
+          args: readonly Address[]
+        }) =>
+          functionName === 'balanceOf'
+            ? settle(args[0] === HCA_ADDRESS ? hca : wallet)
+            : addrReverseResolver,
+      ),
+      getBalance: vi.fn(() => settle(eth)),
+      estimateGas: vi.fn(async () => 60_000n),
+      getBlock: vi.fn(async () => ({ baseFeePerGas: 100_000_000n })),
+      // A partial client: the fallback reads only these methods.
+    }) as unknown as PublicClient
+
+  const submit = (publicClient: PublicClient) =>
+    setPrimaryNameWithEthFallback({
+      name: 'leon',
+      signer: hcaSigner,
+      ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
+      publicClient,
+      chainId: CHAIN_ID,
+    })
+
+  type SentCall = { readonly to: Address; readonly data: Hex }
+  const ownerSetName: SentCall = {
+    to: DEFAULT_ADAPTER,
+    data: encodeFunctionData({
+      abi: adapterAbi,
+      functionName: 'setName',
+      args: [EOA_OWNER, 'leon.eth'],
+    }),
+  }
+  const ownerClaim: SentCall = {
+    to: REVERSE_ADAPTER,
+    data: encodeFunctionData({
+      abi: adapterAbi,
+      functionName: 'claim',
+      args: [EOA_OWNER, zeroAddress],
+    }),
+  }
+
+  it.each<{
+    readonly case: string
+    readonly addrReverseResolver: Address
+    readonly sent: readonly SentCall[]
+  }>([
+    {
+      case: 'writes default.reverse through the adapter',
+      addrReverseResolver: zeroAddress,
+      sent: [ownerSetName],
+    },
+    {
+      case: 'also clears a stale addr.reverse through the adapter',
+      addrReverseResolver: '0x00000000000000000000000000000000000000aa',
+      sent: [ownerSetName, ownerClaim],
+    },
+  ])(
+    'with no USDC, the owner pays in ETH and $case',
+    async ({ addrReverseResolver, sent }) => {
+      for (const [i] of sent.entries()) start.mockReturnValueOnce(`tx-${i + 1}`)
+
+      await submit(paymentClient({ hca: 0n, wallet: 0n, addrReverseResolver }))
+
+      expect(planFunding).not.toHaveBeenCalled()
+      expect(quote).not.toHaveBeenCalled()
+      expect(start.mock.calls.map(([intent]) => intent)).toEqual(
+        sent.map((call) => ({
+          type: 'custom',
+          request: {
+            type: 'eoa',
+            from: EOA_OWNER,
+            value: 0n,
+            chainId: CHAIN_ID,
+            ...call,
+          },
+        })),
+      )
+      expect(wait.mock.calls).toEqual(sent.map((_, i) => [`tx-${i + 1}`]))
+    },
+  )
+
+  it('does not clear addr.reverse once the name stops resolving to the owner', async () => {
+    start.mockReturnValue('tx-name')
+    vi.mocked(getEnsAddress)
+      .mockResolvedValueOnce(EOA_OWNER)
+      .mockResolvedValueOnce(HCA_ADDRESS)
+
+    await expect(
+      submit(
+        paymentClient({
+          hca: 0n,
+          wallet: 0n,
+          addrReverseResolver: '0x00000000000000000000000000000000000000aa',
+        }),
+      ),
+    ).rejects.toThrow(/does not resolve to the owner/)
+
+    expect(start.mock.calls.map(([intent]) => intent)).toEqual([
+      expect.objectContaining({
+        request: expect.objectContaining(ownerSetName),
+      }),
+    ])
+  })
+
+  it('keeps the USDC path when the ETH covers the node fee but not a wallet tip', async () => {
+    await submit(paymentClient({ hca: 0n, wallet: 0n, eth: 10n ** 14n }))
+
+    expect(planFunding).toHaveBeenCalledOnce()
+    expect(firstStartArg()).toMatchObject({
+      request: { type: 'rhinestone-intent' },
+    })
+  })
+
+  it.each<{
+    readonly case: string
+    readonly reads: Parameters<typeof paymentClient>[0]
+  }>([
+    {
+      case: 'the wallet covers the quoted fee',
+      reads: { hca: 0n, wallet: 500_000n },
+    },
+    {
+      case: 'USDC covers the fee and the wallet ETH read fails',
+      reads: { hca: 0n, wallet: 500_000n, eth: new Error('rpc down') },
+    },
+    {
+      case: 'the HCA covers the fee and the wallet USDC read fails',
+      reads: { hca: 500_000n, wallet: new Error('rpc down') },
+    },
+  ])('keeps the USDC intent when $case', async ({ reads }) => {
+    quote.mockResolvedValueOnce(200_000n)
+
+    await submit(paymentClient(reads))
+
+    expect(planFunding).toHaveBeenCalledOnce()
+    expect(start).toHaveBeenCalledOnce()
+    expect(firstStartArg()).toMatchObject({
+      request: { type: 'rhinestone-intent' },
+    })
   })
 })
 
