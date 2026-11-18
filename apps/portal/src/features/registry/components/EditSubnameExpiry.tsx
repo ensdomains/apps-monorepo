@@ -65,7 +65,7 @@ const SubnameExpiryAction = ({
     .with({ type: 'change' }, ({ expiryDate }) => (
       <>
         <Button variant="outline" size="xs" onClick={() => setIsEditing(true)}>
-          <PencilIcon className="size-4" />
+          <PencilIcon className="size-3.5" />
           Edit
         </Button>
         {isEditing && (
