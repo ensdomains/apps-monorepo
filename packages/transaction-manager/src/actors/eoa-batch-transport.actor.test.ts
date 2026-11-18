@@ -8,7 +8,7 @@ import {
   toHex,
 } from 'viem'
 import { sepolia } from 'viem/chains'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   AtomicBatchUnsupportedError,
   SignerAddressMismatchError,
@@ -381,6 +381,12 @@ describe('eoa-batch through the transaction machine', () => {
   })
 
   it('resumes the accepted bundle when its step is restarted after a timeout', async () => {
+    const startedRuns: string[] = []
+    onTestFinished(
+      transactionManager.onRunTelemetryStart((runId) =>
+        startedRuns.push(runId),
+      ),
+    )
     let isStatusAvailable = false
     const sendCalls = vi.fn(() => ({ id: CALLS_ID }))
     const signer = signerWith((method) => {
@@ -410,16 +416,19 @@ describe('eoa-batch through the transaction machine', () => {
     // "Try again" restarts the step: it must wait on the same bundle, never
     // prompt for (and pay) a second one.
     isStatusAvailable = true
-    const phases: string[] = []
-    const unsubscribe = transactionManager.onRunTelemetryEvent(({ event }) =>
-      phases.push(event.phase),
+    const successfulRuns: string[] = []
+    onTestFinished(
+      transactionManager.onRunTelemetryEvent(({ runId, status }) => {
+        if (status === 'success') successfulRuns.push(runId)
+      }),
     )
     await expect(waitForTransaction(start())).resolves.toMatchObject({
       hash: TX_HASH,
     })
-    unsubscribe()
     expect(sendCalls).toHaveBeenCalledOnce()
     // The resumed run reports under a fresh telemetry run.
-    expect(phases).toContain('success')
+    expect(startedRuns).toHaveLength(2)
+    expect(startedRuns[1]).not.toBe(startedRuns[0])
+    expect(successfulRuns).toEqual([startedRuns[1]])
   })
 })

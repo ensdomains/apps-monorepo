@@ -80,6 +80,7 @@ vi.mock('wagmi', () => ({
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: {
     onFailedRunTelemetry: vi.fn(() => vi.fn()),
+    onRunTelemetryStart: vi.fn(() => vi.fn()),
     onRunTelemetryEvent: vi.fn(() => vi.fn()),
   },
 }))
@@ -331,8 +332,8 @@ describe('PostHog provider', () => {
     expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
   })
 
-  it('logs failed runs locally and sends only bounded initiating-identity diagnostics', () => {
-    setAnalyticsConsent(posthog, true)
+  it.each([true, false])('gates early failures (%s)', (isGranted) => {
+    setAnalyticsConsent(posthog, isGranted)
     vi.stubEnv('DEV', true)
     const groupCollapsed = vi
       .spyOn(console, 'groupCollapsed')
@@ -342,32 +343,33 @@ describe('PostHog provider', () => {
       .spyOn(console, 'groupEnd')
       .mockImplementation(() => undefined)
     const unsubscribeFailed = vi.fn()
-    const unsubscribeLive = vi.fn()
+    const unsubscribeStart = vi.fn()
+    const unsubscribeCleanup = vi.fn()
     vi.mocked(transactionManager.onFailedRunTelemetry).mockReturnValueOnce(
       unsubscribeFailed,
     )
     vi.mocked(transactionManager.onRunTelemetryEvent).mockReturnValueOnce(
-      unsubscribeLive,
+      unsubscribeCleanup,
+    )
+    vi.mocked(transactionManager.onRunTelemetryStart).mockReturnValueOnce(
+      unsubscribeStart,
     )
 
     const { unmount } = renderProvider()
+    const onStart = vi.mocked(transactionManager.onRunTelemetryStart).mock
+      .calls[0]?.[0]
+    if (!onStart) throw new Error('Missing run start listener')
+    onStart('run')
+    if (!isGranted) setAnalyticsConsent(posthog, true)
     const listener = vi.mocked(transactionManager.onFailedRunTelemetry).mock
       .calls[0]?.[0]
     expect(transactionManager.onFailedRunTelemetry).toHaveBeenCalledTimes(1)
     expect(transactionManager.onRunTelemetryEvent).toHaveBeenCalledTimes(2)
     if (!listener) throw new Error('Missing failure telemetry listener')
-    const runListener = vi.mocked(transactionManager.onRunTelemetryEvent).mock
-      .calls[0]?.[0]
-    if (!runListener) throw new Error('Missing run identity listener')
-    runListener({
-      runId: 'run',
-      txId: 'tx',
-      event: { sequence: 1 },
-    } as Parameters<typeof runListener>[0])
     listener({
       run: { txId: 'tx', runId: 'run', status: 'error' },
-      summary: { failureStage: 'submission', attemptCount: 1 },
-      truncation: { totalEvents: 3, truncated: false, droppedEvents: 0 },
+      summary: { failureStage: 'submission', attemptCount: 0 },
+      truncation: { totalEvents: 1, truncated: false, droppedEvents: 0 },
     } as Parameters<NonNullable<typeof listener>>[0])
 
     expect(groupCollapsed).toHaveBeenCalledWith(
@@ -383,16 +385,24 @@ describe('PostHog provider', () => {
       }),
     )
     expect(groupEnd).toHaveBeenCalledTimes(1)
-    expect(posthog.capture).toHaveBeenCalledWith('transaction:execution_end', {
+    const captures = vi
+      .mocked(posthog.capture)
+      .mock.calls.filter(([event]) => event === 'transaction:execution_end')
+    const properties = {
       operation_id: 'run',
       outcome: 'failure',
       failure_stage: 'submission',
-      attempt_count: 1,
-    })
+      attempt_count: 0,
+    }
+    expect(captures).toEqual(
+      isGranted ? [['transaction:execution_end', properties]] : [],
+    )
     expect(unsubscribeFailed).not.toHaveBeenCalled()
-    expect(unsubscribeLive).not.toHaveBeenCalled()
+    expect(unsubscribeStart).not.toHaveBeenCalled()
+    expect(unsubscribeCleanup).not.toHaveBeenCalled()
     unmount()
     expect(unsubscribeFailed).toHaveBeenCalledTimes(1)
-    expect(unsubscribeLive).toHaveBeenCalledTimes(1)
+    expect(unsubscribeStart).toHaveBeenCalledTimes(1)
+    expect(unsubscribeCleanup).toHaveBeenCalledTimes(1)
   })
 })

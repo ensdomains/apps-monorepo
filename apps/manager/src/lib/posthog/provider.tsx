@@ -77,12 +77,14 @@ export const PHProvider = ({
       string,
       ReturnType<typeof startAnalyticsOperation>
     >()
-    const unsubscribeRunIdentity = transactionManager.onRunTelemetryEvent(
-      ({ runId, event, status }) => {
-        if (event.sequence === 1) {
-          if (runCaptures.size >= 256) runCaptures.clear()
-          runCaptures.set(runId, startAnalyticsOperation())
-        }
+    const unsubscribeRunStart = transactionManager.onRunTelemetryStart(
+      (runId) => {
+        if (runCaptures.size >= 256) runCaptures.clear()
+        runCaptures.set(runId, startAnalyticsOperation())
+      },
+    )
+    const unsubscribeRunCleanup = transactionManager.onRunTelemetryEvent(
+      ({ runId, status }) => {
         if (status === 'success') runCaptures.delete(runId)
       },
     )
@@ -141,7 +143,8 @@ export const PHProvider = ({
       : () => {}
 
     return () => {
-      unsubscribeRunIdentity()
+      unsubscribeRunStart()
+      unsubscribeRunCleanup()
       unsubscribeFailed()
       unsubscribeLive()
     }

@@ -1,8 +1,13 @@
 import type { Hex, PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMachine } from 'xstate'
-import type { ArchivedTransaction } from '../types/audit.types'
+import type {
+  ArchivedTransaction,
+  RunTelemetryEventSubscriber,
+} from '../types/audit.types'
 import type { Signer, TransactionRequest } from '../types/transaction.types'
+
+const onActorStarted = vi.hoisted(() => vi.fn())
 
 // A transaction actor that reaches `success` on the next macrotask, so the
 // manager's subscriber runs its terminal branch. Started *before* the manager
@@ -13,7 +18,7 @@ vi.mock('../machines/transaction.machine', () => ({
     initial: 'submitting',
     context: () => ({}),
     states: {
-      submitting: { after: { 0: 'success' } },
+      submitting: { entry: onActorStarted, after: { 0: 'success' } },
       success: {},
     },
   }),
@@ -57,6 +62,33 @@ function nextArchived(): Promise<ArchivedTransaction> {
 describe('startTransaction', () => {
   beforeEach(() => {
     transactionManager.clear()
+  })
+
+  it('announces the run before starting the actor', async () => {
+    onActorStarted.mockClear()
+    const onStart = vi.fn<(runId: string) => void>()
+    const unsubscribeStart = transactionManager.onRunTelemetryStart(onStart)
+    const onSnapshot = vi.fn<RunTelemetryEventSubscriber>()
+    const unsubscribeSnapshot =
+      transactionManager.onRunTelemetryEvent(onSnapshot)
+    const archived = nextArchived()
+    try {
+      transactionManager.startTransaction(request, signer, {
+        id: 'tx-telemetry',
+        publicClient,
+      })
+
+      expect(onStart).toHaveBeenCalledOnce()
+      expect(onStart).toHaveBeenCalledBefore(onActorStarted)
+      await archived
+      expect(onSnapshot).toHaveBeenCalledOnce()
+      expect(onSnapshot.mock.calls[0]?.[0].runId).toBe(
+        onStart.mock.calls[0]?.[0],
+      )
+    } finally {
+      unsubscribeStart()
+      unsubscribeSnapshot()
+    }
   })
 
   // Registration call sites pass only { id, description, publicClient,

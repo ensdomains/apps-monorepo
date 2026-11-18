@@ -17,7 +17,7 @@ import {
 const MAX_TELEMETRY_BYTES = 900 * 1024
 const MAX_ERROR_TEXT_CHARS = 4096
 
-interface RunBootstrapInput {
+export interface RunBootstrapInput {
   txId: string
   chainId?: number
   intent?: TransactionIntent
@@ -641,17 +641,19 @@ export function estimateTelemetryBytes(payload: unknown): number {
 export function createRunTelemetryService() {
   const runs = new Map<string, RunData>()
 
-  function startRun(input: RunBootstrapInput): void {
+  function startRun(input: RunBootstrapInput): string {
     const initial = buildInitialSnapshot(input)
+    const runId = randomId()
 
     runs.set(input.txId, {
-      runId: randomId(),
+      runId,
       txId: input.txId,
       startedAt: Date.now(),
       initial,
       timeline: [],
       lastTimestamp: Date.now(),
     })
+    return runId
   }
 
   function recordSnapshot(
