@@ -9,9 +9,10 @@ import { useRegistryRepairCase } from '../../hooks/useRegistryRepairCase'
 import { useRegistryUpdate } from '../../hooks/useRegistryUpdate'
 import type { RegistryUpgradeStage } from '../../state/registryUpgrade.machine'
 import {
-  carriedSubnamesText,
+  IS_CASE_B_UPGRADE_OFFERED,
   isUpgradeCardForPage,
   shouldShowUpgradeCard,
+  upgradeCardText,
 } from '../../utils/registryRepairCase'
 import type { RegistryUpdateFailure } from '../../utils/registryUpdate'
 import { RegistryPanel } from './RegistryPanel'
@@ -53,12 +54,16 @@ export const RegistryUpdateNotice = ({
     registryAddress,
     parentRegistry,
     subnameCount,
+    othersSubnameCount,
     sharedRegistryNote,
   } = useRegistryRepairCase(name)
   const [wasShown, setWasShown] = useState(false)
   const isShown =
-    shouldShowUpgradeCard({ repairCase, wasShown }) &&
-    isUpgradeCardForPage({ pageRegistry, nameRegistry: registryAddress })
+    shouldShowUpgradeCard({
+      repairCase,
+      wasShown,
+      isCaseBOffered: IS_CASE_B_UPGRADE_OFFERED,
+    }) && isUpgradeCardForPage({ pageRegistry, nameRegistry: registryAddress })
   if (isShown !== wasShown) setWasShown(isShown)
 
   if (!isShown) return fallback
@@ -69,6 +74,7 @@ export const RegistryUpdateNotice = ({
       registryAddress={registryAddress}
       parentRegistry={parentRegistry}
       subnameCount={subnameCount}
+      othersSubnameCount={othersSubnameCount}
       sharedRegistryNote={sharedRegistryNote}
     />
   )
@@ -80,12 +86,14 @@ const RegistryUpdateCard = ({
   registryAddress,
   parentRegistry,
   subnameCount,
+  othersSubnameCount,
   sharedRegistryNote,
 }: {
   readonly name: string
   readonly registryAddress: Address | undefined
   readonly parentRegistry: Address | undefined
   readonly subnameCount: number | undefined
+  readonly othersSubnameCount: number | undefined
   readonly sharedRegistryNote: string | null
 }) => {
   const { start, stage, canStart, failure, transactions } = useRegistryUpdate({
@@ -99,11 +107,10 @@ const RegistryUpdateCard = ({
       <Alert className="p-5 gap-2" variant="warning">
         <AlertTitle>Upgrade required</AlertTitle>
         <AlertDescription>
-          This registry runs on an older version that has since been fixed.
-          Upgrade it to create subnames or change roles.{' '}
-          {carriedSubnamesText(subnameCount)} will carry over. Inform other
-          users of the registry to use the newly upgraded registry going
-          forward.
+          {upgradeCardText({
+            count: subnameCount,
+            othersCount: othersSubnameCount,
+          })}
         </AlertDescription>
       </Alert>
       {sharedRegistryNote && (

@@ -1,6 +1,9 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
-import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import {
+  eacGrantRolesSnippet,
+  eacRevokeRootRolesSnippet,
+} from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { permissionedRegistryUnregisterSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   userRegistryInitializeSnippet,
@@ -252,6 +255,38 @@ const resumeCopyCalls = ({
   ]).map((groups) => [...(isParentSet ? [] : [setParent]), ...groups.flat()])
 }
 
+/** Root roles the runner holds on the replacement only, and gives back in Case B once the copy is done. */
+const temporaryRootRoles = (
+  original: RegistryRepairState,
+  state: RegistryRepairState,
+  account: Address,
+): bigint => {
+  const isShared = original.names.some(
+    (name) => !isAddressEqual(name.owner, account),
+  )
+  if (!isShared) return 0n
+  return (
+    rolesOf(state.rootRoles, account) & ~rolesOf(original.rootRoles, account)
+  )
+}
+
+// A role is revocable only by an admin of it, so the runner must hold the admin of every temporary role.
+const canGiveBack = (temporary: bigint, runnerRoles: bigint): boolean => {
+  const admins = runnerRoles >> 128n
+  return (temporary & ~((admins << 128n) | admins)) === 0n
+}
+
+/** A stopped Case B run may have given its temporary roles back already; the copy is then what the original was. */
+const isRelinquished = (
+  original: RegistryRepairState,
+  existing: RegistryRepairState | null,
+  account: Address,
+  temporary: bigint,
+): boolean =>
+  temporary !== 0n &&
+  existing !== null &&
+  rolesOf(existing.rootRoles, account) === rolesOf(original.rootRoles, account)
+
 /** Calls that copy a registry into `replacement` and switch its parent name to it; `existing` (the replacement's state, or null) resumes a stopped copy. */
 export const planRegistryRepair = ({
   state: original,
@@ -277,6 +312,10 @@ export const planRegistryRepair = ({
   const state = withRunnerRootRoles(original, account)
   const problem = findPlanProblem(state, account)
   if (problem) return err(problem)
+  const temporary = temporaryRootRoles(original, state, account)
+  if (!canGiveBack(temporary, rolesOf(state.rootRoles, account)))
+    return err(new RegistryRepairPlanError({ reason: 'missing-root-roles' }))
+  const hasRelinquished = isRelinquished(original, existing, account, temporary)
 
   const deploy = call(
     factory,
@@ -312,7 +351,16 @@ export const planRegistryRepair = ({
   )
 
   const copyCalls = existing
-    ? resumeCopyCalls({ state, existing, replacement, account, setParent })
+    ? resumeCopyCalls({
+        state: hasRelinquished ? original : state,
+        existing,
+        replacement,
+        account,
+        setParent,
+      }).andThen((calls) =>
+        // Without its temporary roles the runner can't finish a copy; a fresh attempt can.
+        hasRelinquished && calls.length > 0 ? err(diverged()) : ok(calls),
+      )
     : ok([
         deploy,
         setParent,
@@ -336,6 +384,18 @@ export const planRegistryRepair = ({
             }),
           ),
         ),
+      ...(temporary !== 0n && !hasRelinquished
+        ? [
+            call(
+              replacement,
+              encodeFunctionData({
+                abi: eacRevokeRootRolesSnippet,
+                functionName: 'revokeRootRoles',
+                args: [temporary, account],
+              }),
+            ),
+          ]
+        : []),
       switchParent,
     ],
     unmovedChildren: children.filter((child) => child.action === 'leave'),

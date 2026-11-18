@@ -1,5 +1,8 @@
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
-import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import {
+  eacGrantRolesSnippet,
+  eacRevokeRootRolesSnippet,
+} from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { permissionedRegistryUnregisterSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import {
   userRegistryInitializeSnippet,
@@ -64,6 +67,7 @@ const ABI = [
   ...eacGrantRolesSnippet,
   ...userRegistrySetSubregistrySnippet,
   ...permissionedRegistryUnregisterSnippet,
+  ...eacRevokeRootRolesSnippet,
 ]
 const decode = (data: Hex) => decodeFunctionData({ abi: ABI, data })
 
@@ -183,6 +187,66 @@ describe('planRegistryRepair', () => {
         plan(makeState(), { account: ALICE, existing })._unsafeUnwrap()
           .copyCalls,
       ).toEqual([])
+    })
+  })
+
+  describe('Case B: an account without root roles, with subnames others own', () => {
+    const ADMINS = makeState().rootRoles
+    const finalSteps = (existing: RegistryRepairState | null = null) =>
+      plan(makeState(), { account: BOB, existing })
+        ._unsafeUnwrap()
+        .finalCalls.map((c) => decode(c.data))
+
+    it('gives its temporary root roles back after the copy, before the switch', () => {
+      const [revoke, switchParent] = finalSteps()
+
+      expect(revoke?.functionName).toBe('revokeRootRoles')
+      expect(revoke?.args).toEqual([ALL, BOB])
+      expect(switchParent?.functionName).toBe('setSubregistry')
+    })
+
+    it('keeps them when it owns every subname (Case A)', () => {
+      const finalCalls = plan(makeState(), { account: ALICE })._unsafeUnwrap()
+        .finalCalls
+
+      expect(finalCalls.map((c) => decode(c.data).functionName)).toEqual([
+        'setSubregistry',
+      ])
+    })
+
+    it('still gives them back when a resume finds them on the copy', () => {
+      const existing = makeState({
+        rootRoles: [...ADMINS, { account: BOB, roleBitmap: ALL }],
+      })
+
+      expect(finalSteps(existing).map((step) => step.functionName)).toEqual([
+        'revokeRootRoles',
+        'setSubregistry',
+      ])
+    })
+
+    it('only switches when a stop came after giving them back', () => {
+      expect(finalSteps(makeState()).map((step) => step.functionName)).toEqual([
+        'setSubregistry',
+      ])
+    })
+
+    it("refuses when the admins' roles come without the admin roles needed to give them back", () => {
+      const state = makeState({
+        rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR_AND_PARENT }],
+      })
+
+      expect(plan(state, { account: BOB })._unsafeUnwrapErr().reason).toBe(
+        'missing-root-roles',
+      )
+    })
+
+    it('starts a fresh copy when the roles are gone but the copy is not whole', () => {
+      const existing = makeState({ names: [] })
+
+      expect(
+        plan(makeState(), { account: BOB, existing })._unsafeUnwrapErr().reason,
+      ).toBe('replacement-diverged')
     })
   })
 
