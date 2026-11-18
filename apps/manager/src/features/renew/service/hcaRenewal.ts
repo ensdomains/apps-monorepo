@@ -47,6 +47,7 @@ import {
   decideRenewalPayment,
   getPromptWalletDebit,
 } from '../utils/renewalFunding'
+import { classifyRenewalFillError } from '../utils/renewalOutcome'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { type HcaRenewalEthFunding, swapEthForRenewal } from './renewalEthSwap'
 
@@ -832,6 +833,7 @@ export async function submitHcaRenewal(
   // Assigned by `startTransaction` below; the transport reports the submitted
   // intent only after that returns.
   let txId: string | undefined
+  let isIntentAccepted = false
   const request: RhinestoneTransactionRequest = {
     type: 'rhinestone-intent',
     from: hca,
@@ -847,6 +849,7 @@ export async function submitHcaRenewal(
       // Fires once the owner has signed and the orchestrator holds the
       // intent, before the fill: nothing is left to approve from here.
       onIntentSubmitted: () => {
+        isIntentAccepted = true
         if (txId) onSubmitted?.(txId)
       },
     },
@@ -865,6 +868,7 @@ export async function submitHcaRenewal(
       publicClient,
       chainId,
       operation: 'renew-name',
+      initiatingWalletAddress: ownerAddress,
       // An accepted intent can still fill after its status request fails.
       retryCount: 0,
     },
@@ -873,7 +877,9 @@ export async function submitHcaRenewal(
 
   // The transport resolves the tx once the intent has FILLED, so awaiting here
   // means callers can treat a resolved promise as "renewed", not "submitted".
-  await waitForTransaction(txId)
+  await waitForTransaction(txId).catch((error: unknown) =>
+    Promise.reject(classifyRenewalFillError(error, isIntentAccepted)),
+  )
 
   return {
     txId,

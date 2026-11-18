@@ -31,6 +31,7 @@ import {
   submitHcaRenewal,
 } from '@/features/renew/service/hcaRenewal'
 import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
+import { isUnobservedRenewal } from '@/features/renew/utils/renewalOutcome'
 import {
   getRenewerAddress,
   type RenewalProtocol,
@@ -430,14 +431,16 @@ export const renewalUiMachine = setup({
     },
     analyticsComplete: ({ context }) => captureRenewalComplete(context),
     analyticsFailure: (
-      { context },
+      { context, event },
       params: { readonly stage: 'approval' | 'execution' | 'verification' },
-    ) =>
+    ) => {
+      if ('error' in event && isUnobservedRenewal(event.error)) return
       context.analytics.capture('renewal:stage_fail', {
         ...getAnalyticsProperties(context, envConfig.chain.id),
         stage: params.stage,
         is_retryable: true,
-      }),
+      })
+    },
     analyticsRetry: ({ context }) =>
       context.analytics.capture('renewal:flow_retry', {
         ...getAnalyticsProperties(context, envConfig.chain.id),

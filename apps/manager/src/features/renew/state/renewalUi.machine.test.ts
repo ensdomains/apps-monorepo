@@ -1,3 +1,4 @@
+import { CallsBundleTimeoutError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import {
   type HcaDisplayedDebit,
   HcaFundingDeclinedError,
@@ -681,6 +682,19 @@ describe('renewal paid with ETH', () => {
 })
 
 describe('renewal analytics operation lifetime', () => {
+  it('keeps the retry UI without reporting a receipt timeout as a failure', async () => {
+    const timeout = new CallsBundleTimeoutError('renew-bundle', 120_000)
+    mocks.pollTransactionStatusActor.mockReturnValue(errAsync(timeout))
+    const actor = startRenewal()
+    await waitForState(actor, 'failure')
+    expect(actor.getSnapshot().context.lastErrorMessage).toBe(timeout.message)
+    expect(mocks.capture).not.toHaveBeenCalledWith(
+      'renewal:stage_fail',
+      expect.anything(),
+    )
+    actor.stop()
+  })
+
   it.each(['approval', 'execution', 'verification'] as const)(
     'attributes a renewal failure to %s',
     async (stage) => {

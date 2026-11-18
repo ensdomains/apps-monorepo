@@ -34,6 +34,7 @@ import {
 } from '@/features/renew/service/hcaRenewal'
 import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
+import { isUnobservedRenewal } from '@/features/renew/utils/renewalOutcome'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
 import { type AnalyticsFlow, bindAnalyticsFlow } from '@/lib/posthog/flow'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
@@ -528,14 +529,15 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
 
   const failWith = (error: Error) => {
     const analytics = analyticsRef.current
-    analytics?.capture('renewal:stage_fail', {
-      flow_id: analytics.flow_id,
-      is_bulk: true,
-      protocol_version: 'v2',
-      stage: 'execution',
-      is_retryable: true,
-      completed_count: completedRef.current.size,
-    })
+    if (!isUnobservedRenewal(error))
+      analytics?.capture('renewal:stage_fail', {
+        flow_id: analytics.flow_id,
+        is_bulk: true,
+        protocol_version: 'v2',
+        stage: 'execution',
+        is_retryable: true,
+        completed_count: completedRef.current.size,
+      })
     failedRef.current = true
     setErrorMessage(error.message)
     setStatuses((prev) => {

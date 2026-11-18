@@ -78,7 +78,12 @@ export const PHProvider = ({
       ReturnType<typeof startAnalyticsOperation>
     >()
     const unsubscribeRunStart = transactionManager.onRunTelemetryStart(
-      (runId) => {
+      (runId, wallet) => {
+        if (
+          wallet &&
+          getConnectedWalletAddress()?.toLowerCase() !== wallet.toLowerCase()
+        )
+          return
         if (runCaptures.size >= 256) runCaptures.clear()
         runCaptures.set(runId, startAnalyticsOperation())
       },

@@ -32,7 +32,10 @@ import type {
 type TransactionChangeListener = (
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>,
 ) => void
-type RunTelemetryStartListener = (runId: string) => void
+type RunTelemetryStartListener = (
+  runId: string,
+  initiatingWalletAddress?: Address,
+) => void
 
 /**
  * A transaction that has reached a terminal state, emitted to
@@ -686,9 +689,14 @@ class TransactionManager {
 
   private startTelemetryRun(input: RunBootstrapInput): void {
     const runId = this.runTelemetry.startRun(input)
+    const wallet =
+      input.options?.initiatingWalletAddress ??
+      (input.signer?.type === 'eoa'
+        ? input.signer.walletClient.account?.address
+        : undefined)
     this.telemetryStartListeners.forEach((listener) => {
       try {
-        listener(runId)
+        listener(runId, wallet)
       } catch (error) {
         logger.error('Run telemetry start listener crashed', error)
       }

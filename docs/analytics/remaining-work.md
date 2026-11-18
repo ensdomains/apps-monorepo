@@ -4,7 +4,7 @@ Keep review focused on correctness and the [QA checklist](qa.md), not new event 
 
 ## Before shipping
 
-- Correct Manager single/bulk renewal timeout reporting and consent-transition flag-exposure reporting; see the known limitations in [configuration](configuration.md).
+- Correct consent-transition flag-exposure reporting; see the known limitation in [configuration](configuration.md).
 - Complete real-wallet stage/failure/retry QA, especially mixed bulk renewal, optional registration setup, profile image saves, NFT wallet switching and reload recovery.
 - Verify staging proxy ingestion and essential flag/notice parity against the exact tested build. Prior browser passes do not verify later code changes.
 

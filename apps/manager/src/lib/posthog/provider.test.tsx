@@ -332,7 +332,8 @@ describe('PostHog provider', () => {
     expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
   })
 
-  it.each([true, false])('gates early failures (%s)', (isGranted) => {
+  it.each([true, false, 'switch'] as const)('gates run (%s)', (scenario) => {
+    const isGranted = scenario !== false
     setAnalyticsConsent(posthog, isGranted)
     vi.stubEnv('DEV', true)
     const groupCollapsed = vi
@@ -359,7 +360,12 @@ describe('PostHog provider', () => {
     const onStart = vi.mocked(transactionManager.onRunTelemetryStart).mock
       .calls[0]?.[0]
     if (!onStart) throw new Error('Missing run start listener')
-    onStart('run')
+    if (scenario === 'switch') {
+      walletState.address = '0x2222222222222222222222222222222222222222'
+      walletState.status = 'connected'
+      walletState.identity = walletState.address
+    }
+    onStart('run', scenario === 'switch' ? WALLET.address : undefined)
     if (!isGranted) setAnalyticsConsent(posthog, true)
     const listener = vi.mocked(transactionManager.onFailedRunTelemetry).mock
       .calls[0]?.[0]
@@ -395,7 +401,7 @@ describe('PostHog provider', () => {
       attempt_count: 0,
     }
     expect(captures).toEqual(
-      isGranted ? [['transaction:execution_end', properties]] : [],
+      scenario === true ? [['transaction:execution_end', properties]] : [],
     )
     expect(unsubscribeFailed).not.toHaveBeenCalled()
     expect(unsubscribeStart).not.toHaveBeenCalled()

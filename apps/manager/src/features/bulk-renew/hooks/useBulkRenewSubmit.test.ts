@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: test fixtures use loose typing
 import { HcaFundingDeclinedError } from '@ens-apps/transaction-manager'
+import { CallsBundleTimeoutError } from '@ens-apps/transaction-manager/errors/transaction.errors'
 import { act, renderHook } from '@testing-library/react'
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -167,6 +168,21 @@ beforeEach(() => {
 })
 
 describe('useBulkRenewSubmit (smart account)', () => {
+  it('keeps retry available without counting an unobserved fill as failed', async () => {
+    const timeout = new CallsBundleTimeoutError('renew-bundle', 120_000)
+    mocks.submitHcaRenewal.mockRejectedValueOnce(timeout)
+    const { result } = renderHook(() => useBulkRenewSubmit())
+    await act(async () => {
+      await result.current.submit(args)
+    })
+    expect(result.current.phase).toBe('error')
+    expect(result.current.errorMessage).toBe(timeout.message)
+    expect(mocks.capture).not.toHaveBeenCalledWith(
+      'renewal:stage_fail',
+      expect.anything(),
+    )
+  })
+
   it('fails fast when no wallet is connected', async () => {
     mocks.useSmartAccountContext.mockReturnValue(disconnected)
     const { result } = renderHook(() => useBulkRenewSubmit())

@@ -66,7 +66,7 @@ describe('startTransaction', () => {
 
   it('announces the run before starting the actor', async () => {
     onActorStarted.mockClear()
-    const onStart = vi.fn<(runId: string) => void>()
+    const onStart = vi.fn<(runId: string, wallet?: Hex) => void>()
     const unsubscribeStart = transactionManager.onRunTelemetryStart(onStart)
     const onSnapshot = vi.fn<RunTelemetryEventSubscriber>()
     const unsubscribeSnapshot =
@@ -76,9 +76,11 @@ describe('startTransaction', () => {
       transactionManager.startTransaction(request, signer, {
         id: 'tx-telemetry',
         publicClient,
+        initiatingWalletAddress: FROM,
       })
 
       expect(onStart).toHaveBeenCalledOnce()
+      expect(onStart.mock.calls[0]?.[1]).toBe(FROM)
       expect(onStart).toHaveBeenCalledBefore(onActorStarted)
       await archived
       expect(onSnapshot).toHaveBeenCalledOnce()
