@@ -1920,6 +1920,10 @@ msgstr ""
 msgid "Making your name work everywhere"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Manage advanced settings in ENS Explorer"
+msgstr ""
+
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Manage everything in one place"
 msgstr ""

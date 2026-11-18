@@ -13,10 +13,15 @@ import {
 } from './ProfileAction.styles'
 
 type ProfileExploreActionProps = {
+  /** Owners are sent to Explorer to manage the name, so the tooltip says so. */
+  readonly isOwner?: boolean
   readonly target: ExplorerTarget
 }
 
-export const ProfileExploreAction = ({ target }: ProfileExploreActionProps) => {
+export const ProfileExploreAction = ({
+  isOwner = false,
+  target,
+}: ProfileExploreActionProps) => {
   const href = getExplorerUrl(EXPLORER_URL, target)
   if (!href) return null
 
@@ -37,7 +42,11 @@ export const ProfileExploreAction = ({ target }: ProfileExploreActionProps) => {
         </a>
       </TooltipTrigger>
       <TooltipContent className="max-w-50 text-center">
-        <Trans>View details and history in ENS Explorer</Trans>
+        {isOwner ? (
+          <Trans>Manage advanced settings in ENS Explorer</Trans>
+        ) : (
+          <Trans>View details and history in ENS Explorer</Trans>
+        )}
       </TooltipContent>
     </Tooltip>
   )

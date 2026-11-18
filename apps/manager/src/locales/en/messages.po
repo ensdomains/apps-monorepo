@@ -1915,6 +1915,10 @@ msgstr "Make it yours"
 msgid "Making your name work everywhere"
 msgstr "Making your name work everywhere"
 
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Manage advanced settings in ENS Explorer"
+msgstr "Manage advanced settings in ENS Explorer"
+
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Manage everything in one place"
 msgstr "Manage everything in one place"

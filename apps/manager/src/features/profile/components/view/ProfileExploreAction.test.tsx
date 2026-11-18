@@ -41,4 +41,21 @@ describe('ProfileExploreAction', () => {
       }),
     ).toBeInTheDocument()
   })
+
+  it('tells the owner they can manage the name in Explorer', async () => {
+    render(
+      <ProfileExploreAction
+        isOwner
+        target={{ kind: 'name', name: 'nick.eth' }}
+      />,
+    )
+
+    act(() => screen.getByRole('link', { name: 'Explore' }).focus())
+
+    expect(
+      await screen.findByRole('tooltip', {
+        name: 'Manage advanced settings in ENS Explorer',
+      }),
+    ).toBeInTheDocument()
+  })
 })

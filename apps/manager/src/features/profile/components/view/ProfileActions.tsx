@@ -55,7 +55,7 @@ export const ProfileDesktopActions = ({
   <div className={desktopActionClusterClassName}>
     <ProfileFavoriteAction name={name} />
     <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-    <ProfileExploreAction target={{ kind: 'name', name }} />
+    <ProfileExploreAction isOwner={isOwner} target={{ kind: 'name', name }} />
     <ProfileRenewAction
       className={renewActionClassName}
       isOwner={isOwner}
@@ -90,7 +90,7 @@ export const ProfileActions = ({
     <>
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-      <ProfileExploreAction target={{ kind: 'name', name }} />
+      <ProfileExploreAction isOwner={isOwner} target={{ kind: 'name', name }} />
       <ProfileRenewAction
         className={renewActionClassName}
         isOwner={isOwner}
