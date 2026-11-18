@@ -178,10 +178,10 @@ describe('upgradeCardText', () => {
     [12, 3, 'All 12 subnames, including 3 owned by others, and their settings'],
     [1, 1, 'Its 1 subname, owned by someone else, and its settings'],
   ] as const)(
-    'tells a Case B account what carries over without promising it roles, for %s subnames',
+    'tells a Case B account what carries over, for %s subnames',
     (count, othersCount, carried) => {
       expect(upgradeCardText({ count, othersCount })).toBe(
-        `${OPENING} Upgrade it so subnames can be created and roles changed again. ${carried} ${CLOSING}`,
+        `${OPENING} Upgrade it to create subnames or change roles. ${carried} will carry over. Their owners don't need to do anything. Inform other users of the registry to use the newly upgraded registry going forward.`,
       )
     },
   )

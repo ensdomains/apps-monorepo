@@ -102,7 +102,7 @@ const sharedSubnamesText = (count: number, othersCount: number): string =>
     ? 'Its 1 subname, owned by someone else, and its settings'
     : `All ${count} subnames, including ${othersCount} owned by others, and their settings`
 
-/** The upgrade card's text: Case A as written in WEB-2168; Case B (others own subnames) promises nothing to the upgrader. */
+/** The upgrade card's text, as approved for Case A (WEB-2168) and Case B (WEB-2169). */
 export const upgradeCardText = ({
   count,
   othersCount,
@@ -111,13 +111,10 @@ export const upgradeCardText = ({
   readonly othersCount: number | undefined
 }): string => {
   const isShared = count !== undefined && (othersCount ?? 0) > 0
-  const opening = isShared
-    ? 'Upgrade it so subnames can be created and roles changed again.'
-    : 'Upgrade it to create subnames or change roles.'
   const carried = isShared
-    ? sharedSubnamesText(count, othersCount ?? 0)
-    : carriedSubnamesText(count)
-  return `This registry runs on an older version that has since been fixed. ${opening} ${carried} will carry over. Inform other users of the registry to use the newly upgraded registry going forward.`
+    ? `${sharedSubnamesText(count, othersCount ?? 0)} will carry over. Their owners don't need to do anything.`
+    : `${carriedSubnamesText(count)} will carry over.`
+  return `This registry runs on an older version that has since been fixed. Upgrade it to create subnames or change roles. ${carried} Inform other users of the registry to use the newly upgraded registry going forward.`
 }
 
 const MAX_LISTED_NAMES = 3
