@@ -20,8 +20,8 @@ import { cn } from '@/lib/utils'
 
 declare module '@tanstack/react-table' {
   interface ColumnMeta<TData, TValue> {
-    /** Fixed column width, in px or a share of the table; switches the table to fixed layout. */
-    width?: number | `${number}%`
+    /** Fixed column width in px; switches the table to fixed layout. */
+    width?: number
   }
 }
 

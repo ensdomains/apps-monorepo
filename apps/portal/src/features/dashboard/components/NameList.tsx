@@ -34,6 +34,8 @@ const NameCell = ({ name }: { name: string }) => (
   </EntityBadge>
 )
 
+const tableClassName = 'hidden md:block [&_th:nth-child(2)]:w-1/2'
+
 const columns: ColumnDef<column>[] = [
   {
     accessorKey: 'name',
@@ -45,8 +47,6 @@ const columns: ColumnDef<column>[] = [
   },
   {
     id: 'expiryDate',
-    // Half the table, so "{date} · Expires with {name}" fits on one line.
-    meta: { width: '50%' },
     header: 'Expiration',
     cell: ({ row }) => <NameExpiry {...row.original} />,
   },
@@ -123,7 +123,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
 
       {/* Desktop view - Table layout */}
       {data.length > 0 && (
-        <div className="hidden md:block">
+        <div className={tableClassName}>
           <DataTable data={data} columns={columns} />
         </div>
       )}
@@ -157,7 +157,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
               />
             ))}
           </div>
-          <div className="hidden md:block">
+          <div className={tableClassName}>
             <DataTable data={assigned} columns={columns} />
           </div>
         </section>
