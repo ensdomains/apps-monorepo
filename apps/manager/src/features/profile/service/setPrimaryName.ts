@@ -43,6 +43,7 @@ import { assertPrimaryNameForwardResolution } from './primaryNameForwardAddress'
 import {
   type PrimaryNamePaymentInputs,
   selectPrimaryNamePayment,
+  walletEthCost,
 } from './primaryNamePayment'
 import { requireCanonicalPrimaryName } from './profileName'
 
@@ -411,22 +412,26 @@ export async function setPrimaryName({
   await waitForTransaction(reverseTxId)
 }
 
-/** Wei the owner's adapter calls are estimated to cost at the current max fee, stale `addr.reverse` included. */
+/** Wei the wallet wants for the owner's adapter calls, stale `addr.reverse` included. */
 const estimateOwnerPrimaryNameCost = async (
   publicClient: PublicClient,
   ownerAddress: Address,
   cleanName: string,
 ): Promise<bigint> => {
   const calls = primaryNameAdapterCalls('owner', ownerAddress, cleanName, true)
-  const [gas, { maxFeePerGas }] = await Promise.all([
+  const [gas, { baseFeePerGas }] = await Promise.all([
     Promise.all(
       calls.map(({ to, data }) =>
         publicClient.estimateGas({ account: ownerAddress, to, data }),
       ),
     ),
-    publicClient.estimateFeesPerGas(),
+    publicClient.getBlock(),
   ])
-  return gas.reduce((sum, units) => sum + units, 0n) * maxFeePerGas
+  if (baseFeePerGas === null) throw new Error('No base fee on this chain')
+  return walletEthCost(
+    gas.reduce((sum, units) => sum + units, 0n),
+    baseFeePerGas,
+  )
 }
 
 /** Balances, the USDC fee and the ETH cost {@link selectPrimaryNamePayment} decides on. */

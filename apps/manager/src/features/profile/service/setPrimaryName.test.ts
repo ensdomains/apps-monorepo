@@ -511,8 +511,8 @@ describe('setPrimaryNameWithEthFallback', () => {
       ),
       getBalance: vi.fn(() => settle(eth)),
       estimateGas: vi.fn(async () => 60_000n),
-      estimateFeesPerGas: vi.fn(async () => ({ maxFeePerGas: 2_000_000_000n })),
-      // A partial client: the fallback reads only these four methods.
+      getBlock: vi.fn(async () => ({ baseFeePerGas: 100_000_000n })),
+      // A partial client: the fallback reads only these methods.
     }) as unknown as PublicClient
 
   const submit = (publicClient: PublicClient) =>
@@ -604,6 +604,15 @@ describe('setPrimaryNameWithEthFallback', () => {
         request: expect.objectContaining(ownerSetName),
       }),
     ])
+  })
+
+  it('keeps the USDC path when the ETH covers the node fee but not a wallet tip', async () => {
+    await submit(paymentClient({ hca: 0n, wallet: 0n, eth: 10n ** 14n }))
+
+    expect(planFunding).toHaveBeenCalledOnce()
+    expect(firstStartArg()).toMatchObject({
+      request: { type: 'rhinestone-intent' },
+    })
   })
 
   it.each<{

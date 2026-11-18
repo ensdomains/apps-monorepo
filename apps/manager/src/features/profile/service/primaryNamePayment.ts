@@ -1,3 +1,5 @@
+import { parseGwei } from 'viem'
+
 /** How a primary-name update pays: the HCA intent in USDC, or the owner's own transactions in ETH. */
 export type PrimaryNamePayment = 'usdc' | 'eth'
 
@@ -13,6 +15,13 @@ export interface PrimaryNamePaymentInputs {
   /** Wei the direct transactions are estimated to cost, or `null` when unknown. */
   readonly ethCost: bigint | null
 }
+
+/** The tip a wallet adds by default: MetaMask's "Market" priority fee on mainnet, which the node's own estimate is far below. */
+const WALLET_PRIORITY_FEE_WEI = parseGwei('2')
+
+/** Wei the wallet wants to hold for `gas`: twice the base fee plus {@link WALLET_PRIORITY_FEE_WEI}. */
+export const walletEthCost = (gas: bigint, baseFeePerGas: bigint): bigint =>
+  gas * (2n * baseFeePerGas + WALLET_PRIORITY_FEE_WEI)
 
 /** USDC by default; ETH when only ETH can pay. With neither, USDC runs so its funding error shows. */
 export const selectPrimaryNamePayment = ({

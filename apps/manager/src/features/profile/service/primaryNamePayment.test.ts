@@ -3,6 +3,7 @@ import {
   type PrimaryNamePayment,
   type PrimaryNamePaymentInputs,
   selectPrimaryNamePayment,
+  walletEthCost,
 } from './primaryNamePayment'
 
 const run = (overrides: Partial<PrimaryNamePaymentInputs>) =>
@@ -73,5 +74,14 @@ describe('selectPrimaryNamePayment', () => {
     },
   ])('$case → $expected', ({ inputs, expected }) => {
     expect(run(inputs)).toBe(expected)
+  })
+})
+
+describe('walletEthCost', () => {
+  it('prices gas at twice the base fee plus the wallet tip, far above the node fee', () => {
+    // 166k gas at a 0.146 gwei base: mainnet's adapter calls, November 2026.
+    expect(walletEthCost(166_000n, 146_000_000n)).toBe(
+      166_000n * (292_000_000n + 2_000_000_000n),
+    )
   })
 })
