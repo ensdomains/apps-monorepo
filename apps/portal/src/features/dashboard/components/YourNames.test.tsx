@@ -85,6 +85,16 @@ describe('YourNames', () => {
     )
   })
 
+  it.each([
+    ['a name with no expiry', item('forever.box', null), 'Does not expire'],
+    ['a name past its date', v2Name('lapsed.eth', -5n), 'Expired'],
+  ])('labels %s', async (_, name, label) => {
+    renderNames([name])
+
+    const [row] = await screen.findAllByRole('listitem')
+    expect(within(row).getByText(label)).toBeInTheDocument()
+  })
+
   it('shows four names, then reveals more on demand', async () => {
     renderNames(
       Array.from({ length: 6 }, (_, i) =>

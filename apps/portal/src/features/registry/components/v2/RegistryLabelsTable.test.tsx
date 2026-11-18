@@ -43,23 +43,26 @@ vi.mock('@/components/EntityBadge', () => ({
 
 /** Whether the registry's own name is still being read. */
 let isRegistryPending = false
+let registryName = 'parent.eth'
 vi.mock('../../hooks/useRegistry', () => ({
   getRegistryInfoQueryOptions: () => ({
     queryKey: ['registryInfo'],
     queryFn: () =>
-      isRegistryPending ? new Promise(() => {}) : { name: 'parent.eth' },
+      isRegistryPending ? new Promise(() => {}) : { name: registryName },
   }),
 }))
 
-/** Whether the registry name's expiry read is still in flight. */
+/** Whether the registry name's expiry read is still in flight, or fails. */
 let isParentPending = false
+let isParentReadFailing = false
 vi.mock('@/features/profile/hooks/useRegistrationData', () => ({
   getRegistrationDataQueryOptions: ({ name }: { name: string }) => ({
     queryKey: ['registrationData', name],
-    queryFn: () =>
-      isParentPending
-        ? new Promise(() => {})
-        : { expiry: name === 'parent.eth' ? inDays(100) : null },
+    queryFn: () => {
+      if (isParentPending) return new Promise(() => {})
+      if (isParentReadFailing) throw new Error('read failed')
+      return { expiry: name === 'parent.eth' ? inDays(100) : null }
+    },
   }),
 }))
 
@@ -73,6 +76,8 @@ describe('RegistryLabelsTable expiry', () => {
     vi.setSystemTime(new Date('2026-11-05T12:00:00Z'))
     isParentPending = false
     isRegistryPending = false
+    isParentReadFailing = false
+    registryName = 'parent.eth'
   })
 
   afterEach(() => {
@@ -113,6 +118,39 @@ describe('RegistryLabelsTable expiry', () => {
         .slice(1)
         .map((row) => row.textContent?.match(/^(right|beep|soon)/)?.[0]),
     ).toEqual(['soon', 'right', 'beep'])
+  })
+
+  it('shows Never for a label with no expiry and no name above, sorting it last', async () => {
+    registryName = 'box'
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
+      </QueryClientProvider>,
+    )
+    await screen.findByText('right')
+    expect(rowText('right')).toContain('Never')
+
+    await userEvent.click(screen.getByRole('button', { name: /Expiration/ }))
+
+    expect(
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => row.textContent?.match(/^(right|beep|soon)/)?.[0]),
+    ).toEqual(['soon', 'beep', 'right'])
+  })
+
+  it('says Expires with parent when the name above couldn’t be read', async () => {
+    isParentReadFailing = true
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('right')).toBeInTheDocument()
+    expect(rowText('right')).toContain('Expires with parent')
+    expect(rowText('soon')).toContain('November 15, 2026')
   })
 
   it('waits for the registry’s name before showing any label’s expiry', async () => {

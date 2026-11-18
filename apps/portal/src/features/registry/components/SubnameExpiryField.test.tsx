@@ -42,3 +42,19 @@ it('shows the description and picker only once Set expiration is ticked, a year 
   expect(onChange).toHaveBeenLastCalledWith(DEFAULT_SUBNAME_EXPIRY)
   expect(screen.queryByText(/The new owner loses it/)).toBeNull()
 })
+
+it('keeps a duration changed in the picker', async () => {
+  const onChange = vi.fn()
+  const user = userEvent.setup()
+  const { container } = render(<Harness onChange={onChange} />)
+
+  await user.click(screen.getByRole('checkbox', { name: /Set expiration/ }))
+  const increase = container.querySelector('.lucide-plus')?.closest('button')
+  if (!increase) throw new Error('no increase button')
+  await user.click(increase)
+
+  expect(onChange).toHaveBeenLastCalledWith({
+    type: 'span',
+    span: { type: 'years', years: 2 },
+  })
+})
