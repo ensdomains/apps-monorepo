@@ -1,4 +1,4 @@
-import { readAllCollectionPages } from '@ens-apps/indexer/bigname'
+import { readAllItems } from '@ens-apps/indexer/reads'
 import { isKnownPublicResolver } from '@ens-apps/migration'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getSupportedInterfaces } from '@ensdomains/ensjs/public'
@@ -36,7 +36,7 @@ import {
 } from 'viem'
 import { envConfig } from '@/config'
 import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { publicClient } from '@/lib/wagmi'
 import {
   addressRecords,
@@ -508,36 +508,31 @@ export const importResolverRecords = async (
     'Source records are shown for reference. Only records you edit will be saved to the replacement resolver.',
   ]
   const blockedKeys: string[] = []
-  const inventory = await bigname.nameRecords(name, {
-    namespace: 'ens',
-    include: ['inventory'],
-  })
-  const indexedKeys = inventory.isOk()
-    ? inventory.value.data.inventory
-      ? [
-          ...inventory.value.data.inventory.known_keys,
-          ...inventory.value.data.inventory.unset_keys,
-        ]
-      : undefined
+  const recordKeys = await indexer.getRecordKeys({ name })
+  // An unindexed name, one without an inventory and a failed read all block the import.
+  const inventory = recordKeys.isOk()
+    ? (recordKeys.value?.inventory ?? null)
+    : null
+  const indexedKeys = inventory
+    ? [...inventory.knownKeys, ...inventory.unsetKeys]
     : undefined
   // Interface and data keys are recorded in resolver events, not every inventory.
   // Use the same paginated event source as migration replay, including cleared keys.
-  const events = await readAllCollectionPages((cursor, signal) =>
-    bigname.events(
+  const events = await readAllItems((cursor, signal) =>
+    indexer.getEvents(
       {
         name,
-        resolver: `${envConfig.chain.id}:${source.resolver.toLowerCase()}`,
-        type: ['record'],
-        include: ['data'],
-        page_size: 200,
+        resolver: source.resolver,
+        types: ['record'],
+        pageSize: 200,
         ...(cursor !== undefined && { cursor }),
       },
       { signal },
     ),
   )
   const eventKeys = events.isOk()
-    ? events.value.flatMap((row) =>
-        row.type === 'record' && row.data?.key ? [row.data.key] : [],
+    ? events.value.flatMap((event) =>
+        event.type === 'record' && event.data.key ? [event.data.key] : [],
       )
     : []
   if (!indexedKeys || events.isErr()) {
@@ -629,10 +624,7 @@ export const importResolverRecords = async (
   })
   const requiredKeys = new Set([
     ...keys.map((key) => (key.toLowerCase() === 'abi' ? 'ABI' : key)),
-    ...(inventory.isOk() &&
-    inventory.value.data.inventory?.abi_content_types?.length
-      ? ['ABI']
-      : []),
+    ...(inventory?.abiContentTypes?.length ? ['ABI'] : []),
     ...(shouldReadPubkey ? ['pubkey'] : []),
   ])
   const failures = failedKeys.filter(

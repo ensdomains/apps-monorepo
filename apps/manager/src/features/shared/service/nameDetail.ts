@@ -1,21 +1,18 @@
-import { readNameDetail, retryStale } from '@ens-apps/indexer/bigname'
-import type { IndexerReadError } from '@ens-apps/indexer/reads'
+import { retryStaleRead } from '@ens-apps/indexer/reads'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 
-const readDetail = readNameDetail(bigname)
-
-/** One name detail read, sent again while bigname answers stale. */
+/** One name detail read, sent again while the indexer answers stale. */
 export const getNameDetail = (name: string, signal?: AbortSignal) =>
-  retryStale(
-    (requestSignal) => readDetail({ name }, { signal: requestSignal }),
-    (error: IndexerReadError) => error.kind === 'stale',
+  retryStaleRead(
+    (requestSignal) =>
+      indexer.getNameDetail({ name }, { signal: requestSignal }),
     { signal },
   )
 
-/** A name's indexed detail, or null when bigname has not indexed it. */
+/** A name's indexed detail, or null when the indexer has not indexed it. */
 export const getNameDetailQueryOptions = (name: string | undefined) =>
   resultQueryOptions({
     queryKey: qk('name', 'detail', { name: name ?? null }),

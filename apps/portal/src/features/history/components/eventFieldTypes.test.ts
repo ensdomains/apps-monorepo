@@ -1,3 +1,4 @@
+import { toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import { chain } from '@/config'
 import { TOKENS } from '@/lib/tokens'
@@ -123,8 +124,10 @@ describe('getDecodedParamEntries', () => {
 const iso = (seconds: string) => new Date(Number(seconds) * 1000).toISOString()
 
 describe('getDecodedParamEntries', () => {
-  const entriesOf = (row: Parameters<typeof toTimelineEvents>[0][number]) =>
-    Object.fromEntries(getDecodedParamEntries(toTimelineEvents([row])[0]))
+  const entriesOf = (row: Parameters<typeof toHistoryEvent>[0]) =>
+    Object.fromEntries(
+      getDecodedParamEntries(toTimelineEvents([row].map(toHistoryEvent))[0]),
+    )
 
   it('lists an ENSv2 registration with its token, canonical id, charge and referrer', () => {
     const { data } = mockHistoryRegistrationPayment
@@ -138,7 +141,9 @@ describe('getDecodedParamEntries', () => {
         },
       },
     }
-    const entries = getDecodedParamEntries(toTimelineEvents([row])[0])
+    const entries = getDecodedParamEntries(
+      toTimelineEvents([row].map(toHistoryEvent))[0],
+    )
     expect(Object.fromEntries(entries)).toMatchObject({
       token_id: data.token_id,
       canonical_id: data.canonical_id,
@@ -183,7 +188,9 @@ describe('getDecodedParamEntries', () => {
     const { data } = mockEventRootPermissionChanged
     expect(
       getDecodedParamEntries(
-        toTimelineEvents([mockEventRootPermissionChanged])[0],
+        toTimelineEvents(
+          [mockEventRootPermissionChanged].map(toHistoryEvent),
+        )[0],
       ),
     ).toEqual([
       ['address', data.address],
@@ -212,7 +219,9 @@ describe('getDecodedParamEntries', () => {
   it('lists rows without the newer fields exactly as served', () => {
     const registration = mockHistoryRegistration.data
     expect(
-      getDecodedParamEntries(toTimelineEvents([mockHistoryRegistration])[0]),
+      getDecodedParamEntries(
+        toTimelineEvents([mockHistoryRegistration].map(toHistoryEvent))[0],
+      ),
     ).toEqual([
       ['action_id', registration.action_id],
       ['action_role', 'linked'],
@@ -221,7 +230,9 @@ describe('getDecodedParamEntries', () => {
     ])
     const permission = mockHistoryRootPermission.data
     expect(
-      getDecodedParamEntries(toTimelineEvents([mockHistoryRootPermission])[0]),
+      getDecodedParamEntries(
+        toTimelineEvents([mockHistoryRootPermission].map(toHistoryEvent))[0],
+      ),
     ).toEqual([
       ['added_powers', ''],
       ['address', permission.address],

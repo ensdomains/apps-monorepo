@@ -247,6 +247,43 @@ describe('createBignameIndexer', () => {
     expect((await read())._unsafeUnwrapErr().kind).toBe('rejected')
   })
 
+  it('dates a lapsed reserved ENSv1 name by its lease and serves its reservation', async () => {
+    const owner = '0x1111111111111111111111111111111111111111'
+    const { indexer, urlOf } = indexerWith(
+      createBignameIndexer,
+      envelope([
+        {
+          name: 'old.eth',
+          display_name: 'old.eth',
+          namespace: 'ens',
+          namehash: '0x01',
+          status: 'expired',
+          authority: 'ens_v1',
+          expires_at: '1799006556',
+          ens_v1: { expires_at: '1793649756' },
+          relations: ['former_owner'],
+          is_primary: false,
+          lapsed_registration: { owner, release_kind: 'expired' },
+        },
+      ]),
+    )
+
+    const names = await indexer.getLapsedNames({
+      address: owner,
+      now: new Date('2026-11-17T00:00:00Z'),
+      since: new Date('2026-10-18T00:00:00Z'),
+    })
+
+    expect(names._unsafeUnwrap()).toMatchObject([
+      {
+        name: 'old.eth',
+        expiresAt: new Date(1793649756 * 1000),
+        servedExpiry: 1799006556n,
+      },
+    ])
+    expect(urlOf()).toContain('relation=former_owner')
+  })
+
   it('reports the indexed block of its own chain', async () => {
     const { indexer } = indexerWith(
       createBignameIndexer,

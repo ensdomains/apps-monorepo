@@ -25,7 +25,7 @@ import {
   parseAbi,
   zeroAddress,
 } from 'viem'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { publicClient } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isMaybeDebugName, loadDebugProfiles } from '@/utils/debug-features'
@@ -77,10 +77,10 @@ const isNameRejection = (returnData: Hex): boolean =>
 // Viewing/editing commonly used fields remains possible while the index
 // is unavailable. Resolver replacement performs a separate warned import.
 const getRecordKeys = (name: string) =>
-  bigname
-    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => selectProfileRecordKeys(data.inventory))
-    .orElse(() => okAsync(selectProfileRecordKeys(undefined)))
+  indexer
+    .getRecordKeys({ name })
+    .map((keys) => selectProfileRecordKeys(keys?.inventory ?? null))
+    .orElse(() => okAsync(selectProfileRecordKeys(null)))
 
 export const getProfileRecords = ResultFn(async function* (name: string) {
   const debugProfiles = isMaybeDebugName(name)

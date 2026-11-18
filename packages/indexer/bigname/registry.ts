@@ -8,7 +8,7 @@ import type {
   ResolverRoleGrant,
   RootRoleGrants,
 } from '../reads/registry.types'
-import { toAddress, toDate, toExpiresAt } from './adapters'
+import { toAddress, toDate, toExpiresAt, toNextCursor } from './adapters'
 import type * as T from './types'
 
 const toPage = <Row, Item>(
@@ -16,7 +16,7 @@ const toPage = <Row, Item>(
   toItem: (row: Row) => Item,
 ): Page<Item> => ({
   items: data.map(toItem),
-  nextCursor: page?.next_cursor ?? null,
+  nextCursor: toNextCursor(page),
   totalCount: page?.total_count ?? null,
 })
 
@@ -43,7 +43,7 @@ export const toRegistry = (registry: T.Registry): Registry => ({
       name,
       namehash,
     })),
-    nextCursor: registry.referenced_by.page.next_cursor,
+    nextCursor: toNextCursor(registry.referenced_by.page),
     totalCount: registry.referenced_by.page.total_count,
   },
 })
@@ -74,7 +74,7 @@ export const toResolverOverview = (
       namehash: record.namehash,
       owner: toAddress(record.owner),
     })),
-    nextCursor: overview.bound_names.page.next_cursor,
+    nextCursor: toNextCursor(overview.bound_names.page),
     totalCount: overview.bound_names.page.total_count,
   },
 })

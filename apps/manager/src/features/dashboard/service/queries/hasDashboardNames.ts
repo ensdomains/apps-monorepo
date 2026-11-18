@@ -1,4 +1,3 @@
-import { readNamesForAddress } from '@ens-apps/indexer/bigname'
 import type {
   NameSummary,
   Page,
@@ -11,7 +10,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { isListedName } from '../../dashboardNames'
 
 // Reverse records are the names the dashboard hides that usually come first,
@@ -53,6 +52,6 @@ export const getHasDashboardNamesQueryOptions = (
       address: address?.toLowerCase() ?? null,
     }),
     queryFn: address
-      ? () => hasDashboardNames(readNamesForAddress(bigname), address)
+      ? () => hasDashboardNames(indexer.getNamesForAddress, address)
       : skipToken,
   })

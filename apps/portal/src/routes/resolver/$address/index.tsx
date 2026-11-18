@@ -45,7 +45,7 @@ import { queryClient } from '@/utils/queryClient'
 export const Route = createFileRoute('/resolver/$address/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  // Started, not awaited: a slow bigname read must not hold the page blank.
+  // Started, not awaited: a slow indexer read must not hold the page blank.
   loader: ({ params }) => {
     void queryClient.prefetchQuery(
       getResolverOverviewQueryOptions({ address: params.address }),

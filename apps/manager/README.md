@@ -107,6 +107,11 @@ Worker's domain routing and Rhinestone credentials separately:
 `RHINESTONE_PROJECT_ID`, `RHINESTONE_APP_ID`, `RHINESTONE_KEY_ID`.
 The mainnet token rate limiter uses a separate namespace.
 
+`VITE_INDEXER` picks the indexer a build reads: `bigname` (the default),
+`goldsky` (mainnet only) or `zigens` (zigens for ENSv2, ENSNode for ENSv1).
+Their endpoints come from the network profile in `@ens-apps/config`. The ENSv1
+migration reads always use bigname.
+
 ## Notes
 
 - `pnpm typecheck` builds the api-worker's exported types first.

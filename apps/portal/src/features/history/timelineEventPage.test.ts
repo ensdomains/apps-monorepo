@@ -1,14 +1,14 @@
-import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
+import type { HistoryEvent } from '@ens-apps/indexer/reads'
 import { okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getNameHistory = vi.fn()
 const listEvents = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    nameHistory: (...args: unknown[]) =>
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNameHistory: (...args: unknown[]) =>
       ResultAsync.fromPromise(getNameHistory(...args), (e) => e),
-    events: (...args: unknown[]) =>
+    getEvents: (...args: unknown[]) =>
       ResultAsync.fromPromise(listEvents(...args), (e) => e),
   },
 }))
@@ -21,34 +21,27 @@ const { fetchContractEventsPage, fetchNameHistoryPage } = await import(
   './timelineEventPage'
 )
 
-const row = (over: Partial<NameHistoryRow> = {}): NameHistoryRow =>
+const row = (over: Partial<HistoryEvent> = {}): HistoryEvent =>
   ({
     id: 'a'.repeat(64),
     type: 'record',
     name: 'alice.eth',
-    namespace: 'ens',
-    registration_id: null,
-    block_number: 100,
-    timestamp: '1781049606',
-    transaction_hash: '0xabc',
-    log_index: 12,
-    contract_address: '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63',
+    registrationId: null,
+    blockNumber: 100,
+    timestamp: new Date(1_781_049_606_000),
+    transactionHash: '0xabc',
+    logIndex: 12,
+    contractAddress: '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63',
     kind: 'RecordChanged',
     data: { key: 'addr:60', coin_type: 60, value: '0x01' },
     ...over,
-  }) as NameHistoryRow
+  }) as HistoryEvent
 
-const page = (data: NameHistoryRow[], over = {}) => ({
-  data,
-  page: {
-    cursor: null,
-    next_cursor: 'next',
-    page_size: 100,
-    total_count: 7,
-    has_more: true,
-    ...over,
-  },
-  meta: {},
+const page = (items: HistoryEvent[], over = {}) => ({
+  items,
+  nextCursor: 'next',
+  totalCount: 7,
+  ...over,
 })
 
 describe('fetchNameHistoryPage', () => {
@@ -67,15 +60,14 @@ describe('fetchNameHistoryPage', () => {
     })
 
     expect(getNameHistory).toHaveBeenCalledWith(
-      'alice.eth',
       {
-        namespace: 'ens',
-        include: ['data', 'raw'],
-        type: ['resolver', 'record'],
-        from_timestamp: '1700000000',
-        to_timestamp: '1700086399',
+        name: 'alice.eth',
+        includeChildRegistrations: false,
+        types: ['resolver', 'record'],
+        from: new Date(1_700_000_000_000),
+        to: new Date(1_700_086_399_000),
         order: 'desc',
-        page_size: 100,
+        pageSize: 100,
         cursor: 'c1',
       },
       expect.anything(),
@@ -103,17 +95,17 @@ describe('fetchNameHistoryPage', () => {
       name: 'alice.eth',
       includeChildRegistrations: true,
     })
-    expect(getNameHistory.mock.lastCall?.[1].include).toEqual([
-      'data',
-      'raw',
-      'child_registrations',
-    ])
+    expect(getNameHistory.mock.lastCall?.[0].includeChildRegistrations).toBe(
+      true,
+    )
 
     await fetchNameHistoryPage({ name: 'eth', includeChildRegistrations: true })
-    expect(getNameHistory.mock.lastCall?.[1].include).toEqual(['data', 'raw'])
+    expect(getNameHistory.mock.lastCall?.[0].includeChildRegistrations).toBe(
+      false,
+    )
   })
 
-  it('does not ask bigname for an empty type set', async () => {
+  it('does not ask the indexer for an empty type set', async () => {
     const result = await fetchNameHistoryPage({ name: 'alice.eth', types: [] })
     expect(getNameHistory).not.toHaveBeenCalled()
     expect(result._unsafeUnwrap()).toMatchObject({
@@ -129,12 +121,12 @@ describe('fetchNameHistoryPage', () => {
           row({
             id: 'lapse',
             type: 'release',
-            transaction_hash: null,
-            log_index: null,
+            transactionHash: null,
+            logIndex: null,
           }),
-          row({ id: 'nowhere', block_number: null, timestamp: null }),
+          row({ id: 'nowhere', blockNumber: null, timestamp: null }),
         ],
-        { total_count: null, has_more: false, next_cursor: null },
+        { totalCount: null, nextCursor: null },
       ),
     )
     const result = (
@@ -145,13 +137,22 @@ describe('fetchNameHistoryPage', () => {
     expect(result.totalCount).toBeUndefined()
   })
 
-  it('reads a name bigname has not indexed as an empty history', async () => {
-    getNameHistory.mockRejectedValue({ code: 'not_found' })
+  it('reads a name the indexer has not indexed as an empty history', async () => {
+    getNameHistory.mockResolvedValue(null)
     const result = await fetchNameHistoryPage({ name: 'jesse.base.eth' })
     expect(result._unsafeUnwrap()).toMatchObject({ events: [], totalCount: 0 })
   })
 
-  it('surfaces a bigname failure as an error result', async () => {
+  it('fails when a later page finds the name no longer indexed', async () => {
+    getNameHistory.mockResolvedValue(null)
+    const result = await fetchNameHistoryPage({
+      name: 'jesse.base.eth',
+      cursor: 'c1',
+    })
+    expect(result.isErr()).toBe(true)
+  })
+
+  it('surfaces an indexer failure as an error result', async () => {
     getNameHistory.mockRejectedValue(new Error('stale'))
     const result = await fetchNameHistoryPage({ name: 'alice.eth' })
     expect(result.isErr()).toBe(true)
@@ -160,17 +161,17 @@ describe('fetchNameHistoryPage', () => {
 
 describe('fetchContractEventsPage', () => {
   it('reads one contract’s events, newest first, with their exact total', async () => {
-    listEvents.mockResolvedValue(page([row()], { total_count: 13_587 }))
+    listEvents.mockResolvedValue(page([row()], { totalCount: 13_587 }))
     const result = await fetchContractEventsPage({
       contractAddress: '0xABCdef0000000000000000000000000000000001',
       cursor: 'c2',
     })
     expect(listEvents).toHaveBeenCalledWith(
       {
-        contract_address: '0xabcdef0000000000000000000000000000000001',
-        include: ['data', 'raw', 'total_count'],
+        contractAddress: '0xabcdef0000000000000000000000000000000001',
+        includeTotal: true,
         order: 'desc',
-        page_size: 100,
+        pageSize: 100,
         cursor: 'c2',
       },
       expect.anything(),
@@ -213,7 +214,7 @@ describe('fetchContractEventsPage', () => {
           }),
           row({ id: 'future', type: 'future_type' as never, data: {} }),
         ],
-        { has_more: false, next_cursor: null },
+        { nextCursor: null },
       ),
     )
     const result = (

@@ -1,13 +1,13 @@
-import { BignameError } from '@ens-apps/indexer/bigname'
+import { IndexerReadError } from '@ens-apps/indexer'
 import { QueryClient } from '@tanstack/react-query'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const listRegistryLabels = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    registryLabels: (...args: unknown[]) =>
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getRegistryLabels: (...args: unknown[]) =>
       ResultAsync.fromPromise(listRegistryLabels(...args), (e) => e),
   },
 }))
@@ -21,19 +21,16 @@ const ACCOUNT: Address = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 const OTHER: Address = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
 const counted = (
-  total_count: number | null,
+  totalCount: number | null,
   owners: readonly (Address | undefined)[] = [],
-  has_more = false,
+  hasMore = false,
 ) => ({
-  data: owners.map((owner, index) => ({ name: `${index}.test.eth`, owner })),
-  page: {
-    cursor: null,
-    next_cursor: has_more ? 'next-page' : null,
-    page_size: 200,
-    total_count,
-    has_more,
-  },
-  meta: {},
+  items: owners.map((owner, index) => ({
+    name: `${index}.test.eth`,
+    owner: owner ?? null,
+  })),
+  nextCursor: hasMore ? 'next-page' : null,
+  totalCount,
 })
 
 const options = () =>
@@ -56,9 +53,7 @@ describe('getRegistryOccupants', () => {
       thirdPartyCount: 2,
     })
     expect(listRegistryLabels).toHaveBeenCalledExactlyOnceWith(
-      expect.any(Number),
-      REGISTRY.toLowerCase(),
-      { page_size: 200 },
+      { address: REGISTRY, pageSize: 200 },
       expect.anything(),
     )
   })
@@ -96,9 +91,7 @@ describe('getRegistryOccupants', () => {
     })
     expect(listRegistryLabels).toHaveBeenCalledTimes(2)
     expect(listRegistryLabels).toHaveBeenLastCalledWith(
-      expect.any(Number),
-      REGISTRY.toLowerCase(),
-      { exclude_owner: ACCOUNT.toLowerCase(), page_size: 1 },
+      { address: REGISTRY, excludeOwner: ACCOUNT.toLowerCase(), pageSize: 1 },
       expect.anything(),
     )
   })
@@ -114,13 +107,13 @@ describe('getRegistryOccupants', () => {
     expect(listRegistryLabels).toHaveBeenCalledTimes(2)
   })
 
-  it('is unknown when bigname declines to count the registry', async () => {
+  it('is unknown when the indexer declines to count the registry', async () => {
     listRegistryLabels.mockResolvedValue(counted(null, [ACCOUNT], true))
     await expect(fetchOccupants()).resolves.toBeNull()
     expect(listRegistryLabels).toHaveBeenCalledTimes(1)
   })
 
-  it('is unknown when bigname declines to count the third parties', async () => {
+  it('is unknown when the indexer declines to count the third parties', async () => {
     listRegistryLabels
       .mockResolvedValueOnce(counted(703, [ACCOUNT], true))
       .mockResolvedValueOnce(counted(null, [OTHER], true))
@@ -143,14 +136,8 @@ describe('getRegistryOccupants', () => {
     expect(listRegistryLabels).toHaveBeenCalledTimes(1)
   })
 
-  it('cannot size a registry bigname has not indexed', async () => {
-    listRegistryLabels.mockRejectedValue(
-      new BignameError({
-        status: 404,
-        code: 'not_found',
-        message: 'registry not found',
-      }),
-    )
+  it('cannot size a registry the indexer has not indexed', async () => {
+    listRegistryLabels.mockResolvedValue(null)
     await expect(fetchOccupants()).resolves.toBeNull()
     expect(listRegistryLabels).toHaveBeenCalledTimes(1)
   })
@@ -158,10 +145,10 @@ describe('getRegistryOccupants', () => {
   it.each([1, 2])(
     'propagates a failure in request %i rather than reporting no third parties',
     async (request) => {
-      const error = new BignameError({
-        status: 503,
-        code: 'overloaded',
+      const error = new IndexerReadError({
+        kind: 'unavailable',
         message: 'unavailable',
+        cause: undefined,
       })
       if (request === 2)
         listRegistryLabels.mockResolvedValueOnce(counted(703, [ACCOUNT], true))

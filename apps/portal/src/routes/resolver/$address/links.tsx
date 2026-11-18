@@ -1,4 +1,4 @@
-import type { Completeness } from '@ens-apps/indexer/bigname'
+import type { Completeness } from '@ens-apps/indexer/reads'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'

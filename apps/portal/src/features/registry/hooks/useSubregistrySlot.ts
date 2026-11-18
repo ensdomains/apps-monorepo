@@ -1,5 +1,4 @@
-import type { BignameError, NameHistoryRow } from '@ens-apps/indexer/bigname'
-import type { IndexerReadError } from '@ens-apps/indexer/reads'
+import type { HistoryEvent, IndexerReadError } from '@ens-apps/indexer/reads'
 import { fromSync, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -10,12 +9,12 @@ import type { Address } from 'viem'
 import { normalize } from 'viem/ens'
 import { envConfig } from '@/config'
 import { readIndexedNameDetail } from '@/features/profile/hooks/useNameDetail'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 
 class GetSubregistryHistoryError extends TaggedError(
   'GetSubregistryHistoryError',
 )<{
-  cause: BignameError | IndexerReadError
+  cause: IndexerReadError
 }> {}
 
 type GetSubregistryHistoryParameters = {
@@ -24,7 +23,7 @@ type GetSubregistryHistoryParameters = {
 
 /**
  * The ENSv1 registries: the legacy registry and the 2017 mainnet one it
- * replaced (its `old()`). bigname files an ENSv1 `NewOwner` (`setSubnodeOwner`)
+ * replaced (its `old()`). The indexer files an ENSv1 `NewOwner` (`setSubnodeOwner`)
  * as a `subregistry` row too, and that is not an ENSv2 subregistry link, so
  * rows these contracts emitted do not count. Not `ensRegistry`: that is the
  * ENSv2 .eth registry, which emits every 2LD's links.
@@ -65,7 +64,7 @@ export const readSubregistryHistory = ({
   v1Registries,
   currentRegistrationId,
 }: {
-  readonly rows: readonly NameHistoryRow[]
+  readonly rows: readonly HistoryEvent[]
   readonly hasMore: boolean
   readonly v1Registries: ReadonlySet<string>
   /** The name's registration now; a restore must undo a clear made in it. */
@@ -75,17 +74,17 @@ export const readSubregistryHistory = ({
   // must not read as `never-configured`.
   const links = rows.filter(
     (row) =>
-      !row.contract_address ||
-      !v1Registries.has(row.contract_address.toLowerCase()),
+      !row.contractAddress ||
+      !v1Registries.has(row.contractAddress.toLowerCase()),
   )
   if (links.length === 0 && hasMore) return null
   const lastLink = links
     .flatMap((row) =>
-      row.type === 'subregistry' && row.data?.subregistry
+      row.type === 'subregistry' && row.data.subregistry
         ? [
             {
               registry: row.data.subregistry.address,
-              registrationId: row.registration_id,
+              registrationId: row.registrationId,
             },
           ]
         : [],
@@ -96,15 +95,15 @@ export const readSubregistryHistory = ({
     linkCount: links.length,
     previousRegistry: lastLink?.registry,
     // Across a re-registration the old registry is a former holder's, and a
-    // row with no registration proves neither way. bigname files an expiry's
+    // row with no registration proves neither way. The indexer files an expiry's
     // clear under the lapsed registration and a re-registration without a
     // registry emits nothing, so the clear must also be in the current one.
     isRestorable:
       lastWrite?.type === 'subregistry' &&
-      !lastWrite.data?.subregistry &&
-      lastWrite.registration_id !== null &&
-      lastWrite.registration_id === lastLink?.registrationId &&
-      lastWrite.registration_id === currentRegistrationId,
+      !lastWrite.data.subregistry &&
+      lastWrite.registrationId !== null &&
+      lastWrite.registrationId === lastLink?.registrationId &&
+      lastWrite.registrationId === currentRegistrationId,
   }
 }
 
@@ -126,23 +125,25 @@ export const getSubregistryHistory = ({
     return okAsync<SubregistryHistory | null, GetSubregistryHistoryError>(null)
 
   return ResultAsync.combine([
-    bigname.nameHistory(normalized.value, {
-      namespace: 'ens',
-      type: ['subregistry'],
-      include: ['data'],
-      page_size: SUBREGISTRY_HISTORY_WINDOW,
+    indexer.getNameHistory({
+      name: normalized.value,
+      types: ['subregistry'],
+      pageSize: SUBREGISTRY_HISTORY_WINDOW,
     }),
     readIndexedNameDetail({ name: normalized.value }),
   ])
     .mapErr((cause) => new GetSubregistryHistoryError({ cause }))
-    .map(([{ data, page }, detail]) =>
-      // bigname answers newest first by default.
-      readSubregistryHistory({
-        rows: data,
-        hasMore: page?.has_more ?? false,
-        v1Registries: ENS_V1_REGISTRIES,
-        currentRegistrationId: detail?.registrationId ?? null,
-      }),
+    .map(([page, detail]) =>
+      // Unindexed is unknown: `never-configured` would offer the re-mint write.
+      page === null
+        ? null
+        : // The indexer answers newest first by default.
+          readSubregistryHistory({
+            rows: page.items,
+            hasMore: page.nextCursor !== null,
+            v1Registries: ENS_V1_REGISTRIES,
+            currentRegistrationId: detail?.registrationId ?? null,
+          }),
     )
 }
 

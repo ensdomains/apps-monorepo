@@ -1,5 +1,4 @@
-import { BignameError } from '@ens-apps/indexer/bigname'
-import { ResultAsync } from 'neverthrow'
+import { createBignameIndexer } from '@ens-apps/indexer'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -11,25 +10,34 @@ const REGISTRY: Address = '0xd4ebcbBDf463c9C45784603DB0ddD499BC44A8b4'
 const HOLDER = getAddress('0x84d3a426d4e12e955d1df95db0b24fe26afe39d3')
 
 const listPermissions = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    permissions: (...args: unknown[]) =>
-      ResultAsync.fromPromise(listPermissions(...args), (e) => e),
-  },
+vi.mock('@/lib/indexer', () => ({
+  indexer: createBignameIndexer({
+    baseUrl: 'https://bigname.test',
+    chainId: 11155111,
+    fetch: async (input) => {
+      const answer = await listPermissions(new URL(String(input)))
+      const { status, body } =
+        'status' in answer ? answer : { status: 200, body: answer }
+      return new Response(JSON.stringify(body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      })
+    },
+  }),
 }))
 
 const { getRegistryRootRoles } = await import('./useRegistryRootRoleHolders')
 
+const apiError = (status: number, code: string, message: string) => ({
+  status,
+  body: { error: { code, message, details: {} } },
+})
+
 /** An unsupported deployment is an error, never a signal to scan RPC logs. */
 const unknownRegistryParam = () =>
-  new BignameError({
-    status: 400,
-    code: 'invalid_input',
-    message: 'unknown query parameter: registry',
-  })
+  apiError(400, 'invalid_input', 'unknown query parameter: registry')
 
-const overloaded = () =>
-  new BignameError({ status: 503, code: 'overloaded', message: 'overloaded' })
+const overloaded = () => apiError(503, 'overloaded', 'overloaded')
 
 const run = () => getRegistryRootRoles({ registryAddress: REGISTRY })
 
@@ -53,13 +61,12 @@ describe('getRegistryRootRoles', () => {
         ],
         areOperatorRolesUnlisted: false,
       })
-      expect(listPermissions).toHaveBeenLastCalledWith(
-        {
-          registry: `11155111:${REGISTRY.toLowerCase()}`,
-          page_size: 200,
-        },
-        expect.anything(),
-      )
+      const [url] = listPermissions.mock.lastCall as [URL]
+      expect(url.pathname).toBe('/v1/permissions')
+      expect(Object.fromEntries(url.searchParams)).toEqual({
+        registry: `11155111:${REGISTRY.toLowerCase()}`,
+        page_size: '200',
+      })
     })
 
     it('says operator-held roles are unlisted for a discovered registry, on an empty page too', async () => {
@@ -121,15 +128,11 @@ describe('getRegistryRootRoles', () => {
       ['an unsupported deployment', unknownRegistryParam()],
       [
         'a different 400',
-        new BignameError({
-          status: 400,
-          code: 'invalid_input',
-          message: 'registry is invalid',
-        }),
+        apiError(400, 'invalid_input', 'registry is invalid'),
       ],
       ['an outage', overloaded()],
     ])('errors on %s rather than falling back', async (_, error) => {
-      listPermissions.mockRejectedValue(error)
+      listPermissions.mockResolvedValue(error)
 
       const result = await run()
 

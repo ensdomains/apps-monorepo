@@ -11,7 +11,7 @@ import {
   mergePrimaryNameDomains,
 } from './getPrimaryNameDomains'
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('@/lib/indexer', () => ({ indexer: {} }))
 
 const ADDRESS = '0x0000000000000000000000000000000000000abc'
 const OWNER = '0x0000000000000000000000000000000000000def'

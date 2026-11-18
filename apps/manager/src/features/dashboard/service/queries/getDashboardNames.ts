@@ -1,10 +1,5 @@
-import {
-  type BignameClient,
-  type BignameError,
-  readGraceNames,
-  readNamesForAddress,
-} from '@ens-apps/indexer/bigname'
 import type {
+  IndexerClient,
   IndexerReadError,
   NamesForAddressQuery,
   ReadNamesForAddress,
@@ -20,7 +15,7 @@ import { type QueryClient, skipToken } from '@tanstack/react-query'
 import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { toBulkRenewName, toSelectableDomain } from '../../bulkRenewSelection'
 import {
   type AddressNamesChunk,
@@ -68,23 +63,18 @@ export const invalidateDashboardNames = (
 export class GetDashboardNamesError extends TaggedError(
   'GetDashboardNamesError',
 )<{
-  cause: BignameError | IndexerReadError
+  cause: IndexerReadError
 }> {}
 
 /** `relation=any` drops an ENSv2 name once it expires, but it stays renewable through grace. */
 const getGraceNames = (
-  addressNames: BignameClient['addressNames'],
+  readGraceNames: IndexerClient['getGraceNames'],
   address: Address,
   now: Date,
   signal: AbortSignal | undefined,
 ) =>
-  readGraceNames(
-    { addressNames },
-    address,
-    BigInt(Math.floor(now.getTime() / 1000)),
-    signal,
-  )
-    .map((rows) => rows.flatMap((row) => toGraceName(row) ?? []))
+  readGraceNames({ address, now }, { signal })
+    .map((names) => names.flatMap((name) => toGraceName(name) ?? []))
     .mapErr((error) => new GetDashboardNamesError({ cause: error }))
 
 export const DASHBOARD_PAGE_SIZE = 5
@@ -238,7 +228,7 @@ export const getDashboardNamesInfiniteQueryOptions = (
     initialPageParam: START,
     queryFn: ({ pageParam }) =>
       readDashboardChunks(
-        readNamesForAddress(bigname),
+        indexer.getNamesForAddress,
         query,
         pageParam,
         getDashboardNameVisibility((name) =>
@@ -260,7 +250,7 @@ export const getDashboardNamesInfiniteQueryOptions = (
 
 /** The connected addresses' ENSv2 names in grace, which `relation=any` no longer lists. */
 export const getDashboardGraceNames = (
-  addressNames: BignameClient['addressNames'],
+  readGraceNames: IndexerClient['getGraceNames'],
   addresses: readonly Address[],
   {
     now = new Date(),
@@ -269,7 +259,7 @@ export const getDashboardGraceNames = (
 ) =>
   ResultAsync.combine(
     addresses.map((address) =>
-      getGraceNames(addressNames, address, now, signal),
+      getGraceNames(readGraceNames, address, now, signal),
     ),
   ).map((collections) => mergeDashboardNames(collections.flat()))
 
@@ -283,7 +273,9 @@ export const getDashboardGraceNamesQueryOptions = (
     queryFn:
       addresses.length > 0
         ? ({ signal }) =>
-            getDashboardGraceNames(bigname.addressNames, addresses, { signal })
+            getDashboardGraceNames(indexer.getGraceNames, addresses, {
+              signal,
+            })
         : skipToken,
     meta: {
       dependsOn: ['indexer'],
@@ -296,7 +288,7 @@ const isRenewable = (name: DashboardName) =>
 /** Every held ENSv2 `.eth` name that can be renewed, for bulk renewal's select-all. */
 export const getRenewableDashboardNames = ResultFn(async function* (
   readNames: ReadNamesForAddress,
-  addressNames: BignameClient['addressNames'],
+  readGraceNames: IndexerClient['getGraceNames'],
   addresses: readonly Address[],
   search: string,
   signal?: AbortSignal,
@@ -316,7 +308,7 @@ export const getRenewableDashboardNames = ResultFn(async function* (
       ),
     ),
   ).mapErr((error) => new GetDashboardNamesError({ cause: error }))
-  const lapsed = yield* getDashboardGraceNames(addressNames, addresses, {
+  const lapsed = yield* getDashboardGraceNames(readGraceNames, addresses, {
     signal,
   })
   const searchLower = search.toLowerCase()
@@ -339,8 +331,8 @@ export const getRenewableDashboardNamesQueryOptions = (
     }),
     queryFn: ({ signal }) =>
       getRenewableDashboardNames(
-        readNamesForAddress(bigname),
-        bigname.addressNames,
+        indexer.getNamesForAddress,
+        indexer.getGraceNames,
         addresses,
         search,
         signal,

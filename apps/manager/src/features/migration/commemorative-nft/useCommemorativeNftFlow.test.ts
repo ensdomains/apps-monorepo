@@ -43,6 +43,7 @@ const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
 }))
 
 vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('@/lib/indexer', () => ({ indexer: {} }))
 vi.mock('../hooks/useEligibleV1Names', () => ({
   useEligibleV1Names: () => ({
     eligible: [],

@@ -10,10 +10,9 @@ import { usePrimaryNameDomains } from './usePrimaryNameDomains'
 
 const readNames = vi.hoisted(() => vi.fn<ReadNamesForAddress>())
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
 vi.mock('@/lib/wagmi', () => ({ publicClient: {} }))
-vi.mock('@ens-apps/indexer/bigname', () => ({
-  readNamesForAddress: () => readNames,
+vi.mock('@/lib/indexer', () => ({
+  indexer: { getNamesForAddress: readNames },
 }))
 vi.mock('@/features/profile/service/primaryNameForwardAddress', () => ({
   primaryNameForwardAddressQuery: (_client: unknown, name: string) => ({

@@ -1,4 +1,4 @@
-import type { RecordInventory } from '@ens-apps/indexer/bigname'
+import type { RecordInventory } from '@ens-apps/indexer/reads'
 import { describe, expect, it } from 'vitest'
 import { mainProfileRecords } from '../data/records'
 import { selectProfileRecordKeys } from './profileRecordKeys'
@@ -6,23 +6,22 @@ import { selectProfileRecordKeys } from './profileRecordKeys'
 const inventory = (
   overrides: Partial<RecordInventory> = {},
 ): RecordInventory => ({
-  known_keys: ['text:org.example', 'addr:2147483785'],
-  unset_keys: [],
-  unsupported_keys: [],
-  abi_content_types: [],
+  knownKeys: ['text:org.example', 'addr:2147483785'],
+  unsetKeys: [],
+  unsupportedKeys: [],
+  abiContentTypes: [],
   ...overrides,
 })
 
 describe('selectProfileRecordKeys', () => {
   it.each([
-    { state: 'no inventory', value: undefined, isRead: false },
+    { state: 'no inventory', value: null, isRead: false },
     {
       state: 'inventory_not_authoritative',
       value: inventory({
-        known_keys: [],
-        unsupported_keys: ['text:org.example', 'addr:2147483785'],
-        abi_content_types: null,
-        abi_unsupported_reason: 'inventory_not_authoritative',
+        knownKeys: [],
+        unsupportedKeys: ['text:org.example', 'addr:2147483785'],
+        abiContentTypes: null,
       }),
       isRead: false,
     },

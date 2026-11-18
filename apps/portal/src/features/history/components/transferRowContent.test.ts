@@ -1,4 +1,4 @@
-import type { EventDataByType } from '@ens-apps/indexer/bigname'
+import { type EventDataByType, toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import { mockHistoryTransferOperator } from '@/test-utils/bigname/bigname.mock'
 import { type TimelineEventOfType, toTimelineEvents } from '../timelineEvent'
@@ -104,7 +104,9 @@ describe('transferRowContent', () => {
 
 describe('transferRowContent', () => {
   it('names the token an ENSv2 transfer serves', () => {
-    const [event] = toTimelineEvents([mockHistoryTransferOperator])
+    const [event] = toTimelineEvents(
+      [mockHistoryTransferOperator].map(toHistoryEvent),
+    )
     expect(
       transferRowContent(event as TimelineEventOfType<'transfer'>),
     ).toEqual({

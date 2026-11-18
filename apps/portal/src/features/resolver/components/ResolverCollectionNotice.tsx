@@ -1,4 +1,4 @@
-import type { Completeness } from '@ens-apps/indexer/bigname'
+import type { Completeness } from '@ens-apps/indexer/reads'
 
 /** An unavailable collection is not evidence that no grants or links exist. */
 export const ResolverCollectionNotice = ({

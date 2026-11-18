@@ -1,4 +1,8 @@
-import { BignameError } from '@ens-apps/indexer/bigname'
+import {
+  type HistoryEvent,
+  IndexerReadError,
+  type RecordInventory,
+} from '@ens-apps/indexer/reads'
 import { encodeContentHash, getTextParameters } from '@ensdomains/ensjs/utils'
 import {
   publicResolverAbiSnippet,
@@ -36,15 +40,15 @@ const mocks = vi.hoisted(() => ({
   call: vi.fn(),
   readContract: vi.fn(),
   multicall: vi.fn(),
-  nameRecords: vi.fn(),
-  events: vi.fn(),
+  getRecordKeys: vi.fn(),
+  getEvents: vi.fn(),
 }))
 vi.mock('@/lib/wagmi', async () => ({
   publicClient: { ...mocks, chain: (await import('@/config')).envConfig.chain },
   sepoliaWithEns: (await import('@/config')).envConfig.chain,
 }))
-vi.mock('@/lib/bigname', () => ({
-  bigname: { nameRecords: mocks.nameRecords, events: mocks.events },
+vi.mock('@/lib/indexer', () => ({
+  indexer: { getRecordKeys: mocks.getRecordKeys, getEvents: mocks.getEvents },
 }))
 
 import { envConfig } from '@/config'
@@ -71,6 +75,25 @@ const source: ResolverCopySource = {
   wallet: WALLET,
   chainId: envConfig.chain.id,
 }
+const inventory = (knownKeys: readonly string[]): RecordInventory => ({
+  knownKeys,
+  unsetKeys: [],
+  unsupportedKeys: [],
+  abiContentTypes: [1n],
+})
+const recordEvent = (key: string): HistoryEvent => ({
+  id: key,
+  name: NAME,
+  registrationId: null,
+  blockNumber: 1,
+  timestamp: null,
+  transactionHash: null,
+  logIndex: 0,
+  contractAddress: RESOLVER,
+  kind: null,
+  type: 'record',
+  data: { key },
+})
 const recordAbi = [
   ...publicResolverTextSnippet,
   ...publicResolverSingleAddrSnippet,
@@ -203,36 +226,20 @@ const fixture = (nameBased = false) => {
       }
     },
   )
-  mocks.nameRecords.mockReturnValue(
+  mocks.getRecordKeys.mockReturnValue(
     okAsync({
-      data: {
-        namespace: 'ens',
-        resolver: { chain_id: envConfig.chain.id, address: RESOLVER },
-        records: {},
-        inventory: {
-          known_keys: [`text:${CUSTOM_KEY}`, 'addr:2147483658'],
-          unset_keys: [],
-          unsupported_keys: [],
-          abi_content_types: ['1'],
-        },
-      },
-      meta: {},
+      resolver: RESOLVER,
+      inventory: inventory([`text:${CUSTOM_KEY}`, 'addr:2147483658']),
     }),
   )
-  mocks.events.mockReturnValue(
+  mocks.getEvents.mockReturnValue(
     okAsync({
-      data: [
-        { type: 'record', data: { key: 'interface:0x12345678' } },
-        { type: 'record', data: { key: 'data:org.example.binary' } },
+      items: [
+        recordEvent('interface:0x12345678'),
+        recordEvent('data:org.example.binary'),
       ],
-      page: {
-        cursor: null,
-        next_cursor: null,
-        page_size: 200,
-        total_count: 2,
-        has_more: false,
-      },
-      meta: { as_of: {} },
+      nextCursor: null,
+      totalCount: 2,
     }),
   )
   return state
@@ -245,16 +252,8 @@ describe('resolver record import', () => {
     'blocks a failed ABI read advertised by the inventory with keys %j',
     async (...knownKeys: string[]) => {
       fixture().hasAbiFailure = true
-      mocks.nameRecords.mockReturnValue(
-        okAsync({
-          data: {
-            inventory: {
-              known_keys: knownKeys,
-              unset_keys: [],
-              abi_content_types: ['1'],
-            },
-          },
-        }),
+      mocks.getRecordKeys.mockReturnValue(
+        okAsync({ resolver: RESOLVER, inventory: inventory(knownKeys) }),
       )
       const imported = await importResolverRecords(NAME, source)
       expect(imported.blockedKeys).toContain('ABI')
@@ -352,16 +351,21 @@ describe('resolver record import', () => {
     },
   )
 
+  const offline = () =>
+    errAsync(new IndexerReadError({ kind: 'unavailable', cause: null }))
   it.each([
-    ['indexed inventory', () => mocks.nameRecords],
-    ['record event inventory', () => mocks.events],
+    ['indexed inventory', () => mocks.getRecordKeys, offline],
+    ['record event inventory', () => mocks.getEvents, offline],
+    [
+      'inventory of an unindexed name',
+      () => mocks.getRecordKeys,
+      () => okAsync(null),
+    ],
   ])(
     'blocks replacement until the %s loads, still recovering common records',
-    async (_, read) => {
+    async (_, read, result) => {
       fixture()
-      read().mockReturnValue(
-        errAsync(new BignameError({ code: 'network', message: 'offline' })),
-      )
+      read().mockReturnValue(result())
       const imported = await importResolverRecords(NAME, source)
       expect(imported.blockedKeys).toEqual(['record inventory'])
       expect(imported.records.texts).toContainEqual({

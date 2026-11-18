@@ -7,6 +7,7 @@ import {
   type IndexerEndpoints,
   NETWORKS,
 } from './networks.ts'
+import { originFromEnvUrl } from './origin.ts'
 
 /** The indexer a build reads, with the endpoints that backend needs. */
 export type IndexerSelection =
@@ -72,3 +73,20 @@ export const resolveIndexer = ({
       }
   }
 }
+
+/** Origins a build's indexer reads reach: the selected backend's, and bigname, which ENSv1 migration reads use whatever the backend. */
+export const indexerOrigins = (
+  selection: IndexerSelection,
+  bignameApi: string | null,
+): readonly string[] => [
+  ...new Set(
+    [
+      bignameApi,
+      ...Object.entries(selection)
+        .filter(([key]) => key !== 'backend')
+        .map(([, url]) => url),
+    ]
+      .map(originFromEnvUrl)
+      .filter((origin): origin is string => origin !== null),
+  ),
+]

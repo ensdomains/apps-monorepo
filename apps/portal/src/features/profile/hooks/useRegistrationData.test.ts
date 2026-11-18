@@ -1,31 +1,34 @@
 import { QueryClient } from '@tanstack/react-query'
 import { okAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { getRegistrationTxQueryOptions } from './useRegistrationData'
 
-vi.mock('@/lib/bigname', () => ({ bigname: { nameHistory: vi.fn() } }))
+vi.mock('@/lib/indexer', () => ({ indexer: { getNameHistory: vi.fn() } }))
 
 const TX = '0x94139e4aecf39b7b78dd14b45df241b83f911ea2029ec92646a6881060fcfba4'
 
 describe('getRegistrationTxQueryOptions', () => {
   it('reads the first registration row from registered_at, so a migrated name links its ENSv1 registration', async () => {
-    vi.mocked(bigname.nameHistory).mockReturnValue(
+    vi.mocked(indexer.getNameHistory).mockReturnValue(
       okAsync({
-        data: [
+        items: [
           {
             id: 'a'.repeat(64),
             type: 'registration',
             name: 'goatagent.eth',
-            registration_id: null,
-            namespace: 'ens',
-            block_number: 1,
-            timestamp: '1791041136',
-            transaction_hash: TX,
-            log_index: 0,
+            registrationId: null,
+            blockNumber: 1,
+            timestamp: new Date(1_791_041_136_000),
+            transactionHash: TX,
+            logIndex: 0,
+            contractAddress: null,
+            kind: null,
+            data: {},
           },
         ],
-        meta: { as_of: {} },
+        nextCursor: null,
+        totalCount: null,
       }),
     )
 
@@ -37,14 +40,13 @@ describe('getRegistrationTxQueryOptions', () => {
     )
 
     expect(hash).toBe(TX)
-    expect(bigname.nameHistory).toHaveBeenCalledWith(
-      'goatagent.eth',
+    expect(indexer.getNameHistory).toHaveBeenCalledWith(
       {
-        namespace: 'ens',
-        type: ['registration'],
+        name: 'goatagent.eth',
+        types: ['registration'],
         order: 'asc',
-        from_timestamp: '1768579704',
-        page_size: 1,
+        from: new Date(1_768_579_704_000),
+        pageSize: 1,
       },
       { signal: expect.any(AbortSignal) },
     )

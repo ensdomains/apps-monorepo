@@ -1,19 +1,14 @@
 import {
-  type BignameError,
-  type EventRow,
-  MAX_PAGE_SIZE,
-  type PermissionRow,
-  type Power,
-  readAllCollectionPages,
-  readAllEnvelopes,
-  toExactSeconds,
-} from '@ens-apps/indexer/bigname'
+  type HistoryEvent,
+  type IndexerReadError,
+  type RootRoleGrant,
+  readAllItems,
+} from '@ens-apps/indexer/reads'
 import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { err, ok } from 'neverthrow'
 import { type Address, getAddress, isAddressEqual, zeroAddress } from 'viem'
-import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { previousPowers } from '@/lib/roles/permissionPowers'
 import {
   decodeRegistryRoleBitmap,
@@ -29,10 +24,13 @@ import { ROOT_RESOURCE, type RoleHistoryEntry } from '@/lib/roles/roleHistory'
 import { toResourceHex } from '@/lib/roles/toResourceHex'
 
 class GetRootRoleReadsError extends TaggedError('GetRootRoleReadsError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
-const toError = (cause: BignameError) => new GetRootRoleReadsError({ cause })
+const toError = (cause: IndexerReadError) =>
+  new GetRootRoleReadsError({ cause })
+
+const PAGE_SIZE = 200
 
 export type RootRoleHolder = {
   readonly account: Address
@@ -43,14 +41,14 @@ export type RegistryRootRoles = {
   readonly holders: RootRoleHolder[]
   /**
    * Discovered registry code may derive additional authority (for example
-   * from a parent registry). BigName conservatively marks that coverage gap;
+   * from a parent registry). The indexer conservatively marks that coverage gap;
    * ordinary indexed operator approvals are not the missing surface.
    */
   readonly areOperatorRolesUnlisted: boolean
 }
 
 /** Powers as registry roles, in bit order. */
-const toRoles = (powers: readonly Power[]): RegistryRole[] => {
+const toRoles = (powers: readonly string[]): RegistryRole[] => {
   const held = new Set(registryPowersToRoles(powers))
   return REGISTRY_ROLE_ORDER.filter((role) => held.has(role))
 }
@@ -59,98 +57,88 @@ type RegistryParameters = {
   readonly registryAddress: Address
 }
 
-const isRootRowOf =
-  (registryAddress: Address) =>
-  ({ grant_scope: scope }: PermissionRow): boolean =>
-    scope.kind === 'root' &&
-    (!scope.detail.registry ||
-      isAddressEqual(scope.detail.registry.address, registryAddress))
-
 /**
  * One holder per account with the roles it holds now. An account left with no
  * role the tables can show is dropped, as the log scan drops a revoked one.
  */
-const toHolders =
-  (registryAddress: Address) =>
-  (rows: readonly PermissionRow[]): RootRoleHolder[] => {
-    const powersByAccount = new Map<Address, readonly Power[]>()
-    for (const row of rows.filter(isRootRowOf(registryAddress))) {
-      const account = getAddress(row.address)
-      if (account === zeroAddress) continue
-      powersByAccount.set(account, [
-        ...(powersByAccount.get(account) ?? []),
-        ...row.powers,
-      ])
-    }
-    return [...powersByAccount]
-      .map(([account, powers]) => ({ account, roles: toRoles(powers) }))
-      .filter(({ roles }) => roles.length > 0)
+const toHolders = (grants: readonly RootRoleGrant[]): RootRoleHolder[] => {
+  const powersByAccount = new Map<Address, readonly string[]>()
+  for (const grant of grants) {
+    const account = getAddress(grant.account)
+    if (account === zeroAddress) continue
+    powersByAccount.set(account, [
+      ...(powersByAccount.get(account) ?? []),
+      ...grant.powers,
+    ])
   }
+  return [...powersByAccount]
+    .map(([account, powers]) => ({ account, roles: toRoles(powers) }))
+    .filter(({ roles }) => roles.length > 0)
+}
 
 /**
- * The current holders of a registry's root resource, from bigname. Root rows
- * state the declared role bits with no read-time mask, so they are the same
- * set the contract stores.
+ * The current holders of a registry's root resource, from the indexer. Root
+ * rows state the declared role bits with no read-time mask, so they are the
+ * same set the contract stores. Each page is read whole, so the last one's
+ * coverage survives.
  */
 const readRootPermissions = (
   registryAddress: Address,
   signal: AbortSignal | undefined,
 ) =>
-  readAllEnvelopes(
+  readAllItems(
     (cursor, pageSignal) =>
-      bigname.permissions(
-        {
-          registry: `${envConfig.chain.id}:${registryAddress.toLowerCase()}`,
-          page_size: MAX_PAGE_SIZE,
-          ...(cursor && { cursor }),
-        },
-        { signal: pageSignal },
-      ),
+      indexer
+        .getPermissions(
+          {
+            registry: registryAddress,
+            pageSize: PAGE_SIZE,
+            ...(cursor && { cursor }),
+          },
+          { signal: pageSignal },
+        )
+        .map((page) => ({ ...page, items: [page] })),
     { signal },
   ).map((pages) => ({
-    rows: pages.flatMap((page) => page.data),
-    meta: pages.at(-1)?.meta,
+    grants: pages.flatMap((page) => page.items),
+    lastPage: pages.at(-1),
   }))
 
-export const getBignameRootRoleHolders = (
+export const getIndexedRootRoleHolders = (
   { registryAddress }: RegistryParameters,
   signal?: AbortSignal,
 ) =>
   readRootPermissions(registryAddress, signal)
     .mapErr(toError)
     .map(
-      ({ rows, meta }): RegistryRootRoles => ({
-        holders: toHolders(registryAddress)(rows),
+      ({ grants, lastPage }): RegistryRootRoles => ({
+        holders: toHolders(grants),
         areOperatorRolesUnlisted:
-          meta?.completeness === 'partial' &&
-          !!meta.unlisted_permission_surfaces?.includes(
-            'ens_v2_registry_operators',
-          ),
+          lastPage?.completeness === 'partial' && lastPage.hasUnlistedOperators,
       }),
     )
 
-type RootRoleChangeRow = Extract<EventRow, { type: 'permission' }> & {
-  data: NonNullable<Extract<EventRow, { type: 'permission' }>['data']> & {
+type RootRoleChangeRow = Extract<HistoryEvent, { type: 'permission' }> & {
+  data: Extract<HistoryEvent, { type: 'permission' }>['data'] & {
     address: string
   }
 }
 
 const isRootRoleChangeOf =
   ({ registryAddress, account }: RegistryParameters & { account: Address }) =>
-  (row: EventRow): row is RootRoleChangeRow =>
+  (row: HistoryEvent): row is RootRoleChangeRow =>
     row.type === 'permission' &&
-    row.data?.grant_scope?.kind === 'root' &&
+    row.data.grant_scope?.kind === 'root' &&
     !!row.data.address &&
     isAddressEqual(getAddress(row.data.address), account) &&
-    !!row.contract_address &&
-    isAddressEqual(row.contract_address, registryAddress)
+    !!row.contractAddress &&
+    isAddressEqual(row.contractAddress, registryAddress)
 
 const ROOT_RESOURCE_HEX = toResourceHex(ROOT_RESOURCE)
 
 /** A row with no transaction or position is not listed. */
 const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
-  const timestamp = toExactSeconds(row.timestamp)
-  if (!row.transaction_hash || row.block_number === null || timestamp === null)
+  if (!row.transactionHash || row.blockNumber === null || !row.timestamp)
     return []
   return [
     {
@@ -158,15 +146,16 @@ const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
       resource: ROOT_RESOURCE_HEX,
       oldRoles: toRoles(previousPowers(row.data, undefined)),
       newRoles: toRoles(row.data.powers ?? []),
-      transactionHash: row.transaction_hash,
-      timestamp,
-      blockNumber: BigInt(row.block_number),
+      transactionHash: row.transactionHash,
+      timestamp: BigInt(Math.floor(row.timestamp.getTime() / 1000)),
+      blockNumber: BigInt(row.blockNumber),
     },
   ]
 }
 
 /**
- * One account's root role changes on one registry, newest first, from bigname.
+ * One account's root role changes on one registry, newest first, from the
+ * indexer.
  *
  * `contract_address` + `address` + `kind=RootPermissionChanged` is the filter
  * bigname documents for exactly this read, so the server pages only the rows
@@ -175,20 +164,19 @@ const toRoleHistoryEntry = (row: RootRoleChangeRow): RoleHistoryEntry[] => {
  * the old bitmap, `added_powers` and `removed_powers`, so the set before a
  * change needs neither a block lookup nor the earlier rows.
  */
-const getBignameRootRoleChanges = (
+const getIndexedRootRoleChanges = (
   params: RegistryParameters & { readonly account: Address },
   signal?: AbortSignal,
 ) =>
-  readAllCollectionPages<EventRow>(
+  readAllItems(
     (cursor, pageSignal) =>
-      bigname.events(
+      indexer.getEvents(
         {
-          contract_address: params.registryAddress.toLowerCase() as Address,
+          contractAddress: params.registryAddress.toLowerCase() as Address,
           address: params.account.toLowerCase() as Address,
-          kind: ['RootPermissionChanged'],
-          include: ['data', 'raw'],
+          kinds: ['RootPermissionChanged'],
           order: 'desc',
-          page_size: MAX_PAGE_SIZE,
+          pageSize: PAGE_SIZE,
           ...(cursor && { cursor }),
         },
         { signal: pageSignal },
@@ -203,16 +191,16 @@ const getBignameRootRoleChanges = (
 /**
  * One account's root role changes on one registry, newest first.
  *
- * Read from bigname first, with the node scan answering whenever it cannot:
- * an outage, a refusal (4xx), a server error (5xx), or a registry bigname has
- * not indexed. The node path is one `getLogs` on the root resource, the same
+ * Read from the indexer first, with the node scan answering whenever it
+ * cannot: an outage, a refusal, a server error, or a registry it has not
+ * indexed. The node path is one `getLogs` on the root resource, the same
  * `EACRolesChanged` read the contract emits for every root grant and revoke.
  */
 export const getRootRoleChanges = ResultFn(async function* (
   params: RegistryParameters & { readonly account: Address },
   signal?: AbortSignal,
 ) {
-  const indexed = await getBignameRootRoleChanges(params, signal)
+  const indexed = await getIndexedRootRoleChanges(params, signal)
   if (indexed.isOk()) return ok(indexed.value)
   // A cancelled query is not an indexer failure: do not start a node read for
   // a surface nobody is waiting on.

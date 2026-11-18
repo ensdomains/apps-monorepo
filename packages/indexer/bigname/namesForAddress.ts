@@ -7,6 +7,7 @@ import {
   toDate,
   toExactSeconds,
   toExpiresAt,
+  toNextCursor,
   toProtocol,
   toReadError,
   toRelations,
@@ -118,7 +119,7 @@ export const readNamesForAddress =
       .addressNames(query.address, toQuery(query), options)
       .map(({ data, page }) => ({
         items: data.map((row) => toNameSummary(row, query.address)),
-        nextCursor: page?.next_cursor ?? null,
+        nextCursor: toNextCursor(page),
         totalCount: page?.total_count ?? null,
       }))
       .mapErr(toReadError)

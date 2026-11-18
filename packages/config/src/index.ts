@@ -11,6 +11,7 @@ export {
 } from './buildConfig.ts'
 export {
   type IndexerSelection,
+  indexerOrigins,
   type ResolveIndexerInput,
   resolveIndexer,
 } from './indexer.ts'

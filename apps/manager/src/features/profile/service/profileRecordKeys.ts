@@ -1,4 +1,4 @@
-import type { RecordInventory } from '@ens-apps/indexer/bigname'
+import type { RecordInventory } from '@ens-apps/indexer/reads'
 import { getCoderFromCoin } from '@ensdomains/ensjs/utils'
 import { fromThrowable } from 'neverthrow'
 import { mainProfileRecords } from '../data/records'
@@ -27,12 +27,12 @@ const safeGetCoderFromCoin = fromThrowable(getCoderFromCoin, () => undefined)
 const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
-/** The main profile keys, plus the keys bigname vouches for. */
+/** The main profile keys, plus the keys the indexer vouches for. */
 export const selectProfileRecordKeys = (
-  inventory: RecordInventory | undefined,
+  inventory: RecordInventory | null,
 ): ProfileRecordKeys => {
-  // bigname leaves known_keys empty when it can't vouch for the resolver's keys.
-  const knownKeys = parseKnownKeys(inventory?.known_keys ?? [])
+  // The indexer leaves knownKeys empty when it can't vouch for the resolver's keys.
+  const knownKeys = parseKnownKeys(inventory?.knownKeys ?? [])
   return {
     texts: unique([...mainProfileRecords.texts, ...knownKeys.texts]),
     coins: unique([...mainProfileRecords.coins, ...knownKeys.coins]).filter(

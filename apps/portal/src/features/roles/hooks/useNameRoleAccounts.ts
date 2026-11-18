@@ -29,7 +29,7 @@ class ReadRegistryRolesError extends TaggedError('ReadRegistryRolesError')<{
 }> {}
 
 type NameRolesAccountsParameters = {
-  /** The full name, whose current registration bigname reads the history of. */
+  /** The full name, whose current registration the indexer reads the history of. */
   readonly name: string
   /**
    * The name's EAC resource, resolved by the caller. Not derived from the name

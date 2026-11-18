@@ -1,19 +1,17 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
-  type RegistryLabel as BignameRegistryLabel,
-  toExpirySeconds,
-} from '@ens-apps/indexer/bigname'
+  type RegistryLabel as IndexedRegistryLabel,
+  type IndexerReadError,
+  retryStaleRead,
+} from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address } from 'viem'
-import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
-import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
+import { indexer } from '@/lib/indexer'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 
 class GetRegistryLabelsError extends TaggedError('GetRegistryLabelsError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 type GetRegistryLabelsParameters = {
@@ -25,11 +23,11 @@ export type RegistryLabelRow = {
   name: string | null
   /** The label segment (e.g. "lmao"); null when unknown. */
   labelName: string | null
-  /** Null on the rare row bigname serves without one. */
+  /** Null on the rare row the indexer serves without one. */
   labelhash: string | null
   /** Unix seconds; null means the label does not expire. */
   expiryDate: bigint | null
-  /** Distinct accounts holding a label-scoped role on this label; undefined when bigname does not count them. */
+  /** Distinct accounts holding a label-scoped role on this label; undefined when the indexer does not count them. */
   roleHoldersCount: number | undefined
 }
 
@@ -43,41 +41,42 @@ export type RegistryLabelsPage = {
 }
 
 /**
- * bigname serves a label it cannot name as `[<labelhash>].<parent>`, which
- * must never be read as a name.
+ * The indexer serves a label it cannot name as `[<labelhash>].<parent>`,
+ * which must never be read as a name.
  */
 const isPlaceholder = (name: string) =>
   isEncodedLabelhash(name.split('.')[0] ?? '')
 
-const toRegistryLabelRow = (row: BignameRegistryLabel): RegistryLabelRow => {
+const toRegistryLabelRow = (row: IndexedRegistryLabel): RegistryLabelRow => {
   const named = !isPlaceholder(row.name)
   return {
     name: named ? row.name : null,
-    labelName: named ? (row.display_name.split('.')[0] ?? null) : null,
-    labelhash: row.labelhash ?? null,
+    labelName: named ? (row.displayName.split('.')[0] ?? null) : null,
+    labelhash: row.labelhash,
     // Null for no expiry (or one too large to date): it does not expire.
-    expiryDate: toExpirySeconds(row),
-    roleHoldersCount: row.role_holder_count ?? undefined,
+    expiryDate: row.expiresAt
+      ? BigInt(Math.floor(row.expiresAt.getTime() / 1000))
+      : null,
+    roleHoldersCount: row.roleHolderCount,
   }
 }
 
 /**
  * One page of labels, by name, with their role-holder counts. A registry
- * bigname has not indexed has none to list.
+ * the indexer has not indexed has none to list.
  */
 const getRegistryLabelsPage = (
   { address }: GetRegistryLabelsParameters,
   cursor: string | undefined,
   signal?: AbortSignal,
 ) =>
-  nullOnNotFound(
+  retryStaleRead(
     (requestSignal) =>
-      bigname.registryLabels(
-        envConfig.chain.id,
-        address.toLowerCase(),
+      indexer.getRegistryLabels(
         {
-          include: ['counts'],
-          page_size: REGISTRY_LABELS_PAGE_SIZE,
+          address,
+          includeCounts: true,
+          pageSize: REGISTRY_LABELS_PAGE_SIZE,
           ...(cursor && { cursor }),
         },
         { signal: requestSignal },
@@ -86,10 +85,10 @@ const getRegistryLabelsPage = (
   )
     .mapErr((cause) => new GetRegistryLabelsError({ cause }))
     .map(
-      (response): RegistryLabelsPage => ({
-        labels: (response?.data ?? []).map(toRegistryLabelRow),
-        totalCount: response?.page?.total_count ?? undefined,
-        nextCursor: response?.page?.next_cursor ?? undefined,
+      (page): RegistryLabelsPage => ({
+        labels: (page?.items ?? []).map(toRegistryLabelRow),
+        totalCount: page?.totalCount ?? undefined,
+        nextCursor: page?.nextCursor ?? undefined,
       }),
     )
 

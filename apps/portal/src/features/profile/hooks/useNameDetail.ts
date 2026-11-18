@@ -1,9 +1,8 @@
-import { readNameDetail, retryStale } from '@ens-apps/indexer/bigname'
-import type { IndexerReadError } from '@ens-apps/indexer/reads'
+import { type IndexerReadError, retryStaleRead } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 
 class GetNameDetailError extends TaggedError('GetNameDetailError')<{
   cause: IndexerReadError
@@ -11,20 +10,17 @@ class GetNameDetailError extends TaggedError('GetNameDetailError')<{
 
 type GetNameDetailParameters = { readonly name: string }
 
-const readDetail = readNameDetail(bigname)
-
-/** One name detail read, sent again while bigname answers stale. */
+/** One name detail read, sent again while the indexer answers stale. */
 export const readIndexedNameDetail = (
   query: GetNameDetailParameters,
   signal?: AbortSignal,
 ) =>
-  retryStale(
-    (requestSignal) => readDetail(query, { signal: requestSignal }),
-    (error: IndexerReadError) => error.kind === 'stale',
+  retryStaleRead(
+    (requestSignal) => indexer.getNameDetail(query, { signal: requestSignal }),
     { signal },
   )
 
-/** A name's indexed detail, or null when bigname has not indexed it. */
+/** A name's indexed detail, or null when the indexer has not indexed it. */
 const getNameDetail = (query: GetNameDetailParameters, signal?: AbortSignal) =>
   readIndexedNameDetail(query, signal).mapErr(
     (cause) => new GetNameDetailError({ cause }),

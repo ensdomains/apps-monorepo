@@ -1,22 +1,24 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
-  MAX_PAGE_SIZE,
-  type NameHistoryRow,
-  readAllCollectionPages,
-  toUnixSeconds,
-} from '@ens-apps/indexer/bigname'
+  type HistoryEvent,
+  type IndexerReadError,
+  readAllItems,
+} from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Hash } from 'viem'
 import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
-import { bigname } from '@/lib/bigname'
+import { requireIndexed } from '@/features/history/requireIndexed'
+import { indexer } from '@/lib/indexer'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { recordValueText } from '@/utils/history/recordValue'
 
 class GetRecordHistoryError extends TaggedError('GetRecordHistoryError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
+
+/** The indexer's largest history page. */
+const MAX_PAGE_SIZE = 200
 
 /** Every record of one family. */
 type RecordHistoryFamily = 'coins' | 'texts' | 'contentHash' | 'abi'
@@ -24,7 +26,7 @@ type RecordHistoryFamily = 'coins' | 'texts' | 'contentHash' | 'abi'
 export type RecordHistoryParameters = {
   readonly name: string
   /**
-   * A record family, or one stored record key as bigname spells it
+   * A record family, or one stored record key in the record-key grammar
    * (`addr:60`, `text:email`, `contenthash`).
    */
   readonly key: RecordHistoryFamily | (string & {})
@@ -64,7 +66,7 @@ const isFamily = (key: string): key is RecordHistoryFamily =>
  * to all of them.
  */
 const matchesKey = (
-  row: NameHistoryRow,
+  row: HistoryEvent,
   wanted: RecordHistoryParameters['key'],
 ): boolean => {
   if (row.type !== 'record') return false
@@ -74,22 +76,21 @@ const matchesKey = (
   return isFamily(wanted) ? FAMILY_MATCHERS[wanted](key) : key === wanted
 }
 
-const toRecordHistoryEvent = (row: NameHistoryRow): RecordHistoryEvent[] => {
-  const timestamp = toUnixSeconds(row.timestamp)
+const toRecordHistoryEvent = (row: HistoryEvent): RecordHistoryEvent[] => {
   if (
     row.type !== 'record' ||
-    !row.transaction_hash ||
-    row.block_number === null ||
-    timestamp === null
+    !row.transactionHash ||
+    row.blockNumber === null ||
+    row.timestamp === null
   )
     return []
   const value = recordValueText(row.data?.value)
   return [
     {
-      id: `${row.transaction_hash}-${String(row.log_index ?? '')}`,
-      transactionID: row.transaction_hash,
-      blockNumber: row.block_number,
-      timestamp: BigInt(timestamp),
+      id: `${row.transactionHash}-${String(row.logIndex ?? '')}`,
+      transactionID: row.transactionHash,
+      blockNumber: row.blockNumber,
+      timestamp: BigInt(Math.floor(row.timestamp.getTime() / 1000)),
       type: row.kind ?? row.type,
       ...(row.data?.key !== undefined && { key: row.data.key }),
       ...(value !== undefined && { value }),
@@ -103,28 +104,28 @@ const toRecordHistoryEvent = (row: NameHistoryRow): RecordHistoryEvent[] => {
 /**
  * A record's write history across every resolver the name has pointed at,
  * ENSv1 and ENSv2 alike, newest first. One exact key is asked for by
- * `record_key`, which keeps that key's writes and every record reset; a family
+ * `recordKey`, which keeps that key's writes and every record reset; a family
  * reads every `record` row and filters them here.
  */
 const getRecordHistory = (
   { name, key }: RecordHistoryParameters,
   signal?: AbortSignal,
 ) =>
-  readAllCollectionPages<NameHistoryRow>(
+  readAllItems(
     (cursor, pageSignal) =>
-      bigname.nameHistory(
-        normalizeOrLower(name),
-        {
-          namespace: 'ens',
-          type: ['record'],
-          ...(!isFamily(key) && { record_key: key }),
-          include: ['data', 'raw'],
-          order: 'desc',
-          page_size: MAX_PAGE_SIZE,
-          ...(cursor && { cursor }),
-        },
-        { signal: pageSignal },
-      ),
+      indexer
+        .getNameHistory(
+          {
+            name: normalizeOrLower(name),
+            types: ['record'],
+            ...(!isFamily(key) && { recordKey: key }),
+            order: 'desc',
+            pageSize: MAX_PAGE_SIZE,
+            ...(cursor && { cursor }),
+          },
+          { signal: pageSignal },
+        )
+        .andThen(requireIndexed(name)),
     { signal },
   )
     .andThen((rows) => dropUnassignedRecords(rows, signal))

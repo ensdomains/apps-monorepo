@@ -1,9 +1,13 @@
-import type { LookupRequest } from '@ens-apps/indexer/bigname'
+import {
+  type IndexerClient,
+  IndexerReadError,
+  type NameDetail,
+} from '@ens-apps/indexer/reads'
 import { fireEvent, screen } from '@testing-library/react'
 import { errAsync, okAsync } from 'neverthrow'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { render } from '@/utils/test-utils'
 import { NamesTable } from './NamesTable'
 
@@ -40,41 +44,40 @@ vi.mock('../service/queries/getFavorites', () => ({
       ],
   },
 }))
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    lookup: vi.fn(({ inputs, profile }: LookupRequest) => {
-      if (
-        inputs.some(
-          (input) => 'name' in input && input.name === 'z-missing.eth',
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNames: vi.fn<IndexerClient['getNames']>(({ names }) => {
+      if (names.includes('z-missing.eth'))
+        return errAsync(
+          new IndexerReadError({ kind: 'unavailable', cause: null }),
         )
-      )
-        return errAsync(new Error('Lookup unavailable'))
-      return okAsync({
-        data: inputs.flatMap((input) => {
-          if (!('name' in input)) return []
-          const { name } = input
-          if (name === 'old-5.eth')
-            return [{ input, kind: 'name', status: 'not_found' }]
-          const authority =
-            name === 'v2.eth' || name.startsWith('a-v2-') ? 'ens_v2' : 'ens_v1'
-          const recordAuthority = profile === 'detail' ? authority : undefined
-          return [
-            {
-              input,
-              kind: 'name',
-              status: 'ok',
-              record: {
+      return okAsync(
+        names.map((name): NameDetail | null =>
+          name === 'old-5.eth'
+            ? null
+            : {
                 name,
-                display_name: name,
-                namespace: 'ens',
+                displayName: name,
                 namehash: '0x01',
-                read_status: 'ok',
-                authority: recordAuthority,
+                protocol:
+                  name === 'v2.eth' || name.startsWith('a-v2-') ? 'v2' : 'v1',
+                isSupported: true,
+                owner: null,
+                manager: null,
+                registrant: null,
+                resolver: null,
+                registrationStatus: null,
+                expiresAt: null,
+                graceEndsAt: null,
+                registeredAt: null,
+                registrationId: null,
+                createdAt: null,
+                migratedAt: null,
+                unresolvableReason: null,
+                addressCoinTypes: null,
               },
-            },
-          ]
-        }),
-      })
+        ),
+      )
     }),
   },
 }))
@@ -109,10 +112,10 @@ describe('NamesTable version controls', () => {
       ),
     )
     render(<NamesTable />)
-    expect(bigname.lookup).not.toHaveBeenCalled()
+    expect(indexer.getNames).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /^Favorites/ }))
     await screen.findByText('Showing 1-5 of 7')
-    expect(bigname.lookup).not.toHaveBeenCalled()
+    expect(indexer.getNames).not.toHaveBeenCalled()
     expect(io.owner).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     expect(screen.getByText('Showing 6-7 of 7')).toBeInTheDocument()
@@ -146,7 +149,7 @@ describe('NamesTable version controls', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /^Favorites/ }))
     expect(await screen.findByText('v2.eth')).toBeInTheDocument()
-    expect(bigname.lookup).toHaveBeenCalledTimes(1)
+    expect(indexer.getNames).toHaveBeenCalledTimes(1)
     expect(io.owner).toHaveBeenCalledTimes(1)
   })
 

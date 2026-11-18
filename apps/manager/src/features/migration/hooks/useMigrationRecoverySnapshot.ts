@@ -3,7 +3,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { chain } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import {
   getMigrationBatchJournalRevision,
@@ -47,7 +47,7 @@ export const useMigrationRecoverySnapshot = () => {
     getMigrationRecoveryQueryOptions({
       scope,
       publicClient,
-      historyClient: bigname,
+      historyClient: indexer,
       journalRevision,
     }),
   )

@@ -1,28 +1,27 @@
 import {
-  type BignameError,
-  type Envelope,
-  type EventKind,
-  type EventRow,
-  type EventType,
-  isStale,
-  MAX_PAGE_SIZE,
-  type NameHistoryRow,
-  retryStale,
-  secondsToTimestamp,
-} from '@ens-apps/indexer/bigname'
+  type HistoryEvent,
+  type HistoryEventKind,
+  type IndexerReadError,
+  type Page,
+  retryStaleRead,
+} from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
+import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
-import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { dropUnassignedRecords } from './assignedResolvers'
-import { type TimelineEvent, toTimelineEvents } from './timelineEvent'
+import { requireIndexed } from './requireIndexed'
+import {
+  type EventType,
+  type TimelineEvent,
+  toTimelineEvents,
+} from './timelineEvent'
 
 export class GetTimelineEventPageError extends TaggedError(
   'GetTimelineEventPageError',
 )<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 /** One page of a cursor-paginated event feed, whichever route produced it. */
@@ -30,7 +29,7 @@ export type TimelinePage = {
   readonly events: readonly TimelineEvent[]
   readonly endCursor: string | null
   readonly hasNextPage: boolean
-  /** Rows matching the filter across every page; absent when bigname does not count. */
+  /** Rows matching the filter across every page; absent when the indexer does not count. */
   readonly totalCount: number | undefined
 }
 
@@ -65,32 +64,37 @@ const NO_CHILD_REGISTRATIONS = new Set(['eth', 'base.eth'])
 const canIncludeChildRegistrations = (name: string) =>
   !NO_CHILD_REGISTRATIONS.has(normalizeOrLower(name))
 
-type HistoryPage =
-  | Envelope<readonly NameHistoryRow[]>
-  | Envelope<readonly EventRow[]>
+type HistoryPage = Page<HistoryEvent>
 
-const toPage = ({ data, page }: HistoryPage): TimelinePage => ({
-  events: toTimelineEvents(data),
-  endCursor: page?.next_cursor ?? null,
-  hasNextPage: page?.has_more ?? false,
-  totalCount: page?.total_count ?? undefined,
+const toPage = ({
+  items,
+  nextCursor,
+  totalCount,
+}: HistoryPage): TimelinePage => ({
+  events: toTimelineEvents(items),
+  endCursor: nextCursor,
+  hasNextPage: nextCursor !== null,
+  totalCount: totalCount ?? undefined,
 })
 
-/** One page read, sent again while bigname answers stale. */
+/** One page read, sent again while the indexer answers stale. */
 const wrap = (
-  read: (signal?: AbortSignal) => ResultAsync<HistoryPage, BignameError>,
+  read: (signal?: AbortSignal) => ResultAsync<HistoryPage, IndexerReadError>,
   signal: AbortSignal | undefined,
 ) =>
-  retryStale(read, isStale, { signal })
+  retryStaleRead(read, { signal })
     .map(toPage)
     .mapErr((cause) => new GetTimelineEventPageError({ cause }))
+
+/** The indexer's largest history page. */
+const MAX_PAGE_SIZE = 200
 
 export type NameHistoryPageParameters = {
   readonly name: string
   /** A positive type set; omitted reads every type. */
   readonly types?: readonly EventType[]
   /** Raw kinds, intersecting `types`; omitted reads every kind. */
-  readonly kinds?: readonly EventKind[]
+  readonly kinds?: readonly HistoryEventKind[]
   /** Inclusive unix-second bounds. */
   readonly from?: number
   readonly to?: number
@@ -106,6 +110,12 @@ const EMPTY_PAGE: TimelinePage = {
   events: [],
   endCursor: null,
   hasNextPage: false,
+  totalCount: 0,
+}
+
+const EMPTY_HISTORY_PAGE: HistoryPage = {
+  items: [],
+  nextCursor: null,
   totalCount: 0,
 }
 
@@ -127,42 +137,37 @@ export const fetchNameHistoryPage = ({
     ? okAsync<TimelinePage, GetTimelineEventPageError>(EMPTY_PAGE)
     : wrap(
         (requestSignal) =>
-          bigname
-            .nameHistory(
-              normalizeOrLower(name),
+          indexer
+            .getNameHistory(
               {
-                namespace: 'ens',
-                include:
+                name: normalizeOrLower(name),
+                includeChildRegistrations:
                   includeChildRegistrations &&
-                  canIncludeChildRegistrations(name)
-                    ? ['data', 'raw', 'child_registrations']
-                    : ['data', 'raw'],
-                ...(types && { type: types }),
-                ...(kinds && { kind: kinds }),
-                ...(from !== undefined && {
-                  from_timestamp: secondsToTimestamp(from),
-                }),
-                ...(to !== undefined && {
-                  to_timestamp: secondsToTimestamp(to),
-                }),
+                  canIncludeChildRegistrations(name),
+                ...(types && { types }),
+                ...(kinds && { kinds }),
+                ...(from !== undefined && { from: new Date(from * 1000) }),
+                ...(to !== undefined && { to: new Date(to * 1000) }),
                 order,
-                page_size: pageSize,
+                pageSize,
                 ...(cursor && { cursor }),
               },
               { signal: requestSignal },
             )
-            .andThen((envelope) =>
-              dropUnassignedRecords(envelope.data, requestSignal).map(
-                (data) => ({ ...envelope, data }),
-              ),
+            .andThen(
+              // A name the indexer has not indexed, such as an offchain one, has no history.
+              (page): Result<HistoryPage, IndexerReadError> =>
+                page === null && !cursor
+                  ? ok(EMPTY_HISTORY_PAGE)
+                  : requireIndexed(name)(page),
+            )
+            .andThen((page) =>
+              dropUnassignedRecords(page.items, requestSignal).map((items) => ({
+                ...page,
+                items,
+              })),
             ),
         signal,
-      ).orElse(
-        // A name bigname has not indexed, such as an offchain one, has no history.
-        (error) =>
-          error.cause.code === 'not_found' && !cursor
-            ? okAsync<TimelinePage, GetTimelineEventPageError>(EMPTY_PAGE)
-            : errAsync(error),
       )
 
 /** Every registration a registry emits is of one of its labels: a subname. */
@@ -175,7 +180,7 @@ const asSubnames = (page: TimelinePage): TimelinePage => ({
 
 /**
  * Everything one contract emitted — how a registry's own feed is addressed.
- * `include=total_count` makes bigname count a `contract_address` read exactly
+ * `includeTotal` makes the indexer count a contract read exactly
  * (it does not by default), so the feed carries its own total.
  */
 export const fetchContractEventsPage = ({
@@ -189,12 +194,12 @@ export const fetchContractEventsPage = ({
 }) =>
   wrap(
     (requestSignal) =>
-      bigname.events(
+      indexer.getEvents(
         {
-          contract_address: contractAddress.toLowerCase() as Address,
-          include: ['data', 'raw', 'total_count'],
+          contractAddress: contractAddress.toLowerCase() as Address,
+          includeTotal: true,
           order: 'desc',
-          page_size: HISTORY_TIMELINE_PAGE_SIZE,
+          pageSize: HISTORY_TIMELINE_PAGE_SIZE,
           ...(cursor && { cursor }),
         },
         { signal: requestSignal },
@@ -217,12 +222,12 @@ export const fetchResolverEventsPage = ({
 }) =>
   wrap(
     (requestSignal) =>
-      bigname.events(
+      indexer.getEvents(
         {
-          resolver: `${envConfig.chain.id}:${resolverAddress.toLowerCase()}`,
-          include: ['data', 'raw', 'total_count'],
+          resolver: resolverAddress,
+          includeTotal: true,
           order: 'desc',
-          page_size: MAX_PAGE_SIZE,
+          pageSize: MAX_PAGE_SIZE,
           ...(cursor && { cursor }),
         },
         { signal: requestSignal },

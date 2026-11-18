@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveIndexer } from './indexer'
+import { indexerOrigins, resolveIndexer } from './indexer'
 
 const BIGNAME = 'http://127.0.0.1:4010'
 
@@ -53,5 +53,30 @@ describe('resolveIndexer', () => {
         bignameApi: BIGNAME,
       }),
     ).toEqual({ backend: 'goldsky', goldskyApi: 'https://ens-api.goldsky.com' })
+  })
+})
+
+describe('indexerOrigins', () => {
+  it('allows the zigens and ENSNode origins, and bigname for the ENSv1 migration reads', () => {
+    expect(
+      indexerOrigins(
+        {
+          backend: 'zigens',
+          zigensGraphql: 'https://graphql.ens.dev/',
+          ensNodeSubgraph: 'https://ensnode.example/subgraph',
+        },
+        'https://sepolia.api.bigname.sh',
+      ),
+    ).toEqual([
+      'https://sepolia.api.bigname.sh',
+      'https://graphql.ens.dev',
+      'https://ensnode.example',
+    ])
+  })
+
+  it('lists bigname once when it is also the indexer', () => {
+    expect(
+      indexerOrigins({ backend: 'bigname', bignameApi: BIGNAME }, BIGNAME),
+    ).toEqual([BIGNAME])
   })
 })

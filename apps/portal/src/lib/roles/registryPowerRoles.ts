@@ -1,4 +1,4 @@
-import type { Power, RegistryPower } from '@ens-apps/indexer/bigname'
+import type { RegistryPower } from '@ens-apps/indexer/bigname'
 import { type Role, registryRoles } from '@ensdomains/ensjs/utils/v2'
 
 /** Registry roles ensjs does not list yet: `can_name` and its admin bit. */
@@ -65,12 +65,12 @@ const REGISTRY_POWER_ROLES: Readonly<Record<RegistryPower, RegistryRole>> = {
   admin_can_name: 'ROLE_CAN_NAME_ADMIN',
 }
 
-const isRegistryPower = (power: Power): power is RegistryPower =>
+const isRegistryPower = (power: string): power is RegistryPower =>
   Object.hasOwn(REGISTRY_POWER_ROLES, power)
 
 /** Registry powers as registry roles; powers with no registry role are dropped. */
 export const registryPowersToRoles = (
-  powers: readonly Power[],
+  powers: readonly string[],
 ): RegistryRole[] =>
   powers.flatMap((power) =>
     isRegistryPower(power) ? [REGISTRY_POWER_ROLES[power]] : [],

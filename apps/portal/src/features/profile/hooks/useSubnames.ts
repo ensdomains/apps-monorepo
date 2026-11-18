@@ -1,9 +1,9 @@
-import type {
-  BignameError,
-  Subname as BignameSubname,
-} from '@ens-apps/indexer/bigname'
-import { isStale, retryStale, toProtocol } from '@ens-apps/indexer/bigname'
-import type { ProtocolVersion as IndexedProtocol } from '@ens-apps/indexer/reads'
+import {
+  type ProtocolVersion as IndexedProtocol,
+  type Subname as IndexedSubname,
+  type IndexerReadError,
+  retryStaleRead,
+} from '@ens-apps/indexer/reads'
 import {
   type InferErrTypes,
   ResultFn,
@@ -20,14 +20,7 @@ import {
 } from '@ensdomains/ensjs/public/v1'
 import { encodeLabelhash } from '@ensdomains/ensjs/utils'
 import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import {
-  err,
-  errAsync,
-  fromPromise,
-  ok,
-  okAsync,
-  type ResultAsync,
-} from 'neverthrow'
+import { err, fromPromise, ok, type ResultAsync } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import {
   type Address,
@@ -39,13 +32,13 @@ import {
 } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 class GetSubnamesError extends TaggedError('GetSubnamesError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 class GetV2SubnameStatusError extends TaggedError('GetV2SubnameStatusError')<{
@@ -58,7 +51,7 @@ export class GetIsV1SubnameTakenError extends TaggedError(
   cause: ensjsv1_GetOwnerErrorType
 }> {}
 
-/** How bigname says an ENSv1 subname is held. */
+/** How the indexer says an ENSv1 subname is held. */
 export type V1SubnameWrapping =
   | { readonly isWrapped: false }
   | {
@@ -73,16 +66,16 @@ type Subname = {
   readonly labelName: string | null
   readonly labelhash: Hex
   readonly owner: Address
-  /** The era bigname serves the subname from; null when it doesn't say. */
+  /** The era the indexer serves the subname from; null when it doesn't say. */
   readonly protocol: IndexedProtocol | null
-  /** ENSv1 only: null when bigname can't say how the subname is held. */
+  /** ENSv1 only: null when the indexer can't say how the subname is held. */
   readonly v1Wrapping: V1SubnameWrapping | null
-  /** ENSv1 only: its own subnames; undefined when bigname did not count them. */
+  /** ENSv1 only: its own subnames; undefined when the indexer did not count them. */
   readonly subnameCount: number | undefined
 }
 
 type GetSubnamesParameters = {
-  // Passed to bigname as the route validated it (`isValidEnsName`), not
+  // Passed to the indexer as the route validated it (`isValidEnsName`), not
   // through `normalize`: a parent may carry an encoded labelhash, which
   // `normalize` rejects.
   readonly name: string
@@ -94,7 +87,7 @@ export type SubnamesPage = {
   readonly subnames: readonly Subname[]
   /**
    * Every subname the name has, not just the ones on this page; undefined
-   * when bigname does not count the list.
+   * when the indexer does not count the list.
    */
   readonly totalCount: number | undefined
   readonly nextCursor: string | null
@@ -102,9 +95,9 @@ export type SubnamesPage = {
 
 const SUBNAMES_PAGE_SIZE = 100
 
-// The label, when bigname knows it; a child it cannot label is served as
+// The label, when the indexer knows it; a child it cannot label is served as
 // `[labelhash].parent` and keeps that placeholder.
-const toLabelName = (row: BignameSubname, rowLabelhash: Hex) => {
+const toLabelName = (row: IndexedSubname, rowLabelhash: Hex) => {
   const label = row.name.split('.')[0]
   return label &&
     !isEncodedLabelhash(label) &&
@@ -113,13 +106,12 @@ const toLabelName = (row: BignameSubname, rowLabelhash: Hex) => {
     : null
 }
 
-const toV1Wrapping = ({ ens_v1 }: BignameSubname): V1SubnameWrapping | null =>
-  match(ens_v1?.wrapper_state)
+const toV1Wrapping = ({ wrapper }: IndexedSubname): V1SubnameWrapping | null =>
+  match(wrapper?.state)
     .with('unwrapped', () => ({ isWrapped: false }) as const)
     .with('wrapped', () => ({
       isWrapped: true,
-      parentCannotControl:
-        ens_v1?.wrapper_fuses?.parent_cannot_control ?? false,
+      parentCannotControl: wrapper?.parentCannotControl ?? false,
       isLocked: false,
     }))
     .with(P.union('emancipated', 'locked'), (state) => ({
@@ -129,12 +121,12 @@ const toV1Wrapping = ({ ens_v1 }: BignameSubname): V1SubnameWrapping | null =>
     }))
     .otherwise(() => null)
 
-// A row bigname serves with no holder or no labelhash cannot be listed,
+// A row the indexer serves with no holder or no labelhash cannot be listed,
 // linked or deleted. The name is rebuilt from the parent so a parent label
 // healed later still reaches its children.
 const toSubname =
   (parentName: string) =>
-  (row: BignameSubname): readonly Subname[] => {
+  (row: IndexedSubname): readonly Subname[] => {
     if (!row.owner || !row.labelhash) return []
     const labelName = toLabelName(row, row.labelhash)
     return [
@@ -143,9 +135,9 @@ const toSubname =
         labelName,
         labelhash: row.labelhash,
         owner: checksumAddress(row.owner),
-        protocol: toProtocol(row.authority),
+        protocol: row.protocol,
         v1Wrapping: toV1Wrapping(row),
-        subnameCount: row.subname_count,
+        subnameCount: row.subnameCount,
       },
     ]
   }
@@ -160,40 +152,29 @@ const readSubnames = (
   },
   signal?: AbortSignal,
 ) =>
-  retryStale(
+  // A name the indexer has not indexed reads as an empty page.
+  retryStaleRead(
     (requestSignal) =>
-      bigname.subnames(
-        name,
+      indexer.getSubnames(
         {
-          namespace: 'ens',
-          include_expired: query.includeExpired ? 'true' : 'false',
-          sort: 'name',
-          page_size: query.pageSize,
+          name,
+          includeExpired: query.includeExpired ?? false,
+          pageSize: query.pageSize,
           ...(query.cursor && { cursor: query.cursor }),
-          ...(query.withCounts && { include: ['counts'] }),
+          ...(query.withCounts && { includeCounts: true }),
         },
         { signal: requestSignal },
       ),
-    isStale,
     { signal },
   )
     .map(
-      ({ data, page }): SubnamesPage => ({
-        subnames: data.flatMap(toSubname(name)),
-        totalCount: page?.total_count ?? undefined,
-        nextCursor: page?.next_cursor ?? null,
+      ({ items, nextCursor, totalCount }): SubnamesPage => ({
+        subnames: items.flatMap(toSubname(name)),
+        totalCount: totalCount ?? undefined,
+        nextCursor,
       }),
     )
-    .orElse((error) =>
-      // A name bigname has not indexed has no subnames.
-      error.code === 'not_found'
-        ? okAsync<SubnamesPage, GetSubnamesError>({
-            subnames: [],
-            totalCount: 0,
-            nextCursor: null,
-          })
-        : errAsync(new GetSubnamesError({ cause: error })),
-    )
+    .mapErr((cause) => new GetSubnamesError({ cause }))
 
 /**
  * Every subnames query for a name sits under this key — the V1 list, the V2
@@ -234,13 +215,13 @@ export const getSubnamePagesQueryOptions = ({
     getNextPageParam: (last: SubnamesPage) => last.nextCursor ?? undefined,
   })
 
-// bigname totals the children it would list, in either era.
+// The indexer totals the children it would list, in either era.
 export const getSubnamesCount = (
   {
     name,
     includeExpired,
   }: GetSubnamesParameters & {
-    /** Counts expired children too, as a row's `subname_count` does. */
+    /** Counts expired children too, as a row's `subnameCount` does. */
     readonly includeExpired?: boolean
   },
   signal?: AbortSignal,
@@ -294,7 +275,7 @@ const V2_LABEL_STATUSES: readonly SubnameLabelStatus[] = [
   'registered',
 ]
 
-// The subregistry, not bigname: bigname reports an expired label as taken and
+// The subregistry, not the indexer: the indexer reports an expired label as taken and
 // has no reserved state, and `register` decides by the registry's own status.
 const getV2SubnameStatus = ResultFn(async function* ({
   registryAddress,

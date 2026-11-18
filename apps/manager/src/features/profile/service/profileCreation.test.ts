@@ -1,10 +1,19 @@
-import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
+import { createBignameIndexer } from '@ens-apps/indexer'
+import { type NameHistoryRow, toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   getProfileCreationEvent,
   getProfileCreationQueryOptions,
 } from './profileCreation'
+
+vi.mock('@/lib/indexer', () => ({
+  indexer: createBignameIndexer({
+    baseUrl: 'https://bigname.test',
+    chainId: 11155111,
+    fetch: (input, init) => globalThis.fetch(input, init),
+  }),
+}))
 
 const REGISTRATION: NameHistoryRow = {
   id: 'registration',
@@ -22,7 +31,7 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('getProfileCreationEvent', () => {
   it('keeps the creation date paired with its registration transaction', () => {
-    expect(getProfileCreationEvent(REGISTRATION)).toEqual({
+    expect(getProfileCreationEvent(toHistoryEvent(REGISTRATION))).toEqual({
       createdAt: new Date('2025-10-25T00:00:00.000Z'),
       transactionHash: REGISTRATION.transaction_hash,
     })
@@ -34,7 +43,7 @@ describe('getProfileCreationEvent', () => {
     { ...REGISTRATION, timestamp: null },
     { ...REGISTRATION, transaction_hash: null },
   ])('does not present an unproven creation event: %j', (row) => {
-    expect(getProfileCreationEvent(row)).toBeNull()
+    expect(getProfileCreationEvent(row && toHistoryEvent(row))).toBeNull()
   })
 
   it('requests the oldest registration rather than a recent renewal or re-registration', async () => {

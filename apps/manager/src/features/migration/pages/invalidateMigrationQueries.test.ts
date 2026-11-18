@@ -1,4 +1,4 @@
-import type { AddressName } from '@ens-apps/indexer/bigname'
+import type { NameSummary } from '@ens-apps/indexer/reads'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { okAsync } from 'neverthrow'
@@ -7,22 +7,28 @@ import {
   DASHBOARD_NAME_ACTIONS,
   getDashboardNamesInfiniteQueryOptions,
 } from '@/features/dashboard/service/queries/getDashboardNames'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { invalidateMigrationQueries } from './MigrationPage.helpers'
 
-vi.mock('@/lib/bigname', () => ({ bigname: { addressNames: vi.fn() } }))
+vi.mock('@/lib/indexer', () => ({
+  indexer: { getNamesForAddress: vi.fn() },
+}))
 
 const owner = '0x0000000000000000000000000000000000000001'
-const agent = (authority: AddressName['authority']): AddressName => ({
+const agent = (protocol: NameSummary['protocol']): NameSummary => ({
   name: 'agent.eth',
-  display_name: 'agent.eth',
-  namespace: 'ens',
+  displayName: 'agent.eth',
   namehash: '0x01',
-  status: 'active',
-  authority,
-  expires_at: '2000000000',
+  protocol,
   relations: ['owner'],
-  is_primary: false,
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'active',
+  expiresAt: new Date(2_000_000_000_000),
+  servedExpiry: 2_000_000_000n,
+  graceEndsAt: null,
+  registeredAt: null,
+  createdAt: null,
 })
 
 let queryClient: QueryClient
@@ -33,11 +39,12 @@ beforeEach(() => {
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   })
   isMigrated = false
-  vi.mocked(bigname.addressNames).mockImplementation(() =>
+  vi.mocked(indexer.getNamesForAddress).mockImplementation(() =>
     okAsync({
-      data: [agent(isMigrated ? 'ens_v2' : 'ens_v1')],
-      page: { next_cursor: null },
-    } as never),
+      items: [agent(isMigrated ? 'v2' : 'v1')],
+      nextCursor: null,
+      totalCount: null,
+    }),
   )
 })
 

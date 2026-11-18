@@ -1,12 +1,12 @@
-import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
+import type { HistoryEvent } from '@ens-apps/indexer/reads'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getNameHistory = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    nameHistory: (...args: unknown[]) =>
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNameHistory: (...args: unknown[]) =>
       ResultAsync.fromPromise(getNameHistory(...args), (e) => e),
   },
 }))
@@ -23,10 +23,10 @@ const FORGER: Address = '0xd04773f7dfecc572a12f492e37942bfb03eb624a'
 const base = {
   id: 'a'.repeat(64),
   name: 'alice.eth',
-  namespace: 'ens',
-  registration_id: null,
-  timestamp: '1700000000',
-  transaction_hash: '0xabc',
+  registrationId: null,
+  timestamp: new Date(1_700_000_000_000),
+  transactionHash: '0xabc',
+  kind: null,
 } as const
 
 const pointedAt = (
@@ -34,12 +34,12 @@ const pointedAt = (
   block: number,
   logIndex = 0,
   registry: Address = V1_REGISTRY,
-): NameHistoryRow => ({
+): HistoryEvent => ({
   ...base,
   type: 'resolver',
-  block_number: block,
-  log_index: logIndex,
-  contract_address: registry,
+  blockNumber: block,
+  logIndex,
+  contractAddress: registry,
   data: {
     action: 'resolver_changed',
     ...(resolver && { resolver: { chain_id: 11155111, address: resolver } }),
@@ -51,13 +51,13 @@ const recordFrom = (
   block: number | null,
   logIndex = 0,
   name = 'alice.eth',
-): NameHistoryRow => ({
+): HistoryEvent => ({
   ...base,
   name,
   type: 'record',
-  block_number: block,
-  log_index: logIndex,
-  contract_address: resolver,
+  blockNumber: block,
+  logIndex,
+  contractAddress: resolver,
   data: {
     action: 'record_changed',
     key: 'addr:60',
@@ -65,10 +65,8 @@ const recordFrom = (
   },
 })
 
-const isKept = (
-  record: NameHistoryRow,
-  assignments: readonly NameHistoryRow[],
-) => isAssignedRecord(record, toResolverTimeline(assignments))
+const isKept = (record: HistoryEvent, assignments: readonly HistoryEvent[]) =>
+  isAssignedRecord(record, toResolverTimeline(assignments))
 
 describe('isAssignedRecord', () => {
   const assigned = [pointedAt(PUBLIC_RESOLVER, 10)]
@@ -114,12 +112,12 @@ describe('isAssignedRecord', () => {
   })
 
   it('takes a resolver from a registration that names one', () => {
-    const registered: NameHistoryRow = {
+    const registered: HistoryEvent = {
       ...base,
       type: 'registration',
-      block_number: 10,
-      log_index: 0,
-      contract_address: V2_REGISTRY,
+      blockNumber: 10,
+      logIndex: 0,
+      contractAddress: V2_REGISTRY,
       data: {
         action: 'registration_granted',
         resolver: { chain_id: 11155111, address: PUBLIC_RESOLVER },
@@ -155,21 +153,16 @@ describe('dropUnassignedRecords', () => {
   beforeEach(() => {
     getNameHistory.mockReset()
     getNameHistory.mockResolvedValue({
-      data: [pointedAt(PUBLIC_RESOLVER, 10)],
-      page: {
-        cursor: null,
-        next_cursor: null,
-        page_size: 200,
-        has_more: false,
-      },
-      meta: { as_of: {} },
+      items: [pointedAt(PUBLIC_RESOLVER, 10)],
+      nextCursor: null,
+      totalCount: null,
     })
   })
 
   it("hides a forged address and url from the name's history", async () => {
     const real = recordFrom(PUBLIC_RESOLVER, 11)
     const forged = recordFrom(FORGER, 20)
-    const transfer: NameHistoryRow = {
+    const transfer: HistoryEvent = {
       ...pointedAt(null, 21),
       type: 'transfer',
       data: { action: 'token_transferred' },
@@ -180,13 +173,11 @@ describe('dropUnassignedRecords', () => {
     expect(result._unsafeUnwrap()).toEqual([transfer, real])
     expect(getNameHistory).toHaveBeenCalledOnce()
     expect(getNameHistory).toHaveBeenCalledWith(
-      'alice.eth',
       {
-        namespace: 'ens',
-        type: ['resolver', 'registration'],
-        include: ['data'],
+        name: 'alice.eth',
+        types: ['resolver', 'registration'],
         order: 'asc',
-        page_size: 200,
+        pageSize: 200,
       },
       expect.anything(),
     )
@@ -199,7 +190,7 @@ describe('dropUnassignedRecords', () => {
       recordFrom(PUBLIC_RESOLVER, 13, 0, 'bob.eth'),
     ])
 
-    expect(getNameHistory.mock.calls.map(([name]) => name)).toEqual([
+    expect(getNameHistory.mock.calls.map(([{ name }]) => name)).toEqual([
       'alice.eth',
       'bob.eth',
     ])
@@ -220,5 +211,15 @@ describe('dropUnassignedRecords', () => {
     ])
 
     expect(result.isErr()).toBe(true)
+  })
+
+  it('fails when the name is not indexed, rather than dropping its writes', async () => {
+    getNameHistory.mockResolvedValue(null)
+
+    const result = await dropUnassignedRecords([
+      recordFrom(PUBLIC_RESOLVER, 11),
+    ])
+
+    expect(result._unsafeUnwrapErr().kind).toBe('unavailable')
   })
 })

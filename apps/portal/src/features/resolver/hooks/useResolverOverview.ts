@@ -1,22 +1,18 @@
+import type { ResolverPower } from '@ens-apps/indexer/bigname'
 import {
-  type BignameError,
-  type ResolverLink as BignameResolverLink,
-  type ResolverOverview as BignameResolverOverview,
-  type ResolverRole as BignameResolverRole,
+  type AuditedPage,
+  type BoundName,
   type Completeness,
-  type Envelope,
-  type EventRow,
-  isStale,
-  MAX_PAGE_SIZE,
-  type NameRecord,
-  type Power,
+  type HistoryEvent,
+  type ResolverOverview as IndexedResolverOverview,
+  IndexerReadError,
+  type Page,
   type RecordResource,
-  type RecordResourceSelector,
-  type ResolverPower,
-  readAllEnvelopes,
-  retryStale,
-  toUnixSeconds,
-} from '@ens-apps/indexer/bigname'
+  type ResolverLink as ResolverLinkRow,
+  type ResolverRoleGrant,
+  readAllItems,
+  retryStaleRead,
+} from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
@@ -24,15 +20,14 @@ import {
 } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient } from '@tanstack/react-query'
-import { errAsync, okAsync, ResultAsync } from 'neverthrow'
+import { errAsync, ok, okAsync, Result, ResultAsync } from 'neverthrow'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
-import { envConfig } from '@/config'
 import {
   fetchResolverEventsPage,
   timelinePageParams,
 } from '@/features/history/timelineEventPage'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import {
   encodeResolverRoleBitmap,
   type ResolverRole as ResolverRoleName,
@@ -47,7 +42,7 @@ import { RESOLVER_ROLES_FOR_ACCOUNT } from './useResolverCallerAdminRoles'
  * Records are internal inodes: a setter creates one and links the name to it,
  * and `linkToNode` points a second name at the same `recordId`. So a link is
  * not a stored `from -> to` pair, it is two names resolving to one record —
- * bigname's `/links` rows, grouped by `record_id`.
+ * the indexer's links rows, grouped by `recordId`.
  */
 export type ResolverLink = {
   readonly name: string
@@ -81,7 +76,7 @@ export type ResolverRole = {
 
 export type ResolverEvent = {
   readonly id: string
-  /** The raw storage kind, else bigname's friendly type. */
+  /** The raw storage kind, else the indexer's friendly type. */
   readonly type: string
   readonly blockNumber: number
   readonly timestamp: number | null
@@ -100,10 +95,10 @@ export type ResolverNode = {
 export type ResolverOverview = {
   readonly address: string
   /**
-   * Names whose current registration declares this resolver: bigname's
+   * Names whose current registration declares this resolver: the indexer's
    * count when it gives one, else the first page's length, a lower bound
-   * while `nodeCountIsLowerBound` (shown as "N+"). Null when bigname could
-   * not serve the bound names.
+   * while `nodeCountIsLowerBound` (shown as "N+"). Null when the indexer
+   * could not serve the bound names.
    */
   readonly nodeCount: number | null
   readonly nodeCountIsLowerBound: boolean
@@ -122,15 +117,15 @@ export type ResolverOverview = {
   readonly roles: readonly ResolverRole[]
   /**
    * The newest events (see `RESOLVER_EVENTS_PAGE_SIZE`), newest first; null
-   * when bigname could not serve them, which leaves the rest of the page up.
+   * when the indexer could not serve them, which leaves the rest of the page up.
    */
   readonly events: readonly ResolverEvent[] | null
-  /** True when bigname holds older events than `events` lists. */
+  /** True when the indexer holds older events than `events` lists. */
   readonly eventsHasMore: boolean
 }
 
 class GetResolverOverviewError extends TaggedError('GetResolverOverviewError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 type GetResolverOverviewParameters = {
@@ -190,18 +185,20 @@ export const pruneLinksAfterUnlink = (
 
 /** Bound names counted on the overview; a fuller resolver reads as this many plus. */
 const OVERVIEW_NODES_PAGE_SIZE = 100
-/** Events listed; a busy resolver's full feed is `/v1/events`, paged. */
-const RESOLVER_EVENTS_PAGE_SIZE = MAX_PAGE_SIZE
+/** Events listed; a busy resolver's full feed is its events read, paged. */
+const RESOLVER_EVENTS_PAGE_SIZE = 200
+/** Rows per page of the links and roles collections. */
+const COLLECTION_PAGE_SIZE = 200
 
 /**
- * A `/links` row as a named link. The resolver's default record (the empty-name
- * node) and a node bigname has never seen a name for have no name to link or
- * unlink by, so they are left out.
+ * A links row as a named link. The resolver's default record (the empty-name
+ * node) and a node the indexer has never seen a name for have no name to link
+ * or unlink by, so they are left out.
  */
-const toLinkedName = (row: BignameResolverLink): LinkedName[] =>
-  row.default || !row.name
+const toLinkedName = (row: ResolverLinkRow): LinkedName[] =>
+  row.isDefault || !row.name
     ? []
-    : [{ name: row.name, namehash: row.namehash, recordId: row.record_id }]
+    : [{ name: row.name, namehash: row.namehash, recordId: row.recordId }]
 
 /**
  * bigname's power names for a `PermissionedResolver` role, mapped onto the
@@ -233,112 +230,103 @@ const RESOLVER_ROLE_BY_POWER: Readonly<
   admin_upgrade: 'ROLE_UPGRADE_ADMIN',
 }
 
-const isResolverPower = (power: Power): power is ResolverPower =>
+const isResolverPower = (power: string): power is ResolverPower =>
   Object.hasOwn(RESOLVER_ROLE_BY_POWER, power)
 
-export const powersToResolverRoleBitmap = (powers: readonly Power[]): bigint =>
+export const powersToResolverRoleBitmap = (powers: readonly string[]): bigint =>
   encodeResolverRoleBitmap(
     powers.flatMap((power) =>
       isResolverPower(power) ? [RESOLVER_ROLE_BY_POWER[power]] : [],
     ),
   )
 
-/** The setter argument a scoped grant is about; an `argument` resource names its first. */
-const readingOf = (
-  resource: RecordResource,
-): RecordResourceSelector | undefined =>
-  resource.kind === 'argument' ? resource.selectors[0] : resource
-
-const toNamedResource = (
-  resource: RecordResource,
-): ResolverNamedResource | undefined => {
-  const reading = readingOf(resource)
-  if (!reading) return undefined
+/** An `argument` resource arrives as its first setter, under the argument's own hash. */
+const toNamedResource = (resource: RecordResource): ResolverNamedResource => {
   const base = { resource: BigInt(resource.hash).toString() }
-  return match(reading)
-    .returnType<ResolverNamedResource | undefined>()
+  return match(resource)
+    .returnType<ResolverNamedResource>()
     .with({ kind: 'address' }, (address) => ({
       ...base,
       recordKind: 'addr',
       recordKey: null,
-      coinType:
-        address.coin_type?.toString() ?? address.coin_type_decimal ?? null,
+      coinType: address.coinType?.toString() ?? null,
     }))
     .with({ kind: P.union('text', 'data') }, (keyed) => ({
       ...base,
       recordKind: keyed.kind,
-      recordKey: keyed.key ?? keyed.key_bytes ?? null,
+      recordKey: keyed.key,
       coinType: null,
     }))
     .with({ kind: 'abi' }, (abi) => ({
       ...base,
       recordKind: 'ABI content type',
-      recordKey:
-        abi.content_type?.toString() ?? abi.content_type_decimal ?? null,
+      recordKey: abi.contentType?.toString() ?? null,
       coinType: null,
     }))
     .with({ kind: 'interface' }, (iface) => ({
       ...base,
       recordKind: 'interface',
-      recordKey: iface.interface_id,
+      recordKey: iface.interfaceId,
       coinType: null,
     }))
-    .otherwise(() => undefined)
+    .exhaustive()
 }
 
-const namedResourceOf = (row: BignameResolverRole) =>
-  row.record_resource ? (toNamedResource(row.record_resource) ?? []) : []
+const namedResourceOf = (grant: ResolverRoleGrant) =>
+  grant.recordResource ? [toNamedResource(grant.recordResource)] : []
 
 /**
- * The EAC resource a grant targets: bigname's `eac_resource` when it serves
+ * The EAC resource a grant targets: the indexer's EAC resource when it serves
  * one, else the hash of the record it is scoped to. Neither present does not
  * prove root, so the scope stays unknown and no write can target 0 by
  * inference. The registration handle is opaque and cannot recover it.
  */
-const resourceOf = (row: BignameResolverRole): string | null =>
-  row.eac_resource ??
-  (row.record_resource ? BigInt(row.record_resource.hash).toString() : null)
+const resourceOf = (grant: ResolverRoleGrant): string | null =>
+  grant.eacResource ??
+  (grant.recordResource ? BigInt(grant.recordResource.hash).toString() : null)
 
-const toResolverRole = (row: BignameResolverRole): ResolverRole => ({
-  account: row.address,
-  resource: resourceOf(row),
-  registrationId: row.registration_id,
-  roleBitmap: powersToResolverRoleBitmap(row.powers).toString(),
-  blockNumber: row.grant_event?.block_number ?? 0,
-  transactionHash: row.grant_event?.transaction_hash ?? null,
-  timestamp: toUnixSeconds(row.grant_event?.timestamp) ?? null,
-  name: row.name ?? null,
+const toUnixSeconds = (date: Date | null | undefined): number | null =>
+  date ? Math.floor(date.getTime() / 1000) : null
+
+const toResolverRole = (grant: ResolverRoleGrant): ResolverRole => ({
+  account: grant.account,
+  resource: resourceOf(grant),
+  registrationId: grant.registrationId ?? undefined,
+  roleBitmap: powersToResolverRoleBitmap(grant.powers).toString(),
+  blockNumber: grant.grantedAt?.blockNumber ?? 0,
+  transactionHash: grant.grantedAt?.transactionHash ?? null,
+  timestamp: toUnixSeconds(grant.grantedAt?.timestamp),
+  name: grant.name,
 })
 
 /** A bound name as a node; every bound name's current resolver is this one. */
 const toResolverNode =
   (resolver: { readonly address: string }) =>
-  (detail: NameRecord): ResolverNode => ({
-    id: detail.namehash,
-    name: detail.name,
-    owner: detail.owner ? { id: detail.owner } : null,
+  (bound: BoundName): ResolverNode => ({
+    id: bound.namehash,
+    name: bound.name,
+    owner: bound.owner ? { id: bound.owner } : null,
     resolver: { id: resolver.address, address: resolver.address },
   })
 
-/** A row bigname derived from state has no transaction to show. */
-const toResolverEvent = (row: EventRow): ResolverEvent[] =>
-  row.block_number === null || row.transaction_hash === null
+/** A row the indexer derived from state has no transaction to show. */
+const toResolverEvent = (row: HistoryEvent): ResolverEvent[] =>
+  row.blockNumber === null || row.transactionHash === null
     ? []
     : [
         {
           id: row.id,
           type: row.kind ?? row.type,
-          blockNumber: row.block_number,
-          timestamp: toUnixSeconds(row.timestamp) ?? null,
-          transactionHash: row.transaction_hash,
+          blockNumber: row.blockNumber,
+          timestamp: toUnixSeconds(row.timestamp),
+          transactionHash: row.transactionHash,
           data: JSON.stringify(flattenHistoryData(row.data)),
         },
       ]
 
-type ResolverRef = { readonly chainId: number; readonly address: Address }
+type ResolverRef = { readonly address: Address }
 
 const resolverRefOf = (address: Address): ResolverRef => ({
-  chainId: envConfig.chain.id,
   address: address.toLowerCase() as Address,
 })
 
@@ -361,13 +349,18 @@ const readResolverCollection = <T>(
   read: (
     cursor: string | undefined,
     signal?: AbortSignal,
-  ) => ResultAsync<Envelope<readonly T[]>, BignameError>,
+  ) => ResultAsync<AuditedPage<T>, IndexerReadError>,
   signal: AbortSignal | undefined,
-): ResultAsync<Collection<T>, BignameError> =>
-  readAllEnvelopes(read, { signal }).map((pages) => ({
-    rows: pages.flatMap((page) => page.data),
+): ResultAsync<Collection<T>, IndexerReadError> =>
+  readAllItems(
+    // Each page is read whole, so its completeness survives the walk.
+    (cursor, pageSignal) =>
+      read(cursor, pageSignal).map((page) => ({ ...page, items: [page] })),
+    { signal },
+  ).map((pages) => ({
+    rows: pages.flatMap((page) => page.items),
     status: pages.reduce<Completeness>(
-      (status, page) => weaker(status, page.meta.completeness ?? 'full'),
+      (status, page) => weaker(status, page.completeness),
       'full',
     ),
   }))
@@ -390,57 +383,58 @@ export const formatRoleHolderCount = (
     .otherwise((formatted) => `${formatted} role holders`)
 
 const readOverview = (
-  { chainId, address }: ResolverRef,
+  { address }: ResolverRef,
   signal: AbortSignal | undefined,
 ) =>
-  retryStale(
+  retryStaleRead(
     (requestSignal) =>
-      bigname.resolver(
-        chainId,
-        address,
-        { page_size: OVERVIEW_NODES_PAGE_SIZE },
+      indexer.getResolver(
+        { address, pageSize: OVERVIEW_NODES_PAGE_SIZE },
         { signal: requestSignal },
       ),
-    isStale,
     { signal },
   )
 
-type OverviewPage = Envelope<BignameResolverOverview>
+/** The overview, which only the node count comes from; a failure leaves the rest to render. */
+type BoundNamesRead =
+  | { readonly status: 'served'; readonly overview: IndexedResolverOverview }
+  | { readonly status: 'unknown' }
+  | { readonly status: 'failed' }
 
-/**
- * The overview, or null when bigname fails to serve it for any reason but an
- * unknown resolver: only the node count comes from it, so the rest still renders.
- */
 const readBoundNames = (
   resolver: ResolverRef,
   signal: AbortSignal | undefined,
-) =>
+): Promise<BoundNamesRead> =>
   readOverview(resolver, signal)
-    .map((overview): OverviewPage | null => overview)
-    .orElse((error) =>
-      error.code === 'not_found' ? errAsync(error) : okAsync(null),
+    .map(
+      (overview): BoundNamesRead =>
+        overview === null
+          ? { status: 'unknown' }
+          : { status: 'served', overview },
     )
+    .unwrapOr({ status: 'failed' })
 
 const toOverview = (
   resolver: ResolverRef,
-  overview: OverviewPage | null,
-  links: Collection<BignameResolverLink>,
-  roles: Collection<BignameResolverRole>,
-  events: Envelope<readonly EventRow[]> | null,
+  bound: BoundNamesRead,
+  links: Collection<ResolverLinkRow>,
+  roles: Collection<ResolverRoleGrant>,
+  events: Page<HistoryEvent> | null,
 ): ResolverOverview => {
-  const boundNames = overview?.data.bound_names
+  const overview = bound.status === 'served' ? bound.overview : null
+  const boundNames = overview?.boundNames
   const resolverLinks = toLinks(links.rows.flatMap(toLinkedName))
   const resolverRoles = roles.rows.map(toResolverRole)
   return {
     address: resolver.address,
     nodeCount: boundNames
-      ? (boundNames.page.total_count ?? boundNames.data.length)
+      ? (boundNames.totalCount ?? boundNames.items.length)
       : null,
     nodeCountIsLowerBound:
       !!boundNames &&
-      boundNames.page.total_count === null &&
-      boundNames.page.has_more,
-    mirrorRegistry: overview?.data.mirror?.registry.address ?? null,
+      boundNames.totalCount === null &&
+      boundNames.nextCursor !== null,
+    mirrorRegistry: overview?.mirrorRegistry ?? null,
     links: resolverLinks,
     linkCount: links.status === 'unsupported' ? null : resolverLinks.length,
     linksStatus: links.status,
@@ -452,27 +446,38 @@ const toOverview = (
         : new Set(resolverRoles.map(({ account }) => account.toLowerCase()))
             .size,
     namedResources: roles.rows.flatMap(namedResourceOf),
-    events: events ? events.data.flatMap(toResolverEvent) : null,
-    eventsHasMore: events?.page?.has_more ?? false,
+    events: events ? events.items.flatMap(toResolverEvent) : null,
+    eventsHasMore: events ? events.nextCursor !== null : false,
   }
 }
 
-const readResolverRoles = (
-  { chainId, address }: ResolverRef,
+const readResolverLinks = (
+  { address }: ResolverRef,
   signal: AbortSignal | undefined,
 ) =>
-  readResolverCollection<BignameResolverRole>(
+  readResolverCollection(
     (cursor, pageSignal) =>
-      bigname.resolverRoles(
-        chainId,
-        address,
-        { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
+      indexer.getResolverLinks(
+        { address, pageSize: COLLECTION_PAGE_SIZE, ...(cursor && { cursor }) },
         { signal: pageSignal },
       ),
     signal,
   )
 
-/** `account`'s grants on the resolver, with the setter arguments bigname decoded for them. */
+const readResolverRoles = (
+  { address }: ResolverRef,
+  signal: AbortSignal | undefined,
+) =>
+  readResolverCollection(
+    (cursor, pageSignal) =>
+      indexer.getResolverRoles(
+        { address, pageSize: COLLECTION_PAGE_SIZE, ...(cursor && { cursor }) },
+        { signal: pageSignal },
+      ),
+    signal,
+  )
+
+/** `account`'s grants on the resolver, with the setter arguments the indexer decoded for them. */
 export const getResolverRoleGrants = (
   {
     address,
@@ -482,7 +487,7 @@ export const getResolverRoleGrants = (
 ) =>
   readResolverRoles(resolverRefOf(address), signal).map(({ rows }) => {
     const held = rows.filter(
-      (row) => row.address.toLowerCase() === account.toLowerCase(),
+      (grant) => grant.account.toLowerCase() === account.toLowerCase(),
     )
     return {
       roles: held.map(toResolverRole),
@@ -491,66 +496,52 @@ export const getResolverRoleGrants = (
   })
 
 /**
- * The newest events, or null when bigname fails to serve them, so a failure
- * does not take the other tabs down.
+ * The newest events, or null when the indexer fails to serve them, so a
+ * failure does not take the other tabs down.
  */
 const readRecentEvents = (
-  { chainId, address }: ResolverRef,
+  { address }: ResolverRef,
   signal: AbortSignal | undefined,
-) =>
-  retryStale(
+): Promise<Page<HistoryEvent> | null> =>
+  retryStaleRead(
     (requestSignal) =>
-      bigname.events(
+      indexer.getEvents(
         {
-          resolver: `${chainId}:${address}`,
-          include: ['data', 'raw'],
+          resolver: address,
           order: 'desc',
-          page_size: RESOLVER_EVENTS_PAGE_SIZE,
+          pageSize: RESOLVER_EVENTS_PAGE_SIZE,
         },
         { signal: requestSignal },
       ),
-    isStale,
     { signal },
-  )
-    .map((events): Envelope<readonly EventRow[]> | null => events)
-    .orElse(() =>
-      okAsync<Envelope<readonly EventRow[]> | null, BignameError>(null),
-    )
+  ).unwrapOr(null)
 
 /**
- * A resolver's overview in four bigname reads, together: the overview for its
- * bound names, the `/links` and `/roles` collections, and its events.
+ * A resolver's overview in four indexer reads, together: the overview for its
+ * bound names, the links and roles collections, and its events.
  * The overview itself carries no counts or samples (bigname #954). Null when
- * bigname knows no resolver at this address.
+ * the indexer knows no resolver at this address.
  */
 const getResolverOverview = (
   { address }: GetResolverOverviewParameters,
   signal?: AbortSignal,
 ) => {
   const resolver = resolverRefOf(address)
-  const { chainId } = resolver
-  return ResultAsync.combine([
-    readBoundNames(resolver, signal),
-    readResolverCollection<BignameResolverLink>(
-      (cursor, pageSignal) =>
-        bigname.resolverLinks(
-          chainId,
-          resolver.address,
-          { page_size: MAX_PAGE_SIZE, ...(cursor && { cursor }) },
-          { signal: pageSignal },
-        ),
-      signal,
-    ),
-    readResolverRoles(resolver, signal),
-    readRecentEvents(resolver, signal),
-  ])
-    .map(([overview, links, roles, events]): ResolverOverview | null =>
-      toOverview(resolver, overview, links, roles, events),
-    )
-    .orElse((error) =>
-      error.code === 'not_found'
-        ? okAsync<ResolverOverview | null, BignameError>(null)
-        : errAsync(error),
+  return ResultAsync.fromSafePromise(
+    Promise.all([
+      readBoundNames(resolver, signal),
+      readResolverLinks(resolver, signal),
+      readResolverRoles(resolver, signal),
+      readRecentEvents(resolver, signal),
+    ]),
+  )
+    .andThen(([bound, links, roles, events]) =>
+      // An unknown resolver's collections fail too; only the overview says it is unknown.
+      bound.status === 'unknown'
+        ? ok<ResolverOverview | null, IndexerReadError>(null)
+        : Result.combine([links, roles]).map(([links, roles]) =>
+            toOverview(resolver, bound, links, roles, events),
+          ),
     )
     .mapErr((cause) => new GetResolverOverviewError({ cause }))
 }
@@ -570,35 +561,41 @@ const readBoundNamesPage = (
   cursor: string | undefined,
   signal: AbortSignal | undefined,
 ) =>
-  retryStale(
+  retryStaleRead(
     (requestSignal) =>
-      bigname.resolver(
-        resolver.chainId,
-        resolver.address,
-        cursor
-          ? { page_size: RESOLVER_NODES_PAGE_SIZE, cursor }
-          : { page_size: RESOLVER_NODES_PAGE_SIZE },
+      indexer.getResolver(
+        {
+          address: resolver.address,
+          pageSize: RESOLVER_NODES_PAGE_SIZE,
+          ...(cursor && { cursor }),
+        },
         { signal: requestSignal },
       ),
-    isStale,
     { signal },
   )
-    .map(
-      ({ data }): ResolverNodesPage => ({
-        nodes: data.bound_names.data.map(toResolverNode(resolver)),
-        nextCursor: data.bound_names.page.next_cursor,
-        totalCount: data.bound_names.page.total_count,
-      }),
-    )
-    // A resolver bigname has not indexed serves no names.
-    .orElse((error) =>
-      error.code === 'not_found' && cursor === undefined
-        ? okAsync<ResolverNodesPage, BignameError>({
-            nodes: [],
-            nextCursor: null,
-            totalCount: 0,
-          })
-        : errAsync(error),
+    .andThen((overview) =>
+      match({ overview, cursor })
+        .returnType<ResultAsync<ResolverNodesPage, IndexerReadError>>()
+        .with({ overview: P.nonNullable }, ({ overview }) =>
+          okAsync({
+            nodes: overview.boundNames.items.map(toResolverNode(resolver)),
+            nextCursor: overview.boundNames.nextCursor,
+            totalCount: overview.boundNames.totalCount,
+          }),
+        )
+        // A resolver the indexer has not indexed serves no names.
+        .with({ cursor: undefined }, () =>
+          okAsync({ nodes: [], nextCursor: null, totalCount: 0 }),
+        )
+        .otherwise(() =>
+          errAsync(
+            new IndexerReadError({
+              kind: 'unavailable',
+              message: 'The resolver is no longer indexed',
+              cause: undefined,
+            }),
+          ),
+        ),
     )
     .mapErr((cause) => new GetResolverOverviewError({ cause }))
 

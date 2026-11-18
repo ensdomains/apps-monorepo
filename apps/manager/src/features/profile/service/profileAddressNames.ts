@@ -1,4 +1,3 @@
-import { readNamesForAddress } from '@ens-apps/indexer/bigname'
 import type {
   IndexerReadError,
   NameRelation,
@@ -16,7 +15,7 @@ import { skipToken } from '@tanstack/react-query'
 import { errAsync, ok, okAsync, ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import type { SortDir, SortField } from '@/features/dashboard/mergedNames'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import {
   type ProfileAddressName,
   toProfileAddressName,
@@ -150,7 +149,7 @@ export const getProfileNamesInfiniteQueryOptions = (query: ProfileNamesQuery) =>
     }),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      readProfileNamesChunk(readNamesForAddress(bigname), query, pageParam),
+      readProfileNamesChunk(indexer.getNamesForAddress, query, pageParam),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     meta: {
       dependsOn: ['indexer'],
@@ -203,7 +202,7 @@ export const getProfileNameCountsQueryOptions = (
       address: address?.toLowerCase() ?? null,
     }),
     queryFn: address
-      ? () => getProfileNameCounts(readNamesForAddress(bigname), address)
+      ? () => getProfileNameCounts(indexer.getNamesForAddress, address)
       : skipToken,
     meta: {
       dependsOn: ['indexer'],

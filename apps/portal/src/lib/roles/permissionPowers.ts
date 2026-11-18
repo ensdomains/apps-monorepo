@@ -1,8 +1,7 @@
-import type { EventRow, Power } from '@ens-apps/indexer/bigname'
+import type { Power } from '@ens-apps/indexer/bigname'
+import type { HistoryEventData } from '@ens-apps/indexer/reads'
 
-type PermissionData = NonNullable<
-  Extract<EventRow, { type: 'permission' }>['data']
->
+type PermissionData = HistoryEventData['permission']
 
 /**
  * The previous power set of a change: `powers` (the set after it) without

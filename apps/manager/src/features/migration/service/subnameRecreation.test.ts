@@ -1,8 +1,5 @@
-import {
-  createBignameClient,
-  type Meta,
-  type Subname,
-} from '@ens-apps/indexer/bigname'
+import { createBignameIndexer } from '@ens-apps/indexer'
+import type { Meta, Subname } from '@ens-apps/indexer/bigname'
 import { unknownLabelhashOf } from '@ens-apps/migration'
 import {
   registryOwnerSnippet,
@@ -120,7 +117,9 @@ const fixture = (
     descendantEvents: [] as { args: { label: Hex } }[],
     descendantParent: CHILD,
   }
-  const indexer = createBignameClient('https://indexer.invalid', {
+  const indexer = createBignameIndexer({
+    baseUrl: 'https://indexer.invalid',
+    chainId: envConfig.chain.id,
     fetch: async (input) => {
       const collection = new URL(String(input)).pathname.endsWith('/subnames')
       return new Response(
@@ -467,7 +466,7 @@ describe('direct subname source checks', () => {
   it('uses indexed data only for missing labels, never for child counts or authority', async () => {
     const context = fixture()
     const countRead = vi
-      .spyOn(context.indexer, 'name')
+      .spyOn(context.indexer, 'getNameDetail')
       .mockImplementation(() => {
         throw new Error(
           'A count read must not establish RPC inventory completeness',
@@ -1020,7 +1019,7 @@ describe('direct subname source checks', () => {
 
   it('retains validated labels through a delta refresh without another indexer read', async () => {
     const context = fixture()
-    const labels = vi.spyOn(context.indexer, 'subnames')
+    const labels = vi.spyOn(context.indexer, 'getSubnames')
     const found = await context.discover()
     expect(labels).toHaveBeenCalledTimes(1)
     labels.mockClear()

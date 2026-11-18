@@ -22,7 +22,7 @@ export const toNodeRolesStatus = (
     .returnType<NodeDetailSheetProps['rolesStatus']>()
     .with({ isError: true }, () => 'error')
     .with({ data: undefined }, () => 'loading')
-    // A resolver bigname has not indexed has no roles to list.
+    // A resolver the indexer has not indexed has no roles to list.
     .with({ data: null }, () => 'full')
     .with({ data: { rolesStatus: 'unsupported' } }, () => 'unsupported')
     .with({ data: P.nonNullable }, ({ data }) =>

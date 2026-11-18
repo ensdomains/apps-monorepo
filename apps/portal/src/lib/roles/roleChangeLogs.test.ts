@@ -1,4 +1,5 @@
-import { BignameError, type EventRow } from '@ens-apps/indexer/bigname'
+import { IndexerReadError, type IndexerReadErrorKind } from '@ens-apps/indexer'
+import { type EventRow, toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { errAsync, ok, okAsync } from 'neverthrow'
@@ -26,10 +27,10 @@ vi.mock('@/features/profile/hooks/useBlockTimestamps', () => ({
     mockGetBlockTimestamps(params),
 }))
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    name: (...args: unknown[]) => mockName(...args),
-    events: (...args: unknown[]) => mockEvents(...args),
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNameDetail: (...args: unknown[]) => mockName(...args),
+    getEvents: (...args: unknown[]) => mockEvents(...args),
   },
 }))
 
@@ -80,26 +81,18 @@ const row = ({
   }) as EventRow
 
 const indexed = (rows: readonly EventRow[]) => {
-  mockName.mockReturnValue(
-    okAsync({
-      data: { registration_id: REGISTRATION },
-      meta: { as_of: {} },
-    }),
-  )
+  mockName.mockReturnValue(okAsync({ registrationId: REGISTRATION }))
   mockEvents.mockReturnValue(
     okAsync({
-      data: rows,
-      page: {
-        cursor: null,
-        next_cursor: null,
-        page_size: rows.length,
-        total_count: null,
-        has_more: false,
-      },
-      meta: { as_of: {} },
+      items: rows.map(toHistoryEvent),
+      nextCursor: null,
+      totalCount: null,
     }),
   )
 }
+
+const readError = (kind: IndexerReadErrorKind) =>
+  errAsync(new IndexerReadError({ kind, message: kind, cause: undefined }))
 
 const read = (
   overrides: Partial<Parameters<typeof getRoleChangeLogs>[0]> = {},
@@ -111,7 +104,7 @@ const read = (
     ...overrides,
   })
 
-describe('getRoleChangeLogs via bigname', () => {
+describe('getRoleChangeLogs via the indexer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetLogs.mockResolvedValue([])
@@ -122,16 +115,15 @@ describe('getRoleChangeLogs via bigname', () => {
     await read()
 
     expect(mockName).toHaveBeenCalledWith(
-      NAME,
-      { namespace: 'ens' },
+      { name: NAME },
       {
         signal: expect.any(AbortSignal),
       },
     )
     expect(mockEvents).toHaveBeenCalledWith(
       expect.objectContaining({
-        registration_id: REGISTRATION,
-        type: ['permission'],
+        registrationId: REGISTRATION,
+        types: ['permission'],
         order: 'asc',
       }),
       { signal: expect.any(AbortSignal) },
@@ -203,66 +195,28 @@ describe('getRoleChangeLogs via bigname', () => {
 
   it.each([
     [
-      'bigname fails',
-      () =>
-        mockName.mockReturnValue(
-          errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
-        ),
+      'the indexer fails',
+      () => mockName.mockReturnValue(readError('unavailable')),
     ],
     [
-      'bigname rejects the read (400)',
-      () =>
-        mockName.mockReturnValue(
-          errAsync(
-            new BignameError({
-              status: 400,
-              code: 'invalid_input',
-              message: 'bad filter',
-            }),
-          ),
-        ),
+      'the indexer rejects the read (400)',
+      () => mockName.mockReturnValue(readError('rejected')),
     ],
     [
-      'bigname answers stale (409)',
-      () =>
-        mockName.mockReturnValue(
-          errAsync(
-            new BignameError({ status: 409, code: 'stale', message: 'stale' }),
-          ),
-        ),
+      'the indexer answers stale (409)',
+      () => mockName.mockReturnValue(readError('stale')),
     ],
     [
-      'bigname is rate limited (429)',
-      () =>
-        mockName.mockReturnValue(
-          errAsync(
-            new BignameError({
-              status: 429,
-              code: 'rate_limited',
-              message: 'slow down',
-            }),
-          ),
-        ),
+      'the indexer is rate limited (429)',
+      () => mockName.mockReturnValue(readError('unavailable')),
     ],
     [
-      'bigname fails internally (500)',
-      () =>
-        mockName.mockReturnValue(
-          errAsync(
-            new BignameError({
-              status: 500,
-              code: 'internal_error',
-              message: 'boom',
-            }),
-          ),
-        ),
+      'the indexer fails internally (500)',
+      () => mockName.mockReturnValue(readError('unavailable')),
     ],
     [
-      'bigname has not indexed the name',
-      () =>
-        mockName.mockReturnValue(
-          errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
-        ),
+      'the indexer has not indexed the name',
+      () => mockName.mockReturnValue(okAsync(null)),
     ],
     [
       'the history outruns the row budget',
@@ -283,11 +237,11 @@ describe('getRoleChangeLogs via bigname', () => {
     )
   })
 
-  it('falls back to the node when bigname stalls', async () => {
+  it('falls back to the node when the indexer stalls', async () => {
     vi.useFakeTimers()
     try {
       mockName.mockReturnValue(
-        okAsync({ data: {}, meta: {} }).andThen(
+        okAsync({ registrationId: null }).andThen(
           () => new Promise(() => {}) as never,
         ),
       )
@@ -298,7 +252,7 @@ describe('getRoleChangeLogs via bigname', () => {
       await vi.advanceTimersByTimeAsync(INDEXED_ROLE_EVENTS_TIMEOUT_MS)
 
       expect((await pending)._unsafeUnwrap()).toEqual(logs)
-      expect(mockName.mock.lastCall?.[2]?.signal.aborted).toBe(true)
+      expect(mockName.mock.lastCall?.[1]?.signal.aborted).toBe(true)
     } finally {
       vi.useRealTimers()
     }
@@ -340,9 +294,7 @@ describe('getRoleChangeLogs', () => {
     mockGetLogs.mockReset()
     mockGetLogs.mockResolvedValue([])
     // The node path is the fallback: these cases pin what it asks for.
-    mockName.mockReturnValue(
-      errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
-    )
+    mockName.mockReturnValue(readError('unavailable'))
   })
 
   it('pins the resource topic and the single event', async () => {

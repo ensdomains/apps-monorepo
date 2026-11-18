@@ -1,4 +1,5 @@
-import { BignameError, type EventRow } from '@ens-apps/indexer/bigname'
+import { IndexerReadError } from '@ens-apps/indexer'
+import { type EventRow, toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
 import { errAsync, ok, okAsync } from 'neverthrow'
@@ -32,10 +33,10 @@ vi.mock('@/lib/wagmi/helpers', () => ({
     }),
 }))
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    name: (...args: unknown[]) => mockName(...args),
-    events: (...args: unknown[]) => mockEvents(...args),
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNameDetail: (...args: unknown[]) => mockName(...args),
+    getEvents: (...args: unknown[]) => mockEvents(...args),
   },
 }))
 
@@ -63,7 +64,7 @@ const POWER_BY_ROLE = new Map<bigint, string>([
   [registryRoles.ROLE_UNREGISTER, 'unregister'],
 ])
 
-// One bigname permission row: the account's whole set after the change.
+// One indexed permission row, as bigname serves it: the account's whole set after the change.
 const row = ({
   block,
   account = OWNER,
@@ -95,22 +96,14 @@ const row = ({
 
 const pageOf = (rows: readonly EventRow[], next: string | null = null) =>
   okAsync({
-    data: rows,
-    page: {
-      cursor: null,
-      next_cursor: next,
-      page_size: rows.length,
-      total_count: null,
-      has_more: next !== null,
-    },
-    meta: { as_of: {} },
+    items: rows.map(toHistoryEvent),
+    nextCursor: next,
+    totalCount: null,
   })
 
-/** bigname serves these rows for the name's current registration, a page each. */
+/** The indexer serves these rows for the name's current registration, a page each. */
 const indexed = (...pages: readonly (readonly EventRow[])[]) => {
-  mockName.mockReturnValue(
-    okAsync({ data: { registration_id: REGISTRATION }, meta: { as_of: {} } }),
-  )
+  mockName.mockReturnValue(okAsync({ registrationId: REGISTRATION }))
   mockEvents.mockReset()
   for (const [index, rows] of pages.entries()) {
     mockEvents.mockReturnValueOnce(
@@ -121,7 +114,13 @@ const indexed = (...pages: readonly (readonly EventRow[])[]) => {
 
 const unindexed = () =>
   mockName.mockReturnValue(
-    errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
+    errAsync(
+      new IndexerReadError({
+        kind: 'unavailable',
+        message: 'down',
+        cause: undefined,
+      }),
+    ),
   )
 
 const SET_RESOLVER = registryRoles.ROLE_SET_RESOLVER
@@ -168,7 +167,7 @@ describe('getNameRolesAccounts', () => {
     await run()
 
     expect(mockEvents).toHaveBeenCalledWith(
-      expect.objectContaining({ registration_id: REGISTRATION }),
+      expect.objectContaining({ registrationId: REGISTRATION }),
       { signal: expect.any(AbortSignal) },
     )
     expect(mockReadContract).toHaveBeenCalledWith(

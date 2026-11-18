@@ -1,28 +1,27 @@
-import {
-  type BignameError,
-  type EventDataByType,
-  type EventRow,
-  type EventType,
-  toUnixSeconds,
-} from '@ens-apps/indexer/bigname'
+import type {
+  HistoryEvent,
+  HistoryEventData,
+  HistoryEventType,
+  IndexerReadError,
+} from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address, Hash } from 'viem'
 import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { mergeRegistrationTwins } from '@/utils/history/registrationTwins'
 
 /** The row's friendly type with its typed `include=data` payload. */
 type RecentActivityPayload = {
-  readonly [TType in EventType]: {
+  readonly [TType in HistoryEventType]: {
     readonly type: TType
-    /** Raw storage kind (`include=raw`), e.g. `RecordVersionChanged`. */
+    /** Raw storage kind, e.g. `RecordVersionChanged`. */
     readonly kind?: string
-    /** Absent when bigname leaves the payload out. */
-    readonly data?: EventDataByType[TType]
+    /** Absent when the indexer leaves the payload out. */
+    readonly data?: HistoryEventData[TType]
   }
-}[EventType]
+}[HistoryEventType]
 
 export type RecentActivityEvent = RecentActivityPayload & {
   readonly name: string | null
@@ -40,7 +39,7 @@ export type RecentActivityPage = {
 }
 
 class GetRecentActivityError extends TaggedError('GetRecentActivityError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 const RECENT_ACTIVITY_PAGE_SIZE = 15
@@ -49,7 +48,7 @@ const RECENT_ACTIVITY_PAGE_SIZE = 15
  * An authority epoch with no new owner (bigname writes them beside
  * registrations and wraps) says nothing a reader can act on.
  */
-const isOwnerlessAuthority = (row: EventRow): boolean =>
+const isOwnerlessAuthority = (row: HistoryEvent): boolean =>
   row.type === 'authority' &&
   !row.data?.owner &&
   row.data?.action !== 'name_wrapped' &&
@@ -61,45 +60,46 @@ const isOwnerlessAuthority = (row: EventRow): boolean =>
  * reverse resolver, or on a forward name) stays.
  */
 const isEchoedNameRecord = (
-  row: EventRow,
+  row: HistoryEvent,
   primaryNameTxs: ReadonlySet<string>,
 ): boolean =>
   row.type === 'record' &&
   row.data?.key === 'name' &&
-  !!row.transaction_hash &&
-  primaryNameTxs.has(row.transaction_hash)
+  !!row.transactionHash &&
+  primaryNameTxs.has(row.transactionHash)
 
 const toActivityEvent = (
-  row: EventRow,
+  row: HistoryEvent,
   primaryNameTxs: ReadonlySet<string>,
 ): RecentActivityEvent[] => {
-  const timestamp = toUnixSeconds(row.timestamp)
+  const timestamp = row.timestamp && Math.floor(row.timestamp.getTime() / 1000)
   // A state-derived row has no transaction to link, nor a place in the feed.
-  if (!row.transaction_hash || row.block_number === null || !timestamp)
-    return []
+  if (!row.transactionHash || row.blockNumber === null || !timestamp) return []
   if (isOwnerlessAuthority(row) || isEchoedNameRecord(row, primaryNameTxs))
     return []
-  // A record write bigname could not attribute to a name carries none.
+  // A record write the indexer could not attribute to a name carries none.
   const name = row.name || null
   // A row is its payload plus fields read here, so it stands in for one.
-  const payload: RecentActivityPayload = row
+  const payload: RecentActivityPayload = { ...row, kind: row.kind ?? undefined }
   return [
     {
       ...payload,
       name,
-      transactionHash: row.transaction_hash,
+      transactionHash: row.transactionHash,
       timestamp,
-      blockNumber: row.block_number,
-      contractAddress: row.contract_address ?? null,
+      blockNumber: row.blockNumber,
+      contractAddress: row.contractAddress,
     },
   ]
 }
 
-const toActivityEvents = (rows: readonly EventRow[]): RecentActivityEvent[] => {
+const toActivityEvents = (
+  rows: readonly HistoryEvent[],
+): RecentActivityEvent[] => {
   const primaryNameTxs = new Set(
     rows.flatMap((row) =>
-      row.type === 'primary_name' && row.transaction_hash
-        ? [row.transaction_hash]
+      row.type === 'primary_name' && row.transactionHash
+        ? [row.transactionHash]
         : [],
     ),
   )
@@ -114,22 +114,21 @@ const toActivityEvents = (rows: readonly EventRow[]): RecentActivityEvent[] => {
  * serve as a history row, so every friendly type belongs here.
  */
 const getRecentActivityPage = (cursor: string | undefined) =>
-  bigname
-    .events({
+  indexer
+    .getEvents({
       order: 'desc',
-      page_size: RECENT_ACTIVITY_PAGE_SIZE,
-      include: ['data', 'raw'],
+      pageSize: RECENT_ACTIVITY_PAGE_SIZE,
       ...(cursor && { cursor }),
     })
-    .andThen(({ data, page }) =>
-      dropUnassignedRecords(data).map((rows) => ({ data: rows, page })),
+    .andThen(({ items, nextCursor }) =>
+      dropUnassignedRecords(items).map((rows) => ({ items: rows, nextCursor })),
     )
     .map(
-      ({ data, page }): RecentActivityPage => ({
+      ({ items, nextCursor }): RecentActivityPage => ({
         // A twin whose partner is on the next page stays, as in the timeline.
-        events: toActivityEvents(data),
-        endCursor: page?.next_cursor ?? null,
-        hasNextPage: page?.has_more ?? false,
+        events: toActivityEvents(items),
+        endCursor: nextCursor,
+        hasNextPage: nextCursor !== null,
       }),
     )
     .mapErr((cause) => new GetRecentActivityError({ cause }))

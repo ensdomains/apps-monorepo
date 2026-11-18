@@ -57,7 +57,7 @@ export const toGraceSummary = (row: AddressName): NameSummary => ({
   isPrimary: row.is_primary,
   isMigrated: row.migrated_at !== undefined,
   registrationStatus: row.status,
-  expiresAt: toDate(row.expires_at),
+  expiresAt: toExpiresAt(row),
   servedExpiry: toExactSeconds(row.expires_at),
   graceEndsAt: toDate(row.grace_ends_at),
   registeredAt: toDate(row.registered_at),

@@ -1,70 +1,99 @@
-import type { AddressNamesQuery } from '@ens-apps/indexer/bigname'
-import { type AddressName, BignameError } from '@ens-apps/indexer/bigname'
+import {
+  IndexerReadError,
+  type NameDetail,
+  type NameSummary,
+} from '@ens-apps/indexer/reads'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { getAddressNames } from './useAddressNames'
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: { addressNames: vi.fn(), lookup: vi.fn() },
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNamesForAddress: vi.fn(),
+    getLapsedNames: vi.fn(),
+    getNames: vi.fn(),
+  },
 }))
 
 const ADDRESS = '0x1111111111111111111111111111111111111111'
 const NOW = Temporal.Instant.from('2026-10-08T00:00:00Z')
-const NOW_SECONDS = NOW.epochNanoseconds / 1_000_000_000n
+const NOW_MS = NOW.epochMilliseconds
+const DAY_MS = 86_400_000
 
 const row = (
   name: string,
-  overrides: Partial<AddressName> = {},
-): AddressName => ({
+  overrides: Partial<NameSummary> = {},
+): NameSummary => ({
   name,
-  display_name: name,
-  namespace: 'ens',
+  displayName: name,
   namehash: '0x01',
-  owner: ADDRESS,
-  status: 'active',
-  authority: 'ens_v2',
-  expires_at: String(NOW_SECONDS + 86_400n * 300n),
+  protocol: 'v2',
   relations: ['owner'],
-  is_primary: false,
-  subname_count: 2,
-  record_count: 5,
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'active',
+  expiresAt: new Date(NOW_MS + DAY_MS * 300),
+  servedExpiry: null,
+  graceEndsAt: null,
+  registeredAt: null,
+  createdAt: null,
+  subnameCount: 2,
+  recordCount: 5,
   ...overrides,
 })
 
-const pageOf = (data: readonly AddressName[], next: string | null = null) =>
-  okAsync({
-    data,
-    page: {
-      cursor: null,
-      next_cursor: next,
-      page_size: 200,
-      total_count: null,
-      has_more: next !== null,
-    },
-    meta: { as_of: {} },
-  })
+const v1Expiring = (name: string, expiresAt: Date | null) =>
+  row(name, { protocol: 'v1', expiresAt })
 
-// Answers the current-relations walk and the grace read separately.
+const detail = (name: string, expiresAt: Date | null): NameDetail => ({
+  name,
+  displayName: name,
+  namehash: '0x02',
+  protocol: 'v1',
+  isSupported: true,
+  owner: null,
+  manager: null,
+  registrant: null,
+  resolver: null,
+  registrationStatus: 'active',
+  expiresAt,
+  graceEndsAt: null,
+  registeredAt: null,
+  registrationId: null,
+  createdAt: null,
+  migratedAt: null,
+  unresolvableReason: null,
+  addressCoinTypes: null,
+})
+
+const unavailable = () =>
+  errAsync(
+    new IndexerReadError({ kind: 'unavailable', message: 'busy', cause: null }),
+  )
+
+// Answers the current-relations walk and the lapsed read separately.
 const answer = (
-  current: readonly (readonly AddressName[])[],
-  grace: readonly AddressName[] = [],
+  current: readonly (readonly NameSummary[])[],
+  lapsed: readonly NameSummary[] = [],
 ) => {
   let currentCall = 0
-  vi.mocked(bigname.addressNames).mockImplementation(
-    (_, query?: AddressNamesQuery) => {
-      if (query?.relation === 'former_owner') return pageOf(grace)
-      const index = currentCall++
-      return pageOf(
-        current[index] ?? [],
-        index < current.length - 1 ? `page-${index + 1}` : null,
-      )
-    },
-  )
+  vi.mocked(indexer.getNamesForAddress).mockImplementation(() => {
+    const index = currentCall++
+    return okAsync({
+      items: current[index] ?? [],
+      nextCursor: index < current.length - 1 ? `page-${index + 1}` : null,
+      totalCount: null,
+    })
+  })
+  vi.mocked(indexer.getLapsedNames).mockReturnValue(okAsync(lapsed))
 }
 
 const queries = () =>
-  vi.mocked(bigname.addressNames).mock.calls.map(([, query]) => query)
+  vi.mocked(indexer.getNamesForAddress).mock.calls.map(([query]) => query)
+
+const lookups = () =>
+  vi.mocked(indexer.getNames).mock.calls.map(([query]) => query.names)
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -74,10 +103,9 @@ describe('getAddressNames', () => {
       [
         row('later.eth'),
         row('legacy.eth', {
-          authority: 'ens_v1',
+          protocol: 'v1',
           relations: ['owner', 'manager'],
-          expires_at: String(NOW_SECONDS + 86_400n * 10n),
-          ens_v1: { expires_at: String(NOW_SECONDS + 86_400n * 10n) },
+          expiresAt: new Date(NOW_MS + DAY_MS * 10),
         }),
       ],
     ])
@@ -86,11 +114,10 @@ describe('getAddressNames', () => {
       await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
-    expect(queries()[0]).toMatchObject({
-      namespace: 'ens',
-      relation: 'any',
-      include: ['counts'],
-    })
+    expect(queries()[0]).toEqual(
+      expect.objectContaining({ address: ADDRESS, includeCounts: true }),
+    )
+    expect(queries()[0]).not.toHaveProperty('relations')
     expect(names).toEqual([
       expect.objectContaining({
         name: 'legacy.eth',
@@ -116,7 +143,7 @@ describe('getAddressNames', () => {
 
     expect(names.map(({ name }) => name).sort()).toEqual(['a.eth', 'b.eth'])
     expect(queries()).toContainEqual(
-      expect.objectContaining({ relation: 'any', cursor: 'page-1' }),
+      expect.objectContaining({ cursor: 'page-1' }),
     )
   })
 
@@ -124,7 +151,7 @@ describe('getAddressNames', () => {
     answer([
       [
         row('abc.addr.reverse'),
-        row('gone.eth', { status: 'released' }),
+        row('gone.eth', { registrationStatus: 'released' }),
         row('kept.eth'),
       ],
     ])
@@ -142,12 +169,10 @@ describe('getAddressNames', () => {
       [[row('held.eth')]],
       [
         row('lapsed.eth', {
-          owner: undefined,
-          status: 'expired',
-          relations: ['former_owner'],
-          expires_at: String(NOW_SECONDS - 86_400n),
-          grace_ends_at: String(NOW_SECONDS + 86_400n * 27n),
-          lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
+          registrationStatus: 'expired',
+          relations: [],
+          expiresAt: new Date(NOW_MS - DAY_MS),
+          graceEndsAt: new Date(NOW_MS + DAY_MS * 27),
         }),
       ],
     )
@@ -156,6 +181,11 @@ describe('getAddressNames', () => {
       await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
+    expect(vi.mocked(indexer.getLapsedNames).mock.calls[0]?.[0]).toEqual({
+      address: ADDRESS,
+      now: new Date(NOW_MS),
+      since: new Date(NOW_MS - DAY_MS * 30),
+    })
     expect(names).toEqual([
       expect.objectContaining({
         name: 'lapsed.eth',
@@ -168,79 +198,45 @@ describe('getAddressNames', () => {
   })
 
   it('gives ENSv1 subnames the expiry of their .eth parent', async () => {
-    const LISTED_EXPIRY = NOW_SECONDS + 86_400n * 30n
-    const LOOKED_UP_EXPIRY = NOW_SECONDS + 86_400n * 60n
-    const v1Subname = (name: string) =>
-      row(name, {
-        authority: 'ens_v1',
-        expires_at: undefined,
-        ens_v1: { expires_at: null },
-      })
+    const LISTED_EXPIRY = new Date(NOW_MS + DAY_MS * 30)
+    const LOOKED_UP_EXPIRY = new Date(NOW_MS + DAY_MS * 60)
     answer([
       [
-        row('listed.eth', {
-          authority: 'ens_v1',
-          expires_at: String(LISTED_EXPIRY),
-          ens_v1: { expires_at: String(LISTED_EXPIRY) },
-        }),
-        v1Subname('sub.listed.eth'),
-        v1Subname('deep.sub.other.eth'),
+        v1Expiring('listed.eth', LISTED_EXPIRY),
+        v1Expiring('sub.listed.eth', null),
+        v1Expiring('deep.sub.other.eth', null),
       ],
     ])
-    vi.mocked(bigname.lookup).mockReturnValue(
-      okAsync({
-        data: [
-          {
-            input: { name: 'other.eth' },
-            kind: 'name',
-            status: 'ok',
-            record: {
-              name: 'other.eth',
-              display_name: 'other.eth',
-              namespace: 'ens',
-              namehash: '0x02',
-              ens_v1: { expires_at: String(LOOKED_UP_EXPIRY) },
-              read_status: 'ok',
-            },
-          },
-        ],
-        meta: { as_of: {} },
-      }),
+    vi.mocked(indexer.getNames).mockReturnValue(
+      okAsync([detail('other.eth', LOOKED_UP_EXPIRY)]),
     )
 
     const names = (
       await getAddressNames({ address: ADDRESS }, { now: NOW })
     )._unsafeUnwrap()
 
-    expect(vi.mocked(bigname.lookup).mock.calls[0]?.[0].inputs).toEqual([
-      { name: 'other.eth' },
-    ])
+    expect(lookups()).toEqual([['other.eth']])
     expect(names).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: 'sub.listed.eth',
           expiryDate: null,
-          parentExpiryDate: new Date(Number(LISTED_EXPIRY) * 1000),
+          parentExpiryDate: LISTED_EXPIRY,
         }),
         expect.objectContaining({
           name: 'deep.sub.other.eth',
-          parentExpiryDate: new Date(Number(LOOKED_UP_EXPIRY) * 1000),
+          parentExpiryDate: LOOKED_UP_EXPIRY,
         }),
       ]),
     )
   })
 
   it("orders subnames by their parent's expiry", async () => {
-    const PARENT_EXPIRY = NOW_SECONDS + 86_400n * 10n
     answer([
       [
         row('later.eth'),
-        row('sub.soon.eth', { authority: 'ens_v1', expires_at: undefined }),
-        row('soon.eth', {
-          authority: 'ens_v1',
-          expires_at: String(PARENT_EXPIRY),
-          ens_v1: { expires_at: String(PARENT_EXPIRY) },
-        }),
+        v1Expiring('sub.soon.eth', null),
+        v1Expiring('soon.eth', new Date(NOW_MS + DAY_MS * 10)),
       ],
     ])
 
@@ -259,37 +255,21 @@ describe('getAddressNames', () => {
     const PARENT_COUNT = 1001
     answer([
       Array.from({ length: PARENT_COUNT }, (_, index) =>
-        row(`sub.parent${index}.eth`, {
-          authority: 'ens_v1',
-          expires_at: undefined,
-        }),
+        v1Expiring(`sub.parent${index}.eth`, null),
       ),
     ])
-    vi.mocked(bigname.lookup).mockImplementation(({ inputs }) =>
-      okAsync({
-        data: inputs.map((input) => ({
-          input,
-          kind: 'name' as const,
-          status: 'not_found' as const,
-        })),
-        meta: { as_of: {} },
-      }),
+    vi.mocked(indexer.getNames).mockImplementation(({ names }) =>
+      okAsync(names.map(() => null)),
     )
 
     await getAddressNames({ address: ADDRESS }, { now: NOW })
 
-    expect(
-      vi.mocked(bigname.lookup).mock.calls.map(([body]) => body.inputs.length),
-    ).toEqual([1000, 1])
+    expect(lookups().map((names) => names.length)).toEqual([1000, 1])
   })
 
   it('lists subnames without a parent expiry when its read fails', async () => {
-    answer([
-      [row('sub.parent.eth', { authority: 'ens_v1', expires_at: undefined })],
-    ])
-    vi.mocked(bigname.lookup).mockReturnValue(
-      errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
-    )
+    answer([[v1Expiring('sub.parent.eth', null)]])
+    vi.mocked(indexer.getNames).mockReturnValue(unavailable())
 
     const names = (
       await getAddressNames({ address: ADDRESS }, { now: NOW })
@@ -304,9 +284,8 @@ describe('getAddressNames', () => {
   })
 
   it('fails when a read fails', async () => {
-    vi.mocked(bigname.addressNames).mockReturnValue(
-      errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
-    )
+    vi.mocked(indexer.getNamesForAddress).mockReturnValue(unavailable())
+    vi.mocked(indexer.getLapsedNames).mockReturnValue(unavailable())
 
     const result = await getAddressNames({ address: ADDRESS }, { now: NOW })
 

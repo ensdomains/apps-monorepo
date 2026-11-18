@@ -1,4 +1,4 @@
-import type { Completeness } from '@ens-apps/indexer/bigname'
+import type { Completeness } from '@ens-apps/indexer/reads'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ExternalLink } from 'lucide-react'

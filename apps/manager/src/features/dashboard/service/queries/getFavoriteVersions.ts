@@ -1,7 +1,8 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
+import type { FavoriteVersionRead } from './favorites.helpers'
 
 class GetFavoriteVersionsError extends TaggedError('GetFavoriteVersionsError')<{
   cause: unknown
@@ -19,17 +20,14 @@ export const getFavoriteVersionsQueryOptions = (names: readonly string[]) =>
     ...favoriteReadOptions,
     queryKey: qk('favorites', 'versions', { names }),
     queryFn: ({ signal }) =>
-      bigname
-        .lookup(
-          {
-            // The feed profile omits authority, which version filtering needs.
-            profile: 'detail',
-            namespace: 'ens',
-            inputs: names.map((name) => ({ name })),
-          },
-          { signal },
+      indexer
+        .getNames({ names }, { signal })
+        .map((details): readonly FavoriteVersionRead[] =>
+          names.map((name, index) => ({
+            name,
+            detail: details[index] ?? null,
+          })),
         )
-        .map(({ data }) => data)
         .mapErr((cause) => new GetFavoriteVersionsError({ cause })),
     enabled: names.length > 0,
   })

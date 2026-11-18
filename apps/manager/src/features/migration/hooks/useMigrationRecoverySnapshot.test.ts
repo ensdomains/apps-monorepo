@@ -21,7 +21,7 @@ vi.mock('wagmi', async (importOriginal) => ({
   ...wagmiMock,
 }))
 
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { makeDomain } from '../service/_fixtures'
 import { makeConfirmedMigration } from '../service/_fixtures/confirmedMigration'
 import {
@@ -106,8 +106,8 @@ const makeRecoverySnapshot = (): MigrationRecoverySnapshot => {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.stubGlobal('localStorage', new Storage())
-  vi.spyOn(bigname, 'nameHistory').mockReturnValue(
-    okAsync({ data: [], meta: { as_of: {} } }),
+  vi.spyOn(indexer, 'getNameHistory').mockReturnValue(
+    okAsync({ items: [], nextCursor: null, totalCount: null }),
   )
   smartAccountMock.useSmartAccountContext.mockReturnValue({
     ownerAddress: OWNER,

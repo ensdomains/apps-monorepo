@@ -13,10 +13,12 @@ vi.mock('@/lib/connection-cookie', () => ({ getConnectionCookie: vi.fn() }))
 const { bignameFetch } = vi.hoisted(() => ({
   bignameFetch: vi.fn<typeof fetch>(),
 }))
-vi.mock('@/lib/bigname', async () => {
-  const { createBignameClient } = await import('@ens-apps/indexer/bigname')
+vi.mock('@/lib/indexer', async () => {
+  const { createBignameIndexer } = await import('@ens-apps/indexer')
   return {
-    bigname: createBignameClient('https://bigname.test', {
+    indexer: createBignameIndexer({
+      baseUrl: 'https://bigname.test',
+      chainId: 11155111,
       fetch: (input, init) => bignameFetch(input, init),
     }),
   }

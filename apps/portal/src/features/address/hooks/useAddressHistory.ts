@@ -1,13 +1,9 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
 import {
-  type EventRow,
-  isStale,
-  readNamesForAddress,
-  retryStale,
-  toUnixSeconds,
-} from '@ens-apps/indexer/bigname'
-import type { IndexerReadError } from '@ens-apps/indexer/reads'
-import { readAllNames } from '@ens-apps/indexer/reads'
+  type HistoryEvent,
+  type IndexerReadError,
+  readAllNames,
+  retryStaleRead,
+} from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   resultInfiniteQueryOptions,
@@ -17,7 +13,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import {
   flattenHistoryData,
   historyEventLogId,
@@ -29,7 +25,7 @@ import type {
 } from '@/utils/history/transformAddressHistory'
 
 class GetAddressHistoryError extends TaggedError('GetAddressHistoryError')<{
-  cause: BignameError | IndexerReadError
+  cause: IndexerReadError
 }> {}
 
 type GetAddressHistoryParameters = {
@@ -38,7 +34,7 @@ type GetAddressHistoryParameters = {
   readonly pageSize: number
 }
 
-const toError = (cause: BignameError | IndexerReadError) =>
+const toError = (cause: IndexerReadError) =>
   new GetAddressHistoryError({ cause })
 
 const readHistoryPage = (
@@ -47,22 +43,20 @@ const readHistoryPage = (
   cursor: string | undefined,
   signal: AbortSignal | undefined,
 ) =>
-  bigname
-    .addressHistory(
-      address.toLowerCase(),
+  indexer
+    .getAddressHistory(
       {
-        relation: 'any',
-        include: ['data', 'raw'],
+        address: address.toLowerCase() as Address,
         order: 'desc',
-        page_size: pageSize,
+        pageSize,
         ...(cursor && { cursor }),
       },
       { signal },
     )
-    .andThen((envelope) =>
-      dropUnassignedRecords(envelope.data, signal).map((data) => ({
-        ...envelope,
-        data,
+    .andThen((page) =>
+      dropUnassignedRecords(page.items, signal).map((items) => ({
+        ...page,
+        items,
       })),
     )
 
@@ -75,23 +69,22 @@ const readHistoryPage = (
  */
 const readHeldNames = (address: Address, signal: AbortSignal | undefined) =>
   readAllNames(
-    readNamesForAddress(bigname),
+    indexer.getNamesForAddress,
     { address, relations: ['owner'] },
     { signal },
   )
     .map((names) => new Set(names.map(({ name }) => name)))
     .mapErr(toError)
 
-const toEvent = (row: EventRow): AddressHistoryEvent[] => {
-  const timestamp = toUnixSeconds(row.timestamp)
+const toEvent = (row: HistoryEvent): AddressHistoryEvent[] => {
+  const timestamp = row.timestamp && Math.floor(row.timestamp.getTime() / 1000)
   // A state-derived row has no transaction for the table to group under.
-  if (!row.transaction_hash || row.block_number === null || !timestamp)
-    return []
+  if (!row.transactionHash || row.blockNumber === null || !timestamp) return []
   return [
     {
       id: historyEventLogId(row),
-      transactionHash: row.transaction_hash,
-      blockNumber: row.block_number,
+      transactionHash: row.transactionHash,
+      blockNumber: row.blockNumber,
       name: row.name ?? '',
       type: row.kind ?? row.type,
       timestamp,
@@ -110,7 +103,7 @@ const toEvent = (row: EventRow): AddressHistoryEvent[] => {
  */
 export const toAddressNameHistory = (
   address: Address,
-  rows: readonly EventRow[],
+  rows: readonly HistoryEvent[],
   heldNames: ReadonlySet<string>,
 ): AddressNameHistory[] => {
   const byName = new Map<string, AddressHistoryEvent[]>()
@@ -122,7 +115,7 @@ export const toAddressNameHistory = (
     byName.set(key, [...(byName.get(key) ?? []), ...events])
   }
   return [...byName].map(([name, events]) => ({
-    // A record write bigname could not attribute to a name has none.
+    // A record write the indexer could not attribute to a name has none.
     name: name || null,
     registrarHolder: name && heldNames.has(name) ? address : null,
     events,
@@ -144,14 +137,14 @@ export const getAddressHistoryQueryOptions = (
       ResultAsync.combine([
         readHistoryPage(address, pageSize, undefined, signal).mapErr(toError),
         readHeldNames(address, signal),
-      ]).map(([{ data }, heldNames]) => ({
-        history: toAddressNameHistory(address, data, heldNames),
+      ]).map(([{ items }, heldNames]) => ({
+        history: toAddressNameHistory(address, items, heldNames),
         heldNames,
       })),
   })
 
-const txOf = (row: EventRow): string | null =>
-  row.transaction_hash?.toLowerCase() ?? null
+const txOf = (row: HistoryEvent): string | null =>
+  row.transactionHash?.toLowerCase() ?? null
 
 /**
  * How many of `rows` (newest first) to show for a window of `window`, so no
@@ -160,7 +153,7 @@ const txOf = (row: EventRow): string | null =>
  * it. A registration's twin rows sit in one transaction, so they stay together.
  */
 export const countWholeTransactions = (
-  rows: readonly EventRow[],
+  rows: readonly HistoryEvent[],
   window: number,
   hasMore: boolean,
 ): number => {
@@ -178,7 +171,7 @@ export const countWholeTransactions = (
 export const ADDRESS_HISTORY_PAGE_SIZE = 100
 
 export type AddressHistoryPage = {
-  readonly rows: readonly EventRow[]
+  readonly rows: readonly HistoryEvent[]
   readonly nextCursor: string | null
 }
 
@@ -187,14 +180,14 @@ const getAddressHistoryPagesQueryKey = createQueryKey<
   { readonly address: Address }
 >('get-address-history-pages')
 
-/** One bigname stream over every name the address owns, manages or holds a role on, a page at a time. */
+/** One indexer stream over every name the address owns, manages or holds a role on, a page at a time. */
 export const getAddressHistoryPagesQueryOptions = (params: {
   readonly address: Address
 }) =>
   resultInfiniteQueryOptions({
     queryKey: getAddressHistoryPagesQueryKey(params),
     queryFn: ({ queryKey: [, { address }], pageParam, signal }) =>
-      retryStale(
+      retryStaleRead(
         (requestSignal) =>
           readHistoryPage(
             address,
@@ -202,13 +195,12 @@ export const getAddressHistoryPagesQueryOptions = (params: {
             pageParam,
             requestSignal,
           ),
-        isStale,
         { signal },
       )
         .map(
-          ({ data, page }): AddressHistoryPage => ({
-            rows: data,
-            nextCursor: page?.has_more ? (page.next_cursor ?? null) : null,
+          ({ items, nextCursor }): AddressHistoryPage => ({
+            rows: items,
+            nextCursor,
           }),
         )
         .mapErr(toError),

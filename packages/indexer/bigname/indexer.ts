@@ -8,7 +8,7 @@ import type {
 } from '../reads/history.types'
 import { DEFAULT_TIMEOUT_MS } from '../shared/graphql'
 import { toUnixSeconds } from '../shared/values'
-import { toReadError } from './adapters'
+import { toNextCursor, toReadError } from './adapters'
 import { type BignameClientOptions, createBignameClient } from './client'
 import type { BignameError } from './errors'
 import { readGraceNames, readLapsedNames } from './grace'
@@ -72,7 +72,7 @@ const toHistoryPage = (
   envelope: T.Envelope<readonly (T.EventRow | T.NameHistoryRow)[]>,
 ) => ({
   items: envelope.data.map(toHistoryEvent),
-  nextCursor: envelope.page?.next_cursor ?? null,
+  nextCursor: toNextCursor(envelope.page),
   totalCount: envelope.page?.total_count ?? null,
 })
 
@@ -164,7 +164,7 @@ export const createBignameIndexer = ({
         )
         .map(({ data, page }) => ({
           items: data.map(toSubname),
-          nextCursor: page?.next_cursor ?? null,
+          nextCursor: toNextCursor(page),
           totalCount: page?.total_count ?? null,
         }))
         .orElse(orWhenNotFound(EMPTY_PAGE)),

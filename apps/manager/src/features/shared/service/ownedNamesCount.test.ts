@@ -1,10 +1,12 @@
-import { createBignameClient } from '@ens-apps/indexer/bigname'
+import { createBignameIndexer } from '@ens-apps/indexer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const fetchMock = vi.hoisted(() => vi.fn())
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: createBignameClient('https://bigname.test', {
+vi.mock('@/lib/indexer', () => ({
+  indexer: createBignameIndexer({
+    baseUrl: 'https://bigname.test',
+    chainId: 11155111,
     fetch: (input: RequestInfo | URL, init?: RequestInit) =>
       fetchMock(input, init),
   }),
@@ -20,12 +22,29 @@ const respond = (body: unknown, status = 200) =>
     }),
   )
 
+// A served row; the indexer maps every field it reads.
+const ALICE = {
+  name: 'alice.eth',
+  display_name: 'alice.eth',
+  namehash: '0x01',
+  authority: 'ens_v2',
+  status: 'active',
+  relations: ['owner'],
+  is_primary: false,
+}
+
 const listing = (
   rows: readonly unknown[],
   page: { readonly total_count: number | null; readonly has_more: boolean },
 ) => ({
   data: rows,
-  page: { cursor: null, next_cursor: null, page_size: 1, ...page },
+  // bigname serves a next cursor whenever it has more.
+  page: {
+    cursor: null,
+    next_cursor: page.has_more ? 'next' : null,
+    page_size: 1,
+    ...page,
+  },
   meta: { as_of: {} },
 })
 
@@ -33,9 +52,7 @@ describe('getOwnedNamesCount', () => {
   beforeEach(() => fetchMock.mockReset())
 
   it('counts owned .eth registrations once each, leaving subnames out', async () => {
-    respond(
-      listing([{ name: 'alice.eth' }], { total_count: 3, has_more: true }),
-    )
+    respond(listing([ALICE], { total_count: 3, has_more: true }))
 
     const result = await getOwnedNamesCount(
       '0x00000000000000000000000000000000000ABC',
@@ -47,6 +64,7 @@ describe('getOwnedNamesCount', () => {
       '/v1/addresses/0x00000000000000000000000000000000000abc/names',
     )
     expect(Object.fromEntries(url.searchParams)).toEqual({
+      namespace: 'ens',
       relation: 'owner',
       parent: 'eth',
       dedupe: 'registration',
@@ -66,9 +84,7 @@ describe('getOwnedNamesCount', () => {
   })
 
   it('answers unknown when bigname gives no exact total', async () => {
-    respond(
-      listing([{ name: 'alice.eth' }], { total_count: null, has_more: true }),
-    )
+    respond(listing([ALICE], { total_count: null, has_more: true }))
 
     const result = await getOwnedNamesCount(
       '0x0000000000000000000000000000000000000abc',

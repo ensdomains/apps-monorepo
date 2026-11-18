@@ -1,9 +1,13 @@
-import { BignameError, type Subname } from '@ens-apps/indexer/bigname'
+import {
+  IndexerReadError,
+  type Subname,
+  type WrapperState,
+} from '@ens-apps/indexer/reads'
 import { QueryClient } from '@tanstack/react-query'
 import { errAsync, ok, okAsync } from 'neverthrow'
 import { keccak256, labelhash, stringToBytes } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import {
   getSubnameLabelStatusQueryOptions,
   getSubnamePagesQueryOptions,
@@ -12,8 +16,8 @@ import {
   getSubnamesQueryKey,
 } from './useSubnames'
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: { subnames: vi.fn(), name: vi.fn() },
+vi.mock('@/lib/indexer', () => ({
+  indexer: { getSubnames: vi.fn(), getNameDetail: vi.fn() },
 }))
 
 const { mockClient, mockEnsjsGetOwner, mockReadContract } = vi.hoisted(() => {
@@ -35,35 +39,39 @@ const OWNER = '0x1234567890abcdef1234567890abcdef12345678'
 
 const row = (label: string, overrides: Partial<Subname> = {}): Subname => ({
   name: `${label}.test.eth`,
-  display_name: `${label}.test.eth`,
-  namespace: 'ens',
+  displayName: `${label}.test.eth`,
   namehash: '0x01',
   labelhash: labelhash(label),
   owner: OWNER,
-  status: 'active',
+  protocol: null,
+  registrationStatus: 'active',
+  expiresAt: null,
+  wrapper: null,
   ...overrides,
 })
 
+const wrapper = (
+  state: WrapperState,
+  parentCannotControl = false,
+): Subname['wrapper'] => ({
+  state,
+  fuses: 0,
+  parentCannotControl,
+  expiresAt: null,
+})
+
 const page = (
-  data: readonly Subname[],
+  items: readonly Subname[],
   {
     total,
     next = null,
   }: { readonly total: number; readonly next?: string | null },
-) =>
-  okAsync({
-    data,
-    page: {
-      cursor: null,
-      next_cursor: next,
-      page_size: data.length,
-      total_count: total,
-      has_more: next !== null,
-    },
-    meta: { as_of: {} },
-  })
+) => okAsync({ items, nextCursor: next, totalCount: total })
 
-const asked = (call = 0) => vi.mocked(bigname.subnames).mock.calls[call]
+const readError = (kind: IndexerReadError['kind']) =>
+  errAsync(new IndexerReadError({ kind, message: kind, cause: null }))
+
+const asked = (call = 0) => vi.mocked(indexer.getSubnames).mock.calls[call]
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -76,21 +84,19 @@ const firstPage = async (name: string) =>
   ).pages[0]?.subnames ?? []
 
 describe('subname pages', () => {
-  it('lists a V1 name’s subnames from bigname, holder as owner', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(
+  it('lists a V1 name’s subnames from the indexer, holder as owner', async () => {
+    vi.mocked(indexer.getSubnames).mockReturnValue(
       page([row('sub')], { total: 1 }),
     )
 
     const subnames = await firstPage('test.eth')
 
     expect(asked()).toEqual([
-      'test.eth',
       {
-        namespace: 'ens',
-        include_expired: 'false',
-        sort: 'name',
-        page_size: 100,
-        include: ['counts'],
+        name: 'test.eth',
+        includeExpired: false,
+        pageSize: 100,
+        includeCounts: true,
       },
       { signal: expect.any(AbortSignal) },
     ])
@@ -107,17 +113,14 @@ describe('subname pages', () => {
     ])
   })
 
-  it('carries how bigname says each V1 subname is held, and its count', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(
+  it('carries how the indexer says each V1 subname is held, and its count', async () => {
+    vi.mocked(indexer.getSubnames).mockReturnValue(
       page(
         [
-          row('plain', {
-            ens_v1: { wrapper_state: 'unwrapped' },
-            subname_count: 0,
-          }),
-          row('wrapped', { ens_v1: { wrapper_state: 'wrapped' } }),
-          row('free', { ens_v1: { wrapper_state: 'emancipated' } }),
-          row('odd', { ens_v1: { wrapper_state: 'unknown' } }),
+          row('plain', { wrapper: wrapper('unwrapped'), subnameCount: 0 }),
+          row('wrapped', { wrapper: wrapper('wrapped') }),
+          row('free', { wrapper: wrapper('emancipated') }),
+          row('odd', { wrapper: wrapper('unknown') }),
         ],
         { total: 4 },
       ),
@@ -153,11 +156,11 @@ describe('subname pages', () => {
   })
 
   it('marks a locked V1 subname, which its owner cannot unwrap to zero', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(
+    vi.mocked(indexer.getSubnames).mockReturnValue(
       page(
         [
-          row('locked', { ens_v1: { wrapper_state: 'locked' } }),
-          row('free', { ens_v1: { wrapper_state: 'emancipated' } }),
+          row('locked', { wrapper: wrapper('locked') }),
+          row('free', { wrapper: wrapper('emancipated') }),
         ],
         { total: 2 },
       ),
@@ -173,7 +176,7 @@ describe('subname pages', () => {
   })
 
   it('counts expired children only when asked, as a row’s count does', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(page([], { total: 7 }))
+    vi.mocked(indexer.getSubnames).mockReturnValue(page([], { total: 7 }))
 
     expect(
       (
@@ -184,18 +187,18 @@ describe('subname pages', () => {
         })
       )._unsafeUnwrap(),
     ).toBe(7)
-    expect(asked()[1]).toMatchObject({ include_expired: 'true' })
+    expect(asked()[0]).toMatchObject({ includeExpired: true })
 
     await getSubnamesCount({ name: 'test.eth', protocolVersion: 'ENSv1' })
-    expect(asked(1)[1]).toMatchObject({ include_expired: 'false' })
+    expect(asked(1)[0]).toMatchObject({ includeExpired: false })
   })
 
-  it('carries the era bigname serves each subname from', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(
+  it('carries the era the indexer serves each subname from', async () => {
+    vi.mocked(indexer.getSubnames).mockReturnValue(
       page(
         [
-          row('old', { authority: 'ens_v1' }),
-          row('new', { authority: 'ens_v2' }),
+          row('old', { protocol: 'v1' }),
+          row('new', { protocol: 'v2' }),
           row('unsaid'),
         ],
         { total: 3 },
@@ -208,7 +211,7 @@ describe('subname pages', () => {
   })
 
   it('asks for counts only on V1 pages', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(page([], { total: 0 }))
+    vi.mocked(indexer.getSubnames).mockReturnValue(page([], { total: 0 }))
 
     await new QueryClient().fetchInfiniteQuery(
       getSubnamePagesQueryOptions({
@@ -217,16 +220,16 @@ describe('subname pages', () => {
       }),
     )
 
-    expect(asked()[1]).not.toHaveProperty('include')
+    expect(asked()[0]).not.toHaveProperty('includeCounts')
   })
 
-  it('keeps a child bigname cannot label as its placeholder, and drops rows with no holder', async () => {
+  it('keeps a child the indexer cannot label as its placeholder, and drops rows with no holder', async () => {
     const hash = labelhash('secret')
-    vi.mocked(bigname.subnames).mockReturnValue(
+    vi.mocked(indexer.getSubnames).mockReturnValue(
       page(
         [
           row('secret', { name: `[${hash.slice(2)}].test.eth` }),
-          row('gone', { owner: undefined }),
+          row('gone', { owner: null }),
         ],
         { total: 2 },
       ),
@@ -244,7 +247,7 @@ describe('subname pages', () => {
   })
 
   it('names subnames from the parent it was asked about', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(
+    vi.mocked(indexer.getSubnames).mockReturnValue(
       page([row('sub', { name: 'sub.[abc].eth' })], { total: 1 }),
     )
 
@@ -261,18 +264,18 @@ describe('getSubnamePagesQueryOptions', () => {
   })
 
   it('loads one page with the name’s total', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(
+    vi.mocked(indexer.getSubnames).mockReturnValue(
       page([row('a')], { total: 2, next: 'next' }),
     )
 
     const data = await new QueryClient().fetchInfiniteQuery(options)
 
-    expect(bigname.subnames).toHaveBeenCalledTimes(1)
+    expect(indexer.getSubnames).toHaveBeenCalledTimes(1)
     expect(data.pages[0]?.totalCount).toBe(2)
   })
 
-  it('reads the next page from bigname’s cursor', async () => {
-    vi.mocked(bigname.subnames)
+  it('reads the next page from the indexer’s cursor', async () => {
+    vi.mocked(indexer.getSubnames)
       .mockReturnValueOnce(page([row('a')], { total: 2, next: 'next' }))
       .mockReturnValueOnce(page([row('b')], { total: 2 }))
 
@@ -281,13 +284,13 @@ describe('getSubnamePagesQueryOptions', () => {
       pages: 2,
     })
 
-    expect(asked(1)?.[1]).toMatchObject({ cursor: 'next' })
+    expect(asked(1)?.[0]).toMatchObject({ cursor: 'next' })
     expect(
       data.pages.flatMap((p) => p.subnames.map((s) => s.labelName)),
     ).toEqual(['a', 'b'])
   })
 
-  it('has no next page once bigname has no cursor', () => {
+  it('has no next page once the indexer has no cursor', () => {
     expect(
       options.getNextPageParam(
         { subnames: [], totalCount: 5, nextCursor: null },
@@ -298,9 +301,9 @@ describe('getSubnamePagesQueryOptions', () => {
     ).toBeUndefined()
   })
 
-  it('is empty for a name bigname has not indexed, and fails on other errors', async () => {
-    vi.mocked(bigname.subnames).mockReturnValueOnce(
-      errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
+  it('is empty for a name the indexer has not indexed, and fails on other errors', async () => {
+    vi.mocked(indexer.getSubnames).mockReturnValueOnce(
+      okAsync({ items: [], nextCursor: null, totalCount: 0 }),
     )
     const data = await new QueryClient().fetchInfiniteQuery(options)
     expect(data.pages[0]).toEqual({
@@ -309,16 +312,16 @@ describe('getSubnamePagesQueryOptions', () => {
       nextCursor: null,
     })
 
-    vi.mocked(bigname.subnames).mockReturnValueOnce(
-      errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
-    )
+    vi.mocked(indexer.getSubnames).mockReturnValueOnce(readError('unavailable'))
     await expect(
       new QueryClient().fetchInfiniteQuery(options),
     ).rejects.toMatchObject({ _tag: 'GetSubnamesError' })
   })
 
   it('is invalidated by the name’s subnames key', async () => {
-    vi.mocked(bigname.subnames).mockReturnValue(page([row('a')], { total: 1 }))
+    vi.mocked(indexer.getSubnames).mockReturnValue(
+      page([row('a')], { total: 1 }),
+    )
     const queryClient = new QueryClient()
     await queryClient.fetchInfiniteQuery(options)
 
@@ -338,9 +341,9 @@ describe('getSubnamePagesQueryOptions', () => {
 
 describe('getSubnamesCountQueryOptions', () => {
   it.each(['ENSv1', 'ENSv2'] as const)(
-    'reads the %s count as bigname’s total, without listing the subnames',
+    'reads the %s count as the indexer’s total, without listing the subnames',
     async (protocolVersion) => {
-      vi.mocked(bigname.subnames).mockReturnValue(
+      vi.mocked(indexer.getSubnames).mockReturnValue(
         page([row('a')], { total: 7 }),
       )
 
@@ -349,7 +352,7 @@ describe('getSubnamesCountQueryOptions', () => {
       )
 
       expect(count).toBe(7)
-      expect(asked()?.[1]).toMatchObject({ page_size: 1 })
+      expect(asked()?.[0]).toMatchObject({ pageSize: 1 })
     },
   )
 })
@@ -366,7 +369,7 @@ describe('getSubnameLabelStatusQueryOptions', () => {
       }),
     )
 
-  it('asks the subregistry about the label, not bigname', async () => {
+  it('asks the subregistry about the label, not the indexer', async () => {
     mockReadContract.mockResolvedValue(2)
 
     expect(await v2Status()).toBe('registered')
@@ -377,7 +380,8 @@ describe('getSubnameLabelStatusQueryOptions', () => {
         args: [BigInt(keccak256(stringToBytes('sub')))],
       }),
     )
-    expect(bigname.name).not.toHaveBeenCalled()
+    expect(indexer.getNameDetail).not.toHaveBeenCalled()
+    expect(indexer.getSubnames).not.toHaveBeenCalled()
   })
 
   it('is available once a label has expired, and tells a reservation apart', async () => {
@@ -413,7 +417,8 @@ describe('getSubnameLabelStatusQueryOptions', () => {
     expect(mockEnsjsGetOwner).toHaveBeenCalledWith(mockClient, {
       name: 'sub.test.eth',
     })
-    expect(bigname.name).not.toHaveBeenCalled()
+    expect(indexer.getNameDetail).not.toHaveBeenCalled()
+    expect(indexer.getSubnames).not.toHaveBeenCalled()
   })
 
   it('is available when the V1 registry has no owner for the subname', async () => {

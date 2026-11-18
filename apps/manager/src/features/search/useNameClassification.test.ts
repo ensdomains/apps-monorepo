@@ -7,7 +7,7 @@ import {
   withResolvedRecords,
 } from './useNameClassification'
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('@/lib/indexer', () => ({ indexer: {} }))
 
 describe('toExistenceSignal', () => {
   it('does not trust stale owner data after an owner refetch fails', () => {
@@ -127,6 +127,7 @@ describe('isHeldInIndex', () => {
     createdAt: null,
     migratedAt: null,
     unresolvableReason: null,
+    addressCoinTypes: null,
   })
 
   it.each([

@@ -1,6 +1,6 @@
 import type { ResolverNode, ResolverRole } from '../hooks/useResolverOverview'
 
-/** The grants scoped to one bound name, matched by the name bigname serves on each. */
+/** The grants scoped to one bound name, matched by the name the indexer serves on each. */
 export const rolesForNode = (
   roles: readonly ResolverRole[],
   node: Pick<ResolverNode, 'name'>,

@@ -8,7 +8,7 @@ import { errAsync, okAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
 import { hasDashboardNames } from './hasDashboardNames'
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('@/lib/indexer', () => ({ indexer: {} }))
 
 const ADDRESS = '0x0000000000000000000000000000000000000abc'
 
