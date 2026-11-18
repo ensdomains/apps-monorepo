@@ -4,19 +4,20 @@ Shared PostHog instrumentation for Manager and Explorer. Start with [QA](qa.md) 
 
 ## Adding an event
 
-Names and payloads live in [`eventContracts.ts`](../../../packages/utils/src/posthog/eventContracts.ts), with trigger descriptions and autocomplete. Use the app's `track` for explicit actions. Before asynchronous work, bind `startAnalyticsOperation()` and capture through it afterward. The bound capture requires consent at start and send, and the initiating wallet/identity at send; intermediate changes are not journaled. Never await analytics or use its result to decide product behavior.
+Names and payloads live in [`eventContracts.ts`](../../packages/utils/src/posthog/eventContracts.ts), with trigger descriptions and autocomplete. Use the app's `track` for explicit actions. Before asynchronous work, bind `startAnalyticsOperation()` and capture through it afterward. The bound capture requires consent at start and send, and the initiating wallet/identity at send; intermediate changes are not journaled. Never await analytics or use its result to decide product behavior.
 
 ```ts
 const operation = startAnalyticsOperation()
 const nameProperties = getAnalyticsNameProperties(name)
 const result = await saveRecords(params)
-if (result.isErr()) return result
 operation.capture('profile:records_update', {
   ...nameProperties,
   chain_id: chainId,
 })
 return result
 ```
+
+This example uses the record service's throwing promise boundary: a rejected save never reaches completion capture. For a service returning `Result`, check `isErr()` before reporting success.
 
 `getAnalyticsNameProperties` safely normalizes a validated operation name; invalid/absent input is omitted. Pin it before awaiting. `ens_name` describes the operation, wallet `distinct_id` describes the consenting user, and `flow_id` describes the observed journey. Never register a current name globally or as a person property. Bulk operations retain counts rather than name arrays. Address/resolver searches and resolver-wide permissions have no guessed name. The legacy search event retains its existing `name` field for the popularity API.
 

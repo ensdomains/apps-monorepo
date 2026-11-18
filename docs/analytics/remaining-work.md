@@ -1,13 +1,12 @@
 # Remaining work
 
-Keep the first review focused on correctness and the [QA checklist](qa.md), not new event volume or another framework.
+Keep review focused on correctness and the [QA checklist](qa.md), not new event volume or another framework.
 
 ## Before shipping
 
 - Correct Manager single/bulk renewal timeout reporting and consent-transition flag-exposure reporting; see the known limitations in [configuration](configuration.md).
 - Complete real-wallet stage/failure/retry QA, especially mixed bulk renewal, optional registration setup, profile image saves, NFT wallet switching and reload recovery.
 - Verify staging proxy ingestion and essential flag/notice parity against the exact tested build. Prior browser passes do not verify later code changes.
-- Source-map uploads are deferred; native exception capture remains enabled.
 
 ## Source-map upload follow-up
 
@@ -27,8 +26,6 @@ Native exceptions remain captured, but production stacks may be minified/unsymbo
 
 ## Revenue proposal — not implemented
 
-Use existing confirmed operation/payment events as [PostHog revenue sources](https://posthog.com/docs/revenue-analytics/capture-revenue-events); no purchase wrapper is needed. Define the amount first: registration/renewal protocol fees are not automatically ENS Labs revenue or total wallet spend. Separate premiums where applicable; exclude gas, funding/bridge/swap costs, refunds and unused excess.
+Use confirmed payment events as [revenue sources](https://posthog.com/docs/revenue-analytics/capture-revenue-events) after defining the metric: protocol fees are not automatically ENS Labs revenue or total wallet spend. Separate premiums; exclude gas, funding/bridge/swap costs, refunds and excess. Use actual confirmed amounts, integer on-chain units internally, and a supported reporting currency with an explicit conversion source/time. Unknown amounts stay absent.
 
-Use actual confirmed amounts, not an unlabelled quote. Keep integer on-chain units internally; a proposed `revenue_usd_cents` property needs an explicit conversion source/time. [ETH is not a supported PostHog revenue currency](https://posthog.com/docs/revenue-analytics/troubleshooting), so normalize to USD or another supported currency before capture. Unknown amounts stay absent, never silently zero.
-
-Single confirmed payments can enrich completion events. Partial bulk operations need payment-level attribution/deduplication even if later work fails; do not count the same money again on final completion, optional setup, retries or recovery. Validate staging totals against actual transactions before configuring production revenue sources. Consent-based browser attribution is a subset of traffic; complete protocol revenue belongs in on-chain/indexer accounting.
+Attribute partial bulk payments once, including when later work fails; retries, recovery and optional setup must not count the same payment again. Validate staging totals against transactions before enabling production revenue sources. Consent-based browser analytics is a subset of traffic; complete protocol accounting belongs on-chain or in the indexer.
