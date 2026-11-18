@@ -1,5 +1,9 @@
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { type WatchConnectionParameters, watchConnection } from '@wagmi/core'
 import { useSelector } from '@xstate/store-react'
 import {
@@ -81,6 +85,7 @@ export const WalletConnectionProvider = ({
     ...signInBackendMutation,
     mutationKey: SIGN_IN_MUTATION_KEY,
   })
+  const isSigning = useIsMutating({ mutationKey: SIGN_IN_MUTATION_KEY }) > 0
   const { disconnect, isDisconnecting } = useWalletDisconnect()
   const { mutateAsync: connectAsync } = useConnect()
   const { switchChainAsync } = useSwitchChain()
@@ -166,7 +171,7 @@ export const WalletConnectionProvider = ({
       backendAuthStore.trigger.dismissModal()
   }
   useHotkeySequence(['S', 'K', 'I', 'P'], handleSkip, {
-    enabled: isAuth && !signIn.isPending,
+    enabled: isAuth && !isSigning,
     ignoreInputs: true,
     preventDefault: false,
     stopPropagation: false,
@@ -218,7 +223,7 @@ export const WalletConnectionProvider = ({
               }}
               isConfirmingSkip={isConfirmingSkip}
               status={{
-                isPending: signIn.isPending,
+                isPending: isSigning,
                 isError: signIn.isError,
                 isPreparing: !isAccountSettled,
                 isDisconnecting,

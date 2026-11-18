@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react'
 import { zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Connector, createConfig, http, WagmiProvider } from 'wagmi'
-import { mainnet } from 'wagmi/chains'
+import { mainnet, sepolia } from 'wagmi/chains'
 import { wagmiConfig } from '@/lib/wagmi'
 import { useConnectModal } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -82,17 +82,17 @@ const WALLETCONNECT = makeConnector({
   type: 'walletConnect',
 })
 
-const setWallet = (connector: Connector | null) => {
+const setWallet = (
+  connector: Connector | null,
+  chainId: number = mainnet.id,
+) => {
   testConfig.setState((state) => ({
     ...state,
     status: connector ? 'connected' : 'disconnected',
     current: connector?.uid ?? null,
     connections: connector
       ? new Map([
-          [
-            connector.uid,
-            { accounts: [zeroAddress], chainId: mainnet.id, connector },
-          ],
+          [connector.uid, { accounts: [zeroAddress], chainId, connector }],
         ])
       : new Map(),
   }))
@@ -191,8 +191,9 @@ describe('WalletConnectionProvider', () => {
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
   })
 
-  it('does not dismiss when signing is pending', () => {
-    signInMock.mockImplementation(() => new Promise(() => {}))
+  it('blocks skip and another signature while signing is pending, even after switching wallets', async () => {
+    const signature = deferred()
+    signInMock.mockReturnValue(signature.promise)
 
     render(<WalletConnectionProvider />)
 
@@ -207,6 +208,15 @@ describe('WalletConnectionProvider', () => {
       screen.getByRole('alertdialog', { name: 'Authenticate to continue' }),
     ).toBeInTheDocument()
     expect(backendAuthStore.get().context.modalDismissed).toBe(false)
+
+    await screen.findByRole('button', { name: 'Signing in...' })
+    act(() => setWallet(WALLETCONNECT))
+    expect(screen.getByRole('button', { name: 'Signing in...' })).toBeDisabled()
+    pressKeys(['s', 'k', 'i', 'p'])
+    expect(backendAuthStore.get().context.modalDismissed).toBe(false)
+
+    await act(async () => signature.reject(new Error('User rejected signing')))
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeEnabled()
   })
 
   it('only offers to continue without signing in after sign-in fails', () => {
@@ -322,6 +332,9 @@ describe('WalletConnectionProvider', () => {
   it('clears a failed signature when another wallet connects after disconnect', async () => {
     render(<WalletConnectionProvider />)
     await failSignIn()
+
+    act(() => setWallet(METAMASK, sepolia.id))
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
 
     act(() => setWallet(null))
     act(() => setWallet(WALLETCONNECT))
