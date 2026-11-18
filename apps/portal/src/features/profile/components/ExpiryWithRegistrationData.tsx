@@ -131,7 +131,7 @@ export const ExpiryWithRegistrationData = ({
       />
     )
 
-  if (isLoading || ancestorExpiry.isLoading)
+  if (isLoading)
     return <LoadingSpinner title="Loading expiry and registration data" />
 
   if (!data) return null
@@ -148,7 +148,14 @@ export const ExpiryWithRegistrationData = ({
 
   return (
     <>
-      {showsExpiry && <ExpiresRow resolving={resolving} />}
+      {showsExpiry &&
+        (ancestorExpiry.isLoading ? (
+          <InfoRow icon={ClockIcon} label="Expires">
+            <span className="text-base text-muted-foreground">Loading</span>
+          </InfoRow>
+        ) : (
+          <ExpiresRow resolving={resolving} />
+        ))}
       {data.registeredAt !== null && (
         <RegisteredRow name={name} registeredAt={data.registeredAt} />
       )}

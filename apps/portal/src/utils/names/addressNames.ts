@@ -6,7 +6,11 @@ import type {
 } from '@ens-apps/indexer/reads'
 import { match, P } from 'ts-pattern'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
-import { toValidDate } from '@/utils/temporal'
+import {
+  dateToPlainDate,
+  toValidDate,
+  unixSecondsToPlainDateUtc,
+} from '@/utils/temporal'
 import type { ProtocolVersion } from '@/utils/types'
 
 /** How the address relates to a name, including a name it held until it expired. */
@@ -160,8 +164,12 @@ export const isShownExpiryInRange = (
 ): boolean => {
   const expiryDate = getShownExpiry(row)
   if (!expiryDate) return false
-  if (from && expiryDate < from) return false
-  if (to && expiryDate > to) return false
+  // The row shows the expiry's UTC day; the filter's dates are the viewer's calendar days.
+  const day = unixSecondsToPlainDateUtc(Math.floor(expiryDate.getTime() / 1000))
+  if (from && Temporal.PlainDate.compare(day, dateToPlainDate(from)) < 0)
+    return false
+  if (to && Temporal.PlainDate.compare(day, dateToPlainDate(to)) > 0)
+    return false
   return true
 }
 

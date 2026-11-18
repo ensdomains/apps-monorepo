@@ -43,7 +43,7 @@ const toBatches = <T>(items: readonly T[]): readonly (readonly T[])[] =>
 
 type ParentExpiry = readonly [name: string, expiry: Date | null]
 
-/** One lookup's parent expiries; a failed read leaves those dates unknown. */
+/** One lookup's parent expiries; a name it couldn't read is left out, so its date stays unknown. */
 const readParentExpiries = (
   names: readonly string[],
   signal?: AbortSignal,
@@ -58,10 +58,11 @@ const readParentExpiries = (
       { signal },
     )
     .map(({ data }) =>
-      names.map((name, index): ParentExpiry => {
-        const record = data[index]?.record
-        const expiresAt = record?.ens_v1?.expires_at ?? record?.expires_at
-        return [name, toValidDate(toDate(expiresAt))]
+      names.flatMap((name, index): ParentExpiry[] => {
+        const result = data[index]
+        if (result?.status !== 'ok' || !result.record) return []
+        const { ens_v1, expires_at } = result.record
+        return [[name, toValidDate(toDate(ens_v1?.expires_at ?? expires_at))]]
       }),
     )
     .orElse(() => okAsync([]))

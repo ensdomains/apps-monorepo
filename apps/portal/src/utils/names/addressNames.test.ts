@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   byShownExpiry,
   getFirstToExpire,
@@ -114,6 +114,47 @@ describe('isShownExpiryInRange', () => {
     ).toBe(true)
     expect(isShownExpiryInRange({ expiryDate: null }, range)).toBe(false)
   })
+})
+
+describe('isShownExpiryInRange, seen from UTC−8', () => {
+  beforeEach(() => {
+    const local = (date: Date) =>
+      Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(
+        'America/Los_Angeles',
+      )
+    vi.spyOn(Date.prototype, 'getFullYear').mockImplementation(function (
+      this: Date,
+    ) {
+      return local(this).year
+    })
+    vi.spyOn(Date.prototype, 'getMonth').mockImplementation(function (
+      this: Date,
+    ) {
+      return local(this).month - 1
+    })
+    vi.spyOn(Date.prototype, 'getDate').mockImplementation(function (
+      this: Date,
+    ) {
+      return local(this).day
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  // The picker gives local midnight, 08:00 UTC; the row shows the expiry's UTC day.
+  const JAN_1_LOCAL = new Date(Date.UTC(2030, 0, 1, 8))
+
+  it.each([
+    ['from', { from: JAN_1_LOCAL }, new Date(Date.UTC(2030, 0, 1, 2))],
+    ['to', { to: JAN_1_LOCAL }, new Date(Date.UTC(2030, 0, 1, 20))],
+  ])(
+    'keeps a row shown on the picked day when it is the %s date',
+    (_, range, expiryDate) => {
+      expect(isShownExpiryInRange({ expiryDate }, range)).toBe(true)
+    },
+  )
 })
 
 describe('byShownExpiry', () => {

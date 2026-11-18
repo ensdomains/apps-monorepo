@@ -309,6 +309,42 @@ describe('getAddressNames', () => {
     )
   })
 
+  it('leaves a deeper ENSv2 subname’s parent date unknown when a name above it couldn’t be read', async () => {
+    answer([
+      [
+        row('parent.eth', { expires_at: String(NOW_SECONDS + 86_400n * 90n) }),
+        row('team.parent.eth', {
+          expires_at: String(NOW_SECONDS + 86_400n * 20n),
+        }),
+        row('a.ops.team.parent.eth', { expires_at: String(maxUint64) }),
+      ],
+    ])
+    vi.mocked(bigname.lookup).mockReturnValue(
+      okAsync({
+        data: [
+          {
+            input: { name: 'ops.team.parent.eth' },
+            kind: 'name',
+            status: 'unsupported',
+          },
+        ],
+        meta: { as_of: {} },
+      }),
+    )
+
+    const names = (
+      await getAddressNames({ address: ADDRESS }, { now: NOW })
+    )._unsafeUnwrap()
+
+    expect(names).toContainEqual(
+      expect.objectContaining({
+        name: 'a.ops.team.parent.eth',
+        parentExpiryDate: null,
+        parentExpiryName: undefined,
+      }),
+    )
+  })
+
   it("orders subnames by their parent's expiry", async () => {
     const PARENT_EXPIRY = NOW_SECONDS + 86_400n * 10n
     answer([

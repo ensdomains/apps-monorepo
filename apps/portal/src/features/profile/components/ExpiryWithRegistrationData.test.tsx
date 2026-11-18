@@ -15,6 +15,7 @@ const EXPIRIES: Readonly<Record<string, number | null>> = {
   'right.parent.eth': null,
   'v1.parent.eth': null,
   'sub.unread.eth': null,
+  'sub.slow.eth': null,
 }
 
 vi.mock('../hooks/useRegistrationData', () => ({
@@ -22,6 +23,7 @@ vi.mock('../hooks/useRegistrationData', () => ({
     queryKey: ['registrationData', name],
     queryFn: () => {
       if (name === 'unread.eth') throw new Error('read failed')
+      if (name === 'slow.eth') return new Promise(() => {})
       return {
         createdAt: null,
         registeredAt: REGISTERED_AT,
@@ -95,6 +97,13 @@ describe('ExpiryWithRegistrationData', () => {
 
     expect(await screen.findByText('Expires')).toBeInTheDocument()
     expect(rowText('Expires')).toMatch(/Expires with parent$/)
+  })
+
+  it('shows the registration while a name above is still loading', async () => {
+    renderExpiry('sub.slow.eth')
+
+    expect(await screen.findByText('Registered')).toBeInTheDocument()
+    expect(rowText('Expires')).toMatch(/Loading$/)
   })
 
   it('leaves an ENSv1 subname, which outlives its parent’s lease, without the row', async () => {
