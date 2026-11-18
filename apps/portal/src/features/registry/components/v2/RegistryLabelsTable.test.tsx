@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SECONDS_PER_DAY } from '@/lib/constants/duration'
@@ -153,48 +153,33 @@ describe('RegistryLabelsTable expiry', () => {
     expect(rowText('soon')).toContain('November 15, 2026')
   })
 
-  it('waits for the registry’s name before showing any label’s expiry', async () => {
-    isRegistryPending = true
-    const queryClient = createTestQueryClient()
-    render(
-      <QueryClientProvider client={queryClient}>
-        <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
-      </QueryClientProvider>,
-    )
-
-    await waitFor(() =>
-      expect(queryClient.getQueryState(['registryLabels'])?.status).toBe(
-        'success',
-      ),
-    )
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
-
-    expect(screen.getByText('Loading labels...')).toBeInTheDocument()
-    expect(screen.queryByText('Never')).toBeNull()
-  })
-
-  it('waits for the names above before showing any label’s expiry', async () => {
-    isParentPending = true
-    const queryClient = createTestQueryClient()
-    render(
-      <QueryClientProvider client={queryClient}>
-        <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
-      </QueryClientProvider>,
-    )
-
-    await waitFor(() => {
-      expect(queryClient.getQueryState(['registryLabels'])?.status).toBe(
-        'success',
+  it.each([
+    [
+      'the registry’s name',
+      () => {
+        isRegistryPending = true
+      },
+    ],
+    [
+      'the names above',
+      () => {
+        isParentPending = true
+      },
+    ],
+  ])(
+    'shows the labels while %s loads, holding back only their expiry',
+    async (_, arrange) => {
+      arrange()
+      render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <RegistryLabelsTable address="0x0000000000000000000000000000000000000001" />
+        </QueryClientProvider>,
       )
-      expect(
-        queryClient.isFetching({
-          queryKey: ['registrationData', 'parent.eth'],
-        }),
-      ).toBe(1)
-    })
-    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 
-    expect(screen.getByText('Loading labels...')).toBeInTheDocument()
-    expect(screen.queryByText('right')).toBeNull()
-  })
+      expect(await screen.findByText('right')).toBeInTheDocument()
+      expect(rowText('right')).toContain('Loading')
+      expect(rowText('soon')).toContain('Loading')
+      expect(screen.queryByText('Never')).toBeNull()
+    },
+  )
 })

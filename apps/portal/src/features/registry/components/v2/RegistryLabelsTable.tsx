@@ -36,33 +36,40 @@ import {
 const LABEL_COLUMN_WIDTH = 140
 const LABELHASH_COLUMN_WIDTH = 160
 
-type LabelRow = RegistryLabelRow &
-  Pick<AddressNameItem, 'parentExpiryDate' | 'parentExpiryName'>
+/** The first name above the registry to expire; `loading` until the registry's name and those dates are read. */
+type ParentExpiry =
+  | { readonly status: 'loading' }
+  | ({ readonly status: 'ready' } & Pick<
+      AddressNameItem,
+      'parentExpiryDate' | 'parentExpiryName'
+    >)
+
+type LabelRow = RegistryLabelRow & { readonly parentExpiry: ParentExpiry }
 
 const toResolvingInput = ({
   expiryDate,
-  parentExpiryDate,
-  parentExpiryName,
-}: Pick<LabelRow, 'expiryDate' | 'parentExpiryDate' | 'parentExpiryName'>) => ({
+  parentExpiry,
+}: Pick<LabelRow, 'expiryDate' | 'parentExpiry'>) => ({
+  ...(parentExpiry.status === 'ready' && parentExpiry),
   expiryDate: expiryDate === null ? null : new Date(Number(expiryDate) * 1000),
-  parentExpiryDate,
-  parentExpiryName,
 })
 
 /** A label's expiry, or the first name above it to expire, named. */
 const LabelExpiry = (row: LabelRow) => (
   <span className="flex flex-wrap items-center gap-x-1.5 text-muted-foreground">
-    {match(getResolvingExpiry(toResolvingInput(row)))
-      .with({ type: 'own' }, ({ date }) => formatExpiry(date))
-      .with({ type: 'parent' }, ({ date, name }) => (
-        <>
-          <span className="whitespace-nowrap">{formatExpiry(date)}</span>{' '}
-          <ExpiresWith name={name} />
-        </>
-      ))
-      .with({ type: 'unread' }, () => 'Expires with parent')
-      .with({ type: 'none' }, () => 'Never')
-      .exhaustive()}
+    {row.parentExpiry.status === 'loading'
+      ? 'Loading'
+      : match(getResolvingExpiry(toResolvingInput(row)))
+          .with({ type: 'own' }, ({ date }) => formatExpiry(date))
+          .with({ type: 'parent' }, ({ date, name }) => (
+            <>
+              <span className="whitespace-nowrap">{formatExpiry(date)}</span>{' '}
+              <ExpiresWith name={name} />
+            </>
+          ))
+          .with({ type: 'unread' }, () => 'Expires with parent')
+          .with({ type: 'none' }, () => 'Never')
+          .exhaustive()}
   </span>
 )
 
@@ -161,13 +168,21 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
     ? getNamesAbove(registryQuery.data.name)
     : []
   const ancestorExpiry = useFirstToExpire(namesAbove)
-  const parentExpiry =
-    namesAbove.length > 0
-      ? {
-          parentExpiryDate: ancestorExpiry.firstToExpire?.date ?? null,
-          parentExpiryName: ancestorExpiry.firstToExpire?.name,
-        }
-      : {}
+  const parentExpiry = match({
+    isRegistryLoading: registryQuery.isLoading,
+    isAncestorLoading: ancestorExpiry.isLoading,
+    namesAbove,
+  })
+    .returnType<ParentExpiry>()
+    .with({ isRegistryLoading: true }, { isAncestorLoading: true }, () => ({
+      status: 'loading',
+    }))
+    .with({ namesAbove: [] }, () => ({ status: 'ready' }))
+    .otherwise(() => ({
+      status: 'ready',
+      parentExpiryDate: ancestorExpiry.firstToExpire?.date ?? null,
+      parentExpiryName: ancestorExpiry.firstToExpire?.name,
+    }))
 
   const loader = useListLoader({
     initialCount: REGISTRY_LABELS_PAGE_SIZE,
@@ -178,8 +193,7 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
     resetKey: address,
   })
 
-  if (isLoading || registryQuery.isLoading || ancestorExpiry.isLoading)
-    return <LoadingSpinner title="Loading labels..." />
+  if (isLoading) return <LoadingSpinner title="Loading labels..." />
 
   if (error && !isFetchNextPageError) {
     return (
@@ -207,7 +221,7 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
           columns={columns}
           data={labels
             .slice(0, loader.shown)
-            .map((label) => ({ ...label, ...parentExpiry }))}
+            .map((label) => ({ ...label, parentExpiry }))}
         />
       </div>
       <ListLoader {...loader} />

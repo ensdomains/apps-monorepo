@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mockTimeZone } from '@/test-utils/mockTimeZone'
 import {
   byShownExpiry,
   getFirstToExpire,
@@ -118,25 +119,7 @@ describe('isShownExpiryInRange', () => {
 
 describe('isShownExpiryInRange, seen from UTC−8', () => {
   beforeEach(() => {
-    const local = (date: Date) =>
-      Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(
-        'America/Los_Angeles',
-      )
-    vi.spyOn(Date.prototype, 'getFullYear').mockImplementation(function (
-      this: Date,
-    ) {
-      return local(this).year
-    })
-    vi.spyOn(Date.prototype, 'getMonth').mockImplementation(function (
-      this: Date,
-    ) {
-      return local(this).month - 1
-    })
-    vi.spyOn(Date.prototype, 'getDate').mockImplementation(function (
-      this: Date,
-    ) {
-      return local(this).day
-    })
+    mockTimeZone('America/Los_Angeles')
   })
 
   afterEach(() => {

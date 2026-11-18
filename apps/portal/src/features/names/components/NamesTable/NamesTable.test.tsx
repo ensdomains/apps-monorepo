@@ -1,6 +1,7 @@
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mockTimeZone } from '@/test-utils/mockTimeZone'
 import type { AddressNameItem } from '@/utils/names/addressNames'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -109,25 +110,7 @@ describe('NamesTable expiry cell', () => {
 
   describe('seen from a time zone a day ahead of UTC', () => {
     beforeEach(() => {
-      const local = (date: Date) =>
-        Temporal.Instant.fromEpochMilliseconds(
-          date.getTime(),
-        ).toZonedDateTimeISO('Pacific/Kiritimati')
-      vi.spyOn(Date.prototype, 'getFullYear').mockImplementation(function (
-        this: Date,
-      ) {
-        return local(this).year
-      })
-      vi.spyOn(Date.prototype, 'getMonth').mockImplementation(function (
-        this: Date,
-      ) {
-        return local(this).month - 1
-      })
-      vi.spyOn(Date.prototype, 'getDate').mockImplementation(function (
-        this: Date,
-      ) {
-        return local(this).day
-      })
+      mockTimeZone('Pacific/Kiritimati')
     })
 
     afterEach(() => {
