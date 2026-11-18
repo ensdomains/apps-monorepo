@@ -7,6 +7,7 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { setResponseHeader } from '@tanstack/react-start/server'
 import { buildCsp, CSP_HEADER_NAME, SECURITY_HEADER_VALUES } from './server/csp'
+import { isRequestPathTooLong } from './server/requestPath'
 
 declare module '@tanstack/router-core' {
   interface Register {
@@ -18,6 +19,13 @@ declare module '@tanstack/router-core' {
     }
   }
 }
+
+// Runs first, so no route normalises a name from an over-long path.
+const pathLengthMiddleware = createMiddleware().server(({ next, request }) =>
+  isRequestPathTooLong(new URL(request.url).pathname)
+    ? new Response('URI Too Long', { status: 414 })
+    : next(),
+)
 
 const securityHeadersMiddleware = createMiddleware().server(
   ({ next, request }) => {
@@ -52,5 +60,5 @@ const securityHeadersMiddleware = createMiddleware().server(
 )
 
 export const startInstance = createStart(() => ({
-  requestMiddleware: [securityHeadersMiddleware],
+  requestMiddleware: [pathLengthMiddleware, securityHeadersMiddleware],
 }))
