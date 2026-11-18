@@ -1,12 +1,21 @@
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { type WatchConnectionParameters, watchConnection } from '@wagmi/core'
 import { useSelector } from '@xstate/store-react'
-import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   type Connector,
+  useConfig,
   useConnect,
   useConnection,
-  useConnectionEffect,
   useSwitchChain,
 } from 'wagmi'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -24,6 +33,7 @@ import { ConnectModalContext } from '@/lib/wallet/useConnectModal'
 import { backendAuthStore } from '@/utils/backend-client'
 import { SignInContent } from './components/SignInContent'
 import {
+  didWalletChange,
   getConnectedDialogStep,
   getConnectionError,
   getConnectionResultDialogStep,
@@ -35,6 +45,21 @@ import {
 const SIGN_IN_MUTATION_KEY = [{ scope: 'walletDialogSignIn' }] as const
 
 const focusOnMount = (element: HTMLElement | null) => element?.focus()
+
+const useWalletConnectionChanges = (
+  onChange: WatchConnectionParameters['onChange'],
+) => {
+  const config = useConfig()
+  const onWalletChange = useEffectEvent(onChange)
+  // Injected wallets can connect without passing through wagmi's connecting state.
+  useEffect(
+    () =>
+      watchConnection(config, {
+        onChange: (current, previous) => onWalletChange(current, previous),
+      }),
+    [config],
+  )
+}
 
 export const WalletConnectionProvider = ({
   children,
@@ -66,23 +91,23 @@ export const WalletConnectionProvider = ({
         switchChain: switchChainAsync,
       }),
   })
-  // Keep the request locked through chain switching; disconnect detaches its UI result.
-  const request = useRef<'owned' | 'detached' | null>(null)
-  useConnectionEffect({
-    onConnect: ({ isReconnected }) => {
-      const ownsConnection = request.current === 'owned'
-      setStep((current) =>
-        getConnectedDialogStep({
-          step: current,
-          ownsConnection,
-          isReconnected,
-        }),
-      )
-    },
-    onDisconnect: () => {
-      if (request.current !== null) request.current = 'detached'
-      setStep('closed')
-    },
+  // Keep the lock until chain switching settles, even when a wallet change detaches the result.
+  const request = useRef<{ readonly connectorId: string | null } | null>(null)
+  useWalletConnectionChanges((current, previous) => {
+    if (!didWalletChange(current, previous)) return
+
+    const isReconnected = previous.status === 'reconnecting'
+    const ownsConnection =
+      current.status === 'connected' &&
+      request.current?.connectorId === current.connector.uid
+    if (request.current && (!ownsConnection || isReconnected)) {
+      request.current = { connectorId: null }
+    }
+    signIn.reset()
+    setIsConfirmingSkip(false)
+    setStep((step) =>
+      getConnectedDialogStep({ step, ownsConnection, isReconnected }),
+    )
   })
 
   const isSignInStep = step === 'signIn' || step === 'session'
@@ -110,11 +135,12 @@ export const WalletConnectionProvider = ({
 
   const handleConnect = async (connector: Connector) => {
     if (request.current !== null) return
-    request.current = 'owned'
+    const attempt = { connectorId: connector.uid }
+    request.current = attempt
     if (connector.id === WALLETCONNECT_ID) setStep('pairing')
     try {
       const outcome = await connection.mutateAsync(connector)
-      if (request.current === 'owned')
+      if (request.current === attempt)
         setStep((current) => getConnectionResultDialogStep(current, outcome))
       else connection.reset()
     } finally {
@@ -146,7 +172,7 @@ export const WalletConnectionProvider = ({
     stopPropagation: false,
     timeout: 1000,
   })
-  const preventAuthDismissal = (event: Event) => {
+  const preventDialogDefaultInSignIn = (event: Event) => {
     if (isAuth) event.preventDefault()
   }
 
@@ -164,9 +190,9 @@ export const WalletConnectionProvider = ({
             'p-8 data-[state=closed]:hidden sm:max-w-100',
             isAuth ? 'gap-6' : 'gap-5',
           )}
-          onEscapeKeyDown={preventAuthDismissal}
-          onInteractOutside={preventAuthDismissal}
-          onOpenAutoFocus={preventAuthDismissal}
+          onEscapeKeyDown={preventDialogDefaultInSignIn}
+          onInteractOutside={preventDialogDefaultInSignIn}
+          onOpenAutoFocus={preventDialogDefaultInSignIn}
           role={isAuth ? 'alertdialog' : 'dialog'}
           showCloseButton={!isAuth}
         >

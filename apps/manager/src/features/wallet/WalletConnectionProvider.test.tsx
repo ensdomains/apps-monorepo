@@ -1,17 +1,18 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import type { ComponentProps } from 'react'
+import { zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Connector } from 'wagmi'
+import { type Connector, createConfig, http, WagmiProvider } from 'wagmi'
+import { mainnet } from 'wagmi/chains'
 import { wagmiConfig } from '@/lib/wagmi'
 import { useConnectModal } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
 import { render } from '@/utils/test-utils'
-import { WalletConnectionProvider } from './WalletConnectionProvider'
+import { WalletConnectionProvider as Provider } from './WalletConnectionProvider'
 
 const wagmiMock = vi.hoisted(() => ({
-  getConnection: vi.fn(),
   useConnectors: vi.fn((): readonly Connector[] => []),
   useConnect: vi.fn(() => ({ mutateAsync: vi.fn() })),
-  connectionEffects: vi.fn(),
   useSwitchChain: vi.fn(() => ({ switchChainAsync: vi.fn() })),
 }))
 
@@ -30,10 +31,6 @@ vi.mock('wagmi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('wagmi')>()
   return {
     ...actual,
-    useConnection: wagmiMock.getConnection,
-    useConnectionEffect: (
-      parameters: Parameters<typeof actual.useConnectionEffect>[0],
-    ) => wagmiMock.connectionEffects(parameters),
     useConnectors: wagmiMock.useConnectors,
     useConnect: wagmiMock.useConnect,
     useSwitchChain: wagmiMock.useSwitchChain,
@@ -60,14 +57,61 @@ vi.mock(
   }),
 )
 
-const notifyConnection = (
-  connection: { readonly isConnected: boolean; readonly status: string },
-  previous: { readonly isConnected: boolean; readonly status: string },
-) => {
-  const effects = wagmiMock.connectionEffects.mock.lastCall?.[0]
-  if (connection.isConnected)
-    effects.onConnect({ isReconnected: previous.status === 'reconnecting' })
-  else effects.onDisconnect()
+const testConfig = createConfig({
+  chains: [mainnet],
+  transports: { [mainnet.id]: http('http://mock.local') },
+  multiInjectedProviderDiscovery: false,
+  storage: null,
+})
+const APP_CHAIN_ID = wagmiConfig.chains[0].id
+const makeConnector = (fields: Partial<Connector>): Connector =>
+  ({
+    type: 'injected',
+    getChainId: async () => APP_CHAIN_ID,
+    ...fields,
+  }) as Connector
+const METAMASK = makeConnector({
+  id: 'io.metamask',
+  uid: 'metamask',
+  name: 'MetaMask',
+})
+const WALLETCONNECT = makeConnector({
+  id: 'walletConnect',
+  uid: 'walletconnect',
+  name: 'WalletConnect',
+  type: 'walletConnect',
+})
+
+const setWallet = (connector: Connector | null) => {
+  testConfig.setState((state) => ({
+    ...state,
+    status: connector ? 'connected' : 'disconnected',
+    current: connector?.uid ?? null,
+    connections: connector
+      ? new Map([
+          [
+            connector.uid,
+            { accounts: [zeroAddress], chainId: mainnet.id, connector },
+          ],
+        ])
+      : new Map(),
+  }))
+}
+
+const WalletConnectionProvider = (props: ComponentProps<typeof Provider>) => (
+  <WagmiProvider config={testConfig} reconnectOnMount={false}>
+    <Provider {...props} />
+  </WagmiProvider>
+)
+
+const deferred = () => {
+  let resolve: () => void = () => undefined
+  let reject: (error: Error) => void = () => undefined
+  const promise = new Promise<void>((done, fail) => {
+    resolve = done
+    reject = fail
+  })
+  return { promise, resolve, reject }
 }
 
 const pressKeys = (keys: string[]) => {
@@ -77,10 +121,7 @@ const pressKeys = (keys: string[]) => {
 }
 
 const showModal = () => {
-  wagmiMock.getConnection.mockReturnValue({
-    isConnected: true,
-    status: 'connected',
-  })
+  setWallet(METAMASK)
   smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
     isAccountReady: true,
     walletClient: { account: { address: '0xabc' } },
@@ -139,10 +180,7 @@ describe('WalletConnectionProvider', () => {
   })
 
   it('does not dismiss when SKIP is typed while the modal is closed', () => {
-    wagmiMock.getConnection.mockReturnValue({
-      isConnected: false,
-      status: 'disconnected',
-    })
+    setWallet(null)
 
     render(<WalletConnectionProvider />)
 
@@ -281,6 +319,19 @@ describe('WalletConnectionProvider', () => {
     expect(walletDisconnectMock.disconnect).toHaveBeenCalledOnce()
   })
 
+  it('clears a failed signature when another wallet connects after disconnect', async () => {
+    render(<WalletConnectionProvider />)
+    await failSignIn()
+
+    act(() => setWallet(null))
+    act(() => setWallet(WALLETCONNECT))
+
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+    expect(
+      screen.queryByRole('button', { name: 'Continue without signing in' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('does not dismiss when Escape is pressed', () => {
     render(<WalletConnectionProvider />)
 
@@ -294,26 +345,6 @@ describe('WalletConnectionProvider', () => {
 })
 
 describe('WalletConnectionProvider, connecting through the connect dialog', () => {
-  const APP_CHAIN_ID = wagmiConfig.chains[0].id
-
-  const makeConnector = (fields: Partial<Connector>): Connector =>
-    ({
-      type: 'injected',
-      getChainId: async () => APP_CHAIN_ID,
-      ...fields,
-    }) as Connector
-  const METAMASK = makeConnector({
-    id: 'io.metamask',
-    uid: 'metamask',
-    name: 'MetaMask',
-  })
-  const WALLETCONNECT = makeConnector({
-    id: 'walletConnect',
-    uid: 'walletconnect',
-    name: 'WalletConnect',
-    type: 'walletConnect',
-  })
-
   const setAccount = (isAccountReady: boolean) =>
     smartAccountMock.useSmartAccountContextSafe.mockReturnValue({
       isAccountReady,
@@ -321,38 +352,16 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
       walletClient: isAccountReady ? { account: { address: '0xabc' } } : null,
     })
 
-  // Attach the listener before connect so tests can settle even before injected chain detection finishes.
   const deferConnect = () => {
-    const settled = new EventTarget()
-    const gate = new Promise<void>((resolve, reject) => {
-      settled.addEventListener(
-        'settle',
-        (event) =>
-          event instanceof CustomEvent && event.detail
-            ? reject(event.detail)
-            : resolve(),
-        { once: true },
-      )
-    })
+    const gate = deferred()
     wagmiMock.useConnect.mockReturnValue({
-      mutateAsync: vi.fn(() =>
-        gate.then(() => {
-          wagmiMock.getConnection.mockReturnValue({
-            isConnected: true,
-            status: 'connected',
-          })
-          notifyConnection(
-            { isConnected: true, status: 'connected' },
-            { isConnected: false, status: 'connecting' },
-          )
-        }),
-      ),
+      mutateAsync: vi.fn(async ({ connector }) => {
+        await gate.promise
+        testConfig.setState((state) => ({ ...state, status: 'connecting' }))
+        setWallet(connector)
+      }),
     })
-    return {
-      resolve: () => settled.dispatchEvent(new CustomEvent('settle')),
-      reject: (error: Error) =>
-        settled.dispatchEvent(new CustomEvent('settle', { detail: error })),
-    }
+    return gate
   }
 
   const OpenConnect = () => {
@@ -389,16 +398,28 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
     vi.clearAllMocks()
     backendAuthStore.trigger.signOut()
     backendAuthStore.trigger.resetModal()
-    wagmiMock.getConnection.mockReturnValue({
-      isConnected: false,
-      status: 'disconnected',
-    })
+    setWallet(null)
     wagmiMock.useConnectors.mockReturnValue([METAMASK, WALLETCONNECT])
     setAccount(false)
     signInMock.mockReset()
     signInMock.mockImplementation(async () => {
       backendAuthStore.trigger.signIn({ authKey: 'key', address: '0xabc' })
     })
+  })
+
+  it('closes the picker when a wallet connects directly from its extension', async () => {
+    const { trigger, rerender } = openWalletList()
+    act(() => setWallet(METAMASK))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    setAccount(true)
+    rerender(renderUi())
+    expect(await screen.findByRole('alertdialog')).toHaveAccessibleName(
+      'Authenticate to continue',
+    )
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('steps the same dialog on to sign-in, waits for the account, then closes once signed in', async () => {
@@ -490,10 +511,7 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
         backendAuthStore.trigger.dismissModal()
       }
       setAccount(true)
-      wagmiMock.getConnection.mockReturnValue({
-        isConnected: true,
-        status: 'connected',
-      })
+      setWallet(METAMASK)
       wagmiMock.useConnect.mockReturnValue({
         mutateAsync: vi.fn(async () => {}),
       })
@@ -538,25 +556,16 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
   })
 
   it('keeps a reopened wallet list when an earlier chain switch finishes after disconnect', async () => {
-    const switched = new EventTarget()
-    const switching = new Promise<void>((resolve) => {
-      switched.addEventListener('done', () => resolve(), { once: true })
-    })
-    const switchChainAsync = vi.fn(() => switching)
+    const switching = deferred()
+    const switchChainAsync = vi.fn(() => switching.promise)
     wagmiMock.useSwitchChain.mockReturnValue({ switchChainAsync })
     wagmiMock.useConnectors.mockReturnValue([
       makeConnector({ ...WALLETCONNECT, getChainId: async () => -1 }),
     ])
     wagmiMock.useConnect.mockReturnValue({
-      mutateAsync: vi.fn(async () => {
-        wagmiMock.getConnection.mockReturnValue({
-          isConnected: true,
-          status: 'connected',
-        })
-        notifyConnection(
-          { isConnected: true, status: 'connected' },
-          { isConnected: false, status: 'connecting' },
-        )
+      mutateAsync: vi.fn(async ({ connector }) => {
+        testConfig.setState((state) => ({ ...state, status: 'connecting' }))
+        setWallet(connector)
       }),
     })
     const { rerender } = openWalletList()
@@ -566,19 +575,10 @@ describe('WalletConnectionProvider, connecting through the connect dialog', () =
       'Authenticate to continue',
     )
 
-    act(() => {
-      wagmiMock.getConnection.mockReturnValue({
-        isConnected: false,
-        status: 'disconnected',
-      })
-      notifyConnection(
-        { isConnected: false, status: 'disconnected' },
-        { isConnected: true, status: 'connected' },
-      )
-    })
+    act(() => setWallet(null))
     rerender(renderUi())
     fireEvent.click(screen.getByRole('button', { name: 'Open connect' }))
-    await act(async () => switched.dispatchEvent(new Event('done')))
+    await act(async () => switching.resolve())
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(

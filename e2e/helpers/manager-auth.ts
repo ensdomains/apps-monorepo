@@ -118,9 +118,7 @@ export async function connectWithHeadlessWallet(
  * smart account initialises. Idempotent: returns silently if it never shows
  * (sessions already enabled or feature flag off).
  *
- * The modal is a Radix `Dialog`, so its overlay slot is `dialog-overlay` —
- * We wait for the overlay to disappear so the test does not race forward
- * while the session dialog is still closing (and still blocking the page).
+ * Wait for the `dialog-overlay` to disappear before interacting with the page.
  */
 export async function clickThroughEnableSessions(page: Page): Promise<void> {
   const enableBtn = page.getByRole('button', { name: /enable sessions/i })

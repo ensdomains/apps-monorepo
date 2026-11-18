@@ -1,3 +1,4 @@
+import type { GetConnectionReturnType } from '@wagmi/core'
 import { match } from 'ts-pattern'
 import type { SmartAccountContextValue } from '@/lib/smart-account'
 import {
@@ -16,6 +17,24 @@ export const isSmartAccountSettled = (
   account: Pick<SmartAccountContextValue, 'isAccountReady' | 'error'> | null,
 ): boolean =>
   account === null || account.isAccountReady || Boolean(account.error)
+
+type WalletConnection = Pick<
+  GetConnectionReturnType,
+  'status' | 'connector' | 'address'
+>
+
+export const didWalletChange = (
+  current: WalletConnection,
+  previous: WalletConnection,
+): boolean => {
+  if (current.status === 'disconnected') return previous.connector !== undefined
+  return (
+    current.status === 'connected' &&
+    (previous.status === 'reconnecting' ||
+      current.connector?.uid !== previous.connector?.uid ||
+      current.address !== previous.address)
+  )
+}
 
 export const getConnectedDialogStep = ({
   step,
