@@ -5,11 +5,9 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
-import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { ensChain } from '@/lib/wagmi'
-import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { prepareExtendSubnameExpiryTransaction } from '../utils/extend-subname-expiry.helpers'
 import { refreshSubnameQueries } from '../utils/refreshSubnameQueries'
 
@@ -65,15 +63,9 @@ export const useExtendSubnameExpiryMutation = ({
       return waitForTransaction(txId)
     },
     onSuccess: (_, { subname }) => {
-      refreshSubnameQueries(queryClient, { name, protocolVersion: 'ENSv2' })
-      // The subname's own Expires row reads bigname too.
-      void pollForIndexerSync({
-        invalidateQueries: () =>
-          queryClient.invalidateQueries({
-            queryKey: getRegistrationDataQueryOptions({ name: subname })
-              .queryKey,
-          }),
-      })
+      refreshSubnameQueries(queryClient, { name, protocolVersion: 'ENSv2' }, [
+        subname,
+      ])
     },
   })
 }

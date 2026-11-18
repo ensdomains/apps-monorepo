@@ -18,19 +18,22 @@ vi.mock('wagmi', async (importOriginal) => ({
 vi.mock('../utils/extend-subname-expiry.helpers', () => ({
   prepareExtendSubnameExpiryTransaction: () => ({}),
 }))
-vi.mock('@/utils/query/pollForIndexerSync', () => ({
-  pollForIndexerSync: ({
-    invalidateQueries,
-  }: {
-    readonly invalidateQueries: () => Promise<void>
-  }) => invalidateQueries(),
-}))
+const pollForIndexerSync = vi.hoisted(() =>
+  vi.fn(
+    ({
+      invalidateQueries,
+    }: {
+      readonly invalidateQueries: () => Promise<void>
+    }) => invalidateQueries(),
+  ),
+)
+vi.mock('@/utils/query/pollForIndexerSync', () => ({ pollForIndexerSync }))
 
 const { useExtendSubnameExpiryMutation } = await import(
   './useExtendSubnameExpiryMutation'
 )
 
-it('refreshes the changed subname’s own expiry once indexed, and no other', async () => {
+it('refreshes the changed subname’s own expiry in the one indexer wait, and no other', async () => {
   const queryClient = createTestQueryClient()
   const changed = getRegistrationDataQueryOptions({
     name: 'admin.chakri.eth',
@@ -66,4 +69,5 @@ it('refreshes the changed subname’s own expiry once indexed, and no other', as
     expect(queryClient.getQueryState(changed)?.isInvalidated).toBe(true),
   )
   expect(queryClient.getQueryState(sibling)?.isInvalidated).toBe(false)
+  expect(pollForIndexerSync).toHaveBeenCalledTimes(1)
 })

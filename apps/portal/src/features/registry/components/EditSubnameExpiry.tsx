@@ -13,47 +13,43 @@ import {
 import { useFirstToExpire } from '@/features/profile/hooks/useFirstToExpire'
 import { getRegistrationDataQueryOptions } from '@/features/profile/hooks/useRegistrationData'
 import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVersionedResource'
+import type { ResourceId } from '@/lib/resource/resourceId'
 import { ethAncestorsOf } from '@/utils/names/addressNames'
 import { getHasRolesQueryOptions } from '../hooks/useHasRoles'
 import { getExpiryChange } from '../utils/subnameExpiry'
 import { ChangeSubnameExpiry } from './ChangeSubnameExpiry'
 
-/** "Edit" beside an ENSv2 subname's expiry, for an account that holds ROLE_RENEW on it. */
-export const EditSubnameExpiry = ({
-  name,
-  registryAddress,
-}: {
+type SubnameExpiryActionProps = {
   readonly name: string
   /** The registry the subname lives in */
   readonly registryAddress: Address
-}) => {
+  readonly parentName: string
+  /** The names above it that it lapses with */
+  readonly namesAbove: readonly string[]
+  readonly resource: ResourceId
+}
+
+const SubnameExpiryAction = ({
+  name,
+  registryAddress,
+  parentName,
+  namesAbove,
+  resource,
+}: SubnameExpiryActionProps) => {
   const { address: account } = useConnection()
   const [isEditing, setIsEditing] = useState(false)
-  // None for a 2LD, which renews through the registrar instead.
-  const namesAbove = ethAncestorsOf({
-    name,
-    expiryDate: null,
-    protocolVersion: 'ENSv2',
-  })
-  const [parentName] = namesAbove
-  const { data: registration } = useQuery({
-    ...getRegistrationDataQueryOptions({ name }),
-    enabled: Boolean(parentName),
-  })
+  const { data: registration } = useQuery(
+    getRegistrationDataQueryOptions({ name }),
+  )
   const { firstToExpire } = useFirstToExpire(namesAbove)
-  // The same read the transfer warning makes, so its versioned id is what the role check asks about.
-  const { data: resource } = useQuery({
-    ...getVersionedResourceQueryOptions({ name, registryAddress }),
-    enabled: Boolean(parentName),
-  })
   const { data: canRenew } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress,
-      resource: resource ?? null,
+      resource,
       roles: ['ROLE_RENEW'],
       account: account as Address,
     }),
-    enabled: Boolean(account) && Boolean(resource),
+    enabled: Boolean(account),
   })
 
   const change = getExpiryChange({
@@ -72,7 +68,7 @@ export const EditSubnameExpiry = ({
           <PencilIcon className="size-4" />
           Edit
         </Button>
-        {isEditing && resource && parentName && (
+        {isEditing && (
           <ChangeSubnameExpiry
             parentName={parentName}
             registryAddress={registryAddress}
@@ -102,4 +98,37 @@ export const EditSubnameExpiry = ({
     ))
     .with({ type: 'none' }, () => null)
     .exhaustive()
+}
+
+/** "Edit" beside an ENSv2 subname's expiry, for an account that holds ROLE_RENEW on it. */
+export const EditSubnameExpiry = ({
+  name,
+  registryAddress,
+}: {
+  readonly name: string
+  /** The registry the subname lives in */
+  readonly registryAddress: Address
+}) => {
+  // None for a 2LD, which renews through the registrar instead.
+  const namesAbove = ethAncestorsOf({
+    name,
+    expiryDate: null,
+    protocolVersion: 'ENSv2',
+  })
+  const [parentName] = namesAbove
+  // The same read the transfer warning makes, so its versioned id is what the role check asks about.
+  const { data: resource } = useQuery({
+    ...getVersionedResourceQueryOptions({ name, registryAddress }),
+    enabled: Boolean(parentName),
+  })
+
+  return parentName && resource ? (
+    <SubnameExpiryAction
+      name={name}
+      registryAddress={registryAddress}
+      parentName={parentName}
+      namesAbove={namesAbove}
+      resource={resource}
+    />
+  ) : null
 }

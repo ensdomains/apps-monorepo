@@ -20,7 +20,7 @@ vi.mock('wagmi', async (importOriginal) => ({
   }),
 }))
 vi.mock('@/features/profile/hooks/useRegistrationData', () => ({
-  getRegistrationDataQueryOptions: ({ name }: { name: string }) => ({
+  getRegistrationDataQueryOptions: ({ name }: { readonly name: string }) => ({
     queryKey: ['registrationData', name],
     queryFn: () => ({
       createdAt: null,
@@ -38,13 +38,13 @@ vi.mock('@/features/profile/hooks/useFirstToExpire', () => ({
   }),
 }))
 vi.mock('@/features/roles/hooks/useVersionedResource', () => ({
-  getVersionedResourceQueryOptions: ({ name }: { name: string }) => ({
+  getVersionedResourceQueryOptions: ({ name }: { readonly name: string }) => ({
     queryKey: ['versionedResource', name],
     queryFn: () => RESOURCE,
   }),
 }))
 vi.mock('../hooks/useHasRoles', () => ({
-  getHasRolesQueryOptions: (params: { roles: readonly string[] }) => ({
+  getHasRolesQueryOptions: (params: { readonly roles: readonly string[] }) => ({
     queryKey: ['hasRoles', params.roles],
     queryFn: () => hasRoles(params),
   }),
@@ -54,8 +54,8 @@ vi.mock('./ChangeSubnameExpiry', () => ({
     parentName,
     subname,
   }: {
-    parentName: string
-    subname: { name: string; expiryDate: Date }
+    readonly parentName: string
+    readonly subname: { readonly name: string; readonly expiryDate: Date }
   }) => (
     <p>{`Changing ${subname.name} under ${parentName} from ${subname.expiryDate.toISOString()}`}</p>
   ),
