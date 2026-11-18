@@ -1,7 +1,13 @@
-import { useLingui } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
 import {
+  actionTooltipClassName,
   iconActionClassName,
   iconActionIconInnerClassName,
   iconActionSymbolClassName,
@@ -22,23 +28,34 @@ export const ProfileShareAction = ({
   const { t } = useLingui()
   const themeColor = useProfileThemeColor()
 
+  // The tooltip wraps the dialog so its trigger can sit inside the dialog's trigger
   return (
-    <ShareProfileDialog
-      avatarUrl={avatarUrl}
-      name={name}
-      themeColor={themeColor}
-      trigger={
-        <button
-          aria-label={t`Share profile`}
-          className={iconActionClassName}
-          type="button"
-        >
-          <span className={iconActionIconInnerClassName}>
-            <MSymbol className={iconActionSymbolClassName} symbol="ios_share" />
-          </span>
-        </button>
-      }
-      url={url}
-    />
+    <Tooltip>
+      <ShareProfileDialog
+        avatarUrl={avatarUrl}
+        name={name}
+        themeColor={themeColor}
+        trigger={
+          <TooltipTrigger asChild>
+            <button
+              aria-label={t`Share profile`}
+              className={iconActionClassName}
+              type="button"
+            >
+              <span className={iconActionIconInnerClassName}>
+                <MSymbol
+                  className={iconActionSymbolClassName}
+                  symbol="ios_share"
+                />
+              </span>
+            </button>
+          </TooltipTrigger>
+        }
+        url={url}
+      />
+      <TooltipContent className={actionTooltipClassName}>
+        <Trans>Share</Trans>
+      </TooltipContent>
+    </Tooltip>
   )
 }

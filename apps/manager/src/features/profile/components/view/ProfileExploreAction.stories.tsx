@@ -12,6 +12,7 @@ import {
   iconActionSymbolClassName,
   ownerBarContentClassName,
   ownerBarEditActionsClassName,
+  primaryActionClassName,
   profileBarActionsClassName,
   renewActionClassName,
   renewActionSymbolClassName,
@@ -90,7 +91,8 @@ export const InOwnerBar: Story = {
             <span
               className={cn(
                 barEditActionClassName,
-                'inline-flex items-center bg-ens-lapis-core text-white',
+                primaryActionClassName,
+                'inline-flex items-center',
               )}
             >
               <MSymbol className={barEditActionSymbolClassName} symbol="edit" />

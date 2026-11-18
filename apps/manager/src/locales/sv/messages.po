@@ -373,6 +373,7 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Add to favorites"
 msgstr ""
 
@@ -1490,6 +1491,10 @@ msgstr ""
 
 #: src/features/profile/components/view/ProfileExploreAction.tsx
 msgid "Explore"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileRenewAction.tsx
+msgid "Extend this name’s registration"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2671,6 +2676,7 @@ msgid "Remove favorite"
 msgstr ""
 
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Remove from favorites"
 msgstr ""
 
@@ -3117,6 +3123,7 @@ msgid "Settings"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
+#: src/features/profile/components/view/ProfileShareAction.tsx
 msgid "Share"
 msgstr ""
 

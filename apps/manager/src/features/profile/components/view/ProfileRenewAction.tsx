@@ -2,6 +2,11 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import {
   profileExpiryDateFromSeconds,
@@ -18,6 +23,7 @@ import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/third
 import { cn } from '@/lib/utils'
 import {
   actionLabelClassName,
+  actionTooltipClassName,
   iconActionInnerClassName,
   renewActionSymbolClassName,
 } from './ProfileAction.styles'
@@ -77,27 +83,43 @@ export const ProfileRenewAction = ({
     )
   }
 
+  const tooltip = (
+    <TooltipContent className={actionTooltipClassName}>
+      <Trans>Extend this name’s registration</Trans>
+    </TooltipContent>
+  )
+
   if (shouldShowThirdPartyRenewalWarning(isOwner)) {
     return (
-      <ThirdPartyRenewalDialog
-        name={name}
-        protocol={resolvedProtocol}
-        trigger={
-          <button className={className} type="button">
-            {buttonContent}
-          </button>
-        }
-      />
+      <Tooltip>
+        <ThirdPartyRenewalDialog
+          name={name}
+          protocol={resolvedProtocol}
+          trigger={
+            <TooltipTrigger asChild>
+              <button className={className} type="button">
+                {buttonContent}
+              </button>
+            </TooltipTrigger>
+          }
+        />
+        {tooltip}
+      </Tooltip>
     )
   }
 
   return (
-    <LinkButton
-      className={className}
-      params={{ name }}
-      to={getRenewalRoute(resolvedProtocol)}
-    >
-      {buttonContent}
-    </LinkButton>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <LinkButton
+          className={className}
+          params={{ name }}
+          to={getRenewalRoute(resolvedProtocol)}
+        >
+          {buttonContent}
+        </LinkButton>
+      </TooltipTrigger>
+      {tooltip}
+    </Tooltip>
   )
 }

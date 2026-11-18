@@ -368,6 +368,7 @@ msgstr "Add more contact methods"
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Add to favorites"
 msgstr "Add to favorites"
 
@@ -1486,6 +1487,10 @@ msgstr "Expiry Date"
 #: src/features/profile/components/view/ProfileExploreAction.tsx
 msgid "Explore"
 msgstr "Explore"
+
+#: src/features/profile/components/view/ProfileRenewAction.tsx
+msgid "Extend this name’s registration"
+msgstr "Extend this name’s registration"
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Failed to add email"
@@ -2666,6 +2671,7 @@ msgid "Remove favorite"
 msgstr "Remove favorite"
 
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Remove from favorites"
 msgstr "Remove from favorites"
 
@@ -3112,6 +3118,7 @@ msgid "Settings"
 msgstr "Settings"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
+#: src/features/profile/components/view/ProfileShareAction.tsx
 msgid "Share"
 msgstr "Share"
 

@@ -4,6 +4,7 @@ import { useLingui } from '@lingui/react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
@@ -21,7 +22,9 @@ import {
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {
+  actionTooltipClassName,
   favoriteActionClassName,
+  favoritedActionClassName,
   iconActionClassName,
   iconActionIconInnerClassName,
   iconActionSymbolClassName,
@@ -73,7 +76,10 @@ export const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
     <button
       aria-disabled={isDisabled}
       aria-label={isFavorite ? _(msg`Remove favorite`) : _(msg`Add favorite`)}
-      className={cn(iconActionClassName, favoriteActionClassName)}
+      className={cn(
+        iconActionClassName,
+        isFavorite ? favoritedActionClassName : favoriteActionClassName,
+      )}
       disabled={isDisabled}
       onClick={toggleFavorite}
       type="button"
@@ -90,12 +96,17 @@ export const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
     </button>
   )
 
-  if (isAuthed) return button
+  const tooltip = match({ isAuthed, isFavorite })
+    .with({ isAuthed: false }, () => authPrompt)
+    .with({ isFavorite: true }, () => _(msg`Remove from favorites`))
+    .otherwise(() => _(msg`Add to favorites`))
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent>{authPrompt}</TooltipContent>
+      <TooltipContent className={actionTooltipClassName}>
+        {tooltip}
+      </TooltipContent>
     </Tooltip>
   )
 }

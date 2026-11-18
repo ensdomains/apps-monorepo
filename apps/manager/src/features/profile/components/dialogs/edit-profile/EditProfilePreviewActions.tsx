@@ -1,6 +1,10 @@
 import { Trans } from '@lingui/react/macro'
 import { Button } from '@/components/ui/button'
-import { profileButtonClassName } from '@/features/profile/components/view/ProfileAction.styles'
+import {
+  primaryActionClassName,
+  profileButtonClassName,
+  tertiaryActionClassName,
+} from '@/features/profile/components/view/ProfileAction.styles'
 import { cn } from '@/lib/utils'
 
 interface EditProfilePreviewActionsProps {
@@ -20,7 +24,7 @@ export const EditProfilePreviewActions = ({
 }: EditProfilePreviewActionsProps) => (
   <>
     <Button
-      className={cn(profileButtonClassName, 'text-ens-quartz-700')}
+      className={cn(profileButtonClassName, tertiaryActionClassName)}
       disabled={isPublishing}
       onClick={onDiscard}
       type="button"
@@ -29,7 +33,7 @@ export const EditProfilePreviewActions = ({
       <Trans>Discard</Trans>
     </Button>
     <Button
-      className={cn(profileButtonClassName, 'text-ens-quartz-700')}
+      className={cn(profileButtonClassName, tertiaryActionClassName)}
       disabled={isPublishing}
       onClick={onEdit}
       type="button"
@@ -38,7 +42,7 @@ export const EditProfilePreviewActions = ({
       <Trans>Edit</Trans>
     </Button>
     <Button
-      className={profileButtonClassName}
+      className={cn(profileButtonClassName, primaryActionClassName)}
       disabled={isPublishing || isPublishDisabled}
       onClick={onPublish}
       type="button"

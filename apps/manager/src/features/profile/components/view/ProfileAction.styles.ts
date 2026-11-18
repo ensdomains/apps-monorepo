@@ -1,6 +1,6 @@
-// Small Button / Secondary from ENS Consumer (871:3955): 44px tall.
+// Secondary action from the Explore CTA design (6714:72931): 44px, grey, darker on hover
 export const iconActionClassName =
-  'inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[#e2e8f0] p-0.5 text-ens-lapis-500 transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50'
+  'inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-ens-quartz-75 p-0.5 text-ens-quartz-500 transition-colors hover:bg-ens-quartz-200 hover:text-ens-quartz-900 disabled:cursor-not-allowed disabled:opacity-50'
 
 // With the 2px outer padding this gives the bar's 14px (12px on desktop) inset
 export const iconActionInnerClassName =
@@ -12,10 +12,14 @@ export const iconActionIconInnerClassName =
 export const iconActionSymbolClassName =
   'ms-opsz-20 ms-wght-500 text-[20px] leading-none'
 
-export const favoriteActionClassName = 'bg-ens-magenta-light text-ens-magenta'
+export const favoriteActionClassName =
+  'hover:bg-ens-garnet-100 hover:text-ens-garnet-500'
+
+export const favoritedActionClassName =
+  'bg-ens-garnet-100 text-ens-garnet-core hover:bg-ens-garnet-100 hover:text-ens-garnet-core'
 
 export const renewActionClassName =
-  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-0 bg-[#e2e8f0] p-0.5 font-medium font-mono text-ens-lapis-500 text-sm uppercase leading-none tracking-[1.56px] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60'
+  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-0 bg-ens-quartz-75 p-0.5 font-medium font-mono text-ens-quartz-500 text-sm uppercase leading-none tracking-[1px] transition-colors hover:bg-ens-quartz-200 hover:text-ens-quartz-900 disabled:cursor-wait disabled:opacity-60'
 
 export const renewActionSymbolClassName =
   'ms-opsz-12 ms-wght-500 text-[12px] leading-none max-xs:hidden'
@@ -25,6 +29,18 @@ export const editActionClassName =
 
 // Sizes the shared Button to the 42px / 4px spec; colors come from its variants
 export const profileButtonClassName = 'h-10.5 rounded-sm text-xs uppercase'
+
+// Primary action (Edit Profile, Preview, Publish): black, lighter on hover; overrides the Button variant
+export const primaryActionClassName =
+  'bg-ens-quartz-900 text-white hover:bg-ens-quartz-500 active:bg-ens-quartz-900 disabled:bg-ens-quartz-50 disabled:text-ens-quartz-300 disabled:opacity-100 aria-disabled:bg-ens-quartz-50 aria-disabled:text-ens-quartz-300'
+
+// Tertiary action (Cancel, Discard): white, off-white on hover
+export const tertiaryActionClassName =
+  'bg-white text-ens-quartz-900 hover:bg-ens-quartz-50 hover:text-ens-quartz-900'
+
+// The design's action tooltips: smaller and darker than the shared Tooltip
+export const actionTooltipClassName =
+  'max-w-36 rounded-sm bg-ens-quartz-900 px-2 py-[5px] text-center text-[10px] leading-[14px]'
 
 // The floating bar's Edit button, sized and set like the Renew action beside it
 export const barEditActionClassName =
@@ -56,6 +72,9 @@ export const profileStickyBarClassName =
 
 export const desktopActionClusterClassName =
   'hidden shrink-0 items-center gap-2 xl:flex'
+
+// Visitors' header actions; the header decides where they show at each width
+export const headerActionClusterClassName = 'flex shrink-0 items-center gap-2'
 
 // When the owner's actions and Edit don't fit on one row, Edit wraps to its own
 export const ownerBarContentClassName = `${editBottomBarContentClassName} flex-wrap`

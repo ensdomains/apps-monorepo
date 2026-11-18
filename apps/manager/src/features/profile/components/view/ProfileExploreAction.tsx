@@ -8,6 +8,7 @@ import { EXPLORER_URL } from '@/constants'
 import { type ExplorerTarget, getExplorerUrl } from '@/utils/explorerUrl'
 import {
   actionLabelClassName,
+  actionTooltipClassName,
   iconActionInnerClassName,
   renewActionClassName,
 } from './ProfileAction.styles'
@@ -41,7 +42,7 @@ export const ProfileExploreAction = ({
           </span>
         </a>
       </TooltipTrigger>
-      <TooltipContent className="max-w-50 text-center">
+      <TooltipContent className={actionTooltipClassName}>
         {isOwner ? (
           <Trans>Manage advanced settings in ENS Explorer</Trans>
         ) : (

@@ -9,6 +9,7 @@ import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialog
 import {
   actionLabelClassName,
   barEditActionSymbolClassName,
+  primaryActionClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
 import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import {
@@ -215,7 +216,7 @@ export const EditProfileDialog = ({
                 </Button>
               ) : null}
               <Button
-                className={editButtonClassName}
+                className={cn(editButtonClassName, primaryActionClassName)}
                 disabled={importMutation.isPending}
                 onClick={() => void handleOpen(!canEditNormal)}
                 type="button"

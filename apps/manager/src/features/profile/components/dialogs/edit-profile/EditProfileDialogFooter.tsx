@@ -1,12 +1,18 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
+import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { profileButtonClassName } from '@/features/profile/components/view/ProfileAction.styles'
+import {
+  actionTooltipClassName,
+  primaryActionClassName,
+  profileButtonClassName,
+  tertiaryActionClassName,
+} from '@/features/profile/components/view/ProfileAction.styles'
 import { cn } from '@/lib/utils'
 
 interface EditProfileDialogFooterProps {
@@ -54,13 +60,19 @@ export const EditProfileDialogFooter = ({
       aria-disabled={!canPreview}
       className={cn(
         profileButtonClassName,
-        'aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
+        primaryActionClassName,
+        'aria-disabled:cursor-not-allowed',
       )}
       onClick={handlePreviewClick}
       type="button"
       variant="blue"
     >
       <Trans>Preview</Trans>
+      <MSymbol
+        aria-hidden="true"
+        className="ms-opsz-20 text-xs leading-none"
+        symbol="arrow_right_alt"
+      />
     </Button>
   )
 
@@ -80,7 +92,7 @@ export const EditProfileDialogFooter = ({
       </p>
       <div className="flex shrink-0 items-center justify-end gap-3">
         <Button
-          className={cn(profileButtonClassName, 'text-ens-quartz-700')}
+          className={cn(profileButtonClassName, tertiaryActionClassName)}
           onClick={onCancel}
           type="button"
           variant="ghost"
@@ -90,7 +102,7 @@ export const EditProfileDialogFooter = ({
         {disabledReason ? (
           <Tooltip>
             <TooltipTrigger asChild>{previewButton}</TooltipTrigger>
-            <TooltipContent className="max-w-64">
+            <TooltipContent className={actionTooltipClassName}>
               {disabledReason}
             </TooltipContent>
           </Tooltip>
