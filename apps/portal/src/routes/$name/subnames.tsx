@@ -40,6 +40,7 @@ import {
 import { getRegistrarAccess } from '@/features/registry/utils/create-subname.helpers'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
 import {
+  canChangeSubnameExpiration,
   canExtendExpiry,
   getChangeExpirationBlockedReason,
 } from '@/features/registry/utils/subnameExpiry'
@@ -415,11 +416,13 @@ const SubregistrySubnames = ({
           (hasRootUnregisterRole === true ||
             holdsRolesOn(perRowUnregisterRoles, subname.resourceId)),
         expiryDate: subname.expiryDate,
-        canChangeExpiration:
-          subname.resourceId !== null &&
-          canExtendExpiry(subname.expiryDate, Date.now()) &&
-          (hasRootRenewRole === true ||
-            holdsRolesOn(perRowRenewRoles, subname.resourceId)),
+        canChangeExpiration: canChangeSubnameExpiration({
+          resourceId: subname.resourceId,
+          expiryDate: subname.expiryDate,
+          nowMs: Date.now(),
+          hasRootRenewRole,
+          perRowRenewRoles,
+        }),
         changeExpirationBlockedReason: getChangeExpirationBlockedReason({
           expiryDate: subname.expiryDate,
           canRenew: hasRootRenewRole === true,

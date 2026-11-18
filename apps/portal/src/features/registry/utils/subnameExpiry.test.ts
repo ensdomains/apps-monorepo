@@ -1,7 +1,10 @@
-import { maxUint64 } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { labelhash, maxUint64 } from 'viem'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SECONDS_PER_DAY } from '@/lib/constants/duration'
+import { resourceIdFromChainValue } from '@/lib/resource/resourceId'
+import { mockTimeZone } from '@/test-utils/mockTimeZone'
 import {
+  canChangeSubnameExpiration,
   canExtendExpiry,
   DEFAULT_SUBNAME_EXPIRY,
   getChangeExpirationBlockedReason,
@@ -78,6 +81,79 @@ describe('getExtendedExpirySeconds', () => {
     expect(getExtendedExpirySeconds(expiry, { type: 'years', years: 1 })).toBe(
       expirySeconds + BigInt(366 * SECONDS_PER_DAY),
     )
+  })
+
+  describe('seen from a time zone behind UTC', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('counts from the UTC day the dialog shows, not the viewer’s local day', () => {
+      mockTimeZone('America/Los_Angeles')
+      // October 13 in UTC, still October 12 in Los Angeles.
+      const expiry = new Date(Date.UTC(2027, 9, 13, 1))
+      const span = {
+        type: 'date',
+        date: Temporal.PlainDate.from('2027-10-20'),
+      } as const
+
+      expect(getExtendedExpirySeconds(expiry, span)).toBe(
+        BigInt(expiry.getTime() / 1000) + BigInt(7 * SECONDS_PER_DAY),
+      )
+    })
+  })
+})
+
+describe('canChangeSubnameExpiration', () => {
+  const NOW_MS = Date.UTC(2027, 0, 15)
+  const RESOURCE_ID = resourceIdFromChainValue(
+    labelhash('admin'),
+  )._unsafeUnwrap()
+  const change = (
+    overrides: Partial<Parameters<typeof canChangeSubnameExpiration>[0]>,
+  ) =>
+    canChangeSubnameExpiration({
+      resourceId: RESOURCE_ID,
+      expiryDate: new Date(NOW_MS + 1),
+      nowMs: NOW_MS,
+      hasRootRenewRole: false,
+      perRowRenewRoles: undefined,
+      ...overrides,
+    })
+
+  it.each([
+    [
+      'the account renews across the registry',
+      true,
+      { hasRootRenewRole: true },
+    ],
+    [
+      'the account renews only that subname',
+      true,
+      { perRowRenewRoles: new Map([[RESOURCE_ID.toString(), true]]) },
+    ],
+    [
+      'the account renews neither',
+      false,
+      { perRowRenewRoles: new Map([[RESOURCE_ID.toString(), false]]) },
+    ],
+    [
+      'the registry answer is still loading',
+      false,
+      { hasRootRenewRole: undefined },
+    ],
+    [
+      'the subname has no resource id',
+      false,
+      { resourceId: null, hasRootRenewRole: true },
+    ],
+    [
+      'its own expiry has lapsed',
+      false,
+      { expiryDate: new Date(NOW_MS - 1), hasRootRenewRole: true },
+    ],
+  ])('when %s: %s', (_, expected, overrides) => {
+    expect(change(overrides)).toBe(expected)
   })
 })
 

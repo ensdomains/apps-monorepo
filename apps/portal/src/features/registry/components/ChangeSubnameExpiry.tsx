@@ -18,6 +18,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { ResourceId } from '@/lib/resource/resourceId'
+import { plainDateToDate, unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import { useExtendSubnameExpiryMutation } from '../hooks/useExtendSubnameExpiryMutation'
 import { prepareExtendSubnameExpiryTransaction } from '../utils/extend-subname-expiry.helpers'
 import { getExtendedExpirySeconds } from '../utils/subnameExpiry'
@@ -81,7 +82,12 @@ export const ChangeSubnameExpiry = ({
           <ExtensionDurationOrExpiryPicker
             span={span}
             setSpan={setSpan}
-            expiryDate={subname.expiryDate}
+            // Counted from the expiry's UTC day, as `getExtendedExpirySeconds` and the summary are.
+            expiryDate={plainDateToDate(
+              unixSecondsToPlainDateUtc(
+                Math.floor(subname.expiryDate.getTime() / 1000),
+              ),
+            )}
           />
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>

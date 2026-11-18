@@ -1,11 +1,16 @@
 import { match } from 'ts-pattern'
 import { maxUint64 } from 'viem'
 import {
+  holdsRolesOn,
+  type ResourceRoles,
+} from '@/features/registry/hooks/useResourceRoles'
+import {
   type ExtensionSpan,
   getExtensionTargetDate,
 } from '@/features/renew/utils/extensionDurationPicker'
 import { SECONDS_PER_DAY } from '@/lib/constants/duration'
-import { dateToPlainDate } from '@/utils/temporal'
+import type { ResourceId } from '@/lib/resource/resourceId'
+import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 
 /** A new ENSv2 subname's expiry: none of its own, or a span from today. */
 export type SubnameExpiry =
@@ -41,18 +46,38 @@ export const canExtendExpiry = (
   nowMs: number,
 ): expiryDate is Date => !!expiryDate && expiryDate.getTime() > nowMs
 
-/** The registry expiry a picked span moves `expiryDate` to, counted in calendar days from its day as the picker shows it. */
+/** The registry expiry a picked span moves `expiryDate` to, counted in calendar days from its UTC day, the day the dialog shows. */
 export const getExtendedExpirySeconds = (
   expiryDate: Date,
   span: ExtensionSpan,
-): bigint =>
-  getSubnameExpirySeconds(
+): bigint => {
+  const expirySeconds = Math.floor(expiryDate.getTime() / 1000)
+  return getSubnameExpirySeconds(
     { type: 'span', span },
     {
-      today: dateToPlainDate(expiryDate),
-      nowSeconds: BigInt(Math.floor(expiryDate.getTime() / 1000)),
+      today: unixSecondsToPlainDateUtc(expirySeconds),
+      nowSeconds: BigInt(expirySeconds),
     },
   )
+}
+
+/** Whether the account can move a subname's expiry later: it has an id and an unlapsed expiry of its own, and the account holds ROLE_RENEW on the registry or on it. */
+export const canChangeSubnameExpiration = ({
+  resourceId,
+  expiryDate,
+  nowMs,
+  hasRootRenewRole,
+  perRowRenewRoles,
+}: {
+  readonly resourceId: ResourceId | null
+  readonly expiryDate: Date | null | undefined
+  readonly nowMs: number
+  readonly hasRootRenewRole: boolean | undefined
+  readonly perRowRenewRoles: ResourceRoles | undefined
+}): boolean =>
+  resourceId !== null &&
+  canExtendExpiry(expiryDate, nowMs) &&
+  (hasRootRenewRole === true || holdsRolesOn(perRowRenewRoles, resourceId))
 
 /** Why a subname's expiration can't be changed: with none of its own it lasts as long as `expiresWithName`, so that's what to extend. */
 export const getChangeExpirationBlockedReason = ({
