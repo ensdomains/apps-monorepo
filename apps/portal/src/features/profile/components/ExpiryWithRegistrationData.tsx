@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -68,13 +69,22 @@ const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
   </InfoRow>
 )
 
-/** "Expires": the name's own expiry, or the first name above it to expire, named. */
-const ExpiresRow = ({ resolving }: { readonly resolving: ResolvingExpiry }) =>
+/** "Expires": the name's own expiry, or the first name above it to expire, named, with `action` beside it. */
+const ExpiresRow = ({
+  resolving,
+  action,
+}: {
+  readonly resolving: ResolvingExpiry
+  readonly action?: ReactNode
+}) =>
   match(resolving)
     .with({ type: 'own' }, ({ date }) => (
       <InfoRow icon={ClockIcon} label="Expires">
-        <span className="font-semi-mono">
-          <Timestamp timestamp={Math.floor(date.getTime() / 1000)} />
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="font-semi-mono">
+            <Timestamp timestamp={Math.floor(date.getTime() / 1000)} />
+          </span>
+          {action}
         </span>
       </InfoRow>
     ))
@@ -85,6 +95,7 @@ const ExpiresRow = ({ resolving }: { readonly resolving: ResolvingExpiry }) =>
             {formatUnixDateTimeLocal(Math.floor(date.getTime() / 1000))}
           </span>{' '}
           <ExpiresWith name={name} />
+          {action && <span className="ml-1.5">{action}</span>}
         </span>
       </InfoRow>
     ))
@@ -99,6 +110,8 @@ const ExpiresRow = ({ resolving }: { readonly resolving: ResolvingExpiry }) =>
 interface ExpiryWithRegistrationDataProps {
   name: string
   protocolVersion: ProtocolVersion
+  /** Shown beside the expiry date, such as a way to change it */
+  expiryAction?: ReactNode
 }
 
 /**
@@ -110,6 +123,7 @@ interface ExpiryWithRegistrationDataProps {
 export const ExpiryWithRegistrationData = ({
   name,
   protocolVersion,
+  expiryAction,
 }: ExpiryWithRegistrationDataProps) => {
   const grace = useGraceStatus({ name, protocolVersion })
   const { data, error, isLoading } = useQuery(
@@ -154,7 +168,7 @@ export const ExpiryWithRegistrationData = ({
             <span className="text-base text-muted-foreground">Loading</span>
           </InfoRow>
         ) : (
-          <ExpiresRow resolving={resolving} />
+          <ExpiresRow resolving={resolving} action={expiryAction} />
         ))}
       {data.registeredAt !== null && (
         <RegisteredRow name={name} registeredAt={data.registeredAt} />
