@@ -1,3 +1,4 @@
+import { PREVIOUS_V1_PUBLIC_RESOLVERS } from '@ens-apps/migration/known-resolvers'
 import {
   ensL1Contracts,
   type SupportedL1Contract,
@@ -59,18 +60,22 @@ const contractPillLabels: Partial<Record<SupportedL1Contract, string>> = {
 const contractNames = new Map<string, string>()
 const contractPills = new Map<string, string>()
 
+const addContract = (key: SupportedL1Contract, address: Address) => {
+  // Widened: ensjs holds an undeployed contract as 0x0, even though every
+  // address it ships today is deployed.
+  if (address === zeroAddress) return
+  const normalized = address.toLowerCase()
+  contractNames.set(normalized, contractDisplayNames[key])
+  const pill = contractPillLabels[key]
+  if (pill) contractPills.set(normalized, pill)
+}
+
 for (const chainId of Object.values(supportedL1Chains)) {
   const contracts = ensL1Contracts[chainId]
   for (const key of supportedL1Contracts) {
-    // Widened: ensjs holds an undeployed contract as 0x0, even though every
-    // address it ships today is deployed.
-    const address: Address = contracts[key].address
-    if (address === zeroAddress) continue
-    const normalized = address.toLowerCase()
-    contractNames.set(normalized, contractDisplayNames[key])
-    const pill = contractPillLabels[key]
-    if (pill) contractPills.set(normalized, pill)
+    addContract(key, contracts[key].address)
   }
+  addContract('ensPublicResolver', PREVIOUS_V1_PUBLIC_RESOLVERS[chainId])
 }
 
 /** Human-readable ENS contract name, or undefined if not a known ENS contract. */

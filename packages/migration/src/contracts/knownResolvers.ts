@@ -26,10 +26,12 @@ export const isAddressOnlyResolver = (
     isAddressEqual(known, address as Address),
   )
 
-// Newest V1 PublicResolver (default addresses); ensjs's `ensPublicResolver` is the one before it.
-export const LATEST_V1_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, Address> = {
-  [supportedL1Chains.mainnet]: '0xF29100983E058B709F3D539b0c765937B804AC15',
-  [supportedL1Chains.sepolia]: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
+// The PublicResolver ensjs listed before 5.3.0; names set up before then still use it.
+export const PREVIOUS_V1_PUBLIC_RESOLVERS: Readonly<
+  Record<SupportedL1ChainId, Address>
+> = {
+  [supportedL1Chains.mainnet]: '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63',
+  [supportedL1Chains.sepolia]: '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
 }
 
 /**
@@ -43,17 +45,17 @@ export const LATEST_V1_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, Address> = {
  */
 const KNOWN_PUBLIC_RESOLVERS: Record<SupportedL1ChainId, readonly Address[]> = {
   [supportedL1Chains.mainnet]: [
-    LATEST_V1_PUBLIC_RESOLVERS[supportedL1Chains.mainnet],
-    '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63',
+    '0xF29100983E058B709F3D539b0c765937B804AC15',
+    PREVIOUS_V1_PUBLIC_RESOLVERS[supportedL1Chains.mainnet],
     '0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41',
     '0xDaaF96c344f63131acadD0Ea35170E7892d3dfBA',
     '0x226159d592E2b063810a10Ebf6dcbADA94Ed68b8',
     ...LEGACY_CONTENT_RESOLVERS,
   ],
   [supportedL1Chains.sepolia]: [
-    LATEST_V1_PUBLIC_RESOLVERS[supportedL1Chains.sepolia],
+    '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
     '0x8948458626811dd0c23EB25Cc74291247077cC51',
-    '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
+    PREVIOUS_V1_PUBLIC_RESOLVERS[supportedL1Chains.sepolia],
     '0x0CeEC524b2807841739D3B5E161F5bf1430FFA48',
     // E2E's alternate Sepolia deployment; its registry is 0x7e89b563...
     // See e2e/fixtures/makeV1Name.ts, not the canonical V1 registry.

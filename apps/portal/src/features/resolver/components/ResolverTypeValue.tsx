@@ -1,7 +1,7 @@
 import { ExternalLink } from 'react-external-link'
-import { type Address, isAddressEqual } from 'viem'
+import type { Address } from 'viem'
 import { useIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
-import { officialPublicResolverAddress } from '@/lib/constants/universalResolver'
+import { isOfficialPublicResolver } from '@/lib/constants/universalResolver'
 
 const AuditedNotice = ({
   name,
@@ -52,7 +52,7 @@ export const ResolverTypeValue = ({
       />
     )
 
-  if (isAddressEqual(resolverAddress, officialPublicResolverAddress))
+  if (isOfficialPublicResolver(resolverAddress))
     return (
       <AuditedNotice
         name="ENS Public Resolver"

@@ -50,7 +50,7 @@ const customSepolia = {
 const ENS_SEPOLIA_CONTRACTS = {
   FastTestETHRegistrar: '0xe37a1366c827d18dc0ad57f3767de4b3025ceac2' as const,
   HCAFactory: '0x6a20c7f050f31f4b4cb1eaf060849629be10e6a1' as const,
-  PublicResolver: '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const,
+  PublicResolver: ensjsSepolia.ensPublicResolver.address,
 } as const
 
 const FAST_TEST_REGISTRAR_ABI = [

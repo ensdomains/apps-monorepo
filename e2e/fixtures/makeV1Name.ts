@@ -88,11 +88,10 @@ export const V1_NAME_WRAPPER = APP_V1_NAME_WRAPPER
 export const V1_PUBLIC_RESOLVER =
   '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address
 /**
- * The other Sepolia PublicResolver, bound to the canonical registry. It is in
- * migration's KNOWN_PUBLIC_RESOLVERS (certified), unlike V1_PUBLIC_RESOLVER.
+ * The newest Sepolia PublicResolver, from ensjs, bound to the canonical
+ * registry. It is in migration's KNOWN_PUBLIC_RESOLVERS (certified).
  */
-export const CERTIFIED_V1_RESOLVER =
-  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as Address
+export const CERTIFIED_V1_RESOLVER = ensjsSepolia.ensPublicResolver.address
 export const V1_ENS_REGISTRY = ensjsSepolia.ensLegacyRegistry.address
 
 // ---------------------------------------------------------------------------
