@@ -151,4 +151,49 @@ describe('getRecentActivityQueryOptions', () => {
     ])
     expect(page.events[0]?.data?.action_role).toBe('registered')
   })
+
+  it('reads past pages of only hidden rows to the first with a row to show', async () => {
+    const lapse = row({ id: 'lapse', type: 'release', transactionHash: null })
+    listEvents
+      .mockResolvedValueOnce({
+        items: [lapse],
+        nextCursor: 'p2',
+        totalCount: null,
+      })
+      .mockResolvedValueOnce({
+        items: [lapse],
+        nextCursor: 'p3',
+        totalCount: null,
+      })
+      .mockResolvedValueOnce({
+        items: [row({})],
+        nextCursor: 'p4',
+        totalCount: null,
+      })
+    const { queryFn } = getRecentActivityQueryOptions()
+
+    const page = (await (queryFn as (context: unknown) => Promise<unknown>)({
+      pageParam: undefined,
+    } as unknown as QueryFunctionContext)) as {
+      events: unknown[]
+      endCursor: string | null
+    }
+
+    expect(page.events).toHaveLength(1)
+    expect(page.endCursor).toBe('p4')
+    expect(listEvents.mock.calls.map(([query]) => query.cursor)).toEqual([
+      undefined,
+      'p2',
+      'p3',
+    ])
+  })
+
+  it('stops after five more pages of only hidden rows, leaving the rest to Load more', async () => {
+    const page = (await fetchPage([
+      row({ id: 'lapse', type: 'release', transactionHash: null }),
+    ])) as { events: unknown[]; hasNextPage: boolean }
+
+    expect(page).toMatchObject({ events: [], hasNextPage: true })
+    expect(listEvents).toHaveBeenCalledTimes(6)
+  })
 })

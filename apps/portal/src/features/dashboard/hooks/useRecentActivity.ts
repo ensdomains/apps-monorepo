@@ -7,6 +7,7 @@ import type {
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, Hash } from 'viem'
 import { dropUnassignedRecords } from '@/features/history/assignedResolvers'
 import { indexer } from '@/lib/indexer'
@@ -113,7 +114,7 @@ const toActivityEvents = (
  * filter: the old feed only excluded `CommitmentMade`, which bigname does not
  * serve as a history row, so every friendly type belongs here.
  */
-const getRecentActivityPage = (cursor: string | undefined) =>
+const readActivityPage = (cursor: string | undefined) =>
   indexer
     .getEvents({
       order: 'desc',
@@ -132,6 +133,20 @@ const getRecentActivityPage = (cursor: string | undefined) =>
       }),
     )
     .mapErr((cause) => new GetRecentActivityError({ cause }))
+
+// How many pages of only hidden rows a read skips; lapsing names on mainnet fill whole pages with them.
+const MAX_HIDDEN_PAGES = 5
+
+/** The next page with a row to show, reading past pages of only hidden rows. */
+const getRecentActivityPage = (
+  cursor: string | undefined,
+  hiddenPagesLeft = MAX_HIDDEN_PAGES,
+): ResultAsync<RecentActivityPage, GetRecentActivityError> =>
+  readActivityPage(cursor).andThen((page) =>
+    page.events.length === 0 && page.hasNextPage && hiddenPagesLeft > 0
+      ? getRecentActivityPage(page.endCursor ?? undefined, hiddenPagesLeft - 1)
+      : okAsync(page),
+  )
 
 const getRecentActivityQueryKey = createQueryKey<
   'get-recent-activity',

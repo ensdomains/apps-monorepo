@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -47,17 +47,25 @@ const eventsRef = vi.hoisted(() => ({
   current: [] as readonly RecentActivityEvent[],
   // A second page that fails to load.
   hasFailingPage: false,
+  nextPage: null as readonly RecentActivityEvent[] | null,
 }))
 
 vi.mock('../hooks/useRecentActivity', () => ({
   getRecentActivityQueryOptions: () => ({
     queryKey: ['recent-activity-mock'],
     queryFn: async ({ pageParam }: { pageParam?: string }) => {
+      if (pageParam && eventsRef.nextPage)
+        return {
+          events: eventsRef.nextPage,
+          endCursor: null,
+          hasNextPage: false,
+        }
       if (pageParam) throw new Error('bigname unavailable')
+      const hasNextPage = eventsRef.hasFailingPage || !!eventsRef.nextPage
       return {
         events: eventsRef.current,
-        endCursor: eventsRef.hasFailingPage ? 'next' : null,
-        hasNextPage: eventsRef.hasFailingPage,
+        endCursor: hasNextPage ? 'next' : null,
+        hasNextPage,
       }
     },
     initialPageParam: undefined,
@@ -82,6 +90,7 @@ const primaryNameEvent = (
 
 afterEach(() => {
   eventsRef.hasFailingPage = false
+  eventsRef.nextPage = null
 })
 
 const renderRows = (events: readonly RecentActivityEvent[]) => {
@@ -153,5 +162,27 @@ describe('RecentActivityTable', () => {
       'Couldn’t load more events.',
     )
     expect(linkedNames()).toEqual(new Set(['alice.eth']))
+  })
+
+  it('shows a renewal repeated across pages once', async () => {
+    const renewal: RecentActivityEvent = {
+      ...primaryNameEvent('vitalik.eth', 'alice.eth'),
+      type: 'renewal',
+      kind: undefined,
+      data: {},
+    }
+    eventsRef.nextPage = [renewal]
+    await renderTable([primaryNameEvent('vitalik.eth'), renewal])
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Load more events' }),
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Load more events' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(screen.getAllByText('Name renewed')).toHaveLength(1)
   })
 })
