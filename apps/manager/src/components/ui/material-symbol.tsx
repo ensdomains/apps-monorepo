@@ -1,7 +1,9 @@
 import type { ClassValue } from 'clsx'
 import type React from 'react'
 import { createElement } from 'react'
-import { cn } from '@/lib/utils'
+// A relative path, not @/: .storybook/main.ts imports this file, and
+// Storybook evaluates main.ts in Node without the tsconfig path aliases.
+import { cn } from '../../lib/utils'
 
 type RangeOrValue = `${number}..${number}` | `${number}`
 
