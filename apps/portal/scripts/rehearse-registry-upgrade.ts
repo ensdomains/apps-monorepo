@@ -2,8 +2,10 @@
 // Usage: pnpm exec tsx scripts/rehearse-registry-upgrade.ts <registries.csv> [--limit N] [--implementation 0x…] [--out results.jsonl]
 import { readFileSync, writeFileSync } from 'node:fs'
 import {
+  compareRegistryRepair,
   planRegistryRepair,
   type RegistryRepairCall,
+  type RegistryRepairState,
   readChildRegistries,
   readRegistryRepairState,
 } from '@ens-apps/migration'
@@ -20,12 +22,9 @@ import type { Result, ResultAsync } from 'neverthrow'
 import {
   type Address,
   createTestClient,
-  encodeAbiParameters,
   getAddress,
-  type Hex,
   http,
   isAddressEqual,
-  keccak256,
   labelhash,
   parseAbi,
   publicActions,
@@ -34,8 +33,7 @@ import {
 } from 'viem'
 import { mainnet } from 'viem/chains'
 import { packetToBytes } from 'viem/ens'
-// Not part of the package's API; the rehearsal checks the copy the same way the planner does.
-import { compareRegistryRepair } from '../../../packages/migration/src/service/registryRepairCompare'
+import { computeRegistryUpdateSalt } from '../src/features/registry/utils/registryUpdate'
 
 const getParentAbi = parseAbi([
   'function getParent() view returns (address parent, string label)',
@@ -170,14 +168,7 @@ const rehearse = async (row: Row) => {
     )
   const state = await read(row.registry, { registry: parentRegistry, label })
 
-  const salt = BigInt(
-    keccak256(
-      encodeAbiParameters(
-        [{ type: 'address' }, { type: 'uint256' }],
-        [row.registry, 0n],
-      ),
-    ),
-  )
+  const salt = computeRegistryUpdateSalt(row.registry, 0n)
   const replacement = computeVerifiableProxyAddress({
     factory: contracts.verifiableFactory,
     proxyLogic: contracts.verifiableFactoryProxyLogic,
@@ -192,7 +183,7 @@ const rehearse = async (row: Row) => {
       account: controller,
     }),
   )
-  const planWith = (existing: Awaited<ReturnType<typeof read>> | null) =>
+  const planWith = (existing: RegistryRepairState | null) =>
     unwrap(
       planRegistryRepair({
         state,
@@ -267,7 +258,7 @@ const rows = parseCsv(readFileSync(csvPath, 'utf8')).slice(0, limit)
 writeFileSync(outPath, '')
 let passed = 0
 for (const [index, row] of rows.entries()) {
-  const snapshot = (await client.snapshot()) as Hex
+  const snapshot = await client.snapshot()
   const started = Date.now()
   const result = await rehearse(row).catch((error: unknown) => ({
     status: 'failed',

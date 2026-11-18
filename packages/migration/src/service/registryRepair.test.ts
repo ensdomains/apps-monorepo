@@ -231,6 +231,16 @@ describe('planRegistryRepair', () => {
       ])
     })
 
+    it("refuses when the admins' roles come without the admin roles needed to give them back", () => {
+      const state = makeState({
+        rootRoles: [{ account: CONTROLLER, roleBitmap: REGISTRAR_AND_PARENT }],
+      })
+
+      expect(plan(state, { account: BOB })._unsafeUnwrapErr().reason).toBe(
+        'missing-root-roles',
+      )
+    })
+
     it('starts a fresh copy when the roles are gone but the copy is not whole', () => {
       const existing = makeState({ names: [] })
 

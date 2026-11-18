@@ -40,6 +40,7 @@ export {
   type RegistryRepairPlan,
   RegistryRepairPlanError,
 } from './service/registryRepair'
+export { compareRegistryRepair } from './service/registryRepairCompare'
 export type {
   RegistryRepairCall,
   RegistryRepairState,

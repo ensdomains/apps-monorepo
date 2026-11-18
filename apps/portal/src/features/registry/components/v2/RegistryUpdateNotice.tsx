@@ -9,10 +9,10 @@ import { useRegistryRepairCase } from '../../hooks/useRegistryRepairCase'
 import { useRegistryUpdate } from '../../hooks/useRegistryUpdate'
 import type { RegistryUpgradeStage } from '../../state/registryUpgrade.machine'
 import {
-  carriedSubnamesText,
   IS_CASE_B_UPGRADE_OFFERED,
   isUpgradeCardForPage,
   shouldShowUpgradeCard,
+  upgradeCardText,
 } from '../../utils/registryRepairCase'
 import type { RegistryUpdateFailure } from '../../utils/registryUpdate'
 import { RegistryPanel } from './RegistryPanel'
@@ -107,13 +107,10 @@ const RegistryUpdateCard = ({
       <Alert className="p-5 gap-2" variant="warning">
         <AlertTitle>Upgrade required</AlertTitle>
         <AlertDescription>
-          This registry runs on an older version that has since been fixed.
-          Upgrade it to create subnames or change roles.{' '}
-          {carriedSubnamesText(subnameCount, othersSubnameCount)} will carry
-          over.
-          {othersSubnameCount ? " Their owners don't need to do anything." : ''}{' '}
-          Inform other users of the registry to use the newly upgraded registry
-          going forward.
+          {upgradeCardText({
+            count: subnameCount,
+            othersCount: othersSubnameCount,
+          })}
         </AlertDescription>
       </Alert>
       {sharedRegistryNote && (

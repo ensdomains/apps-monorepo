@@ -271,12 +271,18 @@ const temporaryRootRoles = (
 }
 
 /** A stopped Case B run may have given its temporary roles back already; the copy is then what the original was. */
+// A role is revocable only by an admin of it, so the runner must hold the admin of every temporary role.
+const canGiveBack = (temporary: bigint, runnerRoles: bigint): boolean => {
+  const admins = runnerRoles >> 128n
+  return (temporary & ~((admins << 128n) | admins)) === 0n
+}
+
 const isRelinquished = (
   original: RegistryRepairState,
   existing: RegistryRepairState | null,
   account: Address,
   temporary: bigint,
-): existing is RegistryRepairState =>
+): boolean =>
   temporary !== 0n &&
   existing !== null &&
   rolesOf(existing.rootRoles, account) === rolesOf(original.rootRoles, account)
@@ -307,6 +313,8 @@ export const planRegistryRepair = ({
   const problem = findPlanProblem(state, account)
   if (problem) return err(problem)
   const temporary = temporaryRootRoles(original, state, account)
+  if (!canGiveBack(temporary, rolesOf(state.rootRoles, account)))
+    return err(new RegistryRepairPlanError({ reason: 'missing-root-roles' }))
   const hasRelinquished = isRelinquished(original, existing, account, temporary)
 
   const deploy = call(
@@ -344,9 +352,7 @@ export const planRegistryRepair = ({
 
   const copyCalls = existing
     ? resumeCopyCalls({
-        state: hasRelinquished
-          ? { ...state, rootRoles: original.rootRoles }
-          : state,
+        state: hasRelinquished ? original : state,
         existing,
         replacement,
         account,

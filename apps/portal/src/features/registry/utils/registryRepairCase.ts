@@ -91,18 +91,33 @@ export const shouldShowSubnameOwnerNotice = ({
   canUpgradeRegistry === false
 
 /** The subnames the upgrade card says will carry over; without a count it doesn't guess one. */
-export const carriedSubnamesText = (
-  count: number | undefined,
-  othersCount = 0,
-): string => {
-  if (othersCount > 0)
-    return count === undefined
-      ? 'All subnames, including those owned by others, and their settings'
-      : `All ${count} subnames, including ${othersCount} owned by others, and their settings`
-  return match(count)
+const carriedSubnamesText = (count: number | undefined): string =>
+  match(count)
     .with(undefined, () => 'Your subnames and their settings')
     .with(1, () => 'Your 1 subname and its settings')
     .otherwise((n) => `Your ${n} subnames and their settings`)
+
+const sharedSubnamesText = (count: number, othersCount: number): string =>
+  count === 1
+    ? 'Its 1 subname, owned by someone else, and its settings'
+    : `All ${count} subnames, including ${othersCount} owned by others, and their settings`
+
+/** The upgrade card's text: Case A as written in WEB-2168; Case B (others own subnames) promises nothing to the upgrader. */
+export const upgradeCardText = ({
+  count,
+  othersCount,
+}: {
+  readonly count: number | undefined
+  readonly othersCount: number | undefined
+}): string => {
+  const isShared = count !== undefined && (othersCount ?? 0) > 0
+  const opening = isShared
+    ? 'Upgrade it so subnames can be created and roles changed again.'
+    : 'Upgrade it to create subnames or change roles.'
+  const carried = isShared
+    ? sharedSubnamesText(count, othersCount ?? 0)
+    : carriedSubnamesText(count)
+  return `This registry runs on an older version that has since been fixed. ${opening} ${carried} will carry over. Inform other users of the registry to use the newly upgraded registry going forward.`
 }
 
 const MAX_LISTED_NAMES = 3

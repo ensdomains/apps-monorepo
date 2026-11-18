@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  carriedSubnamesText,
   getRegistryRepairCase,
   isUpgradeCardForPage,
   sharedRegistryText,
   shouldShowSubnameOwnerNotice,
   shouldShowUpgradeCard,
+  upgradeCardText,
 } from './registryRepairCase'
 
 describe('getRegistryRepairCase', () => {
@@ -56,6 +56,16 @@ describe('shouldShowUpgradeCard', () => {
       shouldShowUpgradeCard({ repairCase, wasShown, isCaseBOffered: false }),
     ).toBe(expected)
   })
+
+  it('offers the card to a Case B account once Case B is offered', () => {
+    expect(
+      shouldShowUpgradeCard({
+        repairCase: 'shared',
+        wasShown: false,
+        isCaseBOffered: true,
+      }),
+    ).toBe(true)
+  })
 })
 
 describe('shouldShowSubnameOwnerNotice', () => {
@@ -87,40 +97,6 @@ describe('shouldShowSubnameOwnerNotice', () => {
     expect(run(overrides)).toBe(false)
   })
 })
-
-describe('carriedSubnamesText', () => {
-  it.each([
-    [12, 'Your 12 subnames and their settings'],
-    [1, 'Your 1 subname and its settings'],
-    [undefined, 'Your subnames and their settings'],
-  ] as const)('for %s', (count, expected) => {
-    expect(carriedSubnamesText(count)).toBe(expected)
-  })
-})
-
-it('offers the card to a Case B account once Case B is offered', () => {
-  expect(
-    shouldShowUpgradeCard({
-      repairCase: 'shared',
-      wasShown: false,
-      isCaseBOffered: true,
-    }),
-  ).toBe(true)
-})
-
-it.each([
-  [12, 3, 'All 12 subnames, including 3 owned by others, and their settings'],
-  [
-    undefined,
-    3,
-    'All subnames, including those owned by others, and their settings',
-  ],
-] as const)(
-  'tells a Case B account that %s subnames carry over',
-  (count, othersCount, expected) => {
-    expect(carriedSubnamesText(count, othersCount)).toBe(expected)
-  },
-)
 
 describe('isUpgradeCardForPage', () => {
   const PAGE = '0x00000000000000000000000000000000000000a1'
@@ -177,4 +153,36 @@ describe('sharedRegistryText', () => {
       `This registry is also used by ${subject} Upgrading only moves a.eth: those names keep the old registry until their owners upgrade them or point them at a.eth's new registry.`,
     )
   })
+})
+
+describe('upgradeCardText', () => {
+  const OPENING =
+    'This registry runs on an older version that has since been fixed.'
+  const CLOSING =
+    'will carry over. Inform other users of the registry to use the newly upgraded registry going forward.'
+
+  it.each([
+    [12, 0, 'Your 12 subnames and their settings'],
+    [1, 0, 'Your 1 subname and its settings'],
+    [undefined, undefined, 'Your subnames and their settings'],
+  ] as const)(
+    'keeps the Case A wording for %s subnames',
+    (count, othersCount, carried) => {
+      expect(upgradeCardText({ count, othersCount })).toBe(
+        `${OPENING} Upgrade it to create subnames or change roles. ${carried} ${CLOSING}`,
+      )
+    },
+  )
+
+  it.each([
+    [12, 3, 'All 12 subnames, including 3 owned by others, and their settings'],
+    [1, 1, 'Its 1 subname, owned by someone else, and its settings'],
+  ] as const)(
+    'tells a Case B account what carries over without promising it roles, for %s subnames',
+    (count, othersCount, carried) => {
+      expect(upgradeCardText({ count, othersCount })).toBe(
+        `${OPENING} Upgrade it so subnames can be created and roles changed again. ${carried} ${CLOSING}`,
+      )
+    },
+  )
 })
