@@ -147,6 +147,63 @@ describe('toHistoryEvent', () => {
         node: '0xccf9e52d2de9c7f2c2792c4767522318d95cf7b7e79a3dea4db175b8545c8e1f',
       },
     },
+    // Payloads below recorded from mainnet zigens.
+    {
+      case: 'a contenthash write, keyed as bigname keys it',
+      event: event(
+        'ContenthashUpdated',
+        '{"resolver":"0xcda5aeeec47fa51c0cba8932519f39a949d82f64","recordId":"1","contentHash":"0xe3010170"}',
+      ),
+      type: 'record',
+      kind: 'RecordChanged',
+      data: {
+        action: 'record_changed',
+        key: 'contenthash',
+        value: '0xe3010170',
+        record_id: '1',
+        resolver: {
+          chain_id: 11155111,
+          address: '0xcda5aeeec47fa51c0cba8932519f39a949d82f64',
+        },
+      },
+    },
+    {
+      case: 'a reverse name write as the `name` record',
+      event: event(
+        'NameChanged',
+        '{"namehash":"0x1b5424f0ba4a844a82d5792abf40f1a7c381d0434f5e5fe9dad93e0dfca14f68","resolver":"0xf29100983e058b709f3d539b0c765937b804ac15","name":"kronikcruz.hoodfi.eth"}',
+      ),
+      type: 'record',
+      kind: 'RecordChanged',
+      data: {
+        action: 'record_changed',
+        key: 'name',
+        value: 'kronikcruz.hoodfi.eth',
+        resolver: {
+          chain_id: 11155111,
+          address: '0xf29100983e058b709f3d539b0c765937b804ac15',
+        },
+        node: '0x1b5424f0ba4a844a82d5792abf40f1a7c381d0434f5e5fe9dad93e0dfca14f68',
+      },
+    },
+    {
+      case: 'a record version reset',
+      event: event(
+        'VersionChanged',
+        '{"namehash":"0xb1073b9160ef896b19338963aa5498d8018afd2cd547e8a997d17da2329fc994","resolver":"0x231b0ee14048e9dccd1d247744d114a4eb5e8e63","newVersion":2}',
+      ),
+      type: 'record',
+      kind: 'RecordVersionChanged',
+      data: {
+        action: 'record_version_changed',
+        record_version: '2',
+        resolver: {
+          chain_id: 11155111,
+          address: '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63',
+        },
+        node: '0xb1073b9160ef896b19338963aa5498d8018afd2cd547e8a997d17da2329fc994',
+      },
+    },
   ])('maps $case', ({ event: row, type, kind, data }) => {
     const mapped = toHistoryEvent(row, CONTEXT)
 
@@ -155,6 +212,7 @@ describe('toHistoryEvent', () => {
       blockNumber: 12153842,
       timestamp: new Date(1794911784 * 1000),
       transactionHash: TX,
+      logIndex: 117,
       type,
       kind,
     })

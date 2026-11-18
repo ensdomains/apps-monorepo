@@ -199,6 +199,55 @@ describe('createZigensIndexer', () => {
     ).toBe(true)
   })
 
+  it('names an ENSv1 resolver event zigens left unnamed from ENSNode', async () => {
+    // Recorded from mainnet: the contenthash of everlight.identitymd.eth.
+    const node =
+      '0x73ab2c4ff7c9690093cb4cfeee3039bab2e9939ccb3e365fccbe0b892996c4e5'
+    const tx =
+      '0x7a150f7d89bac80c51e424afd46832bc3e9d976398b1a9255e55a066e647acb0'
+    const { indexer } = indexerWith({
+      [`${ZIGENS} EventConnection`]: () => ({
+        eventConnection: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          totalCount: null,
+          edges: [
+            {
+              cursor: 'c',
+              node: {
+                id: `${tx}-917`,
+                type: 'ContenthashChanged',
+                blockNumber: 26442424,
+                transactionHash: tx,
+                timestamp: 1795010591,
+                contractAddress: '0xf29100983e058b709f3d539b0c765937b804ac15',
+                name: null,
+                namehash: node,
+                data: `{"namehash":"${node}","contentHash":"0xe3010170"}`,
+              },
+            },
+          ],
+        },
+      }),
+      [`${ENSNODE} DomainNamesByIds`]: ({ ids }) => ({
+        domains: (ids as readonly string[]).map((id) => ({
+          id,
+          name: 'everlight.identitymd.eth',
+        })),
+      }),
+    })
+
+    const page = (await indexer.getEvents({ order: 'desc' }))._unsafeUnwrap()
+
+    expect(page.items).toMatchObject([
+      {
+        name: 'everlight.identitymd.eth',
+        logIndex: 917,
+        type: 'record',
+        data: { key: 'contenthash', value: '0xe3010170' },
+      },
+    ])
+  })
+
   it('lists an ENSv1 name as lapsed only while no ENSv2 reservation holds it', async () => {
     // Both leases ended on 2 November; the subgraph expiry adds the 90-day grace.
     const lapsed = (name: string): V1Domain => ({

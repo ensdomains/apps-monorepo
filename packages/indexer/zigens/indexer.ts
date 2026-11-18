@@ -62,7 +62,12 @@ import {
   toV2Variables,
   ZIGENS_NAME_LIMIT,
 } from './filters'
-import { type EventContext, toHistoryEvent } from './history'
+import {
+  type EventContext,
+  toHistoryEvent,
+  toNamelessNodes,
+  withEventName,
+} from './history'
 import {
   canMatchType,
   type HistoryFilter,
@@ -469,6 +474,23 @@ export const createZigensIndexer = ({
     )
   }
 
+  /** ENSNode names for namehashes, which zigens leaves unnamed on ENSv1 resolver events. */
+  const readNodeNames = (ids: readonly string[], signal?: AbortSignal) =>
+    ids.length === 0
+      ? okAsync<ReadonlyMap<string, string>, IndexerReadError>(new Map())
+      : ensNode<{ domains: readonly { id: string; name: string | null }[] }>(
+          V1.DOMAIN_NAMES_BY_IDS,
+          { ids },
+          signal,
+        ).map(
+          ({ domains }) =>
+            new Map(
+              domains.flatMap(({ id, name }) =>
+                name ? [[id.toLowerCase(), name] as const] : [],
+              ),
+            ),
+        )
+
   // A null filter cannot match any zigens type, so the source is empty.
   const readV2Events = (
     where: Readonly<Record<string, unknown>> | null,
@@ -484,9 +506,14 @@ export const createZigensIndexer = ({
           V2.EVENT_CONNECTION,
           { where, first: pageSize, after, orderDirection: order ?? 'desc' },
           signal,
-        ).map(({ eventConnection }) =>
-          fromConnection(eventConnection, (event) =>
-            toHistoryEvent(event, context),
+        ).andThen(({ eventConnection }) =>
+          readNodeNames(
+            toNamelessNodes(eventConnection.edges.map(({ node }) => node)),
+            signal,
+          ).map((names) =>
+            fromConnection(eventConnection, (event) =>
+              toHistoryEvent(withEventName(event, names), context),
+            ),
           ),
         )
 

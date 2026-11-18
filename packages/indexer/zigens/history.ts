@@ -144,6 +144,27 @@ const ADDRESS_RECORD: Mapper = {
   },
 }
 
+// A record write bigname keys by name alone: contenthash, pubkey, the reverse `name`.
+const keyedRecord = (
+  key: string,
+  toValue: (input: Input) => unknown,
+): Mapper => ({
+  type: 'record',
+  ...fixed('RecordChanged'),
+  toData: (input) => ({
+    action: 'record_changed',
+    key,
+    value: str(toValue(input)),
+    record_id: str(input.data.recordId),
+    ...toRecordTarget(input),
+  }),
+})
+
+const CONTENTHASH_RECORD = keyedRecord(
+  'contenthash',
+  ({ data }) => data.contentHash ?? data.hash,
+)
+
 /** Every zigens event type the screens show; any other type is dropped. */
 const MAPPERS: Readonly<Record<string, Mapper>> = {
   LabelRegistered: {
@@ -231,6 +252,19 @@ const MAPPERS: Readonly<Record<string, Mapper>> = {
     }),
   },
   TextUpdated: TEXT_RECORD,
+  ContenthashUpdated: CONTENTHASH_RECORD,
+  ContenthashChanged: CONTENTHASH_RECORD,
+  PubkeyChanged: keyedRecord('pubkey', () => undefined),
+  NameChanged: keyedRecord('name', ({ data }) => data.name),
+  VersionChanged: {
+    type: 'record',
+    ...fixed('RecordVersionChanged'),
+    toData: (input) => ({
+      action: 'record_version_changed',
+      record_version: str(input.data.newVersion),
+      ...toRecordTarget(input),
+    }),
+  },
   TextChanged: TEXT_RECORD,
   AddressUpdated: ADDRESS_RECORD,
   AddressChanged: ADDRESS_RECORD,
@@ -299,6 +333,12 @@ const compact = <Data extends object>(data: Data): Data =>
     Object.entries(data).filter(([, value]) => value !== undefined),
   ) as Data
 
+// zigens ids an event `<transaction hash>-<log index>`.
+const toLogIndex = (id: string): number | null => {
+  const index = Number(/-(\d+)$/.exec(id)?.[1] ?? Number.NaN)
+  return Number.isSafeInteger(index) ? index : null
+}
+
 /** A zigens event as a history row; null for an event type the screens never show. */
 export const toHistoryEvent = (
   event: V2Event,
@@ -315,10 +355,30 @@ export const toHistoryEvent = (
     blockNumber: event.blockNumber,
     timestamp: secondsToDate(event.timestamp),
     transactionHash: toHash(event.transactionHash),
-    logIndex: null,
+    logIndex: toLogIndex(event.id),
     contractAddress: toAccount(event.contractAddress),
     kind: mapper.toKind(input),
     type: mapper.type,
     data: compact(mapper.toData(input)),
   } as HistoryEvent
 }
+
+/** Namehashes of the events zigens sent without a name, at most once each. */
+export const toNamelessNodes = (
+  events: readonly V2Event[],
+): readonly string[] => [
+  ...new Set(
+    events.flatMap(({ name, namehash }) =>
+      name === null && namehash ? [namehash.toLowerCase()] : [],
+    ),
+  ),
+]
+
+/** The event, named from `names` by its namehash when zigens left it unnamed. */
+export const withEventName = (
+  event: V2Event,
+  names: ReadonlyMap<string, string>,
+): V2Event =>
+  event.name === null && event.namehash
+    ? { ...event, name: names.get(event.namehash.toLowerCase()) ?? null }
+    : event

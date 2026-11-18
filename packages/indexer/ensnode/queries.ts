@@ -195,3 +195,13 @@ export const RESOLVER_EXISTS = /* GraphQL */ `
     resolvers(first: 1, where: { address: $address }) { id }
   }
 `
+
+/** Names by namehash, for events zigens could not name. */
+export const DOMAIN_NAMES_BY_IDS = /* GraphQL */ `
+  query DomainNamesByIds($ids: [String!]!) {
+    domains(where: { id_in: $ids }, first: 1000) {
+      id
+      name
+    }
+  }
+`
