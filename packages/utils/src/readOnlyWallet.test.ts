@@ -1,7 +1,8 @@
 import type { Address } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createReadOnlyProvider,
+  promptForReadOnlyWallet,
   toReadOnlyWalletAddress,
 } from './readOnlyWallet'
 
@@ -44,4 +45,73 @@ describe('createReadOnlyProvider', () => {
       })
     },
   )
+})
+
+describe('promptForReadOnlyWallet', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  const lookup = async (
+    input: string,
+    resolveName: (name: string) => Promise<Address | null>,
+  ) => {
+    const browser = Object.assign(new EventTarget(), { prompt: () => input })
+    vi.stubGlobal('window', browser)
+    const onError = vi.fn()
+    const onAnnounce = vi.fn()
+    browser.addEventListener('eip6963:announceProvider', onAnnounce)
+
+    await promptForReadOnlyWallet({
+      resolveName,
+      chainId: CHAIN_ID,
+      signal: new AbortController().signal,
+      onError,
+    })
+
+    return { onError, onAnnounce }
+  }
+
+  it('looks up the normalized name and announces the wallet', async () => {
+    const resolveName = vi.fn(async (name: string) =>
+      name === 'example.eth' ? ADDRESS : null,
+    )
+    const { onError, onAnnounce } = await lookup('  EXAMPLE.eth  ', resolveName)
+
+    expect(onError).toHaveBeenCalledWith(null)
+    expect(onAnnounce).toHaveBeenCalledOnce()
+  })
+
+  it('rejects invalid ENS input before querying', async () => {
+    const resolveName = vi.fn(async () => null)
+    const { onError } = await lookup('example .eth', resolveName)
+
+    expect(resolveName).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledWith(
+      'Enter a valid Ethereum address or ENS name',
+    )
+  })
+
+  it('reports when an ENS name has no address', async () => {
+    const { onError } = await lookup('example.eth', async () => null)
+
+    expect(onError).toHaveBeenCalledWith(
+      'No Ethereum address found for this ENS name',
+    )
+  })
+
+  it('reports an RPC failure and logs the cause', async () => {
+    const cause = new Error('RPC unavailable')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { onError } = await lookup('example.eth', () => Promise.reject(cause))
+
+    expect(onError).toHaveBeenCalledWith(
+      'Could not look up this ENS name. Try again.',
+    )
+    expect(warn).toHaveBeenCalledWith(
+      'Read-only wallet ENS lookup failed',
+      cause,
+    )
+  })
 })

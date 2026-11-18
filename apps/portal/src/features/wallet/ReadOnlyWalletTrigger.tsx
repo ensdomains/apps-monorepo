@@ -1,61 +1,43 @@
-import {
-  announceReadOnlyWallet,
-  toReadOnlyWalletAddress,
-} from '@ens-apps/utils/readOnlyWallet'
+import { promptForReadOnlyWallet } from '@ens-apps/utils/readOnlyWallet'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
-import type { Address } from 'viem'
+import { useLayoutEffect, useRef } from 'react'
 import { getEnsAddress } from 'viem/actions'
-import { normalize } from 'viem/ens'
 import { wagmiConfig } from '@/lib/wagmi'
 
 type ReadOnlyWalletTriggerProps = {
   readonly enabled: boolean
-  /** Receives the validation error, or null once a wallet is announced. */
   readonly onError?: (message: string | null) => void
 }
 
-const resolveInput = async (input: string): Promise<Address | null> => {
-  const address = toReadOnlyWalletAddress(input)
-  if (address) return address
-
-  const value = input.trim()
-  if (!value) return null
-
-  try {
-    return await getEnsAddress(wagmiConfig.getClient(), {
-      name: normalize(value),
-    })
-  } catch {
-    return null
-  }
-}
-
-/**
- * Invisible listener for the connect dialog. Typing C U S T O M opens a prompt
- * and, once it resolves, announces a read-only wallet so wagmi lists it.
- */
 export const ReadOnlyWalletTrigger = ({
   enabled,
   onError,
 }: ReadOnlyWalletTriggerProps) => {
-  const connectCustomWallet = async () => {
-    const input = window.prompt('Read-only wallet address or ENS name:')
-    if (input === null) return
+  const isEnabled =
+    enabled && import.meta.env.VITE_ENABLE_READ_ONLY_WALLET === 'true'
+  const dialogLifetime = useRef<AbortSignal | null>(null)
 
-    const address = await resolveInput(input)
-    if (!address) {
-      onError?.('Enter a valid Ethereum address or ENS name')
-      return
-    }
-    onError?.(null)
-    announceReadOnlyWallet({ address, chainId: wagmiConfig.chains[0].id })
-  }
+  useLayoutEffect(() => {
+    if (!isEnabled) return
+    const controller = new AbortController()
+    dialogLifetime.current = controller.signal
+    return () => controller.abort()
+  }, [isEnabled])
 
   useHotkeySequence(
     ['C', 'U', 'S', 'T', 'O', 'M'],
-    () => void connectCustomWallet(),
+    () => {
+      const signal = dialogLifetime.current
+      if (signal === null) return
+      void promptForReadOnlyWallet({
+        resolveName: (name) => getEnsAddress(wagmiConfig.getClient(), { name }),
+        chainId: wagmiConfig.chains[0].id,
+        signal,
+        onError,
+      })
+    },
     {
-      enabled,
+      enabled: isEnabled,
       ignoreInputs: true,
       preventDefault: false,
       stopPropagation: false,

@@ -5,6 +5,7 @@ import {
   numberToHex,
   ProviderRpcError,
 } from 'viem'
+import { normalize } from 'viem/ens'
 
 /**
  * Hands a fake, read-only EIP-6963 wallet to wagmi's normal injected-wallet
@@ -102,4 +103,79 @@ export const isReadOnlyWalletConnector = (
 export const toReadOnlyWalletAddress = (input: string): Address | null => {
   const value = input.trim()
   return isAddress(value, { strict: false }) ? getAddress(value) : null
+}
+
+type ResolveName = (name: string) => Promise<Address | null>
+
+type ReadOnlyWalletResolution =
+  | { readonly kind: 'address'; readonly address: Address }
+  | { readonly kind: 'invalid' }
+  | { readonly kind: 'unresolved' }
+  | { readonly kind: 'failed'; readonly cause: unknown }
+
+const normalizeWalletName = (input: string): string | null => {
+  const value = input.trim()
+  if (value === '') return null
+
+  try {
+    return normalize(value)
+  } catch {
+    return null
+  }
+}
+
+const resolveReadOnlyWalletInput = async (
+  input: string,
+  resolveName: ResolveName,
+): Promise<ReadOnlyWalletResolution> => {
+  const address = toReadOnlyWalletAddress(input)
+  if (address) return { kind: 'address', address }
+
+  const name = normalizeWalletName(input)
+  if (name === null) return { kind: 'invalid' }
+
+  try {
+    const resolvedAddress = await resolveName(name)
+    return resolvedAddress
+      ? { kind: 'address', address: resolvedAddress }
+      : { kind: 'unresolved' }
+  } catch (cause) {
+    return { kind: 'failed', cause }
+  }
+}
+
+const READ_ONLY_WALLET_ERRORS = {
+  invalid: 'Enter a valid Ethereum address or ENS name',
+  unresolved: 'No Ethereum address found for this ENS name',
+  failed: 'Could not look up this ENS name. Try again.',
+}
+
+export const promptForReadOnlyWallet = async ({
+  resolveName,
+  chainId,
+  signal,
+  onError,
+}: {
+  readonly resolveName: ResolveName
+  readonly chainId: number
+  readonly signal: AbortSignal
+  readonly onError?: (message: string | null) => void
+}): Promise<void> => {
+  if (signal.aborted) return
+  const input = window.prompt('Read-only wallet address or ENS name:')
+  if (input === null) return
+
+  const result = await resolveReadOnlyWalletInput(input, resolveName)
+  if (signal.aborted) return
+
+  if (result.kind === 'address') {
+    onError?.(null)
+    announceReadOnlyWallet({ address: result.address, chainId })
+    return
+  }
+
+  if (result.kind === 'failed') {
+    console.warn('Read-only wallet ENS lookup failed', result.cause)
+  }
+  onError?.(READ_ONLY_WALLET_ERRORS[result.kind])
 }
