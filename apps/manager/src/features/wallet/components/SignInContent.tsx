@@ -82,8 +82,8 @@ export const SignInContent = ({
   ) : (
     <>
       <DialogHeader className="items-center gap-0 text-center sm:text-center">
-        <div className="mb-5 flex size-14 items-center justify-center rounded-md bg-ens-blue text-white shadow-ens-blue/30 shadow-lg">
-          <EnsMobileIcon className="h-8 w-7" />
+        <div className="mb-5 flex h-12 items-center justify-center text-ens-blue">
+          <EnsMobileIcon className="h-12 w-11" />
         </div>
         <DialogTitle
           className="font-medium text-ens-blue-midnight text-xl tracking-tight outline-none"
