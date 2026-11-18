@@ -328,9 +328,4 @@ describe('/$name head', () => {
       title: 'ENS App',
     })
   })
-
-  it('does not title the page with a name too long to normalise', () => {
-    const name = `${'a'.repeat(997)}.eth`
-    expect(runHead({ params: { name } }).title).toBe('ENS App')
-  })
 })

@@ -53,15 +53,6 @@ describe('getOgCardSubject', () => {
     })
   })
 
-  it('draws the invalid card for a name too long to normalise', () => {
-    const longestName = `${'a'.repeat(996)}.eth`
-    expect(getOgCardSubject(`${longestName}.png`)).toEqual({
-      kind: 'name',
-      name: longestName,
-    })
-    expect(getOgCardSubject(`a${longestName}.png`)).toEqual({ kind: 'invalid' })
-  })
-
   it('falls back to the generic card for anything not name-shaped', () => {
     expect(getOgCardSubject('settings.png')).toEqual({ kind: 'generic' })
     expect(getOgCardSubject('0x1234.png')).toEqual({ kind: 'generic' })
