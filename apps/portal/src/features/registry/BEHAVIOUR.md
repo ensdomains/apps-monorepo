@@ -34,7 +34,7 @@ The cases are decided in `utils/registryRepairCase.ts`.
 | Case A: on the name's Registry page, an account that can point the name at another registry (`ROLE_SET_SUBREGISTRY` on the name, from the name or the parent's root) and owns every subname in the registry sees "Upgrade required" with an "Upgrade registry" button. The card says how many subnames carry over (no number while the count is unknown) and asks them to tell the registry's other users to use the new registry. Holding the registry's root roles is not required (see "Who becomes an admin"). | `utils/registryRepairCase.test.ts` (`getRegistryRepairCase`, `carriedSubnamesText`) |
 | When other names also point at the registry (from the indexer's `referencedBy`), the card lists up to three of them and says the upgrade only moves this name: the others keep the old registry until their owners upgrade it themselves (they get the card on their own name) or point their name at this name's new registry. | `utils/registryRepairCase.test.ts` (`sharedRegistryText`) |
 | Ownership that can't be confirmed (still loading, or the indexer can't count it) shows nothing. Once shown, the card stays up while the case briefly reads as unknown, so an upgrade in progress isn't torn down. | `utils/registryRepairCase.test.ts` (`getRegistryRepairCase`, `shouldShowUpgradeCard`) |
-| Case B: when someone else owns at least one subname, the card is not shown. WEB-2169 offers it only after every known Case B registry has passed a Sepolia rehearsal. | `utils/registryRepairCase.test.ts` "someone else owning a subname (Case B)" row; `shouldShowUpgradeCard` "a Case B account, not offered yet" row |
+| Case B: when someone else owns at least one subname, the card is shown only while `IS_CASE_B_UPGRADE_OFFERED` is on; it stays off until every known Case B registry has passed the rehearsal (WEB-2169). The card then says how many of the subnames others own and that their owners don't need to do anything. | `utils/registryRepairCase.test.ts` "someone else owning a subname (Case B)" row, `shouldShowUpgradeCard` "a Case B account, not offered yet" row, "offers the card to a Case B account once Case B is offered", `carriedSubnamesText` |
 | Case C: on a subname's profile, its connected owner sees "Upgrade required" when the registry holding the subname needs an upgrade and they can't upgrade it themselves. The notice names the parent name and asks them to contact its owner. It is hidden for ENSv1 names, 2LDs, other visitors, a registry that is current or unchecked, an unread role, and the account that can upgrade (it gets the Case A card instead). | `utils/registryRepairCase.test.ts` (`shouldShowSubnameOwnerNotice`), `components/v2/SubnameOwnerNotice.test.tsx` |
 
 ## What the upgrade does
@@ -55,6 +55,7 @@ There is no in-place upgrade: the registry is copied into a new one and the name
 | --- | --- |
 | The new registry keeps the old registry's root roles exactly. | `packages/migration/src/service/registryRepair.test.ts` "deploys with the root roles..." |
 | An account that can switch the name but doesn't hold the root roles the copy needs (`ROLE_REGISTRAR` and `ROLE_SET_PARENT`) is added as an admin of the new registry with every root role the old registry's admins hold, next to them. Example: Alice set up the registry, then transferred the parent name to Bob; Bob runs the upgrade and both are admins of the new registry; the card asks Bob to let Alice know (product decision, November 2026). | `packages/migration/src/service/registryRepair.test.ts` "an account without root roles on the registry" |
+| In Case B, an account added as an admin that way gives those roles back with `revokeRootRoles` after the copy and child moves, before the switch, keeping only what it held on the old registry (protocol finding, WEB-2167). A run stopped after giving them back only switches; one stopped with the copy incomplete starts a fresh copy. In Case A the account keeps them. | `packages/migration/src/service/registryRepair.test.ts` "Case B: an account without root roles, with subnames others own" |
 | The upgrade is refused when the old registry has no root roles at all, or when its admins between them lack `ROLE_REGISTRAR` and `ROLE_SET_PARENT`. | `packages/migration/src/service/registryRepair.test.ts` "refuses a registry with no root roles", "refuses an account with %s on the registry" |
 
 ## Sending, stopping and resuming
@@ -73,7 +74,7 @@ The flow runs in `state/registryUpgrade.machine.ts`; the hook only supplies the 
 ## Known limits
 
 - Reserved labels, ERC1155 approvals and a custom metadata URI are not copied.
-- Case B (someone else owns a subname) is not offered until WEB-2169.
+- Case B (someone else owns a subname) is built but not offered until its rehearsal passes (WEB-2169).
 
 ## Before changing anything here
 

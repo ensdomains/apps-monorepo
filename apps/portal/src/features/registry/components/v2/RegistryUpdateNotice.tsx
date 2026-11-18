@@ -10,6 +10,7 @@ import { useRegistryUpdate } from '../../hooks/useRegistryUpdate'
 import type { RegistryUpgradeStage } from '../../state/registryUpgrade.machine'
 import {
   carriedSubnamesText,
+  IS_CASE_B_UPGRADE_OFFERED,
   isUpgradeCardForPage,
   shouldShowUpgradeCard,
 } from '../../utils/registryRepairCase'
@@ -53,12 +54,16 @@ export const RegistryUpdateNotice = ({
     registryAddress,
     parentRegistry,
     subnameCount,
+    othersSubnameCount,
     sharedRegistryNote,
   } = useRegistryRepairCase(name)
   const [wasShown, setWasShown] = useState(false)
   const isShown =
-    shouldShowUpgradeCard({ repairCase, wasShown }) &&
-    isUpgradeCardForPage({ pageRegistry, nameRegistry: registryAddress })
+    shouldShowUpgradeCard({
+      repairCase,
+      wasShown,
+      isCaseBOffered: IS_CASE_B_UPGRADE_OFFERED,
+    }) && isUpgradeCardForPage({ pageRegistry, nameRegistry: registryAddress })
   if (isShown !== wasShown) setWasShown(isShown)
 
   if (!isShown) return fallback
@@ -69,6 +74,7 @@ export const RegistryUpdateNotice = ({
       registryAddress={registryAddress}
       parentRegistry={parentRegistry}
       subnameCount={subnameCount}
+      othersSubnameCount={othersSubnameCount}
       sharedRegistryNote={sharedRegistryNote}
     />
   )
@@ -80,12 +86,14 @@ const RegistryUpdateCard = ({
   registryAddress,
   parentRegistry,
   subnameCount,
+  othersSubnameCount,
   sharedRegistryNote,
 }: {
   readonly name: string
   readonly registryAddress: Address | undefined
   readonly parentRegistry: Address | undefined
   readonly subnameCount: number | undefined
+  readonly othersSubnameCount: number | undefined
   readonly sharedRegistryNote: string | null
 }) => {
   const { start, stage, canStart, failure, transactions } = useRegistryUpdate({
@@ -101,9 +109,11 @@ const RegistryUpdateCard = ({
         <AlertDescription>
           This registry runs on an older version that has since been fixed.
           Upgrade it to create subnames or change roles.{' '}
-          {carriedSubnamesText(subnameCount)} will carry over. Inform other
-          users of the registry to use the newly upgraded registry going
-          forward.
+          {carriedSubnamesText(subnameCount, othersSubnameCount)} will carry
+          over.
+          {othersSubnameCount ? " Their owners don't need to do anything." : ''}{' '}
+          Inform other users of the registry to use the newly upgraded registry
+          going forward.
         </AlertDescription>
       </Alert>
       {sharedRegistryNote && (

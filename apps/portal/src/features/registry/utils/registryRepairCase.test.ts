@@ -52,7 +52,9 @@ describe('shouldShowUpgradeCard', () => {
     ['an account that lost the roles', 'viewer', true, false],
     ['a Case B account, not offered yet', 'shared', true, false],
   ] as const)('for %s: %s', (_case, repairCase, wasShown, expected) => {
-    expect(shouldShowUpgradeCard({ repairCase, wasShown })).toBe(expected)
+    expect(
+      shouldShowUpgradeCard({ repairCase, wasShown, isCaseBOffered: false }),
+    ).toBe(expected)
   })
 })
 
@@ -95,6 +97,30 @@ describe('carriedSubnamesText', () => {
     expect(carriedSubnamesText(count)).toBe(expected)
   })
 })
+
+it('offers the card to a Case B account once Case B is offered', () => {
+  expect(
+    shouldShowUpgradeCard({
+      repairCase: 'shared',
+      wasShown: false,
+      isCaseBOffered: true,
+    }),
+  ).toBe(true)
+})
+
+it.each([
+  [12, 3, 'All 12 subnames, including 3 owned by others, and their settings'],
+  [
+    undefined,
+    3,
+    'All subnames, including those owned by others, and their settings',
+  ],
+] as const)(
+  'tells a Case B account that %s subnames carry over',
+  (count, othersCount, expected) => {
+    expect(carriedSubnamesText(count, othersCount)).toBe(expected)
+  },
+)
 
 describe('isUpgradeCardForPage', () => {
   const PAGE = '0x00000000000000000000000000000000000000a1'

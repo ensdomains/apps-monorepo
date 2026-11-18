@@ -39,15 +39,22 @@ export const getRegistryRepairCase = ({
     .with({ occupants: { thirdPartyCount: 0 } }, () => 'owns-all' as const)
     .otherwise(() => 'shared' as const)
 
+/** Case B (WEB-2169) is offered only once every known Case B registry has passed the rehearsal. */
+export const IS_CASE_B_UPGRADE_OFFERED = false
+
 /** Keeps the card up while the case briefly reads as unknown (a refetch on focus), so an upgrade in progress isn't torn down. */
 export const shouldShowUpgradeCard = ({
   repairCase,
   wasShown,
+  isCaseBOffered,
 }: {
   readonly repairCase: RegistryRepairCase
   readonly wasShown: boolean
+  readonly isCaseBOffered: boolean
 }): boolean =>
-  repairCase === 'owns-all' || (repairCase === 'unknown' && wasShown)
+  repairCase === 'owns-all' ||
+  (repairCase === 'shared' && isCaseBOffered) ||
+  (repairCase === 'unknown' && wasShown)
 
 /** A page about one registry shows the card only while the name still points at that registry. */
 export const isUpgradeCardForPage = ({
@@ -84,11 +91,19 @@ export const shouldShowSubnameOwnerNotice = ({
   canUpgradeRegistry === false
 
 /** The subnames the upgrade card says will carry over; without a count it doesn't guess one. */
-export const carriedSubnamesText = (count: number | undefined): string =>
-  match(count)
+export const carriedSubnamesText = (
+  count: number | undefined,
+  othersCount = 0,
+): string => {
+  if (othersCount > 0)
+    return count === undefined
+      ? 'All subnames, including those owned by others, and their settings'
+      : `All ${count} subnames, including ${othersCount} owned by others, and their settings`
+  return match(count)
     .with(undefined, () => 'Your subnames and their settings')
     .with(1, () => 'Your 1 subname and its settings')
     .otherwise((n) => `Your ${n} subnames and their settings`)
+}
 
 const MAX_LISTED_NAMES = 3
 
