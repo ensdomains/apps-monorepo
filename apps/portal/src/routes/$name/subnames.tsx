@@ -359,7 +359,7 @@ const SubregistrySubnames = ({
     namesAbove,
     firstToExpire: ancestorExpiry.firstToExpire,
   })
-  // A subname with no expiry of its own lasts as long as this name, so that's what to extend.
+  // A subname with no expiry of its own lasts until the first name above it expires, so that's what to extend.
   const expiresWithName =
     parentExpiry.status === 'ready' ? parentExpiry.parentExpiryName : undefined
 

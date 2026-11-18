@@ -1,10 +1,14 @@
+import {
+  transactionManager,
+  waitForTransaction,
+} from '@ens-apps/transaction-manager'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { ensChain } from '@/lib/wagmi'
-import { extendSubnameExpiry } from '../helpers/extendSubnameExpiry'
+import { prepareExtendSubnameExpiryTransaction } from '../utils/extend-subname-expiry.helpers'
 import { refreshSubnameQueries } from '../utils/refreshSubnameQueries'
 
 interface ExtendSubnameExpiryInput {
@@ -39,17 +43,24 @@ export const useExtendSubnameExpiryMutation = ({
     }: ExtendSubnameExpiryInput) => {
       if (!walletClient?.account || !publicClient)
         return Promise.reject(new Error('Wallet not connected'))
-      return extendSubnameExpiry({
-        name: subname,
-        resourceId,
-        registryAddress,
-        expires,
-        id,
-        walletClient,
-        publicClient,
-        signer: createEOASigner(walletClient),
-        chainId,
-      })
+      const txId = transactionManager.startTransaction(
+        prepareExtendSubnameExpiryTransaction({
+          registryAddress,
+          resourceId,
+          expires,
+          walletClient,
+          chainId,
+          subname,
+        }),
+        createEOASigner(walletClient),
+        {
+          id,
+          description: `Change the expiration of ${subname}`,
+          publicClient,
+          chainId,
+        },
+      )
+      return waitForTransaction(txId)
     },
     onSuccess: () => {
       refreshSubnameQueries(queryClient, { name, protocolVersion: 'ENSv2' })

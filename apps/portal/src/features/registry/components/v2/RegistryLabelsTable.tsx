@@ -37,14 +37,6 @@ type LabelRow = RegistryLabelRow & { readonly parentExpiry: ParentExpiry }
 const toOwnDate = (expiryDate: bigint | null) =>
   expiryDate === null ? null : new Date(Number(expiryDate) * 1000)
 
-const toResolvingInput = ({
-  expiryDate,
-  parentExpiry,
-}: Pick<LabelRow, 'expiryDate' | 'parentExpiry'>) => ({
-  ...(parentExpiry.status === 'ready' && parentExpiry),
-  expiryDate: toOwnDate(expiryDate),
-})
-
 /** A label's expiry, or the first name above it to expire, named. */
 const LabelExpiry = ({ expiryDate, parentExpiry }: LabelRow) => (
   <span className="flex flex-wrap items-center gap-x-1.5 text-muted-foreground">
@@ -85,8 +77,10 @@ const columns: ColumnDef<LabelRow>[] = [
     id: 'expiryDate',
     // Sorts by the date shown; one that never expires goes last.
     accessorFn: (row) =>
-      getShownExpiry(toResolvingInput(row))?.getTime() ??
-      Number.POSITIVE_INFINITY,
+      getShownExpiry({
+        ...(row.parentExpiry.status === 'ready' && row.parentExpiry),
+        expiryDate: toOwnDate(row.expiryDate),
+      })?.getTime() ?? Number.POSITIVE_INFINITY,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
