@@ -274,10 +274,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
               protocol={ownerData?.protocol}
             />
             <ProfileHeader
-              avatarLoading={avatar.isLoading}
-              avatarUrl={avatarUrl}
-              canEdit={canEditProfile}
-              desktopActions={
+              actions={
                 actionsPlacement === 'header' ? (
                   <ProfileDesktopActions
                     avatarUrl={avatarUrl}
@@ -288,6 +285,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                   />
                 ) : undefined
               }
+              avatarLoading={avatar.isLoading}
+              avatarUrl={avatarUrl}
+              canEdit={canEditProfile}
               expiryDate={expiry.expiryDate}
               graceEndDate={expiry.graceEndDate}
               name={name}

@@ -8,11 +8,11 @@ import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { cn } from '@/lib/utils'
 import {
   barEditActionClassName,
-  desktopActionClusterClassName,
   editActionClassName,
   editBottomBarContentClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
+  headerActionClusterClassName,
   profileBarActionsClassName,
   profileStickyBarClassName,
   renewActionClassName,
@@ -33,7 +33,7 @@ type ProfileDesktopActionsProps = {
 
 type ProfileActionsProps = ProfileDesktopActionsProps & {
   readonly canEdit: boolean
-  /** Owners keep the actions in the bottom bar on desktop too, even when they can't edit. */
+  /** Owners keep the actions in the bottom bar at every width, even when they can't edit; visitors have them in the header. */
   readonly hasDesktopBar: boolean
   /** Latched by the view, so it also decides where the desktop actions go. */
   readonly hasFloatingBar: boolean
@@ -52,7 +52,7 @@ export const ProfileDesktopActions = ({
   renewalProtocol,
   url,
 }: ProfileDesktopActionsProps) => (
-  <div className={desktopActionClusterClassName}>
+  <div className={headerActionClusterClassName}>
     <ProfileFavoriteAction name={name} />
     <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
     <ProfileExploreAction isOwner={isOwner} target={{ kind: 'name', name }} />
@@ -120,6 +120,9 @@ export const ProfileActions = ({
     )
   }
 
+  // Visitors' actions sit in the profile header at every width, so they get no bar
+  if (!hasBottomNav && !hasDesktopBar) return null
+
   return (
     <>
       {hasBottomNav ? (
@@ -154,7 +157,7 @@ export const ProfileActions = ({
       ) : (
         <nav
           aria-label={t`Profile actions`}
-          className={cn(profileStickyBarClassName, hasDesktopBar && 'xl:block')}
+          className={cn(profileStickyBarClassName, 'xl:block')}
           ref={setBar}
         >
           <div className={cn(editBottomBarContentClassName, 'justify-center')}>

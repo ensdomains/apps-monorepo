@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
-import { ProfileActions } from './ProfileActions'
+import { ProfileActions, ProfileDesktopActions } from './ProfileActions'
 
 const NAME = 'example.eth'
 const IN_A_YEAR = BigInt(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60)
@@ -58,12 +58,17 @@ export const OwnerWithoutEditAccessMobile: Story = {
   parameters: { viewport: { defaultViewport: 'mobile1' } },
 }
 
-/** A visitor's desktop actions sit in the header, so the bar is mobile-only. */
-export const Visitor: Story = {
+/** Visitors get no bar: their actions sit in the profile header at every width. */
+export const VisitorHeaderActions: Story = {
   args: { hasDesktopBar: false, isOwner: false },
+  render: (args) => (
+    <div className="flex justify-center p-10">
+      <ProfileDesktopActions {...args} />
+    </div>
+  ),
 }
 
-/** While the viewer's bar is still unknown, desktop shows no actions. */
-export const PlacementPending: Story = {
-  args: { hasDesktopBar: false, isOwner: undefined },
+export const VisitorHeaderActionsMobile: Story = {
+  ...VisitorHeaderActions,
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
 }
