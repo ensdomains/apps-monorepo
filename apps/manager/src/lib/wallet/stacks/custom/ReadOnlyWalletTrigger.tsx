@@ -12,16 +12,14 @@ export const ReadOnlyWalletTrigger = ({
   enabled,
   onError,
 }: ReadOnlyWalletTriggerProps) => {
-  const isEnabled =
-    enabled && import.meta.env.VITE_ENABLE_READ_ONLY_WALLET === 'true'
   const dialogLifetime = useRef<AbortSignal | null>(null)
 
   useLayoutEffect(() => {
-    if (!isEnabled) return
+    if (!enabled) return
     const controller = new AbortController()
     dialogLifetime.current = controller.signal
     return () => controller.abort()
-  }, [isEnabled])
+  }, [enabled])
 
   useHotkeySequence(
     ['C', 'U', 'S', 'T', 'O', 'M'],
@@ -36,7 +34,7 @@ export const ReadOnlyWalletTrigger = ({
       })
     },
     {
-      enabled: isEnabled,
+      enabled,
       ignoreInputs: true,
       preventDefault: false,
       stopPropagation: false,

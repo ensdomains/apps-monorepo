@@ -18,7 +18,6 @@ interface ImportMetaEnv {
   readonly VITE_DQA_URL?: string
   readonly VITE_DQA_LINEAR_ISSUE?: string
   readonly VITE_USE_MOCK_WALLET?: string
-  readonly VITE_ENABLE_READ_ONLY_WALLET?: string
   readonly VITE_MOCK_ACCOUNT?: string
   readonly VITE_PUBLIC_POSTHOG_KEY?: string
   readonly VITE_PUBLIC_POSTHOG_HOST?: string
