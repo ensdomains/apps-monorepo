@@ -1,6 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -13,17 +12,14 @@ import {
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { SortButton } from '@/components/table/SortButton'
-import {
-  ExpiresWith,
-  formatExpiry,
-} from '@/features/names/components/NameExpiry'
+import { SubnameExpiryText } from '@/features/names/components/NameExpiry'
 import { useFirstToExpire } from '@/features/profile/hooks/useFirstToExpire'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
-  type AddressNameItem,
-  getNamesAbove,
-  getResolvingExpiry,
+  getEthNamesAbove,
   getShownExpiry,
+  type ParentExpiry,
+  toParentExpiry,
 } from '@/utils/names/addressNames'
 import { getRegistryInfoQueryOptions } from '../../hooks/useRegistry'
 import {
@@ -36,40 +32,27 @@ import {
 const LABEL_COLUMN_WIDTH = 140
 const LABELHASH_COLUMN_WIDTH = 160
 
-/** The first name above the registry to expire; `loading` until the registry's name and those dates are read. */
-type ParentExpiry =
-  | { readonly status: 'loading' }
-  | ({ readonly status: 'ready' } & Pick<
-      AddressNameItem,
-      'parentExpiryDate' | 'parentExpiryName'
-    >)
-
 type LabelRow = RegistryLabelRow & { readonly parentExpiry: ParentExpiry }
+
+const toOwnDate = (expiryDate: bigint | null) =>
+  expiryDate === null ? null : new Date(Number(expiryDate) * 1000)
 
 const toResolvingInput = ({
   expiryDate,
   parentExpiry,
 }: Pick<LabelRow, 'expiryDate' | 'parentExpiry'>) => ({
   ...(parentExpiry.status === 'ready' && parentExpiry),
-  expiryDate: expiryDate === null ? null : new Date(Number(expiryDate) * 1000),
+  expiryDate: toOwnDate(expiryDate),
 })
 
 /** A label's expiry, or the first name above it to expire, named. */
-const LabelExpiry = (row: LabelRow) => (
+const LabelExpiry = ({ expiryDate, parentExpiry }: LabelRow) => (
   <span className="flex flex-wrap items-center gap-x-1.5 text-muted-foreground">
-    {row.parentExpiry.status === 'loading'
-      ? 'Loading'
-      : match(getResolvingExpiry(toResolvingInput(row)))
-          .with({ type: 'own' }, ({ date }) => formatExpiry(date))
-          .with({ type: 'parent' }, ({ date, name }) => (
-            <>
-              <span className="whitespace-nowrap">{formatExpiry(date)}</span>{' '}
-              <ExpiresWith name={name} />
-            </>
-          ))
-          .with({ type: 'unread' }, () => 'Expires with parent')
-          .with({ type: 'none' }, () => 'Never')
-          .exhaustive()}
+    <SubnameExpiryText
+      expiryDate={toOwnDate(expiryDate)}
+      parentExpiry={parentExpiry}
+      noExpiryText="Never"
+    />
   </span>
 )
 
@@ -164,25 +147,13 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   const labels = data?.pages.flatMap((page) => page.labels) ?? []
   // Every label here lapses with the registry's own name and the names above it.
   const registryQuery = useQuery(getRegistryInfoQueryOptions({ address }))
-  const namesAbove = registryQuery.data?.name.endsWith('.eth')
-    ? getNamesAbove(registryQuery.data.name)
-    : []
+  const namesAbove = getEthNamesAbove(registryQuery.data?.name)
   const ancestorExpiry = useFirstToExpire(namesAbove)
-  const parentExpiry = match({
-    isRegistryLoading: registryQuery.isLoading,
-    isAncestorLoading: ancestorExpiry.isLoading,
+  const parentExpiry = toParentExpiry({
+    isLoading: registryQuery.isLoading || ancestorExpiry.isLoading,
     namesAbove,
+    firstToExpire: ancestorExpiry.firstToExpire,
   })
-    .returnType<ParentExpiry>()
-    .with({ isRegistryLoading: true }, { isAncestorLoading: true }, () => ({
-      status: 'loading',
-    }))
-    .with({ namesAbove: [] }, () => ({ status: 'ready' }))
-    .otherwise(() => ({
-      status: 'ready',
-      parentExpiryDate: ancestorExpiry.firstToExpire?.date ?? null,
-      parentExpiryName: ancestorExpiry.firstToExpire?.name,
-    }))
 
   const loader = useListLoader({
     initialCount: REGISTRY_LABELS_PAGE_SIZE,

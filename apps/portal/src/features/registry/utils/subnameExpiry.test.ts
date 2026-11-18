@@ -4,6 +4,7 @@ import { SECONDS_PER_DAY } from '@/lib/constants/duration'
 import {
   canExtendExpiry,
   DEFAULT_SUBNAME_EXPIRY,
+  getChangeExpirationBlockedReason,
   getExtendedExpirySeconds,
   getSubnameExpirySeconds,
   type SubnameExpiry,
@@ -77,5 +78,34 @@ describe('getExtendedExpirySeconds', () => {
     expect(getExtendedExpirySeconds(expiry, { type: 'years', years: 1 })).toBe(
       expirySeconds + BigInt(366 * SECONDS_PER_DAY),
     )
+  })
+})
+
+describe('getChangeExpirationBlockedReason', () => {
+  const SOME_DATE = new Date(Date.UTC(2030, 0, 1))
+
+  it.each([
+    [
+      'points a renewer at the name it lasts as long as',
+      { expiryDate: null, canRenew: true, expiresWithName: 'chakri.eth' },
+      'This subname has no expiration date of its own. It stays active as long as chakri.eth does. To keep it longer, extend chakri.eth.',
+    ],
+    [
+      'gives none for a subname with an expiry of its own',
+      { expiryDate: SOME_DATE, canRenew: true, expiresWithName: 'chakri.eth' },
+      undefined,
+    ],
+    [
+      'gives none to an account that couldn’t change it anyway',
+      { expiryDate: null, canRenew: false, expiresWithName: 'chakri.eth' },
+      undefined,
+    ],
+    [
+      'gives none while the name it lasts as long as is unknown',
+      { expiryDate: null, canRenew: true, expiresWithName: undefined },
+      undefined,
+    ],
+  ])('%s', (_, input, expected) => {
+    expect(getChangeExpirationBlockedReason(input)).toBe(expected)
   })
 })

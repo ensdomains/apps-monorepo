@@ -53,3 +53,17 @@ export const getExtendedExpirySeconds = (
       nowSeconds: BigInt(Math.floor(expiryDate.getTime() / 1000)),
     },
   )
+
+/** Why a subname's expiration can't be changed: with none of its own it lasts as long as `expiresWithName`, so that's what to extend. */
+export const getChangeExpirationBlockedReason = ({
+  expiryDate,
+  canRenew,
+  expiresWithName,
+}: {
+  readonly expiryDate: Date | null | undefined
+  readonly canRenew: boolean
+  readonly expiresWithName: string | undefined
+}): string | undefined =>
+  canRenew && expiryDate === null && expiresWithName
+    ? `This subname has no expiration date of its own. It stays active as long as ${expiresWithName} does. To keep it longer, extend ${expiresWithName}.`
+    : undefined

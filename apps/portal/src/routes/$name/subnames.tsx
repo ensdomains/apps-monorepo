@@ -19,6 +19,7 @@ import {
   SubnamesTable,
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useFirstToExpire } from '@/features/profile/hooks/useFirstToExpire'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getSubnamePagesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { ChangeSubnameExpiry } from '@/features/registry/components/ChangeSubnameExpiry'
@@ -38,7 +39,10 @@ import {
 } from '@/features/registry/hooks/useSubnameDeleteQueue'
 import { getRegistrarAccess } from '@/features/registry/utils/create-subname.helpers'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
-import { canExtendExpiry } from '@/features/registry/utils/subnameExpiry'
+import {
+  canExtendExpiry,
+  getChangeExpirationBlockedReason,
+} from '@/features/registry/utils/subnameExpiry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import type { IntentContext } from '@/features/transaction-manager/types'
@@ -50,6 +54,7 @@ import {
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getEthNamesAbove, toParentExpiry } from '@/utils/names/addressNames'
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -346,6 +351,18 @@ const SubregistrySubnames = ({
   const [changingExpiration, setChangingExpiration] =
     useState<SubnameRow | null>(null)
 
+  // Every subname here lapses with this name and the names above it.
+  const namesAbove = getEthNamesAbove(name)
+  const ancestorExpiry = useFirstToExpire(namesAbove)
+  const parentExpiry = toParentExpiry({
+    isLoading: ancestorExpiry.isLoading,
+    namesAbove,
+    firstToExpire: ancestorExpiry.firstToExpire,
+  })
+  // A subname with no expiry of its own lasts as long as this name, so that's what to extend.
+  const expiresWithName =
+    parentExpiry.status === 'ready' ? parentExpiry.parentExpiryName : undefined
+
   const unregisterResources = useMemo(
     () =>
       visibleSubnames.flatMap((subname) =>
@@ -403,6 +420,11 @@ const SubregistrySubnames = ({
           canExtendExpiry(subname.expiryDate, Date.now()) &&
           (hasRootRenewRole === true ||
             holdsRolesOn(perRowRenewRoles, subname.resourceId)),
+        changeExpirationBlockedReason: getChangeExpirationBlockedReason({
+          expiryDate: subname.expiryDate,
+          canRenew: hasRootRenewRole === true,
+          expiresWithName,
+        }),
       })),
     [
       visibleSubnames,
@@ -410,6 +432,7 @@ const SubregistrySubnames = ({
       perRowUnregisterRoles,
       hasRootRenewRole,
       perRowRenewRoles,
+      expiresWithName,
     ],
   )
 
@@ -461,6 +484,7 @@ const SubregistrySubnames = ({
         isDeleting={isDeleting}
         pendingNames={pendingNames}
         onChangeExpiration={setChangingExpiration}
+        parentExpiry={parentExpiry}
       />
       {changingExpiration?.resourceId && changingExpiration.expiryDate && (
         <ChangeSubnameExpiry

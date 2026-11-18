@@ -73,7 +73,7 @@ beforeEach(() => {
 it('moves the expiration a year later and signs that same date', async () => {
   renderChange()
   expect(
-    screen.getByText(/admin\.chakri\.eth expires on October 13, 2027/),
+    screen.getByText(/admin\.chakri\.eth’s own expiration is October 13, 2027/),
   ).toBeInTheDocument()
 
   await userEvent.click(screen.getByRole('button', { name: 'Save' }))

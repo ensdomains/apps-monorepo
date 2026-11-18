@@ -11,6 +11,7 @@ import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import {
   type AddressNameItem,
   getResolvingExpiry,
+  type ParentExpiry,
 } from '@/utils/names/addressNames'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 
@@ -33,6 +34,30 @@ export const ExpiresWith = ({ name }: { readonly name?: string }) => (
     )}
   </span>
 )
+
+/** A list cell's expiry under a shared parent: the date that stops it resolving, naming the name above when that sets it. */
+export const SubnameExpiryText = ({
+  expiryDate,
+  parentExpiry,
+  noExpiryText,
+}: {
+  readonly expiryDate: Date | null
+  readonly parentExpiry: ParentExpiry
+  readonly noExpiryText: string
+}) =>
+  parentExpiry.status === 'loading'
+    ? 'Loading'
+    : match(getResolvingExpiry({ ...parentExpiry, expiryDate }))
+        .with({ type: 'own' }, ({ date }) => formatExpiry(date))
+        .with({ type: 'parent' }, ({ date, name }) => (
+          <>
+            <span className="whitespace-nowrap">{formatExpiry(date)}</span>{' '}
+            <ExpiresWith name={name} />
+          </>
+        ))
+        .with({ type: 'unread' }, () => 'Expires with parent')
+        .with({ type: 'none' }, () => noExpiryText)
+        .exhaustive()
 
 type NameExpiryProps = NameStatusInput &
   Pick<AddressNameItem, 'parentExpiryName'>

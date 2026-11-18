@@ -206,6 +206,15 @@ vi.mock(
   },
 )
 
+/** The parent's own expiry, which every ENSv2 subname here lapses with. */
+const PARENT_EXPIRY_SECONDS = Date.UTC(2029, 9, 13, 12) / 1000
+vi.mock('@/features/profile/hooks/useRegistrationData', () => ({
+  getRegistrationDataQueryOptions: ({ name }: { name: string }) => ({
+    queryKey: ['registrationData', name],
+    queryFn: () => ({ expiry: PARENT_EXPIRY_SECONDS }),
+  }),
+}))
+
 vi.mock('@/features/registry/hooks/useDeleteSubname', () => ({
   useDeleteSubname: () => ({ deleteSubname: vi.fn(), isPending: false }),
 }))
@@ -712,6 +721,66 @@ describe('subnames route role checks', () => {
       )
     },
   )
+
+  it.each([
+    [
+      'tells a renewer to extend this name instead',
+      true,
+      `Can’t change the expiration of undated.${NAME}: This subname has no expiration date of its own. It stays active as long as ${NAME} does. To keep it longer, extend ${NAME}.`,
+    ],
+    ['says nothing to an account without ROLE_RENEW', false, null],
+  ])(
+    'on a subname with no expiry of its own, %s',
+    async (_, hasRenewRole, hint) => {
+      hasRootRenew = hasRenewRole
+      subnames = [
+        {
+          name: `undated.${NAME}`,
+          labelhash: labelhash('undated'),
+          owner: CONNECTED,
+          protocol: 'v2',
+          expiryDate: null,
+        },
+      ]
+
+      renderRoute()
+
+      const table = await screen.findByRole('table')
+      await waitFor(() =>
+        expect(
+          within(table).getByText(`undated.${NAME}`).closest('tr'),
+        ).toHaveTextContent(`Expires with ${NAME}`),
+      )
+      await waitFor(() =>
+        expect(
+          within(table)
+            .queryAllByLabelText(/^Can’t change the expiration of /)
+            .map((element) => element.getAttribute('aria-label')),
+        ).toEqual(hint ? [hint] : []),
+      )
+    },
+  )
+
+  it('shows a subname with no expiry of its own as lapsing with this name', async () => {
+    subnames = [
+      {
+        name: `undated.${NAME}`,
+        labelhash: labelhash('undated'),
+        owner: CONNECTED,
+        protocol: 'v2',
+        expiryDate: null,
+      },
+    ]
+
+    renderRoute()
+
+    const table = await screen.findByRole('table')
+    await waitFor(() =>
+      expect(
+        within(table).getByText(`undated.${NAME}`).closest('tr'),
+      ).toHaveTextContent(`October 13, 2029 · Expires with ${NAME}`),
+    )
+  })
 
   it('offers selection only for the rows the account can delete', async () => {
     const otherLabelhash = labelhash('cold')

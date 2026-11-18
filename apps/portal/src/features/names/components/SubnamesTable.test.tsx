@@ -407,6 +407,88 @@ describe('SubnamesTable expiration', () => {
     expect(table.getByText('No expiry of its own')).toBeInTheDocument()
   })
 
+  it('shows when each row stops resolving under a parent, naming the parent when it comes first', () => {
+    const PARENT_EXPIRY = new Date(Date.UTC(2028, 0, 15, 12))
+    render(
+      <SubnamesTable
+        subnames={[
+          { ...createMockSubname('soon.test.eth'), expiryDate: OWN_EXPIRY },
+          {
+            ...createMockSubname('later.test.eth'),
+            expiryDate: new Date(Date.UTC(2031, 0, 1, 12)),
+          },
+          { ...createMockSubname('undated.test.eth'), expiryDate: null },
+        ]}
+        name="test.eth"
+        parentExpiry={{
+          status: 'ready',
+          parentExpiryDate: PARENT_EXPIRY,
+          parentExpiryName: 'test.eth',
+        }}
+      />,
+    )
+
+    const rowText = (name: string) =>
+      within(screen.getByRole('table')).getAllByText(name)[0]?.closest('tr')
+    expect(rowText('soon.test.eth')).toHaveTextContent('June 26, 2027')
+    expect(rowText('soon.test.eth')).not.toHaveTextContent('Expires with')
+    expect(rowText('later.test.eth')).toHaveTextContent(
+      'January 15, 2028 · Expires with test.eth',
+    )
+    expect(rowText('undated.test.eth')).toHaveTextContent(
+      'January 15, 2028 · Expires with test.eth',
+    )
+  })
+
+  it('holds back each expiration while the parent’s is loading', () => {
+    render(
+      <SubnamesTable
+        subnames={[
+          { ...createMockSubname('dated.test.eth'), expiryDate: OWN_EXPIRY },
+        ]}
+        name="test.eth"
+        parentExpiry={{ status: 'loading' }}
+      />,
+    )
+
+    const row = within(screen.getByRole('table'))
+      .getAllByText('dated.test.eth')[0]
+      ?.closest('tr')
+    expect(row).toHaveTextContent('Loading')
+    expect(row).not.toHaveTextContent('2027')
+  })
+
+  it('explains, instead of offering the change, why a subname’s expiration can’t move', () => {
+    const reason =
+      'This subname has no expiration date of its own. It stays active as long as test.eth does. To keep it longer, extend test.eth.'
+    render(
+      <SubnamesTable
+        subnames={[
+          {
+            ...createMockSubname('undated.test.eth'),
+            expiryDate: null,
+            canChangeExpiration: false,
+            changeExpirationBlockedReason: reason,
+          },
+        ]}
+        name="test.eth"
+        onChangeExpiration={vi.fn()}
+      />,
+    )
+
+    const table = within(screen.getByRole('table'))
+    expect(
+      table.queryByRole('button', {
+        name: 'Change the expiration of undated.test.eth',
+      }),
+    ).toBeNull()
+    expect(
+      table.getByLabelText(
+        'Can’t change the expiration of undated.test.eth: This subname has no expiration date of its own. It stays active as long as test.eth does. To keep it longer, extend test.eth.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('leaves the expiration out for ENSv1 rows, which carry none', () => {
     render(
       <SubnamesTable

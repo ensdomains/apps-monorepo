@@ -89,6 +89,11 @@ export const getNamesAbove = (parentName: string): readonly string[] => {
   )
 }
 
+/** The names a `.eth` name's subnames lapse with: the name and every name above it. Names outside `.eth` have none with an expiry. */
+export const getEthNamesAbove = (
+  name: string | undefined,
+): readonly string[] => (name?.endsWith('.eth') ? getNamesAbove(name) : [])
+
 /** The names above a `.eth` subname it lapses with: all of them for ENSv2, the 2LD for an undated ENSv1 one. */
 export const ethAncestorsOf = ({
   name,
@@ -119,6 +124,34 @@ export const getFirstToExpire = (
     return !date || (first && first.date <= date) ? first : { name, date }
   }, null)
 }
+
+/** The first name above a list's subnames to expire; `loading` until those dates are read. */
+export type ParentExpiry =
+  | { readonly status: 'loading' }
+  | ({ readonly status: 'ready' } & Pick<
+      AddressNameItem,
+      'parentExpiryDate' | 'parentExpiryName'
+    >)
+
+/** Settles {@link ParentExpiry} from its reads; with no names above, there is nothing to wait for. */
+export const toParentExpiry = ({
+  isLoading,
+  namesAbove,
+  firstToExpire,
+}: {
+  readonly isLoading: boolean
+  readonly namesAbove: readonly string[]
+  readonly firstToExpire: AncestorExpiry | null
+}): ParentExpiry =>
+  match({ isLoading, namesAbove })
+    .returnType<ParentExpiry>()
+    .with({ isLoading: true }, () => ({ status: 'loading' }))
+    .with({ namesAbove: [] }, () => ({ status: 'ready' }))
+    .otherwise(() => ({
+      status: 'ready',
+      parentExpiryDate: firstToExpire?.date ?? null,
+      parentExpiryName: firstToExpire?.name,
+    }))
 
 type ShownExpiryInput = {
   readonly expiryDate?: Date | null

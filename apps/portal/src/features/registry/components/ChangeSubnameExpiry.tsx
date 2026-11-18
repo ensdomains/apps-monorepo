@@ -74,8 +74,8 @@ export const ChangeSubnameExpiry = ({
           <DialogHeader>
             <DialogTitle>Change expiration</DialogTitle>
             <DialogDescription>
-              {subname.name} expires on {formatExpiry(subname.expiryDate)}. An
-              expiration can only move later.
+              {subname.name}’s own expiration is{' '}
+              {formatExpiry(subname.expiryDate)}. It can only move later.
             </DialogDescription>
           </DialogHeader>
           <ExtensionDurationOrExpiryPicker

@@ -42,8 +42,9 @@ import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { healSubname } from '@/utils/ens/localLabels'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import type { ParentExpiry } from '@/utils/names/addressNames'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
-import { formatExpiry } from './NameExpiry'
+import { SubnameExpiryText } from './NameExpiry'
 
 // A child neither bigname nor this browser can label is shown as
 // `[labelhash].parent`, never linked.
@@ -87,56 +88,78 @@ export interface SubnameRow {
   readonly expiryDate?: Date | null
   /** Whether the connected user can move this subname's expiry later. */
   readonly canChangeExpiration?: boolean
+  /** Why its expiration can't be changed here, shown on a disabled control. */
+  readonly changeExpirationBlockedReason?: string
 }
 
 const EMPTY_PENDING_SET: ReadonlySet<string> = new Set()
 
-const BlockedDeleteHint = ({
-  name,
+/** A greyed-out action with a tooltip saying why it isn't available. */
+const BlockedActionHint = ({
+  label,
   reason,
+  children,
 }: {
-  readonly name: string
+  readonly label: string
   readonly reason: string
+  readonly children: React.ReactNode
 }) => (
   <Tooltip>
     <TooltipTrigger
       className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground/50 cursor-not-allowed"
-      aria-label={`Can’t delete ${name}: ${reason}`}
+      aria-label={`${label}: ${reason}`}
     >
-      <Trash2 className="size-4" />
+      {children}
     </TooltipTrigger>
-    <TooltipContent className="max-w-xs">{reason}</TooltipContent>
+    <TooltipContent className="max-w-xs text-pretty">{reason}</TooltipContent>
   </Tooltip>
 )
 
 const SubnameExpiration = ({
   expiryDate,
+  parentExpiry = { status: 'ready' },
 }: {
   readonly expiryDate: Date | null
-}) =>
-  expiryDate ? (
-    <span>{formatExpiry(expiryDate)}</span>
-  ) : (
-    <span className="text-muted-foreground">No expiry of its own</span>
-  )
-
-const ChangeExpirationButton = ({
-  subname,
-  onClick,
-}: {
-  readonly subname: SubnameRow
-  readonly onClick: (subname: SubnameRow) => void
+  readonly parentExpiry?: ParentExpiry
 }) => (
-  <Button
-    variant="ghost"
-    size="icon"
-    className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
-    aria-label={`Change the expiration of ${subname.name}`}
-    onClick={() => onClick(subname)}
-  >
-    <CalendarClock className="size-4" />
-  </Button>
+  <span className="flex flex-wrap items-center gap-x-1.5">
+    <SubnameExpiryText
+      expiryDate={expiryDate}
+      parentExpiry={parentExpiry}
+      noExpiryText="No expiry of its own"
+    />
+  </span>
 )
+
+const ChangeExpirationControl = ({
+  row,
+  onChangeExpiration,
+}: {
+  readonly row: SubnameRow
+  readonly onChangeExpiration?: (subname: SubnameRow) => void
+}) => {
+  if (!onChangeExpiration) return null
+  if (row.canChangeExpiration)
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+        aria-label={`Change the expiration of ${row.name}`}
+        onClick={() => onChangeExpiration(row)}
+      >
+        <CalendarClock className="size-4" />
+      </Button>
+    )
+  return row.changeExpirationBlockedReason ? (
+    <BlockedActionHint
+      label={`Can’t change the expiration of ${row.name}`}
+      reason={row.changeExpirationBlockedReason}
+    >
+      <CalendarClock className="size-4" />
+    </BlockedActionHint>
+  ) : null
+}
 
 const OwnerCell = ({ owner }: { owner: Address }) => (
   <EntityBadge variant="address" address={owner}>
@@ -168,6 +191,8 @@ interface SubnamesTableProps {
   readonly pendingNames?: ReadonlySet<string>
   /** Called when the user asks to change a subname's expiration. */
   readonly onChangeExpiration?: (subname: SubnameRow) => void
+  /** The first name above every row to expire, so each row shows when it stops resolving. */
+  readonly parentExpiry?: ParentExpiry
 }
 
 function buildColumns(
@@ -175,6 +200,7 @@ function buildColumns(
   isDeleting?: boolean,
   hasExpiration?: boolean,
   onChangeExpiration?: (subname: SubnameRow) => void,
+  parentExpiry?: ParentExpiry,
 ): ColumnDef<SubnameRow>[] {
   const selectColumn: ColumnDef<SubnameRow> = {
     enableSorting: false,
@@ -237,7 +263,10 @@ function buildColumns(
             enableSorting: false,
             header: 'Expiration',
             cell: ({ row }) => (
-              <SubnameExpiration expiryDate={row.original.expiryDate ?? null} />
+              <SubnameExpiration
+                expiryDate={row.original.expiryDate ?? null}
+                parentExpiry={parentExpiry}
+              />
             ),
           } satisfies ColumnDef<SubnameRow>,
         ]
@@ -248,12 +277,10 @@ function buildColumns(
       header: () => null,
       cell: ({ row }) => (
         <div className="flex items-center justify-end">
-          {onChangeExpiration && row.original.canChangeExpiration && (
-            <ChangeExpirationButton
-              subname={row.original}
-              onClick={onChangeExpiration}
-            />
-          )}
+          <ChangeExpirationControl
+            row={row.original}
+            onChangeExpiration={onChangeExpiration}
+          />
           <DeleteControl
             row={row.original}
             onDeleteClick={onDeleteClick}
@@ -289,7 +316,12 @@ const DeleteControl = ({
       </Button>
     )
   return row.deleteBlockedReason ? (
-    <BlockedDeleteHint name={row.name} reason={row.deleteBlockedReason} />
+    <BlockedActionHint
+      label={`Can’t delete ${row.name}`}
+      reason={row.deleteBlockedReason}
+    >
+      <Trash2 className="size-4" />
+    </BlockedActionHint>
   ) : null
 }
 
@@ -333,6 +365,7 @@ export const SubnamesTable = ({
   isDeleting,
   pendingNames,
   onChangeExpiration,
+  parentExpiry,
 }: SubnamesTableProps) => {
   // With nothing left to load, the rows given are the whole list.
   const totalCount = servedTotal ?? (onLoadMore ? undefined : subnames.length)
@@ -359,8 +392,15 @@ export const SubnamesTable = ({
         isDeleting,
         hasExpiration,
         onChangeExpiration,
+        parentExpiry,
       ),
-    [onDeleteSubname, isDeleting, hasExpiration, onChangeExpiration],
+    [
+      onDeleteSubname,
+      isDeleting,
+      hasExpiration,
+      onChangeExpiration,
+      parentExpiry,
+    ],
   )
 
   const table = useReactTable({
@@ -498,13 +538,10 @@ export const SubnamesTable = ({
                       format="wrap"
                     />
                     <div className="ml-auto flex items-center">
-                      {onChangeExpiration &&
-                        row.original.canChangeExpiration && (
-                          <ChangeExpirationButton
-                            subname={row.original}
-                            onClick={onChangeExpiration}
-                          />
-                        )}
+                      <ChangeExpirationControl
+                        row={row.original}
+                        onChangeExpiration={onChangeExpiration}
+                      />
                       <DeleteControl
                         row={row.original}
                         onDeleteClick={
@@ -529,6 +566,7 @@ export const SubnamesTable = ({
                       </span>
                       <SubnameExpiration
                         expiryDate={row.original.expiryDate ?? null}
+                        parentExpiry={parentExpiry}
                       />
                     </div>
                   )}
