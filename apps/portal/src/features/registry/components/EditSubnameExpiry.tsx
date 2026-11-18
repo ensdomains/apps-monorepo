@@ -87,7 +87,7 @@ const SubnameExpiryAction = ({
             aria-disabled="true"
             className="cursor-not-allowed opacity-50"
           >
-            <PencilIcon className="size-4" />
+            <PencilIcon className="size-3.5" />
             Edit
           </Button>
         </TooltipTrigger>

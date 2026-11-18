@@ -94,7 +94,7 @@ export const getChangeExpirationBlockedReason = ({
     : undefined
 
 /** What a subname's own expiry offers an account: a change, why it can't change, or nothing. */
-export type ExpiryChange =
+type ExpiryChange =
   | { readonly type: 'change'; readonly expiryDate: Date }
   | { readonly type: 'blocked'; readonly reason: string }
   | { readonly type: 'none' }
