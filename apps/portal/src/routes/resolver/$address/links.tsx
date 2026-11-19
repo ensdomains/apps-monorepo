@@ -64,14 +64,15 @@ export const Route = createFileRoute('/resolver/$address/links')({
   },
 })
 
-const NameBadge = ({
-  name,
-  format = 'truncate',
-}: {
-  readonly name: string
-  readonly format?: 'truncate' | 'wrap'
-}) => (
-  <EntityBadge variant="name" name={name} showAvatar compact format={format}>
+const NameBadge = ({ name }: { readonly name: string }) => (
+  <EntityBadge
+    variant="name"
+    name={name}
+    showAvatar
+    compact
+    format="truncate"
+    containerClassName="max-w-72"
+  >
     {name}
   </EntityBadge>
 )
@@ -323,7 +324,7 @@ function RouteComponent() {
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <NameBadge name={row.original.name} format="wrap" />
+                    <NameBadge name={row.original.name} />
                     {canLink && (
                       <Button
                         variant="ghost"
@@ -343,7 +344,7 @@ function RouteComponent() {
                   {row.original.sharedWith.map((other) => (
                     <div key={other} className="flex items-center gap-2 pl-2">
                       <ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />
-                      <NameBadge name={other} format="wrap" />
+                      <NameBadge name={other} />
                     </div>
                   ))}
                 </div>
