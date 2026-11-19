@@ -141,7 +141,7 @@ describe('TokenPickerContent budget quote', () => {
     expect(screen.queryByText('$330.00')).not.toBeInTheDocument()
   })
 
-  it('on a gas-coverage refusal shows the name price, no fee figure, an Explorer link, and still blocks checkout', async () => {
+  it('on a refused first quote shows no total, fee or You pay, an Explorer link, and still blocks checkout', async () => {
     mockAccount({
       // Any failure in the quote pipeline reaches the sheet through the same cause chain.
       getSessionEnablePayload: vi.fn().mockRejectedValue(
@@ -167,8 +167,9 @@ describe('TokenPickerContent budget quote', () => {
       'href',
       `${EXPLORER_URL}/register?name=jeff.eth`,
     )
-    // No quote ever succeeded: the name price fills the total, and the fallback's flat fees never show.
-    expect(receiptRow('Registration total')).toHaveTextContent('$330.00')
+    // No quote ever succeeded, so there is no total; criterion 3: never the name price, nor the fallback's flat fees.
+    expect(receiptRow('Registration total')).not.toHaveTextContent('$')
+    expect(screen.queryByText('$330.00')).toBeNull()
     expect(receiptRow('Estimated network fee')).toHaveTextContent('—')
     expect(receiptRow('You pay')).toHaveTextContent('—')
     expect(screen.queryByText(/\$340\.00|\$10\.00/)).toBeNull()

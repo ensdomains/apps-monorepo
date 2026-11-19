@@ -51,10 +51,7 @@ import {
   type L2PaymentRow,
   useL2Payment,
 } from '../hooks/useL2Payment'
-import {
-  getBudgetQuoteFailureUi,
-  getRegistrationTotalRaw,
-} from '../lib/budgetQuoteRecovery'
+import { getBudgetQuoteFailureKind } from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
 import { getEthPaymentDebit, getEthPaymentRow } from '../lib/ethPaymentRow'
 import {
@@ -727,7 +724,7 @@ export const TokenPickerContent = () => {
     revalidatedFundingError?.available,
   )
 
-  const budgetFailureUi = getBudgetQuoteFailureUi({
+  const budgetFailureKind = getBudgetQuoteFailureKind({
     hasFailed: match({
       hasBudgetQuoteFailed,
       error: availabilityMutation.error,
@@ -746,7 +743,7 @@ export const TokenPickerContent = () => {
     getPricingGlobalErrorMessage({
       approvalState,
       isPaidFromElsewhere,
-      budgetFailureKind: budgetFailureUi.failureKind,
+      budgetFailureKind,
       mutationError: availabilityMutation.error,
       isAvailabilityError: availabilityMutation.isError,
       domainName,
@@ -818,14 +815,7 @@ export const TokenPickerContent = () => {
   return (
     <TokenPickerContentBase
       checkoutReceipt={
-        isBudgetRequired
-          ? {
-              totalRaw: getRegistrationTotalRaw({
-                pageTotalRaw: registrationTotalRaw,
-                refusedPriceRaw: budgetFailureUi.registrationPriceRaw,
-              }),
-            }
-          : undefined
+        isBudgetRequired ? { totalRaw: registrationTotalRaw } : undefined
       }
       ethPayment={ethPayment}
       funding={getFundingSummary(paymentFunding, paymentBudgetQuery.isFetching)}

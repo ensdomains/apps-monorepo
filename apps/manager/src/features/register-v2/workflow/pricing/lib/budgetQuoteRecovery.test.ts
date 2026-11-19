@@ -1,9 +1,6 @@
 import { HcaBudgetUnquotedError } from '@ens-apps/smart-account'
 import { describe, expect, it } from 'vitest'
-import {
-  getBudgetQuoteRecovery,
-  getRegistrationTotalRaw,
-} from './budgetQuoteRecovery'
+import { getBudgetQuoteFailureKind } from './budgetQuoteRecovery'
 
 const breakdown = {
   total: 11_400_000n,
@@ -18,58 +15,34 @@ const breakdown = {
   ],
 }
 
-const GENERIC = { kind: 'generic', registrationPriceRaw: null }
+const refusal = new HcaBudgetUnquotedError(breakdown)
 
-describe('getBudgetQuoteRecovery', () => {
-  it('keeps only the name price from a gas-coverage refusal, never its fallback fees', () => {
-    expect(
-      getBudgetQuoteRecovery(new HcaBudgetUnquotedError(breakdown)),
-    ).toEqual({ kind: 'gas-coverage', registrationPriceRaw: 1_400_000n })
-  })
-
-  it('walks a wrapping cause chain for the refusal', () => {
-    const wrapped = new Error('EstimateHcaBudgetError', {
-      cause: new HcaBudgetUnquotedError(breakdown),
-    })
-
-    expect(getBudgetQuoteRecovery(wrapped)).toEqual({
-      kind: 'gas-coverage',
-      registrationPriceRaw: 1_400_000n,
-    })
-  })
-
+describe('getBudgetQuoteFailureKind', () => {
   it.each([
-    ['a failure with no unquoted breakdown', new Error('orchestrator down')],
+    ['no failure', false, refusal, null],
+    ['a gas-coverage refusal', true, refusal, 'gas-coverage'],
+    [
+      'a refusal wrapped in a cause chain',
+      true,
+      new Error('EstimateHcaBudgetError', { cause: refusal }),
+      'gas-coverage',
+    ],
+    [
+      'a failure with no unquoted breakdown',
+      true,
+      new Error('orchestrator down'),
+      'generic',
+    ],
     [
       'a non-gas fallback',
+      true,
       new HcaBudgetUnquotedError({
         ...breakdown,
         fallbackReasons: ['commit: quote threw — timeout'],
       }),
+      'generic',
     ],
-  ])('stays generic for %s', (_name, error) => {
-    expect(getBudgetQuoteRecovery(error)).toEqual(GENERIC)
-  })
-})
-
-describe('getRegistrationTotalRaw', () => {
-  it.each([
-    [
-      'the page total once known, credit applied',
-      900_000n,
-      1_400_000n,
-      900_000n,
-    ],
-    [
-      'the name price for a refused first quote',
-      undefined,
-      1_400_000n,
-      1_400_000n,
-    ],
-    ['nothing for any other failed first quote', undefined, null, undefined],
-  ] as const)('shows %s', (_name, pageTotalRaw, refusedPriceRaw, expected) => {
-    expect(getRegistrationTotalRaw({ pageTotalRaw, refusedPriceRaw })).toBe(
-      expected,
-    )
+  ] as const)('classifies %s', (_name, hasFailed, error, expected) => {
+    expect(getBudgetQuoteFailureKind({ hasFailed, error })).toBe(expected)
   })
 })

@@ -11,7 +11,6 @@ import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
-import { getRegistrationTotalRaw } from '../lib/budgetQuoteRecovery'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { GasRefusalWarning } from './GasRefusalWarning'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
@@ -85,8 +84,6 @@ interface TokenPickerDialogShellProps {
   readonly footer?: ReactNode
   readonly initialSelectedToken?: SUPPORTED_TOKEN
   readonly funding?: RegistrationFundingSummary
-  /** Rhinestone refused for destination gas: the receipt shows the name price and no fee. */
-  readonly isGasCoverageRefusal?: boolean
   readonly hasBudgetQuoteFailed?: boolean
   readonly isQuotingFunding?: boolean
   readonly accountCredit?: Partial<Record<SUPPORTED_TOKEN, number>>
@@ -110,7 +107,6 @@ export const TokenPickerDialogShell = ({
   footer,
   initialSelectedToken,
   funding,
-  isGasCoverageRefusal = false,
   hasBudgetQuoteFailed = false,
   isQuotingFunding = false,
   accountCredit,
@@ -135,14 +131,9 @@ export const TokenPickerDialogShell = ({
         checkoutReceipt={
           hasBudgetQuoteFailed
             ? {
-                totalRaw: getRegistrationTotalRaw({
-                  pageTotalRaw: isFirstQuote
-                    ? undefined
-                    : parseUnits(String(pricingData ?? 0), 6),
-                  refusedPriceRaw: isGasCoverageRefusal
-                    ? parseUnits(String(pricingData ?? 0), 6)
-                    : null,
-                }),
+                totalRaw: isFirstQuote
+                  ? undefined
+                  : parseUnits(String(pricingData ?? 0), 6),
               }
             : undefined
         }
@@ -530,7 +521,6 @@ export const BudgetQuoteGasCoverageFailed: Story = {
       { ...FUNDED_USDC, balance: '9000000', formattedBalance: '9.00' },
     ],
     hasBudgetQuoteFailed: true,
-    isGasCoverageRefusal: true,
     globalErrorMessage: (
       <GasRefusalWarning
         explorerRegisterUrl={getExplorerRegisterUrl('freedz')}
@@ -555,7 +545,7 @@ export const BudgetQuoteGasCoverageFailedWithAccountCredit: Story = {
   },
 }
 
-/** WEB-2061: the very first quote was refused, so only the name price can fill the total. */
+/** WEB-2061: the very first quote was refused, so there is no total to show; never the name price. */
 export const BudgetQuoteGasCoverageFailedFirstQuote: Story = {
   args: {
     ...BudgetQuoteGasCoverageFailed.args,

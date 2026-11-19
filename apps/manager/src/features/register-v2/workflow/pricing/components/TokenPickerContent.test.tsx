@@ -1088,7 +1088,7 @@ describe('TokenPickerContentBase', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
-  it('on a refused quote shows the name price with no fee or You pay, and still blocks payment', () => {
+  it('on a refused quote keeps the page total with no fee or You pay, and still blocks payment', () => {
     const onRetry = vi.fn()
     renderPicker({
       hasBudgetQuoteFailed: true,
