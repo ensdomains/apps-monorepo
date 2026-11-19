@@ -46,7 +46,7 @@ type PendingChanges = {
  * // { texts: [{ key: 'description', value: '' }, { key: 'name', value: 'New Name' }, { key: 'twitter', value: '@ens' }] }
  */
 export function transformPendingChangesToSetRecords(
-  originalRecords: NameRecord[],
+  originalRecords: readonly NameRecord[],
   pendingChanges: PendingChanges,
 ): SetRecordsInput {
   const { newRecords, editedValues, deletedIds } = pendingChanges

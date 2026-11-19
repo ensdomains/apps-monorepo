@@ -226,7 +226,7 @@ const ImageCropArea = ({
         type="button"
         aria-label="Reposition image. Drag it, or use the arrow keys."
         className={cn(
-          'relative block w-full touch-none select-none overflow-hidden rounded-sm border border-border bg-muted outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+          'relative block w-full touch-none select-none overflow-hidden rounded-sm border border-border bg-muted outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3',
           isPending ? 'cursor-wait' : 'cursor-grab active:cursor-grabbing',
         )}
         style={{
@@ -344,9 +344,14 @@ export const RecordImageUploadDialog = ({
     // The user may have cancelled while this was pending.
     isConfirming.current = false
     if (!isMountedRef.current) return
-    result.match(onClose, (error) =>
-      dispatch({ type: 'failed', error: getRecordImageErrorMessage(error) }),
-    )
+    if (result.isErr()) {
+      dispatch({
+        type: 'failed',
+        error: getRecordImageErrorMessage(result.error),
+      })
+      return
+    }
+    onClose()
   }
 
   return (

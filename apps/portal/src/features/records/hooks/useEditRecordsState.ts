@@ -45,12 +45,12 @@ export type EditRecordsAction =
       type: 'UPDATE_RECORD'
       record: EditableRecord
       newValue: string
-      originalRecords: NameRecord[]
+      readonly originalRecords: readonly NameRecord[]
     }
   | {
       readonly type: 'STAGE_IMAGE'
       readonly upload: PreparedRecordImage
-      readonly originalRecords: NameRecord[]
+      readonly originalRecords: readonly NameRecord[]
       readonly newRecord: EditableRecord
     }
   | {
@@ -125,7 +125,7 @@ const stageRecordImage = (
 
 export const getPendingRecordImages = (
   state: EditRecordsState,
-  originalRecords: NameRecord[],
+  originalRecords: readonly NameRecord[],
 ) => {
   if (!state.stagedImages?.length) return []
 
@@ -280,7 +280,7 @@ export function editRecordsReducer(
 // Custom Hook
 // ============================================================================
 
-export function useEditRecordsState(originalRecords: NameRecord[]) {
+export function useEditRecordsState(originalRecords: readonly NameRecord[]) {
   const [state, dispatch] = useReducer(
     editRecordsReducer,
     initialEditRecordsState,

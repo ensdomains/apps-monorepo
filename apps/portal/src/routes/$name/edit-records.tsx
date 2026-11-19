@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { type Address, isAddressEqual, type WalletClient } from 'viem'
+import { type Address, isAddressEqual } from 'viem'
 import { useAccount, useConnection, useWalletClient } from 'wagmi'
 import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -40,16 +40,12 @@ import {
   getRecordImageKind,
   submitStagedRecordImages,
 } from '@/features/records/helpers/recordImageUpload'
-import {
-  prepareSaveRecordsTransaction,
-  type SaveRecordsTransactionParameters,
-} from '@/features/records/helpers/saveRecords'
-import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useRecordImageEditor } from '@/features/records/hooks/useRecordImageEditor'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { getSaveRecordsIntentQueryOptions } from '@/features/records/queries/getSaveRecordsIntent'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -250,54 +246,6 @@ function EditRecordsPage() {
   )
 }
 
-const useSaveRecordsIntent = ({
-  name,
-  resolverAddress,
-  originalRecords,
-  pendingChanges,
-  walletClient,
-  isOpen,
-  changesCount,
-}: Omit<SaveRecordsTransactionParameters, 'walletClient' | 'chainId'> & {
-  readonly walletClient: WalletClient | undefined
-  readonly isOpen: boolean
-  readonly changesCount: number
-}) => {
-  // Pre-start gas estimate for the save. Unlike other flows the encode is async
-  // (ensjs resolves the resolver pattern on chain), so we build the intent in a
-  // query and hand the resolved value to the modal via `prepareIntent`. Runs
-  // only while the modal is open and there are changes; keyed on the pending
-  // edits so it re-estimates as they change, and on the same params the submit
-  // path uses so the estimate matches what's sent.
-  return useQuery({
-    queryKey: [
-      'save-records-intent',
-      name,
-      resolverAddress,
-      walletClient?.account?.address,
-      transformPendingChangesToSetRecords(originalRecords, pendingChanges),
-    ],
-    enabled:
-      isOpen &&
-      changesCount > 0 &&
-      Boolean(walletClient?.account && walletClient.chain?.id === ensChain.id),
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnWindowFocus: false,
-    retry: 2,
-    queryFn: () => {
-      if (!walletClient) throw new Error('Wallet not connected')
-      return prepareSaveRecordsTransaction({
-        name,
-        resolverAddress,
-        originalRecords,
-        pendingChanges,
-        walletClient,
-        chainId: ensChain.id,
-      })
-    },
-  })
-}
-
 const EditRecordsContent = ({
   address,
   connectorUid,
@@ -494,15 +442,18 @@ const EditRecordsContent = ({
     )
   }
 
-  const saveRecordsIntentQuery = useSaveRecordsIntent({
-    name,
-    resolverAddress,
-    originalRecords,
-    pendingChanges,
-    walletClient,
-    isOpen: isTransactionModalOpen,
-    changesCount,
-  })
+  const saveRecordsIntentQuery = useQuery(
+    getSaveRecordsIntentQueryOptions({
+      name,
+      resolverAddress,
+      originalRecords,
+      pendingChanges,
+      walletClient,
+      chainId: ensChain.id,
+      isOpen: isTransactionModalOpen,
+      changesCount,
+    }),
+  )
 
   const handleOpenSaveRecordsFlow = async () => {
     if (
