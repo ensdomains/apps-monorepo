@@ -1,6 +1,7 @@
 import { type Address, encodeAbiParameters, pad, toEventSelector } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
+import { AmbiguousProxyDeploymentError } from './errors'
 import {
   computeResolverSalt,
   getDestinationContracts,
@@ -109,6 +110,6 @@ describe('findDeployedProxyAddress', () => {
         ],
         factory: FACTORY,
       }),
-    ).toThrow(/Expected one ProxyDeployed log/)
+    ).toThrow(AmbiguousProxyDeploymentError)
   })
 })
