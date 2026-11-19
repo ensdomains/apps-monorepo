@@ -1,12 +1,16 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { errAsync, fromPromise } from 'neverthrow'
-import type { WalletClient } from 'viem'
+import type { Address, WalletClient } from 'viem'
 import {
   prepareSaveRecordsTransaction,
   type SaveRecordsTransactionParameters,
 } from '../helpers/saveRecords'
-import { transformPendingChangesToSetRecords } from '../helpers/transformPendingChanges'
+import {
+  type SetRecordsInput,
+  transformPendingChangesToSetRecords,
+} from '../helpers/transformPendingChanges'
 
 class GetSaveRecordsIntentError extends TaggedError(
   'GetSaveRecordsIntentError',
@@ -22,6 +26,16 @@ type GetSaveRecordsIntentParameters = Readonly<
   readonly changesCount: number
 }
 
+const saveRecordsIntentQueryKey = createQueryKey<
+  'save-records-intent',
+  {
+    readonly name: string
+    readonly resolverAddress: Address
+    readonly account: Address | undefined
+    readonly changedRecords: SetRecordsInput
+  }
+>('save-records-intent')
+
 export const getSaveRecordsIntentQueryOptions = ({
   name,
   resolverAddress,
@@ -34,13 +48,15 @@ export const getSaveRecordsIntentQueryOptions = ({
 }: GetSaveRecordsIntentParameters) =>
   resultQueryOptions({
     // Preview and submission use the same encoder, and changes to the draft re-estimate gas.
-    queryKey: [
-      'save-records-intent',
+    queryKey: saveRecordsIntentQueryKey({
       name,
       resolverAddress,
-      walletClient?.account?.address,
-      transformPendingChangesToSetRecords(originalRecords, pendingChanges),
-    ],
+      account: walletClient?.account?.address,
+      changedRecords: transformPendingChangesToSetRecords(
+        originalRecords,
+        pendingChanges,
+      ),
+    }),
     enabled:
       isOpen &&
       changesCount > 0 &&
