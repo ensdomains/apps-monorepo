@@ -103,6 +103,7 @@ They are cheap: most need one seeded name and no indexer.
 | a resolver already deployed at the wallet’s address (as manager deploys it) is reused | `registration.spec.ts` | #1310 (WEB-1572), see [the test plan](./resolver-reuse-web1572-test-plan.md) |
 | a reload after register lands resumes the run and sets the ETH address once | `registration.spec.ts` | #1746 (WEB-2143) and #1784 (WEB-2163): a reload at the Set ETH address prompt left the name with no ETH address and the page on "already registered" |
 | a register page whose price reads fail offers no token and no Register, then recovers on Try again | `registration.spec.ts` | #1221 (WEB-1485), see [the test plan](./zero-price-checkout-web1485-test-plan.md) |
+| attaches the resolver the factory deployed, not one another contract announced first | `resolver.spec.ts` | #1832 (WEB-2200): a relayed deploy pointed the name at an address another contract announced, see [the test plan](./deployed-proxy-address-web2200-test-plan.md) |
 | blocks detaching a registry with third-party subnames until the exact blast radius is acknowledged… | `transfer.spec.ts` | #1170: the registry-detach consent gate |
 | shows "Registry detached" instead of "Configure registry" after a detach transfer | `transfer.spec.ts` | #1170: a detached slot let the new holder re-mint the old subnames |
 | does not ask a wallet on another network to send, and says why | `transfer.spec.ts` | #1108 (WEB-281), see [the test plan](./chain-mismatch-web281-test-plan.md) |
