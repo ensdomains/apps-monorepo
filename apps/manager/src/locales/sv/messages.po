@@ -1068,7 +1068,6 @@ msgstr ""
 
 #: src/components/atoms/NameCopyButton/NameCopyButton.tsx
 #: src/features/profile/components/view/AddressProfileHeader.tsx
-#: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr ""
 
@@ -2319,6 +2318,10 @@ msgstr ""
 
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Page not found"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Parent"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx

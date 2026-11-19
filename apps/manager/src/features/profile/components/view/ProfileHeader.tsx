@@ -4,6 +4,7 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
 import { ProfileDetails, ProfileNameBadge } from './ProfileDetails'
+import { getProfileParentName } from './ProfileView.helpers'
 
 // The about card's content sets the row height. The avatar copies that height
 // so it stays square without stretching the card.
@@ -75,6 +76,7 @@ export const ProfileHeader = ({
             graceEndDate={graceEndDate}
             owner={owner}
             ownerReverseName={ownerReverseName}
+            parentName={getProfileParentName(name)}
             registrationDate={registrationDate}
           />
           {actions ? (

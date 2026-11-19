@@ -1063,7 +1063,6 @@ msgstr "Copy the sign-in link, open your browser and paste it into the address b
 
 #: src/components/atoms/NameCopyButton/NameCopyButton.tsx
 #: src/features/profile/components/view/AddressProfileHeader.tsx
-#: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
@@ -2315,6 +2314,10 @@ msgstr "Owner"
 #: src/features/not-found/pages/NotFoundPage.tsx
 msgid "Page not found"
 msgstr "Page not found"
+
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Parent"
+msgstr "Parent"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Pay with"

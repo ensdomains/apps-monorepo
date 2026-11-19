@@ -60,3 +60,8 @@ export const EmptyRecords: Story = {
 export const LongEnsName: Story = {
   args: { name: `${'a-very-long-label-'.repeat(4)}name.eth` },
 }
+
+/** A subname shows its parent, linked, beside the owner. */
+export const Subname: Story = {
+  args: { name: 'cats.example.eth' },
+}

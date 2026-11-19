@@ -301,3 +301,9 @@ export const getChainSpecificAddresses = (
     )
     .map(omitSourceIndex)
 }
+
+/** The parent a subname shows under its details; a second-level name's TLD isn't one. */
+export const getProfileParentName = (name: string): string | null => {
+  const labels = name.split('.')
+  return labels.length > 2 ? labels.slice(1).join('.') : null
+}
