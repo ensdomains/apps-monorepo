@@ -103,6 +103,22 @@ export const SEPOLIA_ADDRESS_RECORDS = Object.freeze(
   }),
 )
 
+// Match Manager's precedence: Sepolia, then canonical, then removed records.
+const ADDRESS_RECORD_INDEX = new Map<number, AddressRecordOption>(
+  [
+    ...REMOVED_ADDRESS_RECORDS,
+    ...CANONICAL_ADDRESS_RECORDS,
+    ...SEPOLIA_ADDRESS_RECORDS,
+  ].map((record) => [record.coinType, record]),
+)
+
+/** Looks up an exact resolver coin type, including records outside picker suggestions. */
+export function getAddressRecord(
+  coinType: number,
+): AddressRecordOption | undefined {
+  return ADDRESS_RECORD_INDEX.get(coinType)
+}
+
 const ADDRESS_ICON_ALIASES: ReadonlyMap<string, string> = new Map([
   ['bsc', 'bnb'],
   ['avaxc', 'avax'],
@@ -112,11 +128,7 @@ const ADDRESS_ICON_ALIASES: ReadonlyMap<string, string> = new Map([
 
 /** Returns the artwork key for a known record, including records without artwork. */
 export function getAddressRecordIconKey(coinType: number): string | undefined {
-  const notation =
-    CANONICAL_ADDRESS_RECORD_INDEX.get(coinType)?.notation ??
-    REMOVED_COINS[coinType]?.[0] ??
-    SEPOLIA_ADDRESS_RECORDS.find((record) => record.coinType === coinType)
-      ?.notation
+  const notation = getAddressRecord(coinType)?.notation
   if (notation === undefined) return undefined
 
   const key = notation.replace(/Legacy$/, '')

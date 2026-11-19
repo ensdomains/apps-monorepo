@@ -1,3 +1,4 @@
+import { PROFILE_TEXT_RECORDS } from '@ens-apps/record-catalog/text'
 import {
   coinNameToTypeMap,
   evmCoinNameToTypeMap,
@@ -18,6 +19,84 @@ import { getRecordsQueryOptions } from '../hooks/useRecords'
 import { CoinRecord, type CoinTypeWithIcon } from './CoinRecord'
 import { NameAvatar } from './NameAvatar'
 import { SocialRecord } from './SocialRecord'
+
+const {
+  name: nickname,
+  description,
+  twitter,
+  telegram,
+  discord,
+  github,
+  instagram,
+  linkedin,
+  farcaster,
+  reddit,
+  youtube,
+} = PROFILE_TEXT_RECORDS
+
+const COMPACT_SOCIAL_RECORDS = [
+  {
+    key: twitter.key,
+    baseHref: twitter.presentation.href,
+    artwork: 'X.png',
+    alt: 'X',
+  },
+  {
+    key: telegram.key,
+    baseHref: telegram.presentation.href,
+    artwork: 'telegram.png',
+    alt: telegram.name,
+  },
+  {
+    key: discord.key,
+    baseHref: 'https://discord.com/users/',
+    artwork: 'discord.png',
+    alt: discord.name,
+  },
+  {
+    key: github.key,
+    baseHref: github.presentation.href,
+    artwork: 'github.svg',
+    alt: github.name,
+  },
+  {
+    key: instagram.key,
+    baseHref: instagram.presentation.href,
+    artwork: 'instagram.png',
+    alt: instagram.name,
+  },
+  {
+    key: linkedin.key,
+    baseHref: 'https://linkedin.com/in/',
+    artwork: 'linkedin.svg',
+    alt: linkedin.name,
+  },
+  {
+    key: farcaster.key,
+    baseHref: 'https://warpcast.com/',
+    artwork: 'farcaster.svg',
+    alt: farcaster.name,
+  },
+  {
+    key: reddit.key,
+    baseHref: reddit.presentation.href,
+    artwork: 'reddit.svg',
+    alt: reddit.name,
+  },
+  {
+    key: youtube.key,
+    // Keep the compact profile's existing slash after the @ path segment.
+    baseHref: 'https://youtube.com/@/',
+    artwork: 'youtube.png',
+    alt: youtube.name,
+  },
+] as const
+
+const COMPACT_TEXT_KEYS = [
+  nickname.key,
+  description.key,
+  ...COMPACT_SOCIAL_RECORDS.map(({ key }) => key),
+] as const
 
 const evmCoinTypes = Object.values(evmCoinNameToTypeMap)
 
@@ -43,19 +122,7 @@ export const NameProfileCard = ({
     enabled: !hasUnknownLabel,
     ...getRecordsQueryOptions({
       name,
-      texts: [
-        'name',
-        'description',
-        'com.twitter',
-        'org.telegram',
-        'com.discord',
-        'com.github',
-        'com.instagram',
-        'com.linkedin',
-        'xyz.farcaster',
-        'com.reddit',
-        'com.youtube',
-      ],
+      texts: COMPACT_TEXT_KEYS,
       coins: [
         // EVM
         coinNameToTypeMap.eth,
@@ -75,6 +142,8 @@ export const NameProfileCard = ({
   })
 
   const texts = recordTextsToObject(records?.texts)
+  const nicknameText = texts[nickname.key]
+  const descriptionText = texts[description.key]
 
   const coins = recordCoinsToObject(records?.coins)
 
@@ -122,40 +191,22 @@ export const NameProfileCard = ({
             </h2>
           )}
           <span>
-            {texts.name && <span className="font-medium">{texts.name}</span>}{' '}
-            {texts.name && texts.description ? '–' : null}{' '}
-            {texts.description && (
-              <span className="text-muted-foreground">{texts.description}</span>
+            {nicknameText && (
+              <span className="font-medium">{nicknameText}</span>
+            )}{' '}
+            {nicknameText && descriptionText ? '–' : null}{' '}
+            {descriptionText && (
+              <span className="text-muted-foreground">{descriptionText}</span>
             )}
           </span>
           <div className="flex flex-row flex-wrap gap-x-2 gap-y-1">
-            <SocialRecord
-              record={{ key: 'com.twitter', value: texts['com.twitter'] }}
-            />
-            <SocialRecord
-              record={{ key: 'org.telegram', value: texts['org.telegram'] }}
-            />
-            <SocialRecord
-              record={{ key: 'com.discord', value: texts['com.discord'] }}
-            />
-            <SocialRecord
-              record={{ key: 'com.github', value: texts['com.github'] }}
-            />
-            <SocialRecord
-              record={{ key: 'com.instagram', value: texts['com.instagram'] }}
-            />
-            <SocialRecord
-              record={{ key: 'com.linkedin', value: texts['com.linkedin'] }}
-            />
-            <SocialRecord
-              record={{ key: 'xyz.farcaster', value: texts['xyz.farcaster'] }}
-            />
-            <SocialRecord
-              record={{ key: 'com.reddit', value: texts['com.reddit'] }}
-            />
-            <SocialRecord
-              record={{ key: 'com.youtube', value: texts['com.youtube'] }}
-            />
+            {COMPACT_SOCIAL_RECORDS.map((record) => (
+              <SocialRecord
+                key={record.key}
+                record={record}
+                value={texts[record.key]}
+              />
+            ))}
           </div>
         </div>
         <div className="flex max-w-35.5 flex-row flex-wrap gap-1">

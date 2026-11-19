@@ -1,5 +1,52 @@
 import { describe, expect, it } from 'vitest'
-import { searchAddressRecords, searchTextRecords } from './index'
+import {
+  CANONICAL_ADDRESS_RECORDS,
+  getAddressRecord,
+  PROFILE_TEXT_RECORDS,
+  REMOVED_ADDRESS_RECORDS,
+  SEPOLIA_ADDRESS_RECORDS,
+  searchAddressRecords,
+  searchTextRecords,
+} from './index'
+
+describe('catalog identities', () => {
+  it('defines each resolver text key once', () => {
+    const keys = Object.values(PROFILE_TEXT_RECORDS).map(({ key }) => key)
+    expect(keys).toEqual([...new Set(keys)])
+  })
+
+  it('defines each address coin type once', () => {
+    const coinTypes = [
+      ...CANONICAL_ADDRESS_RECORDS,
+      ...SEPOLIA_ADDRESS_RECORDS,
+      ...REMOVED_ADDRESS_RECORDS,
+    ].map(({ coinType }) => coinType)
+    expect(coinTypes).toEqual([...new Set(coinTypes)])
+  })
+})
+
+describe('getAddressRecord', () => {
+  it.each([
+    [0, 'btc'],
+    [60, 'eth'],
+    [2147483648, 'default'],
+    [714, 'bnb'],
+  ])('looks up coin type %i by its exact identity', (coinType, notation) => {
+    expect(getAddressRecord(coinType)).toMatchObject({ coinType, notation })
+  })
+
+  it('returns the Sepolia metadata under the Sepolia coin type', () => {
+    expect(getAddressRecord(2147568180)).toMatchObject({
+      coinType: 2147568180,
+      chainId: 84532,
+      name: 'Base Sepolia',
+    })
+  })
+
+  it('does not look up an EVM chain ID as a coin type', () => {
+    expect(getAddressRecord(84532)).toBeUndefined()
+  })
+})
 
 describe('searchTextRecords', () => {
   it('starts an empty search with common profile fields and their actual keys', () => {

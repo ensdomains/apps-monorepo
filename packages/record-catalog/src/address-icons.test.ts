@@ -4,6 +4,8 @@ import { getAddressRecordIcon } from './address-icons'
 
 describe('getAddressRecordIcon', () => {
   it.each([
+    [0, 'btc'],
+    [60, 'eth'],
     [2147483704, 'bnb'],
     [2147526762, 'avax'],
     [2148018000, 'scroll'],
