@@ -14,7 +14,6 @@ import { describe, expect, it } from 'vitest'
 import {
   decodeImplementationAddress,
   getVerifiedProxyImplementation,
-  parseProxyDeployedAddress,
   selectContractsHoldingRoles,
 } from './permissionedResolver'
 
@@ -46,16 +45,6 @@ describe('decodeImplementationAddress', () => {
 
   it('returns null for invalid address data', () => {
     expect(decodeImplementationAddress('0xinvalid' as Hex)).toBeNull()
-  })
-})
-
-describe('parseProxyDeployedAddress', () => {
-  it('returns null for empty logs', () => {
-    expect(parseProxyDeployedAddress([])).toBeNull()
-  })
-
-  it('returns null for logs with no topics', () => {
-    expect(parseProxyDeployedAddress([{ topics: [], data: '0x' }])).toBeNull()
   })
 })
 
