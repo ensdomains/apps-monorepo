@@ -761,7 +761,10 @@ export const useEditProfileDialogSave = ({
     handleImageUploadPrepared,
     handleSetupConfirmOpenChange,
     isFinalizingImageSave,
-    editableTypes: resolverWriteAccess.data?.editableTypes,
+    // Records moving to another resolver are not bound by this one's roles.
+    editableTypes: resolverCopySource
+      ? undefined
+      : resolverWriteAccess.data?.editableTypes,
     isResolverAccessPending,
     resetPreparedImageSaveState,
     preparedImageUploads,

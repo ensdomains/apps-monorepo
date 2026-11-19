@@ -1,6 +1,6 @@
 import { useLingui } from '@lingui/react/macro'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import type { RecordType } from '@/features/profile/service/recordTypeLocks'
+import type { RecordType } from '@/features/profile/service/resolverWriteAccess'
 import { useIsRecordTypeLocked } from './LockedRecordTypes.context'
 
 export const LockedRecordsNotice = ({

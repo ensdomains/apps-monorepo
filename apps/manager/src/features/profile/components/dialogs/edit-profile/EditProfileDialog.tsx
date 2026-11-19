@@ -10,7 +10,6 @@ import {
   actionLabelClassName,
   barEditActionSymbolClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
-import { getLockedRecordTypes } from '@/features/profile/service/recordTypeLocks'
 import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import {
   importResolverRecords,
@@ -115,11 +114,6 @@ export const EditProfileDialog = ({
       !resolverImport?.blockedKeys.length &&
       !importMutation.isPending &&
       (canEditNormal || Boolean(resolverPreparationSource)),
-  })
-
-  const lockedRecordTypes = getLockedRecordTypes({
-    editableTypes,
-    isReplacingResolver: Boolean(resolverPreparationSource),
   })
 
   const {
@@ -258,7 +252,7 @@ export const EditProfileDialog = ({
       >
         <EditProfileDialogProvider
           actor={dialogActor}
-          lockedRecordTypes={lockedRecordTypes}
+          editableTypes={editableTypes}
         >
           <EditProfileDialogBody
             form={form}

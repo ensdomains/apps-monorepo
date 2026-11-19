@@ -1,7 +1,12 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  decodeResolverRoleBitmap,
+  type ResolverRole,
+} from '@ensdomains/ensjs/utils/v2'
 import { registryResolverSnippet } from '@ensdomains/ensjs-abi/registry'
+import { permissionedResolverRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
@@ -22,22 +27,20 @@ import {
 } from './changeResolver'
 import { getProfileEthAddressSnapshot } from './profileEthAddress'
 import {
-  type EditableRecordTypes,
-  hasEditableRecordType,
-  NO_EDITABLE_RECORD_TYPES,
-} from './recordTypeLocks'
-import {
   encodeResolverRecordsCall,
   getResolverSetterKind,
-  type ResolverRecords,
   type ResolverSetterKind,
 } from './resolverRecordCalls'
 
 const ETH_COIN_TYPE = 60
-const PROFILE_PROBE_TEXT_KEY = 'description'
+const ROOT_RESOURCE = 0n
 
-/** Which write the probe dry-runs: the ETH address, or any profile record. */
+/** Which write access is checked: the ETH address, or any profile record. */
 export type ResolverWriteAccess = 'eth-address' | 'profile'
+
+export type RecordType = 'text' | 'address' | 'contentHash' | 'abi'
+
+export type EditableRecordTypes = Readonly<Record<RecordType, boolean>>
 
 class ResolverWriteAccessError extends TaggedError('ResolverWriteAccessError')<{
   cause: unknown
@@ -66,14 +69,13 @@ const getRecordWriteProbe = async (
   }
 }
 
-const canWriteRecords = async (
+const canWriteEthAddress = async (
   probe: RecordWriteProbe,
-  records: ResolverRecords,
 ): Promise<boolean> => {
   const data = await encodeResolverRecordsCall({
     kind: probe.kind,
     name: probe.name,
-    records,
+    records: { coins: [{ coin: ETH_COIN_TYPE, value: probe.ownerAddress }] },
   })
   try {
     // Probe from the same owner EOA used by profile record writes.
@@ -94,10 +96,6 @@ const canWriteRecords = async (
   }
 }
 
-const ethAddressRecords = (ownerAddress: Address): ResolverRecords => ({
-  coins: [{ coin: ETH_COIN_TYPE, value: ownerAddress }],
-})
-
 /**
  * Dry-run the exact ETH-address write the "set primary name" flow performs
  * (encoded by `encodeResolverRecordsCall` for the resolver's setter family, as
@@ -114,26 +112,42 @@ export const canWriteEthAddressRecord = async (
   ownerAddress: Address,
 ): Promise<boolean> => {
   const probe = await getRecordWriteProbe(resolverAddress, name, ownerAddress)
-  return probe ? canWriteRecords(probe, ethAddressRecords(ownerAddress)) : false
+  return probe ? canWriteEthAddress(probe) : false
 }
 
-// The non-address probes clear a value, so they need no real data.
+const editableWhen = (canWrite: boolean): EditableRecordTypes => ({
+  text: canWrite,
+  address: canWrite,
+  contentHash: canWrite,
+  abi: canWrite,
+})
+
+const editableFromRoles = (
+  roles: readonly ResolverRole[],
+): EditableRecordTypes => ({
+  text: roles.includes('ROLE_SET_TEXT'),
+  address: roles.includes('ROLE_SET_ADDRESS'),
+  contentHash: roles.includes('ROLE_SET_CONTENTHASH'),
+  abi: roles.includes('ROLE_SET_ABI'),
+})
+
+// Node-based resolvers authorize every setter alike; a PermissionedResolver gates each type on its own root role.
 const getEditableRecordTypes = async (
   resolverAddress: Address,
   name: string,
   ownerAddress: Address,
 ): Promise<EditableRecordTypes> => {
   const probe = await getRecordWriteProbe(resolverAddress, name, ownerAddress)
-  if (!probe) return NO_EDITABLE_RECORD_TYPES
-  const [address, text, contentHash, abi] = await Promise.all([
-    canWriteRecords(probe, ethAddressRecords(ownerAddress)),
-    canWriteRecords(probe, {
-      texts: [{ key: PROFILE_PROBE_TEXT_KEY, value: '' }],
-    }),
-    canWriteRecords(probe, { contentHash: null }),
-    canWriteRecords(probe, { abi: { encodeAs: 'json', data: null } }),
-  ])
-  return { address, text, contentHash, abi }
+  if (!probe) return editableWhen(false)
+  if (probe.kind === 'node')
+    return editableWhen(await canWriteEthAddress(probe))
+  const roleBitmap = await (publicClient as PublicClient).readContract({
+    address: resolverAddress,
+    abi: permissionedResolverRolesSnippet,
+    functionName: 'roles',
+    args: [ROOT_RESOURCE, ownerAddress],
+  })
+  return editableFromRoles(decodeResolverRoleBitmap(roleBitmap))
 }
 
 /** The resolver set for `name` in the ENSv1 registry, if any. */
@@ -198,7 +212,7 @@ export const getProfileRecordAccess = ResultFn(async function* (
   const noAccess = {
     resolverAddress: undefined,
     canWrite: false,
-    editableTypes: NO_EDITABLE_RECORD_TYPES,
+    editableTypes: editableWhen(false),
   }
   if (!name || !ownerAddress) return ok(noAccess)
   const resolverAddress = yield* findRecordsResolver(name)
@@ -211,7 +225,7 @@ export const getProfileRecordAccess = ResultFn(async function* (
 
   return ok({
     resolverAddress,
-    canWrite: hasEditableRecordType(editableTypes),
+    canWrite: Object.values(editableTypes).some(Boolean),
     editableTypes,
   })
 })

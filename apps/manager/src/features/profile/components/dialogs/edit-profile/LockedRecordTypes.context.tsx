@@ -1,24 +1,25 @@
 import { createContext, type ReactNode, use } from 'react'
-import {
-  NO_LOCKED_RECORD_TYPES,
-  type RecordType,
-} from '@/features/profile/service/recordTypeLocks'
+import type {
+  EditableRecordTypes,
+  RecordType,
+} from '@/features/profile/service/resolverWriteAccess'
 
-const LockedRecordTypesContext = createContext<ReadonlySet<RecordType>>(
-  NO_LOCKED_RECORD_TYPES,
-)
+// Undefined locks nothing: access is unknown, or records move to another resolver.
+const EditableRecordTypesContext = createContext<
+  EditableRecordTypes | undefined
+>(undefined)
 
-export const LockedRecordTypesProvider = ({
+export const EditableRecordTypesProvider = ({
   children,
-  lockedRecordTypes,
+  editableTypes,
 }: {
   readonly children: ReactNode
-  readonly lockedRecordTypes: ReadonlySet<RecordType>
+  readonly editableTypes: EditableRecordTypes | undefined
 }) => (
-  <LockedRecordTypesContext.Provider value={lockedRecordTypes}>
+  <EditableRecordTypesContext.Provider value={editableTypes}>
     {children}
-  </LockedRecordTypesContext.Provider>
+  </EditableRecordTypesContext.Provider>
 )
 
 export const useIsRecordTypeLocked = (type: RecordType) =>
-  use(LockedRecordTypesContext).has(type)
+  use(EditableRecordTypesContext)?.[type] === false

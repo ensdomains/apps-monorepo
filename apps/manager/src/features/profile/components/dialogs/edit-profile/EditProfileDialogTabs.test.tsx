@@ -4,7 +4,7 @@ import { useActorRef } from '@xstate/react'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Tabs } from '@/components/ui/tabs'
-import type { RecordType } from '@/features/profile/service/recordTypeLocks'
+import type { EditableRecordTypes } from '@/features/profile/service/resolverWriteAccess'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import { render } from '@/utils/test-utils'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
@@ -18,6 +18,13 @@ vi.mock('@/constants', () => ({
   },
 }))
 
+const ALL_EDITABLE = {
+  text: true,
+  address: true,
+  contentHash: true,
+  abi: true,
+}
+
 beforeEach(() => {
   getExplorerUrl.mockReturnValue('https://sepolia.explorer.ens.domains')
 })
@@ -25,10 +32,10 @@ beforeEach(() => {
 const renderAdvanced = (
   records = newEmptyProfileRecords(),
   {
-    lockedRecordTypes = new Set<RecordType>(),
+    editableTypes,
     tab = 'other',
   }: {
-    readonly lockedRecordTypes?: ReadonlySet<RecordType>
+    readonly editableTypes?: EditableRecordTypes
     readonly tab?: string
   } = {},
 ) => {
@@ -43,10 +50,7 @@ const renderAdvanced = (
     })
     return (
       <QueryClientProvider client={queryClient}>
-        <EditProfileDialogProvider
-          actor={actor}
-          lockedRecordTypes={lockedRecordTypes}
-        >
+        <EditProfileDialogProvider actor={actor} editableTypes={editableTypes}>
           <Tabs defaultValue={tab}>
             <EditProfileDialogTabs
               isMobileNavOpen={false}
@@ -186,7 +190,7 @@ describe('Advanced profile navigation', () => {
 describe('Locked record types', () => {
   it('disables the address fields when addresses are locked', () => {
     const view = renderAdvanced(newEmptyProfileRecords(), {
-      lockedRecordTypes: new Set(['address']),
+      editableTypes: { ...ALL_EDITABLE, address: false },
       tab: 'addresses',
     })
 
@@ -197,7 +201,7 @@ describe('Locked record types', () => {
 
   it('disables only the locked record types in the local editor', () => {
     const view = renderAdvanced(newEmptyProfileRecords(), {
-      lockedRecordTypes: new Set(['abi']),
+      editableTypes: { ...ALL_EDITABLE, abi: false },
     })
 
     fireEvent.click(view.getByText('Edit records here'))
