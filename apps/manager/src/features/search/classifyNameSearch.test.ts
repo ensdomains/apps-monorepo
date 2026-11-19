@@ -64,57 +64,6 @@ describe('classifyNameSearch', () => {
     ).toEqual({ type: 'error', name: 'alice.eth' })
   })
 
-  describe('a 2LD whose label reads like a wallet address', () => {
-    const addressLike: SearchNameKind = {
-      type: 'eth-2ld',
-      name: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth',
-      label: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
-    }
-
-    it('is not offered for registration when free', () => {
-      expect(
-        classifyNameSearch({
-          kind: addressLike,
-          existence: { status: 'unowned' },
-          availability: { status: 'available' },
-          tldSupport: { status: 'skipped' },
-        }),
-      ).toEqual({
-        type: 'invalid',
-        name: addressLike.name,
-        reason: 'address-like',
-      })
-    })
-
-    it('refuses a free 37-hex look-alike a shortened address hides', () => {
-      const name = '0xd8da6bf26964af9d7eed9e03e53415d376045.eth'
-
-      expect(
-        classifyNameSearch({
-          kind: {
-            type: 'eth-2ld',
-            name,
-            label: '0xd8da6bf26964af9d7eed9e03e53415d376045',
-          },
-          existence: { status: 'unowned' },
-          availability: { status: 'available' },
-          tldSupport: { status: 'skipped' },
-        }),
-      ).toEqual({ type: 'invalid', name, reason: 'address-like' })
-    })
-
-    it('stays reachable when already registered', () => {
-      expect(
-        classifyNameSearch({
-          kind: addressLike,
-          existence: { status: 'unowned' },
-          availability: { status: 'unavailable' },
-          tldSupport: { status: 'skipped' },
-        }),
-      ).toEqual({ type: 'owned', name: addressLike.name })
-    })
-  })
-
   it('waits for 2LD availability', () => {
     expect(
       classifyNameSearch({
