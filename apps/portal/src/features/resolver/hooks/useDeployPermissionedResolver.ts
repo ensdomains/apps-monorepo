@@ -1,3 +1,4 @@
+import { findDeployedProxyAddress } from '@ens-apps/smart-account'
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
@@ -12,7 +13,6 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
   generateResolverSalt,
   getResolverInitCalldata,
-  parseProxyDeployedAddress,
 } from '@/features/resolver/utils/permissionedResolver'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { ensChain } from '@/lib/wagmi'
@@ -106,7 +106,10 @@ const deployPermissionedResolver = async ({
   })
 
   const result = await waitForTransaction(txId)
-  const resolverAddress = parseProxyDeployedAddress(result.receipt?.logs ?? [])
+  const resolverAddress = findDeployedProxyAddress({
+    logs: result.receipt?.logs ?? [],
+    factory: verifiableFactory,
+  })
 
   if (!resolverAddress) {
     throw new Error('Could not extract deployed resolver address from receipt')

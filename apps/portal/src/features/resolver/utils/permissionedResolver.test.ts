@@ -16,7 +16,6 @@ import {
   filterPermissionedResolverAddresses,
   getVerifiedProxyImplementation,
   type ProxyDeployedLog,
-  parseProxyDeployedAddress,
 } from './permissionedResolver'
 
 describe('decodeImplementationAddress', () => {
@@ -47,16 +46,6 @@ describe('decodeImplementationAddress', () => {
 
   it('returns null for invalid address data', () => {
     expect(decodeImplementationAddress('0xinvalid' as Hex)).toBeNull()
-  })
-})
-
-describe('parseProxyDeployedAddress', () => {
-  it('returns null for empty logs', () => {
-    expect(parseProxyDeployedAddress([])).toBeNull()
-  })
-
-  it('returns null for logs with no topics', () => {
-    expect(parseProxyDeployedAddress([{ topics: [], data: '0x' }])).toBeNull()
   })
 })
 
