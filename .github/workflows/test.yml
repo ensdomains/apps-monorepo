@@ -25,6 +25,9 @@ jobs:
           runtime: node@24
           cache: true
 
+      - name: Test release tracking scripts
+        run: node --test scripts/*.test.mjs
+
       # On push, origin/main already is HEAD, so diffing against it selects
       # nothing; diff against the commit main pointed to before the push.
       - name: Determine base ref

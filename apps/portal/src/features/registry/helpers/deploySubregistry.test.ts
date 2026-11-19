@@ -76,6 +76,8 @@ describe('generateSubregistrySalt', () => {
 
 describe('deploySubregistry', () => {
   const proxy = '0x4444444444444444444444444444444444444444' as Address
+  const otherProxy = '0x5555555555555555555555555555555555555555' as const
+  const wrapper = '0x6666666666666666666666666666666666666666' as const
   const txHash = `0x${'ef'.repeat(32)}` as Hash
 
   type ReceiptLog = Pick<Log, 'address' | 'topics' | 'data'>
@@ -102,6 +104,18 @@ describe('deploySubregistry', () => {
     topics: [toEventSelector(event)],
     data: '0x',
   })
+  const fakeProxyDeployedLog = (emitter: Address): ReceiptLog => ({
+    address: emitter,
+    topics: [
+      toEventSelector(proxyDeployedEventSnippet[0]),
+      pad(from),
+      pad(otherProxy),
+    ],
+    data: encodeAbiParameters(
+      [{ type: 'uint256' }, { type: 'address' }],
+      [1n, implAddress],
+    ),
+  })
 
   afterEach(() => {
     transactionManager.clear()
@@ -116,6 +130,19 @@ describe('deploySubregistry', () => {
         safeLog(
           'SafeMultiSigTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes,bytes)',
         ),
+        proxyLog,
+        proxyDeployedLog,
+        safeLog('ExecutionSuccess(bytes32,uint256)'),
+      ],
+    ],
+    [
+      // Another contract in the same transaction can emit ProxyDeployed first.
+      'a wrapped',
+      [
+        safeLog(
+          'SafeMultiSigTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes,bytes)',
+        ),
+        fakeProxyDeployedLog(wrapper),
         proxyLog,
         proxyDeployedLog,
         safeLog('ExecutionSuccess(bytes32,uint256)'),
