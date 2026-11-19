@@ -7,6 +7,7 @@ export const COINBASE_ID = 'coinbaseWalletSDK'
 export const WALLETCONNECT_ID = 'walletConnect'
 export const METAMASK_RDNS = 'io.metamask'
 export const METAMASK_DOWNLOAD_URL = 'https://metamask.io/download/'
+export const METAMASK_DAPP_LINK_URL = 'https://link.metamask.io/dapp/'
 
 // Non-empty tuple, matching wagmi's `config.chains` — encodes the "at least one
 // chain" invariant the fallback in `resolveConnectChainId` relies on. Generic in
