@@ -72,7 +72,6 @@ function RouteComponent() {
   const { name } = useParams({ from: '/$name' })
   useRememberName(name)
   const isValidName = isValidEnsName(name)
-  const isAddressLike = isValidName && isAddressLikeName(name)
 
   return (
     <SidebarProvider>
@@ -82,7 +81,7 @@ function RouteComponent() {
         <PageContainer>
           {isValidName ? (
             <>
-              {isAddressLike && <AddressLikeNameNotice />}
+              {isAddressLikeName(name) && <AddressLikeNameNotice />}
               <Outlet />
             </>
           ) : (

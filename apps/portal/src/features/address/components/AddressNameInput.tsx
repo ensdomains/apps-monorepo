@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
+import { ADDRESS_LIKE_NAME_NOTE } from '@/components/AddressLikeNameNotice'
 import { Input } from '@/components/ui/input'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { AddressResolution } from '../hooks/useAddressResolution'
@@ -87,8 +88,7 @@ export const AddressNameInput = ({
         .exhaustive()}
       {isAddressLike && (
         <p className="text-p mt-1.5 text-warning-text">
-          Note: This name may resolve to another address, confirm the final
-          address is the intended address.
+          {ADDRESS_LIKE_NAME_NOTE}
         </p>
       )}
     </>

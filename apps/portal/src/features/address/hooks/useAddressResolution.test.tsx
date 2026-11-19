@@ -32,4 +32,11 @@ describe('useAddressResolution', () => {
       expect(result.current.isAddressLike).toBe(isAddressLike)
     },
   )
+
+  it('does not flag an address still being typed, which is no name yet', () => {
+    const { result } = render(VITALIK.slice(0, 30))
+
+    expect(result.current.status).toBe('invalid')
+    expect(result.current.isAddressLike).toBe(false)
+  })
 })

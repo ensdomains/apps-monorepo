@@ -86,7 +86,7 @@ export const useAddressResolution = (input: string): AddressResolution => {
     isResolving,
     isValid,
     isRawAddress,
-    isAddressLike: !isRawAddress && isAddressLikeName(trimmed),
+    isAddressLike: isValid && !isRawAddress && isAddressLikeName(trimmed),
     isInvalid:
       status === 'invalid' || status === 'unresolved' || status === 'error',
     status,

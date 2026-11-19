@@ -1,17 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { AddressResolution } from '../hooks/useAddressResolution'
 import { AddressNameInput } from './AddressNameInput'
-
-const makeResolution = (isAddressLike: boolean): AddressResolution => ({
-  address: '0x1111111111111111111111111111111111111111',
-  isResolving: false,
-  isValid: true,
-  isRawAddress: false,
-  isAddressLike,
-  isInvalid: false,
-  status: 'resolved',
-})
 
 describe('AddressNameInput', () => {
   it.each([true, false])(
@@ -21,7 +10,15 @@ describe('AddressNameInput', () => {
         <AddressNameInput
           value="name.eth"
           onChange={() => {}}
-          resolution={makeResolution(isAddressLike)}
+          resolution={{
+            address: '0x1111111111111111111111111111111111111111',
+            isResolving: false,
+            isValid: true,
+            isRawAddress: false,
+            isAddressLike,
+            isInvalid: false,
+            status: 'resolved',
+          }}
         />,
       )
 
