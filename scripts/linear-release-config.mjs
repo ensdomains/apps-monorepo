@@ -1,15 +1,20 @@
-const APP_DIRS = {
-  manager: 'apps/manager',
+export const APP_DIRS = {
   portal: 'apps/portal',
+  manager: 'apps/manager',
   'api-worker': 'workers/api-worker',
 };
-const SHARED_PATHS = ['packages/**', 'package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'patches/**'];
+// Keep the staging filters in .github/workflows/linear-releases.yml in sync.
+const SHARED_GLOBS = ['packages/**', 'package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'patches/**'];
+export const SHARED_PATHS = SHARED_GLOBS.map(path => path.replace(/\/\*\*$/, ''));
+export const RELEASE_TAG = new RegExp(
+  `^(${Object.keys(APP_DIRS).join('|')})-(\\d{4}-\\d{2}-\\d{2})(?:\\.([2-9]|[1-9]\\d+))?$`,
+);
 
 export const getLinearReleaseConfig = ({ app, tag, previous }) => {
-  const appDir = Object.hasOwn(APP_DIRS, app) ? APP_DIRS[app] : null;
-  const pattern = new RegExp(`^${app}-[0-9]{4}-[0-9]{2}-[0-9]{2}(\\.([2-9]|[1-9][0-9]+))?$`);
-  if (!appDir || !pattern.test(tag) || (previous !== null && !pattern.test(previous))) {
+  const tagApp = RELEASE_TAG.exec(tag)?.[1];
+  const previousApp = RELEASE_TAG.exec(previous)?.[1];
+  if (!tagApp || tagApp !== app || (previous !== null && previousApp !== tagApp)) {
     return { error: 'Release tags must belong to the selected app and use its production date-tag format.' };
   }
-  return { includePaths: [`${appDir}/**`, ...SHARED_PATHS].join(','), previous };
+  return { includePaths: [`${APP_DIRS[tagApp]}/**`, ...SHARED_GLOBS].join(','), previous };
 };
