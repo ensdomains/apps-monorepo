@@ -11,7 +11,7 @@ import type { StablecoinBalance } from '@/lib/smart-account'
 import type { SUPPORTED_TOKEN } from '@/lib/tokens'
 import { cn } from '@/lib/utils'
 import type { L2PaymentRow } from '../hooks/useL2Payment'
-import { getCheckoutReceiptTotalRaw } from '../lib/budgetQuoteRecovery'
+import { getRegistrationTotalRaw } from '../lib/budgetQuoteRecovery'
 import { type L2PaymentOption, l2PaymentOptionId } from '../lib/paymentOptions'
 import { GasRefusalWarning } from './GasRefusalWarning'
 import { PaymentMethodIcon } from './PaymentMethodIcon'
@@ -135,14 +135,13 @@ export const TokenPickerDialogShell = ({
         checkoutReceipt={
           hasBudgetQuoteFailed
             ? {
-                totalRaw: getCheckoutReceiptTotalRaw({
-                  hasBudgetQuoteFailed,
-                  registrationPriceRaw: isGasCoverageRefusal
-                    ? parseUnits(String(pricingData ?? 0), 6)
-                    : null,
-                  totalRaw: isFirstQuote
+                totalRaw: getRegistrationTotalRaw({
+                  pageTotalRaw: isFirstQuote
                     ? undefined
                     : parseUnits(String(pricingData ?? 0), 6),
+                  refusedPriceRaw: isGasCoverageRefusal
+                    ? parseUnits(String(pricingData ?? 0), 6)
+                    : null,
                 }),
               }
             : undefined

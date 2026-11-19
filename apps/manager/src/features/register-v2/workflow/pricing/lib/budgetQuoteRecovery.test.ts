@@ -2,7 +2,7 @@ import { HcaBudgetUnquotedError } from '@ens-apps/smart-account'
 import { describe, expect, it } from 'vitest'
 import {
   getBudgetQuoteRecovery,
-  getCheckoutReceiptTotalRaw,
+  getRegistrationTotalRaw,
 } from './budgetQuoteRecovery'
 
 const breakdown = {
@@ -52,40 +52,24 @@ describe('getBudgetQuoteRecovery', () => {
   })
 })
 
-describe('getCheckoutReceiptTotalRaw', () => {
+describe('getRegistrationTotalRaw', () => {
   it.each([
     [
-      'a refusal keeps the page total, credit applied',
-      true,
-      1_400_000n,
+      'the page total once known, credit applied',
       900_000n,
+      1_400_000n,
       900_000n,
     ],
     [
-      'a refused first quote fills the missing total',
-      true,
-      1_400_000n,
+      'the name price for a refused first quote',
       undefined,
       1_400_000n,
-    ],
-    ['any other failure keeps the page total', true, null, 900_000n, 900_000n],
-    [
-      'a successful quote keeps the page total',
-      false,
       1_400_000n,
-      900_000n,
-      900_000n,
     ],
-  ] as const)(
-    '%s',
-    (_name, hasBudgetQuoteFailed, registrationPriceRaw, totalRaw, expected) => {
-      expect(
-        getCheckoutReceiptTotalRaw({
-          hasBudgetQuoteFailed,
-          registrationPriceRaw,
-          totalRaw,
-        }),
-      ).toBe(expected)
-    },
-  )
+    ['nothing for any other failed first quote', undefined, null, undefined],
+  ] as const)('shows %s', (_name, pageTotalRaw, refusedPriceRaw, expected) => {
+    expect(getRegistrationTotalRaw({ pageTotalRaw, refusedPriceRaw })).toBe(
+      expected,
+    )
+  })
 })

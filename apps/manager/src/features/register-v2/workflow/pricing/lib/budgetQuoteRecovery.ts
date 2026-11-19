@@ -40,15 +40,16 @@ export function getBudgetQuoteFailureUi(params: {
   }
 }
 
-/** The receipt total: the page's total once known; a refused first quote falls back to the name price. */
-export const getCheckoutReceiptTotalRaw = ({
-  hasBudgetQuoteFailed,
-  registrationPriceRaw,
-  totalRaw,
+/** The receipt's "Registration total" line, never You pay: the page's total once known, else a gas refusal's name price. */
+export const getRegistrationTotalRaw = ({
+  pageTotalRaw,
+  refusedPriceRaw,
 }: {
-  readonly hasBudgetQuoteFailed: boolean
-  readonly registrationPriceRaw: bigint | null
-  readonly totalRaw: bigint | undefined
-}): bigint | undefined =>
-  totalRaw ??
-  (hasBudgetQuoteFailed ? (registrationPriceRaw ?? undefined) : undefined)
+  readonly pageTotalRaw: bigint | undefined
+  /** Non-null only after a gas-coverage refusal. */
+  readonly refusedPriceRaw: bigint | null
+}): bigint | undefined => {
+  if (pageTotalRaw !== undefined) return pageTotalRaw
+  if (refusedPriceRaw === null) return undefined
+  return refusedPriceRaw
+}

@@ -53,7 +53,7 @@ import {
 } from '../hooks/useL2Payment'
 import {
   getBudgetQuoteFailureUi,
-  getCheckoutReceiptTotalRaw,
+  getRegistrationTotalRaw,
 } from '../lib/budgetQuoteRecovery'
 import { getCheckoutTotalRaw } from '../lib/checkoutSummary'
 import { getEthPaymentDebit, getEthPaymentRow } from '../lib/ethPaymentRow'
@@ -820,10 +820,9 @@ export const TokenPickerContent = () => {
       checkoutReceipt={
         isBudgetRequired
           ? {
-              totalRaw: getCheckoutReceiptTotalRaw({
-                hasBudgetQuoteFailed,
-                registrationPriceRaw: budgetFailureUi.registrationPriceRaw,
-                totalRaw: registrationTotalRaw,
+              totalRaw: getRegistrationTotalRaw({
+                pageTotalRaw: registrationTotalRaw,
+                refusedPriceRaw: budgetFailureUi.registrationPriceRaw,
               }),
             }
           : undefined
