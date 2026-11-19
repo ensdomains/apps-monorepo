@@ -1,4 +1,5 @@
 import { msg } from '@lingui/core/macro'
+import { match } from 'ts-pattern'
 
 export const favoriteAuthPromptMessage = msg`Connect to favorite name`
 
@@ -46,3 +47,33 @@ export const getFavoriteActionDisabled = ({
 }: {
   readonly isPending: boolean
 }) => isPending
+
+export type ProfileFavoriteIntent =
+  | Extract<
+      FavoriteActionIntent,
+      { readonly kind: 'addFavorite' | 'removeFavorite' | 'none' }
+    >
+  | { readonly kind: 'connectWallet' }
+  | { readonly kind: 'signIn' }
+
+/** The profile's favorite asks for a wallet, then a sign-in, before it can save. */
+export const getProfileFavoriteIntent = ({
+  isAuthed,
+  isConnected,
+  isFavorite,
+  isPending,
+  name,
+}: {
+  readonly isAuthed: boolean
+  readonly isConnected: boolean
+  readonly isFavorite: boolean
+  readonly isPending: boolean
+  readonly name: string
+}): ProfileFavoriteIntent =>
+  match({ isAuthed, isConnected, isFavorite, isPending })
+    .returnType<ProfileFavoriteIntent>()
+    .with({ isPending: true }, () => ({ kind: 'none' }))
+    .with({ isConnected: false }, () => ({ kind: 'connectWallet' }))
+    .with({ isAuthed: false }, () => ({ kind: 'signIn' }))
+    .with({ isFavorite: true }, () => ({ kind: 'removeFavorite', name }))
+    .otherwise(() => ({ kind: 'addFavorite', name }))

@@ -1,10 +1,8 @@
-import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
-import { toast } from 'sonner'
-import { match } from 'ts-pattern'
+import { useConnection } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
@@ -15,12 +13,12 @@ import { addFavoriteMutationOptions } from '@/features/dashboard/service/mutatio
 import { removeFavoriteMutationOptions } from '@/features/dashboard/service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '@/features/dashboard/service/queries/getFavorites'
 import {
-  favoriteAuthPromptMessage,
   getFavoriteActionDisabled,
-  getFavoriteActionIntent,
+  getProfileFavoriteIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
 import { cn } from '@/lib/utils'
-import { isBackendAuthed } from '@/utils/backend-client'
+import { useConnectModal } from '@/lib/wallet'
+import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 import {
   actionTooltipClassName,
   favoriteActionClassName,
@@ -33,7 +31,8 @@ import {
 export const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
   const { _ } = useLingui()
   const isAuthed = useAtom(isBackendAuthed)
-  const shouldPromptAuth = useMediaQuery('(max-width: 767px)')
+  const { isConnected } = useConnection()
+  const { openConnectModal } = useConnectModal()
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
@@ -46,15 +45,14 @@ export const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
   )
   const isPending = addMutation.isPending || removeMutation.isPending
   const isDisabled = getFavoriteActionDisabled({ isPending })
-  const authPrompt = _(favoriteAuthPromptMessage)
 
   const toggleFavorite = () => {
-    const intent = getFavoriteActionIntent({
+    const intent = getProfileFavoriteIntent({
       isAuthed,
+      isConnected,
       isFavorite,
       isPending,
       name,
-      shouldPromptAuth,
     })
 
     switch (intent.kind) {
@@ -64,48 +62,46 @@ export const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
       case 'removeFavorite':
         removeMutation.mutate({ name: intent.name })
         return
-      case 'promptAuth':
-        toast(authPrompt, { id: 'favorite-auth-prompt' })
+      case 'connectWallet':
+        openConnectModal?.()
+        return
+      case 'signIn':
+        backendAuthStore.trigger.resetModal()
         return
       case 'none':
         return
     }
   }
 
-  const button = (
-    <button
-      aria-disabled={isDisabled}
-      aria-label={isFavorite ? _(msg`Remove favorite`) : _(msg`Add favorite`)}
-      className={cn(
-        iconActionClassName,
-        isFavorite ? favoritedActionClassName : favoriteActionClassName,
-      )}
-      disabled={isDisabled}
-      onClick={toggleFavorite}
-      type="button"
-    >
-      <span className={iconActionIconInnerClassName}>
-        <MSymbol
-          className={cn(
-            iconActionSymbolClassName,
-            isFavorite ? 'ms-fill' : undefined,
-          )}
-          symbol="favorite"
-        />
-      </span>
-    </button>
-  )
-
-  const tooltip = match({ isAuthed, isFavorite })
-    .with({ isAuthed: false }, () => authPrompt)
-    .with({ isFavorite: true }, () => _(msg`Remove from favorites`))
-    .otherwise(() => _(msg`Add to favorites`))
-
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipTrigger asChild>
+        <button
+          aria-disabled={isDisabled}
+          aria-label={
+            isFavorite ? _(msg`Remove favorite`) : _(msg`Add favorite`)
+          }
+          className={cn(
+            iconActionClassName,
+            isFavorite ? favoritedActionClassName : favoriteActionClassName,
+          )}
+          disabled={isDisabled}
+          onClick={toggleFavorite}
+          type="button"
+        >
+          <span className={iconActionIconInnerClassName}>
+            <MSymbol
+              className={cn(
+                iconActionSymbolClassName,
+                isFavorite ? 'ms-fill' : undefined,
+              )}
+              symbol="favorite"
+            />
+          </span>
+        </button>
+      </TooltipTrigger>
       <TooltipContent className={actionTooltipClassName}>
-        {tooltip}
+        {isFavorite ? _(msg`Remove from favorites`) : _(msg`Add to favorites`)}
       </TooltipContent>
     </Tooltip>
   )
