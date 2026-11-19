@@ -5,6 +5,7 @@
  * Reads the deployed address from the factory's `ProxyDeployed` event.
  */
 
+import { findDeployedProxyAddress } from '@ens-apps/smart-account'
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
@@ -12,9 +13,8 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { deploySubregistryWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { proxyDeployedEventSnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
-import { bytesToBigInt, encodeFunctionData, parseEventLogs } from 'viem'
+import { bytesToBigInt, encodeFunctionData } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
@@ -115,11 +115,10 @@ export const deploySubregistry = async ({
   })
 
   const result = await waitForTransaction(txId)
-  const [deployed] = parseEventLogs({
-    abi: proxyDeployedEventSnippet,
+  const deployedAddress = findDeployedProxyAddress({
     logs: result.receipt?.logs ?? [],
+    factory: factoryAddress,
   })
-  const deployedAddress = deployed?.args.proxyAddress
 
   if (!deployedAddress) {
     throw new Error('Could not extract deployed contract address from receipt')

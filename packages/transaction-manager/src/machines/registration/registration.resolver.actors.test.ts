@@ -13,7 +13,10 @@ import {
   createPublicClient,
   custom,
   decodeFunctionData,
+  encodeAbiParameters,
   encodeFunctionResult,
+  pad,
+  toEventSelector,
 } from 'viem'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -24,6 +27,7 @@ import {
   checkResolverDeploymentActor,
   computeDedicatedResolverAddress,
   readEthAddressActor,
+  resolveResolverDeploymentActor,
   submitEthAddressActor,
   submitResolverDeploymentActor,
 } from './registration.actors'
@@ -36,12 +40,17 @@ const mocks = vi.hoisted(() => ({
       _options: { readonly id?: string },
     ) => 'tx-1',
   ),
+  waitForTransactionReceiptById: vi.fn(),
 }))
 
 vi.mock('../../providers/transactionManager', () => ({
   transactionManager: {
     startTransaction: mocks.startTransaction,
   },
+}))
+
+vi.mock('../../helpers/transaction-status.helpers', () => ({
+  waitForTransactionReceiptById: mocks.waitForTransactionReceiptById,
 }))
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
@@ -176,6 +185,64 @@ describe('submitResolverDeploymentActor', () => {
     expect(functionName).toBe('deployProxy')
     expect(args?.[0]).toBe(CONTRACTS.ensPermissionedResolverImpl.address)
     expect(args?.[1]).toBe(salt)
+  })
+})
+
+describe('resolveResolverDeploymentActor', () => {
+  const WRAPPER = '0x3333333333333333333333333333333333333333' as const
+  const RESOLVER = '0x4444444444444444444444444444444444444444' as const
+  const OTHER_RESOLVER = '0x5555555555555555555555555555555555555555' as const
+
+  const proxyDeployedLog = (emitter: Address, proxyAddress: Address) => ({
+    address: emitter,
+    topics: [
+      toEventSelector('ProxyDeployed(address,address,uint256,address)'),
+      pad(WALLET),
+      pad(proxyAddress),
+    ],
+    data: encodeAbiParameters(
+      [{ type: 'uint256' }, { type: 'address' }],
+      [1n, CONTRACTS.ensPermissionedResolverImpl.address],
+    ),
+  })
+
+  it('reads the resolver the factory deployed, not a wrapper log', async () => {
+    // Anyone can carry a signed Safe transaction, so the wrapper that does
+    // may announce its own proxy first.
+    mocks.waitForTransactionReceiptById.mockResolvedValue({
+      logs: [
+        proxyDeployedLog(WRAPPER, OTHER_RESOLVER),
+        proxyDeployedLog(CONTRACTS.ensVerifiableFactory.address, RESOLVER),
+      ],
+    })
+
+    const result = await resolveResolverDeploymentActor({
+      txId: 'tx-deploy',
+      chainId: sepolia.id,
+    })
+
+    expect(result._unsafeUnwrap()).toEqual({ resolverAddress: RESOLVER })
+  })
+
+  it('refuses a receipt in which the factory announced two proxies', async () => {
+    mocks.waitForTransactionReceiptById.mockResolvedValue({
+      logs: [
+        proxyDeployedLog(CONTRACTS.ensVerifiableFactory.address, RESOLVER),
+        proxyDeployedLog(
+          CONTRACTS.ensVerifiableFactory.address,
+          OTHER_RESOLVER,
+        ),
+      ],
+    })
+
+    const result = await resolveResolverDeploymentActor({
+      txId: 'tx-deploy',
+      chainId: sepolia.id,
+    })
+
+    expect(result._unsafeUnwrapErr().message).toMatch(
+      /Expected one ProxyDeployed log/,
+    )
   })
 })
 
