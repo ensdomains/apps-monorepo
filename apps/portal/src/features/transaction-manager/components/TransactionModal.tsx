@@ -14,9 +14,13 @@ import { TransactionsOverviewContent } from './TransactionsOverviewContent'
 
 type TransactionModalProps = {
   readonly transactions: readonly Transaction[]
+  readonly onDismiss?: () => void
 }
 
-export const TransactionModal = ({ transactions }: TransactionModalProps) => {
+export const TransactionModal = ({
+  transactions,
+  onDismiss,
+}: TransactionModalProps) => {
   const txState = useActiveTransactionState()
   const activeTransactionsMap = useActiveTransactions()
 
@@ -45,6 +49,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   useAutoAdvanceTransaction(autoAdvanceTxId, transactions)
 
   const handleClose = () => {
+    onDismiss?.()
     closeModal()
   }
 

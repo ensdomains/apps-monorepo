@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { refreshRecordImage } from '@/features/records/helpers/recordImageCache'
 import { NameAvatar } from './NameAvatar'
 
 let avatarError: Error | null = null
@@ -51,6 +52,19 @@ describe('NameAvatar', () => {
     expect(screen.getByRole('img', { name: 'avatar' })).toHaveAttribute(
       'src',
       'https://example.com/fixed.png',
+    )
+  })
+
+  it('reloads a replaced avatar using a new browser URL', () => {
+    avatarUrl = 'https://euc.li/alice.eth'
+    render(<NameAvatar name="alice.eth" />)
+
+    fireEvent.error(screen.getByRole('img', { name: 'avatar' }))
+    act(() => refreshRecordImage(avatarUrl, 1_234))
+
+    expect(screen.getByRole('img', { name: 'avatar' })).toHaveAttribute(
+      'src',
+      'https://euc.li/alice.eth?v=1234',
     )
   })
 })

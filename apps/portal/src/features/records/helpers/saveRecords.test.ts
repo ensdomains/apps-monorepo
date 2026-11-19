@@ -103,6 +103,23 @@ describe('saveRecords', () => {
     })
   })
 
+  it('does not start the transaction if the editor changes during preparation', async () => {
+    const { transactionManager } = await import('@ens-apps/transaction-manager')
+    const start = vi.mocked(transactionManager.startTransaction)
+    start.mockClear()
+
+    await expect(
+      saveRecords({
+        ...mockParams,
+        assertCurrent: () => {
+          throw new Error('Editor changed')
+        },
+      }),
+    ).rejects.toThrow('Editor changed')
+
+    expect(start).not.toHaveBeenCalled()
+  })
+
   it('calls transactionManager.startTransaction with correct params', async () => {
     const { transactionManager } = await import('@ens-apps/transaction-manager')
 

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
@@ -83,5 +83,57 @@ describe('EditRecordsTable', () => {
     expect(
       screen.getAllByRole('button', { name: 'Delete record' }),
     ).toHaveLength(1)
+  })
+
+  it('offers Upload only on editable rows the parent marks as eligible', async () => {
+    const header = { type: 'text' as const, key: 'header', value: '' }
+    const onUploadImage = vi.fn()
+    render(
+      <EditRecordsTable
+        records={[avatar, header, text]}
+        globalFilter=""
+        editableTypes={{
+          ...NO_EDITABLE_TYPES,
+          text: new Set(['avatar', 'name']),
+        }}
+        onUploadImage={onUploadImage}
+        canUploadImage={(record) =>
+          record.type === 'text' && record.key !== 'name'
+        }
+      />,
+    )
+
+    // header is eligible but read-only; name is editable but not eligible.
+    expect(screen.getAllByRole('button', { name: /^Upload/ })).toHaveLength(1)
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Upload avatar image' }),
+    )
+    expect(onUploadImage).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'avatar' }),
+    )
+  })
+
+  it('shows the staged image URL in an already edited record', () => {
+    const onUpdateRecord = vi.fn()
+    const table = (value: string) => (
+      <EditRecordsTable
+        records={[{ ...avatar, value }]}
+        globalFilter=""
+        editableTypes={TEXT_ONLY}
+        onUpdateRecord={onUpdateRecord}
+      />
+    )
+    const { rerender } = render(table(avatar.value))
+    const input = screen.getByRole('textbox')
+    const draft = 'https://example.org/draft.jpg'
+    const hosted = 'https://euc.li/alice.eth'
+
+    fireEvent.change(input, { target: { value: draft } })
+    expect(onUpdateRecord).toHaveBeenCalledWith(avatar, draft)
+    rerender(table(draft))
+    rerender(table(hosted))
+
+    expect(input).toHaveValue(hosted)
   })
 })

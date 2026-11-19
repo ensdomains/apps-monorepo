@@ -5,6 +5,7 @@ import {
   type EditRecordsAction,
   type EditRecordsState,
   editRecordsReducer,
+  getPendingRecordImages,
   initialEditRecordsState,
 } from './useEditRecordsState'
 
@@ -239,4 +240,150 @@ describe('editRecordsReducer', () => {
       expect(result.deletedIds.size).toBe(0)
     })
   })
+})
+
+describe('staged record images', () => {
+  const avatarUpload = {
+    name: 'alice.eth',
+    kind: 'avatar',
+    imageUrl: 'https://euc.li/alice.eth',
+    dataURL: 'image',
+    hash: 'hash',
+  } as const
+  const newAvatar = {
+    type: 'text',
+    key: 'avatar',
+    value: avatarUpload.imageUrl,
+    _uid: 'avatar-draft',
+  } as const
+  const savedAvatar = {
+    type: 'text',
+    key: 'avatar',
+    value: 'ipfs://avatar',
+  } as const
+
+  const stage = (
+    state = initialEditRecordsState,
+    originalRecords: NameRecord[] = [],
+  ) =>
+    editRecordsReducer(state, {
+      type: 'STAGE_IMAGE',
+      upload: avatarUpload,
+      originalRecords,
+      newRecord: newAvatar,
+    })
+
+  it('updates an existing draft for the key and preserves unrelated changes', () => {
+    const draft = {
+      ...newAvatar,
+      _uid: 'existing-draft',
+      value: 'ipfs://draft',
+    }
+    const editedValues = new Map([['text-name', 'Alice']])
+    const state = stage(
+      { ...initialEditRecordsState, newRecords: [draft], editedValues },
+      [savedAvatar],
+    )
+
+    expect(state.newRecords).toEqual([
+      { ...draft, value: avatarUpload.imageUrl },
+    ])
+    expect(state.editedValues).toEqual(editedValues)
+    expect(getPendingRecordImages(state, [savedAvatar])).toEqual([avatarUpload])
+  })
+
+  it('restores a deleted saved record using a single edit', () => {
+    const deleted = editRecordsReducer(initialEditRecordsState, {
+      type: 'DELETE_RECORD',
+      record: savedAvatar,
+    })
+    const staged = stage(deleted, [savedAvatar])
+
+    expect(staged.newRecords).toEqual([])
+    expect(staged.deletedIds.has('text-avatar')).toBe(false)
+    expect(staged.editedValues.get('text-avatar')).toBe(avatarUpload.imageUrl)
+    expect(getPendingRecordImages(staged, [savedAvatar])).toEqual([
+      avatarUpload,
+    ])
+  })
+
+  it.each([
+    { type: 'DISCARD_ALL' },
+    { type: 'DELETE_RECORD', record: { ...newAvatar, isNew: true } },
+    {
+      type: 'UPDATE_RECORD',
+      record: { ...newAvatar, isNew: true },
+      originalRecords: [],
+      newValue: 'https://example.com/replacement.jpg',
+    },
+    {
+      type: 'ADD_RECORD',
+      recordType: 'text',
+      key: 'avatar',
+      value: 'ipfs://override',
+    },
+  ] satisfies readonly EditRecordsAction[])(
+    'omits the staged image after $type supersedes its URL',
+    (action) => {
+      expect(
+        getPendingRecordImages(editRecordsReducer(stage(), action), []),
+      ).toEqual([])
+    },
+  )
+
+  it('does not upload a completed draft again but uploads a newly staged image', () => {
+    const staged = stage()
+    const uploaded = editRecordsReducer(staged, {
+      type: 'MARK_IMAGE_UPLOADED',
+      upload: avatarUpload,
+    })
+
+    expect(getPendingRecordImages(uploaded, [])).toEqual([])
+    expect(uploaded.newRecords).toEqual([newAvatar])
+    expect(getPendingRecordImages(stage(uploaded), [])).toEqual([avatarUpload])
+  })
+
+  it('keeps the prepared upload when an edited URL returns to the hosted value', () => {
+    const record = { ...newAvatar, isNew: true }
+    const changed = editRecordsReducer(stage(), {
+      type: 'UPDATE_RECORD',
+      record,
+      originalRecords: [],
+      newValue: 'https://example.org/photo.jpg',
+    })
+    const restored = editRecordsReducer(changed, {
+      type: 'UPDATE_RECORD',
+      record,
+      originalRecords: [],
+      newValue: avatarUpload.imageUrl,
+    })
+
+    expect(getPendingRecordImages(restored, [])).toEqual([avatarUpload])
+  })
+
+  it.each([
+    {
+      type: 'UPDATE_RECORD',
+      record: savedAvatar,
+      originalRecords: [savedAvatar],
+      newValue: 'ipfs://new',
+    },
+    { type: 'DELETE_RECORD', record: savedAvatar },
+  ] satisfies readonly EditRecordsAction[])(
+    'clears a conflicting $type when keeping the hosted image and preserves the other record',
+    (action) => {
+      const original = {
+        ...initialEditRecordsState,
+        editedValues: new Map([['text-name', 'Alice']]),
+      }
+      const conflict = editRecordsReducer(original, action)
+      const resolved = editRecordsReducer(conflict, {
+        type: 'KEEP_HOSTED_IMAGE',
+        kind: 'avatar',
+      })
+
+      expect(resolved.editedValues).toEqual(original.editedValues)
+      expect(resolved.deletedIds.size).toBe(0)
+    },
+  )
 })
