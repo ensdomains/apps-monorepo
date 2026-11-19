@@ -5,7 +5,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { EXPLORER_URL } from '@/constants'
-import { type ExplorerTarget, getExplorerUrl } from '@/utils/explorerUrl'
+import { getExplorerNameUrl } from '@/utils/explorerUrl'
 import {
   actionLabelClassName,
   actionTooltipClassName,
@@ -16,14 +16,14 @@ import {
 type ProfileExploreActionProps = {
   /** Owners are sent to Explorer to manage the name, so the tooltip says so. */
   readonly isOwner?: boolean
-  readonly target: ExplorerTarget
+  readonly name: string
 }
 
 export const ProfileExploreAction = ({
   isOwner = false,
-  target,
+  name,
 }: ProfileExploreActionProps) => {
-  const href = getExplorerUrl(EXPLORER_URL, target)
+  const href = getExplorerNameUrl(EXPLORER_URL, name)
   if (!href) return null
 
   return (

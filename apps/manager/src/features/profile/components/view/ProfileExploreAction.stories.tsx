@@ -22,7 +22,7 @@ import { ProfileExploreAction } from './ProfileExploreAction'
 const meta = {
   title: 'Features/Profile/Explore action',
   component: ProfileExploreAction,
-  args: { target: { kind: 'name', name: 'nick.eth' } },
+  args: { name: 'nick.eth' },
 } satisfies Meta<typeof ProfileExploreAction>
 
 export default meta
@@ -37,16 +37,6 @@ const padded: Story['decorators'] = [
 ]
 
 export const Name: Story = { decorators: padded }
-
-export const Address: Story = {
-  args: {
-    target: {
-      kind: 'address',
-      address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    },
-  },
-  decorators: padded,
-}
 
 const IconAction = ({
   className,

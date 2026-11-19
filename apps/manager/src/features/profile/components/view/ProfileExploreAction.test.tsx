@@ -3,34 +3,27 @@ import { describe, expect, it } from 'vitest'
 import { render } from '@/utils/test-utils'
 import { ProfileExploreAction } from './ProfileExploreAction'
 
-const FIRST = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
-const SECOND = '0xb8c2C29ee19D8307cb7255e1Cd9CbDE883A267d5'
-
 describe('ProfileExploreAction', () => {
-  it('opens the address in Explorer and follows a change of address', () => {
-    const view = render(
-      <ProfileExploreAction target={{ kind: 'address', address: FIRST }} />,
-    )
+  it('opens the name in Explorer in a new tab and follows a change of name', () => {
+    const view = render(<ProfileExploreAction name="nick.eth" />)
     const link = screen.getByRole('link', { name: 'Explore' })
 
     expect(link).toHaveAttribute(
       'href',
-      `https://sepolia.explorer.ens.domains/addr/${FIRST}`,
+      'https://sepolia.explorer.ens.domains/nick.eth',
     )
     expect(link).toHaveAttribute('target', '_blank')
 
-    view.rerender(
-      <ProfileExploreAction target={{ kind: 'address', address: SECOND }} />,
-    )
+    view.rerender(<ProfileExploreAction name="vitalik.eth" />)
 
     expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute(
       'href',
-      `https://sepolia.explorer.ens.domains/addr/${SECOND}`,
+      'https://sepolia.explorer.ens.domains/vitalik.eth',
     )
   })
 
   it('describes where it goes when focused', async () => {
-    render(<ProfileExploreAction target={{ kind: 'name', name: 'nick.eth' }} />)
+    render(<ProfileExploreAction name="nick.eth" />)
     const link = screen.getByRole('link', { name: 'Explore' })
 
     act(() => link.focus())
@@ -43,12 +36,7 @@ describe('ProfileExploreAction', () => {
   })
 
   it('tells the owner they can manage the name in Explorer', async () => {
-    render(
-      <ProfileExploreAction
-        isOwner
-        target={{ kind: 'name', name: 'nick.eth' }}
-      />,
-    )
+    render(<ProfileExploreAction isOwner name="nick.eth" />)
 
     act(() => screen.getByRole('link', { name: 'Explore' }).focus())
 

@@ -145,10 +145,7 @@ export const DashboardPage = () => {
           className="block rounded-none xs:rounded-xl px-4 py-6 md:px-6 md:py-8"
         >
           <motion.div {...stagger(4, shouldReduceMotion)}>
-            <NamesTable
-              ownerAddress={ownerAddress}
-              primaryLabel={defaultName}
-            />
+            <NamesTable primaryLabel={defaultName} />
           </motion.div>
         </Card>
         <MigrationProgressBanner />
