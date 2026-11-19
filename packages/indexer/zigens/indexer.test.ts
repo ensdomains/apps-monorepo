@@ -321,6 +321,28 @@ describe('createZigensIndexer', () => {
     expect(result._unsafeUnwrapErr().kind).toBe('unavailable')
   })
 
+  it('looks names up within the 32 a zigens filter takes, in the order asked', async () => {
+    const names = Array.from({ length: 70 }, (_, index) => `n${index}.eth`)
+    const { indexer, fetch } = indexerWith({
+      // Served out of order, as a name filter may answer.
+      [`${ZIGENS} DomainsByNames`]: ({ names: batch }) => ({
+        domains: [...(batch as readonly string[])].reverse().map(v2),
+      }),
+      [`${ENSNODE} DomainsByNames`]: () => ({ domains: [] }),
+    })
+
+    const details = (await indexer.getNames({ names }))._unsafeUnwrap()
+
+    expect(details.map((detail) => detail?.name)).toEqual(names)
+    expect(
+      fetch.mock.calls
+        .filter(([url]) => url === ZIGENS)
+        .map(
+          ([, init]) => JSON.parse(String(init?.body)).variables.names.length,
+        ),
+    ).toEqual([32, 32, 6])
+  })
+
   it('reads a name ENSv2 does not hold from ENSv1', async () => {
     const { indexer } = indexerWith({
       [`${ZIGENS} DomainsByNames`]: () => ({ domains: [] }),
