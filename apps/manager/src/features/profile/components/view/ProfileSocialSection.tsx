@@ -7,7 +7,7 @@ import {
   getRecordDef,
   getRecordDisplayValue,
   getRecordHref,
-} from '@/features/profile/data/records'
+} from '@/features/profile/data/records/utils'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import {
   ProfileCard,

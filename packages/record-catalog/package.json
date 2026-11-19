@@ -6,8 +6,10 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
+    "./address": "./src/address.ts",
     "./address-assets/*": "./src/address-assets/*",
     "./address-icons": "./src/address-icons.tsx",
+    "./social-contact-icons": "./src/social-contact-icons.tsx",
     "./text": "./src/text.ts",
     "./text-icons": "./src/text-icons.tsx"
   },

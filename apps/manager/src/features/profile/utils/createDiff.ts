@@ -1,8 +1,8 @@
+import { getAddressMetadata } from '../data/records/addressMetadata'
 import {
-  allSections,
-  getAddressPresentation,
-  getRecordDef,
-} from '../data/records'
+  getProfileDetailRecord,
+  PROFILE_SECTIONS,
+} from '../data/records/textMetadata'
 import type { ProfileRecords } from '../types'
 
 type DiffValue = string | undefined
@@ -46,7 +46,7 @@ const hasValueChanged = (oldVal: unknown, newVal: unknown): boolean =>
   toNormalizedString(oldVal) !== toNormalizedString(newVal)
 
 const getAddressDisplayName = (coinType: number): string =>
-  getAddressPresentation(coinType).label
+  getAddressMetadata(coinType).label
 
 const getBioDisplayName = (key: string): string => {
   const displayNames: Record<string, string> = {
@@ -196,13 +196,13 @@ export const createDiff = (
   )
 
   // Process all sections
-  for (const section of allSections) {
+  for (const section of PROFILE_SECTIONS) {
     addKeyValueDiffs(
       diff,
       recordsToMap(original[section]),
       recordsToMap(current[section]),
       section,
-      (key) => getRecordDef(key)?.name || key,
+      (key) => getProfileDetailRecord(key)?.name || key,
     )
   }
 

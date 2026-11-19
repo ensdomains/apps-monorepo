@@ -39,19 +39,13 @@ import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
 import { bigname } from '@/lib/bigname'
 import { publicClient } from '@/lib/wagmi'
 import {
-  addressRecords,
-  alwaysProbeAddressRecords,
-  forceFetchRecords,
-  staticTextRecords,
-  textRecords,
-} from '../data/records'
-import {
   hasV2NameEntry,
   type NameRegistryLocation,
   readNameResolver,
   resolveNameRegistry,
 } from './changeResolver'
 import { decodeCoinResult } from './decodeCoinRecord'
+import { selectResolverImportRecordKeys } from './profileRecordKeys'
 import type { ProfileRecordsResult } from './profileRecords'
 import type { ServiceRecordSnapshot } from './profileRecordTransactions'
 import {
@@ -578,41 +572,12 @@ export const importResolverRecords = async (
       )
     }
   }
-  const texts = [
-    ...new Set([
-      ...staticTextRecords,
-      ...textRecords.map((record) => record.key),
-      ...forceFetchRecords.always,
-      ...forceFetchRecords.whenNotIndexed,
-      'links',
-      ...keys
-        .filter((key) => key.startsWith('text:'))
-        .map((key) => key.slice(5)),
-    ]),
-  ]
-  const allCoins = [
-    ...new Set([
-      ...alwaysProbeAddressRecords.map(Number),
-      ...addressRecords.map((record) => record.coinType),
-      ...keys
-        .filter((key) => key.startsWith('addr:'))
-        .map((key) => Number(key.slice(5))),
-    ]),
-  ]
-  const coins = allCoins.filter((coin) => {
-    try {
-      getCoderFromCoin(coin)
-      return Number.isSafeInteger(coin)
-    } catch {
-      return false
-    }
-  })
-  if (coins.length !== allCoins.length) {
-    blockedKeys.push(
-      ...allCoins
-        .filter((coin) => !coins.includes(coin))
-        .map((coin) => `addr:${coin}`),
-    )
+  const { texts, coins, unsupportedCoins } = selectResolverImportRecordKeys(
+    keys,
+    envConfig.network,
+  )
+  if (unsupportedCoins.length) {
+    blockedKeys.push(...unsupportedCoins.map((coin) => `addr:${coin}`))
     warnings.push(
       'Some indexed address formats are not supported and could not be imported.',
     )

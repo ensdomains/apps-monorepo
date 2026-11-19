@@ -1,6 +1,6 @@
 import { MSymbol } from '@/components/ui/material-symbol'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
-import { getRecordDef } from '@/features/profile/data/records'
+import { getRecordDef } from '@/features/profile/data/records/utils'
 import { cn } from '@/lib/utils'
 import type { ContactMethod } from './constants'
 import { PrimaryContactButton } from './PrimaryContactButton'

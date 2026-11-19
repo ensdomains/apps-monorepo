@@ -1,16 +1,7 @@
-import type { sections, specialSections, staticTextRecords } from './text'
+import type { PROFILE_SECTIONS, STATIC_TEXT_RECORD_KEYS } from './textMetadata'
 
-// Section types
-export type Section = keyof typeof sections
-export type SpecialSection = (typeof specialSections)[number]
-export type AnySection = Section | SpecialSection
-
-export type SectionData = {
-  label: string
-  hidden?: boolean
-}
-
-export type StaticRecordKey = (typeof staticTextRecords)[number]
+export type ProfileSection = (typeof PROFILE_SECTIONS)[number]
+export type StaticRecordKey = (typeof STATIC_TEXT_RECORD_KEYS)[number]
 
 // Base record type that all records extend
 type BaseRecord = {
@@ -19,25 +10,12 @@ type BaseRecord = {
   placeholder?: string
 }
 
-type BaseAddressRecord = BaseRecord & {
-  coinType: number
-}
-
 // Enhanced text record with validation and UI configuration
 type TextRecordBase = BaseRecord & {
   key: string
-  section: Section | SpecialSection
+  section: ProfileSection
   displayPrefix?: string
   normalize?: (value: string) => string
-  /**
-   * Controls if the record should be fetched from the chain.
-   * - 'always': Always fetch the record value regardless of indexing status.
-   * - 'whenNotIndexed': Include if the name hasn't been indexed (for example off-chain names).
-   * - false: Only include if in the indexed records.
-   *
-   * @default false
-   */
-  forceFetch?: 'always' | 'whenNotIndexed' | false
 }
 
 type TextRecordKind =
@@ -60,8 +38,3 @@ type TextRecordKind =
     }
 
 export type TextRecordDef = TextRecordBase & TextRecordKind
-
-// Enhanced address record
-export type AddressRecordDef = BaseAddressRecord & {
-  notation?: string
-}

@@ -1,10 +1,10 @@
 import { getCoderByCoinType } from '@ensdomains/address-encoder'
 import { getCoderFromCoin } from '@ensdomains/ensjs/utils'
 import { fromThrowable } from 'neverthrow'
-import { getAddressPresentation } from '@/features/profile/data/records'
+import { getAddressMetadata } from '@/features/profile/data/records/addressMetadata'
 
 export const getAddressRecordLabel = (coinType: number): string =>
-  getAddressPresentation(coinType).label
+  getAddressMetadata(coinType).label
 
 // ensjs encodes the write with its own copy, which still codes coins 3.0.0 removed.
 const getAppCoder = fromThrowable((coinType: number) =>

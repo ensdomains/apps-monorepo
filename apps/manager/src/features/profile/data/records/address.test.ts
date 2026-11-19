@@ -1,18 +1,13 @@
 import { addressIconUrls as coinIcons } from '@ens-apps/record-catalog/address-icons'
 import { coinTypeToNameMap } from '@ensdomains/address-encoder'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { getAddressPresentation } from './address'
+import { getProfileAddressOptions } from './addressMetadata'
 
 describe.each(['mainnet', 'sepolia'] as const)(
   'address presentation on %s',
   (network) => {
-    beforeEach(() => {
-      vi.resetModules()
-      vi.doMock('@/config', () => ({ envConfig: { network } }))
-    })
-    afterEach(() => vi.doUnmock('@/config'))
-
     it('uses existing artwork aliases without changing coin types', async () => {
-      const { getAddressPresentation } = await import('./address')
       const { getCoinTypeForReverseRegistrarChainId } = await import(
         '@ens-apps/l2-primary/v1'
       )
@@ -39,8 +34,7 @@ describe.each(['mainnet', 'sepolia'] as const)(
       }
     })
 
-    it('keeps names for known networks without artwork and explains the default', async () => {
-      const { getAddressPresentation } = await import('./address')
+    it('keeps names for known networks without artwork and explains the default', () => {
       expect(getAddressPresentation(2147483817)).toMatchObject({
         label: 'Manta Pacific',
         icon: undefined,
@@ -51,8 +45,7 @@ describe.each(['mainnet', 'sepolia'] as const)(
       })
     })
 
-    it('preserves every encoder name regardless of the deployment network', async () => {
-      const { getAddressPresentation } = await import('./address')
+    it('preserves every encoder name regardless of the deployment network', () => {
       for (const coinType of Object.keys(coinTypeToNameMap).map(Number)) {
         expect(getAddressPresentation(coinType).label).not.toMatch(
           /^(EVM chain|Coin type) /,
@@ -61,9 +54,7 @@ describe.each(['mainnet', 'sepolia'] as const)(
     })
 
     it('recognizes canonical and Sepolia L2s while only offering deployment coin types', async () => {
-      const { addressRecords, getAddressPresentation } = await import(
-        './address'
-      )
+      const addressRecords = getProfileAddressOptions(network)
       const { getCoinTypeForReverseRegistrarChainId } = await import(
         '@ens-apps/l2-primary/v1'
       )
@@ -103,8 +94,7 @@ describe.each(['mainnet', 'sepolia'] as const)(
       }
     })
 
-    it('reuses available legacy artwork without losing legacy record identity', async () => {
-      const { getAddressPresentation } = await import('./address')
+    it('reuses available legacy artwork without losing legacy record identity', () => {
       for (const [coinType, [notation, name]] of Object.entries(
         coinTypeToNameMap,
       )) {
@@ -119,8 +109,7 @@ describe.each(['mainnet', 'sepolia'] as const)(
       }
     })
 
-    it('supplies Explorer Mantle artwork and local brand components for additional coins', async () => {
-      const { getAddressPresentation } = await import('./address')
+    it('supplies Explorer Mantle artwork and local brand components for additional coins', () => {
       expect(coinIcons.mantle).toBeDefined()
       expect(getAddressPresentation(2147488648)).toMatchObject({
         label: 'Mantle',
@@ -131,10 +120,8 @@ describe.each(['mainnet', 'sepolia'] as const)(
       }
     })
 
-    it('keeps the name and artwork of records for coins address-encoder 3.0.0 removed', async () => {
-      const { addressRecords, getAddressPresentation } = await import(
-        './address'
-      )
+    it('keeps the name and artwork of records for coins address-encoder 3.0.0 removed', () => {
+      const addressRecords = getProfileAddressOptions(network)
       for (const [coinType, label, icon] of [
         [714, 'Binance Chain', coinIcons.bnb],
         [194, 'EOS', coinIcons.eos],
@@ -150,16 +137,14 @@ describe.each(['mainnet', 'sepolia'] as const)(
       }
     })
 
-    it('reuses the Lisk artwork for the Lisk EVM chain', async () => {
-      const { getAddressPresentation } = await import('./address')
+    it('reuses the Lisk artwork for the Lisk EVM chain', () => {
       expect(getAddressPresentation(2147484783)).toMatchObject({
         label: 'Lisk',
         icon: coinIcons.lsk,
       })
     })
 
-    it('labels unknown coin types and only interprets valid ENSIP-11 chain types', async () => {
-      const { getAddressPresentation } = await import('./address')
+    it('labels unknown coin types and only interprets valid ENSIP-11 chain types', () => {
       expect(getAddressPresentation(0x80000000 + 1234567).label).toBe(
         'EVM chain 1234567',
       )

@@ -65,8 +65,8 @@ vi.mock('./changeResolver', () => {
     hasV2NameEntry: mocks.hasV2NameEntry,
   }
 })
-vi.mock('../data/records', () => ({
-  mainProfileRecords: {
+vi.mock('../data/records/profileReadPolicy', () => ({
+  MAIN_PROFILE_RECORD_KEYS: {
     texts: ['avatar', 'theme', 'links'],
     coins: [60, 121, 501],
   },

@@ -1,6 +1,9 @@
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
-import { staticTextRecords, textRecords } from '@/features/profile/data/records'
+import {
+  PROFILE_DETAIL_RECORDS,
+  STATIC_TEXT_RECORD_KEYS,
+} from '@/features/profile/data/records/textMetadata'
 import type { LinkItem } from '@/features/profile/types'
 import { getUrlInputCheckValue } from '@/features/profile/utils/urlInputPrefix'
 import {
@@ -17,8 +20,8 @@ export interface LinkValidationIssue {
 }
 
 const reservedTextRecordKeys = new Set<string>([
-  ...staticTextRecords,
-  ...textRecords.map((record) => record.key),
+  ...STATIC_TEXT_RECORD_KEYS,
+  ...PROFILE_DETAIL_RECORDS.map(({ key }) => key),
 ])
 
 export const isReservedTextRecordKey = (name: string) =>

@@ -1,73 +1,8 @@
-import { PROFILE_TEXT_RECORDS } from '@ens-apps/record-catalog/text'
-import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { safeRecordHref } from '../../utils/safeUrl'
-import { addressRecords } from './address'
-import {
-  sections,
-  specialSections,
-  staticTextRecords,
-  textRecords,
-} from './text'
-import type { AnySection, TextRecordDef } from './types'
+import { textRecords } from './text'
+import type { TextRecordDef } from './types'
 
-export const recordIndex = Object.fromEntries(
-  textRecords.map((r) => [r.key, r]),
-) as {
-  readonly [K in (typeof textRecords)[number]['key']]: Extract<
-    (typeof textRecords)[number],
-    { key: K }
-  >
-}
-
-export const addressRecordIndex = Object.fromEntries(
-  addressRecords.map((r) => [r.coinType, r]),
-) as {
-  readonly [K in (typeof addressRecords)[number]['coinType']]: Extract<
-    (typeof addressRecords)[number],
-    { coinType: K }
-  >
-}
-
-export const sectionsList = Object.keys(sections) as (keyof typeof sections)[]
-export const allSections = [...sectionsList, ...specialSections]
-
-export const forceFetchRecords = {
-  always: [
-    ...staticTextRecords,
-    ...textRecords.filter((r) => r.forceFetch === 'always').map((r) => r.key),
-  ],
-  whenNotIndexed: textRecords
-    .filter((r) => r.forceFetch === 'whenNotIndexed')
-    .map((r) => r.key),
-}
-
-export const alwaysProbeAddressRecords = ['60']
-
-// Read on every profile load; any other key is read only when bigname indexes it.
-// ensjs sends a CCIP-Read name's reads in one gateway GET, which Coinbase rejects (414) at 60.
-export const mainProfileRecords = {
-  texts: [
-    ...new Set([
-      ...forceFetchRecords.always,
-      ...forceFetchRecords.whenNotIndexed,
-      PROFILE_TEXT_RECORDS.location.key,
-      PROFILE_TEXT_RECORDS.timezone.key,
-      // Newly saved links must be readable before the indexer discovers the key.
-      PROFILE_TEXT_RECORDS.links.key,
-    ]),
-  ],
-  coins: [
-    coinNameToTypeMap.eth,
-    coinNameToTypeMap.default,
-    coinNameToTypeMap.btc,
-    coinNameToTypeMap.sol,
-    coinNameToTypeMap.op,
-    coinNameToTypeMap.arb1,
-    coinNameToTypeMap.base,
-    coinNameToTypeMap.linea,
-    coinNameToTypeMap.scr,
-  ],
-}
+const RECORD_INDEX = new Map(textRecords.map((record) => [record.key, record]))
 
 /**
  * Generates a URL for a given text record and value, if the record supports linking.
@@ -106,22 +41,5 @@ export const getRecordDisplayValue = (
   return displayValue
 }
 
-// Helper accessors
-export const getRecordDef = (
-  key: string,
-): (typeof recordIndex)[keyof typeof recordIndex] | undefined =>
-  Object.hasOwn(recordIndex, key)
-    ? recordIndex[key as keyof typeof recordIndex]
-    : undefined
-export const getAddressRecordDef = (
-  coinType: number,
-): (typeof addressRecordIndex)[number] | undefined =>
-  addressRecordIndex[coinType]
-
-export const getRecordsForSection = (section: AnySection): typeof textRecords =>
-  textRecords.filter((record) => record.section === section)
-
-export const getAvailableAddressRecords = (
-  usedCoinTypes: number[],
-): typeof addressRecords =>
-  addressRecords.filter((record) => !usedCoinTypes.includes(record.coinType))
+export const getRecordDef = (key: string): TextRecordDef | undefined =>
+  RECORD_INDEX.get(key)

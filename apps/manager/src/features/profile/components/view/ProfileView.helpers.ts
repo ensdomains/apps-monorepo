@@ -1,11 +1,11 @@
 import { isEvmCoinType } from '@ensdomains/address-encoder/utils'
 import { mainnet } from 'viem/chains'
+import { getAddressPresentation } from '@/features/profile/data/records/address'
 import {
-  getAddressPresentation,
   getRecordDef,
   getRecordDisplayValue,
   getRecordHref,
-} from '@/features/profile/data/records'
+} from '@/features/profile/data/records/utils'
 import type {
   AddressRecordValue,
   LinkItem,

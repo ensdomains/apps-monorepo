@@ -2,12 +2,14 @@ import {
   getCoinTypeForReverseRegistrarChainId,
   type ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
+import type { AddressRecordOption } from '@ens-apps/record-catalog/address'
 import { envConfig } from '@/config'
 import {
-  addressRecords,
-  getAddressPresentation,
-} from '@/features/profile/data/records'
-import type { AddressRecordDef } from '@/features/profile/data/records/types'
+  getAddressMetadata,
+  getProfileAddressOptions,
+} from '@/features/profile/data/records/addressMetadata'
+
+const ADDRESS_OPTIONS = getProfileAddressOptions(envConfig.network)
 
 export interface AddressOption {
   readonly coinType: number
@@ -15,8 +17,8 @@ export interface AddressOption {
 }
 
 export interface PickerRecordGroups {
-  readonly otherRecords: readonly AddressRecordDef[]
-  readonly popularRecords: readonly AddressRecordDef[]
+  readonly otherRecords: readonly AddressRecordOption[]
+  readonly popularRecords: readonly AddressRecordOption[]
 }
 
 export type PickerMode = 'evm' | 'other'
@@ -31,7 +33,7 @@ const l2CoinType = (chainId: ReverseRegistrarChainId) =>
   getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network)
 
 const toAddressOption = (coinType: number): AddressOption => {
-  const { label } = getAddressPresentation(coinType)
+  const { label } = getAddressMetadata(coinType)
   return { coinType, label }
 }
 
@@ -70,8 +72,8 @@ const getPickerRecords = ({
   mode,
   normalizedSearchValue,
   unavailableCoinTypes,
-}: GetPickerRecordsParams): readonly AddressRecordDef[] => {
-  return addressRecords.filter((record) => {
+}: GetPickerRecordsParams): readonly AddressRecordOption[] => {
+  return ADDRESS_OPTIONS.filter((record) => {
     if (unavailableCoinTypes.has(record.coinType)) return false
     if (mode === 'evm' && !isEvmCoinType(record.coinType)) return false
     if (mode === 'other' && isEvmCoinType(record.coinType)) return false
@@ -100,7 +102,7 @@ export const getPickerRecordGroups = (
     .map((coinType) =>
       allAvailableRecords.find((record) => record.coinType === coinType),
     )
-    .filter((record): record is AddressRecordDef => Boolean(record))
+    .filter((record): record is AddressRecordOption => Boolean(record))
   const popularRecords = [
     ...preferredPopularRecords,
     ...allAvailableRecords.filter(

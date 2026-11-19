@@ -25,16 +25,16 @@ describe('debug profile selection', () => {
   it('keeps every supported text key reachable in the records fixture', async () => {
     vi.stubEnv('DEV', true)
     const { getDebugProfileRecords } = await import('../features/profile/MOCK')
-    const { staticTextRecords, textRecords } = await import(
-      '../features/profile/data/records'
+    const { PROFILE_DETAIL_RECORDS, STATIC_TEXT_RECORD_KEYS } = await import(
+      '../features/profile/data/records/textMetadata'
     )
     const keys = getDebugProfileRecords('debug-records.example')?.texts.map(
       ({ key }) => key,
     )
     expect(keys).toEqual(
       expect.arrayContaining([
-        ...staticTextRecords,
-        ...textRecords.map(({ key }) => key),
+        ...STATIC_TEXT_RECORD_KEYS,
+        ...PROFILE_DETAIL_RECORDS.map(({ key }) => key),
         'links',
       ]),
     )

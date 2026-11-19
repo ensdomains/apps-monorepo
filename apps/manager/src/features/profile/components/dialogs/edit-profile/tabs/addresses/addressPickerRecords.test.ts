@@ -4,10 +4,7 @@ import {
 } from '@ens-apps/l2-primary/v1'
 import { describe, expect, it } from 'vitest'
 import { getMainReceivingAddress } from '@/features/profile/components/view/ProfileView.helpers'
-import {
-  getAddressPresentation,
-  getAddressRecordDef,
-} from '@/features/profile/data/records'
+import { getAddressPresentation } from '@/features/profile/data/records/address'
 import { getAddressOption } from './AddressesTab.helpers'
 import {
   evmChainOptions,
@@ -62,14 +59,21 @@ describe('L2 address records key on this deployment’s coin type', () => {
   )
 
   it.each(L2_REVERSE_REGISTRAR_CHAIN_IDS)(
-    'keeps the record definition (label, icon) for chain %i',
+    'finds the record by its displayed label for chain %i',
     (chainId) => {
-      const def = getAddressRecordDef(
-        getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
+      const coinType = getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia')
+      const { label } = getAddressPresentation(coinType)
+      const { otherRecords, popularRecords } = getPickerRecordGroups({
+        mode: 'evm',
+        normalizedSearchValue: label.toLowerCase(),
+        unavailableCoinTypes: new Set(),
+      })
+      const def = [...otherRecords, ...popularRecords].find(
+        (record) => record.coinType === coinType,
       )
 
       expect(def).toBeDefined()
-      expect(def?.name).toBeTruthy()
+      expect(def?.name).toBe(label)
     },
   )
 })

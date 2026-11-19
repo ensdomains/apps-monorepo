@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
-import { getRecordDef } from '@/features/profile/data/records'
+import { getRecordDef } from '@/features/profile/data/records/utils'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'

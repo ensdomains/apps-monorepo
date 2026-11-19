@@ -1,11 +1,11 @@
 import * as v from 'valibot'
 import { primaryContactsRecordKey } from '../components/dialogs/edit-profile/tabs/contact/constants'
-import { allSections, getRecordDef, staticTextRecords } from '../data/records'
-import type {
-  Section,
-  SpecialSection,
-  StaticRecordKey,
-} from '../data/records/types'
+import {
+  getProfileDetailRecord,
+  PROFILE_SECTIONS,
+  STATIC_TEXT_RECORD_KEYS,
+} from '../data/records/textMetadata'
+import type { ProfileSection, StaticRecordKey } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { LinkItem, ProfileRecords } from '../types'
 import {
@@ -25,12 +25,12 @@ const emptyProfileRecords = (): ProfileRecords => ({
   abi: undefined,
   unknown: [],
   agentRegistrations: [],
-  ...allSections.reduce(
+  ...PROFILE_SECTIONS.reduce(
     (acc, key) => {
       acc[key] = []
       return acc
     },
-    {} as Pick<ProfileRecords, Section | SpecialSection>,
+    {} as Pick<ProfileRecords, ProfileSection>,
   ),
 })
 
@@ -142,16 +142,16 @@ export const transformProfileRecords = (
       }
     }
 
-    const record = getRecordDef(key)
+    const record = getProfileDetailRecord(key)
 
     if (record) {
       return {
         ...acc,
-        [record.section]: [...acc[record.section], { key, value }],
+        [record.role]: [...acc[record.role], { key, value }],
       }
     }
 
-    if (staticTextRecords.includes(key as StaticRecordKey)) {
+    if (STATIC_TEXT_RECORD_KEYS.includes(key as StaticRecordKey)) {
       return {
         ...acc,
         base: { ...acc.base, [key]: value },
@@ -191,7 +191,7 @@ export const transformProfileRecords = (
 export const transformToServiceFormat = (
   records: ProfileRecords,
 ): ServiceProfileRecords => {
-  const sectionTexts = allSections.flatMap((section) =>
+  const sectionTexts = PROFILE_SECTIONS.flatMap((section) =>
     records[section].map(({ key, value }) => ({ key, value })),
   )
 
@@ -257,7 +257,7 @@ export const debugProfileRecords = (
 
   console.group('Profile Records Debug')
   console.log('Base records:', records.base)
-  for (const section of allSections) {
+  for (const section of PROFILE_SECTIONS) {
     console.log(`${section} records:`, records[section])
   }
   console.log('Address records:', records.addresses)

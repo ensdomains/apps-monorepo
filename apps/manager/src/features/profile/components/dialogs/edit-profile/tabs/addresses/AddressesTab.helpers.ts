@@ -1,5 +1,5 @@
 import { type Address, isAddress, isAddressEqual } from 'viem'
-import { getAddressPresentation } from '@/features/profile/data/records'
+import { getAddressMetadata } from '@/features/profile/data/records/addressMetadata'
 import type { AddressRecordValue } from '@/features/profile/types'
 import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
 import {
@@ -16,7 +16,7 @@ export const getAddressValue = (
 ) => addresses.find((address) => address.coinType === coinType)?.value ?? ''
 
 export const getAddressOption = (coinType: number): AddressOption => {
-  const { label } = getAddressPresentation(coinType)
+  const { label } = getAddressMetadata(coinType)
   return { coinType, label }
 }
 

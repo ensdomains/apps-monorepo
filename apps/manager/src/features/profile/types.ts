@@ -1,7 +1,6 @@
 import type { Address, Prettify } from 'viem'
 import type {
-  Section,
-  SpecialSection,
+  ProfileSection,
   StaticRecordKey,
   TextRecordDef,
 } from './data/records/types'
@@ -27,7 +26,7 @@ export type LinkItem = {
 
 export type ProfileRecords = Prettify<
   {
-    [key in Section | SpecialSection]: TextRecordValue[]
+    [key in ProfileSection]: TextRecordValue[]
   } & {
     base: {
       [key in StaticRecordKey]?: string
