@@ -51,6 +51,7 @@ export type SaveRecordsParameters = SaveRecordsTransactionParameters & {
   publicClient: PublicClient
   signer: Signer
   id: string
+  readonly assertCurrent?: () => void
 }
 
 export interface SaveRecordsResult {
@@ -169,6 +170,7 @@ export async function saveRecords(
 
   const intent = await prepareSaveRecordsTransaction(params)
 
+  params.assertCurrent?.()
   const txId = transactionManager.startTransaction(intent, signer, {
     id,
     description: `Update records for ${name}`,

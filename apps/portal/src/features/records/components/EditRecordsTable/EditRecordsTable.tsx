@@ -7,7 +7,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Check, Trash2, X } from 'lucide-react'
+import { Check, Trash2, Upload, X } from 'lucide-react'
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { SortButton } from '@/components/table/SortButton'
@@ -50,6 +50,9 @@ type EditRecordsTableProps = {
   onDeleteRecord?: (record: EditableRecord) => void
   onUpdateRecord?: (record: EditableRecord, newValue: string) => void
   validationErrors?: ValidationError[]
+  /** Opens the image upload flow for a row that `canUploadImage` accepts. */
+  onUploadImage?: (record: EditableRecord) => void
+  canUploadImage?: (record: EditableRecord) => boolean
 }
 
 /** Gets a display name for a record (used in delete confirmation) */
@@ -68,10 +71,7 @@ function getRecordDisplayName(record: EditableRecord): string {
 const CELL_PADDING =
   'px-4 sm:px-6 first:pl-4 sm:first:pl-6 last:pr-4 sm:last:pr-6'
 
-/**
- * Editable input cell that manages its own state to prevent losing focus.
- * Uses uncontrolled input with ref to preserve cursor position during re-renders.
- */
+// Keep the input mounted while the value changes through typing or an upload.
 const EditableValueCell = memo(function EditableValueCell({
   record,
   error,
@@ -81,13 +81,11 @@ const EditableValueCell = memo(function EditableValueCell({
   error: string | undefined
   onUpdate?: (record: EditableRecord, newValue: string) => void
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-
   return (
     <div className="flex flex-col gap-1">
       <Input
-        ref={inputRef}
-        defaultValue={record.value}
+        value={record.value}
+        readOnly={!onUpdate}
         className={`font-mono bg-muted ${
           error
             ? 'border-destructive focus-visible:ring-destructive/50'
@@ -109,6 +107,8 @@ export const EditRecordsTable = ({
   onDeleteRecord,
   onUpdateRecord,
   validationErrors = [],
+  onUploadImage,
+  canUploadImage,
 }: EditRecordsTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -242,6 +242,20 @@ export const EditRecordsTable = ({
         header: () => null,
         cell: ({ row }) => (
           <div className="flex items-center gap-1 justify-end">
+            {onUploadImage &&
+              canEditRecord(editableTypes, row.original) &&
+              canUploadImage?.(row.original) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 px-2"
+                  aria-label={`Upload ${getRecordDisplayName(row.original)} image`}
+                  onClick={() => onUploadImage(row.original)}
+                >
+                  <Upload aria-hidden="true" className="size-4" />
+                  <span className="hidden sm:inline">Upload</span>
+                </Button>
+              )}
             <CopyButton value={row.original.value} />
             {canEditRecord(editableTypes, row.original) && (
               <Button
@@ -258,7 +272,14 @@ export const EditRecordsTable = ({
         ),
       },
     ],
-    [onUpdateRecord, handleDeleteClick, getError, editableTypes],
+    [
+      onUpdateRecord,
+      handleDeleteClick,
+      getError,
+      editableTypes,
+      onUploadImage,
+      canUploadImage,
+    ],
   )
 
   const table = useReactTable({
