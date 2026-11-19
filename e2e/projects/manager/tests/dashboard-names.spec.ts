@@ -105,10 +105,12 @@ test.describe('Names read from bigname', () => {
       .getByRole('button', { name: `Go to page ${DASHBOARD_LAST_PAGE}` })
       .click()
     await expectRows(page, prefix, names.slice(50))
+    await expect(page).toHaveURL(/\/dashboard\?page=3$/)
 
     await page.getByRole('button', { name: /^Sort by/ }).click()
     await page.getByRole('menuitemradio', { name: 'Expiry Date' }).click()
     await expectRows(page, prefix, [...names].reverse().slice(0, 25))
+    await expect(page).toHaveURL(/\/dashboard$/)
   })
 
   test('the version chips list only ENSv1 or only ENSv2 names', {

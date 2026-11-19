@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { getPageWindow } from './pagination'
+import { getDashboardSearch, getPageWindow } from './pagination'
+
+describe('getDashboardSearch', () => {
+  it.each([undefined, 0, 1, -1, 2.5, 'invalid', [2, 3], Infinity])(
+    'uses the first page for %j',
+    (page) => expect(getDashboardSearch({ page }).page).toBeUndefined(),
+  )
+
+  it('keeps a valid later page', () => {
+    expect(getDashboardSearch({ page: 3 }).page).toBe(3)
+  })
+})
 
 describe('getPageWindow', () => {
   it('returns every page when total is small', () => {

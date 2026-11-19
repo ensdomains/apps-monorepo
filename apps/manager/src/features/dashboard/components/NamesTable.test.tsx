@@ -91,6 +91,7 @@ vi.mock('@/features/profile/service/profileAvatarRecords', () => ({
   }),
 }))
 vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => vi.fn(),
   Link: ({
     children,
     to,
