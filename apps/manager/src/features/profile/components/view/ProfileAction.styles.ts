@@ -18,6 +18,7 @@ export const favoriteActionClassName =
 export const favoritedActionClassName =
   'bg-ens-garnet-100 text-ens-garnet-core hover:bg-ens-garnet-100 hover:text-ens-garnet-core'
 
+// Text secondary action (Renew, Explore) from the same design; its 1px tracking has no token
 export const renewActionClassName =
   'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-0 bg-ens-quartz-75 p-0.5 font-medium font-mono text-ens-quartz-500 text-sm uppercase leading-none tracking-[1px] transition-colors hover:bg-ens-quartz-200 hover:text-ens-quartz-900 disabled:cursor-wait disabled:opacity-60'
 
@@ -38,9 +39,9 @@ export const primaryActionClassName =
 export const tertiaryActionClassName =
   'bg-white text-ens-quartz-900 hover:bg-ens-quartz-50 hover:text-ens-quartz-900'
 
-// The design's action tooltips: smaller and darker than the shared Tooltip
+// The design's action tooltips: smaller and darker than the shared Tooltip; 10px text has no token
 export const actionTooltipClassName =
-  'max-w-36 rounded-sm bg-ens-quartz-900 px-2 py-[5px] text-center text-[10px] leading-[14px]'
+  'max-w-36 rounded-sm bg-ens-quartz-900 px-2 py-1.25 text-center text-[10px] leading-3.5'
 
 // The floating bar's Edit button, sized and set like the Renew action beside it
 export const barEditActionClassName =
