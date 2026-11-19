@@ -1,6 +1,8 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { GetSupportedInterfacesErrorType } from '@ensdomains/ensjs/public'
+import type { GetNameRegistriesErrorType } from '@ensdomains/ensjs/public/v2'
 import {
   decodeResolverRoleBitmap,
   type ResolverRole,
@@ -11,10 +13,14 @@ import { fromPromise, ok } from 'neverthrow'
 import {
   type Address,
   BaseError,
+  type CallErrorType,
+  type EncodeFunctionDataErrorType,
   ExecutionRevertedError,
+  type GetCodeErrorType,
   isAddressEqual,
   namehash,
   type PublicClient,
+  type ReadContractErrorType,
   zeroAddress,
 } from 'viem'
 import { envConfig } from '@/config'
@@ -42,8 +48,17 @@ export type RecordType = 'text' | 'address' | 'contentHash' | 'abi'
 
 export type EditableRecordTypes = Readonly<Record<RecordType, boolean>>
 
-class ResolverWriteAccessError extends TaggedError('ResolverWriteAccessError')<{
-  cause: unknown
+class ResolverLookupError extends TaggedError('ResolverLookupError')<{
+  cause: GetNameRegistriesErrorType | ReadContractErrorType
+}> {}
+
+class ResolverWriteProbeError extends TaggedError('ResolverWriteProbeError')<{
+  cause:
+    | GetCodeErrorType
+    | GetSupportedInterfacesErrorType
+    | EncodeFunctionDataErrorType
+    | CallErrorType
+    | ReadContractErrorType
 }> {}
 
 type RecordWriteProbe = {
@@ -185,7 +200,10 @@ const findRecordsResolver = ResultFn(async function* (name: string) {
         throw error
       }
     })(),
-    (cause) => new ResolverWriteAccessError({ cause }),
+    (cause) =>
+      new ResolverLookupError({
+        cause: cause as GetNameRegistriesErrorType | ReadContractErrorType,
+      }),
   )
   if (v2Resolver.hasV2Entry) return ok(undefined)
   const { resolverAddress: reachedResolver } = v2Resolver.resolver
@@ -199,7 +217,8 @@ const findRecordsResolver = ResultFn(async function* (name: string) {
     ? reachedResolver
     : ((yield* fromPromise(
         readV1RegistryResolver(publicClient as PublicClient, name),
-        (cause) => new ResolverWriteAccessError({ cause }),
+        (cause) =>
+          new ResolverLookupError({ cause: cause as ReadContractErrorType }),
       )) ?? reachedResolver)
   return ok(resolverAddress)
 })
@@ -220,7 +239,10 @@ export const getProfileRecordAccess = ResultFn(async function* (
 
   const editableTypes = yield* fromPromise(
     getEditableRecordTypes(resolverAddress, name, ownerAddress),
-    (cause) => new ResolverWriteAccessError({ cause }),
+    (cause) =>
+      new ResolverWriteProbeError({
+        cause: cause as ResolverWriteProbeError['cause'],
+      }),
   )
 
   return ok({
@@ -253,7 +275,10 @@ export const getResolverWriteState = ResultFn(async function* (
 
   const canWrite = yield* fromPromise(
     canWriteEthAddressRecord(resolverAddress, name, ownerAddress),
-    (e) => new ResolverWriteAccessError({ cause: e }),
+    (cause) =>
+      new ResolverWriteProbeError({
+        cause: cause as ResolverWriteProbeError['cause'],
+      }),
   )
 
   return ok({ resolverAddress, canWrite })
