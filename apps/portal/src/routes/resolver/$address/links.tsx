@@ -15,7 +15,7 @@ import { ArrowRightIcon, PlusIcon, Search, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
-import { CopyButton } from '@/components/CopyButton'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -36,7 +36,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { ResolverCollectionNotice } from '@/features/resolver/components/ResolverCollectionNotice'
 import { prepareUnlinkTransaction } from '@/features/resolver/helpers/linkRecords'
@@ -65,14 +64,17 @@ export const Route = createFileRoute('/resolver/$address/links')({
   },
 })
 
-const NameProfileLink = ({ name }: { readonly name: string }) => (
-  <Link
-    to="/$name"
-    params={{ name }}
-    className="text-entity-name truncate min-w-0 rounded bg-accent-fill dark:bg-entity-bg text-accent-text px-1 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+const NameBadge = ({ name }: { readonly name: string }) => (
+  <EntityBadge
+    variant="name"
+    name={name}
+    showAvatar
+    compact
+    format="truncate"
+    containerClassName="max-w-72"
   >
     {name}
-  </Link>
+  </EntityBadge>
 )
 
 const baseColumns: ColumnDef<ResolverLink>[] = [
@@ -80,18 +82,7 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
     id: 'name',
     accessorKey: 'name',
     header: 'Name',
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <NameAvatar
-          name={row.original.name}
-          width="28px"
-          height="28px"
-          rounded="rounded-sm"
-        />
-        <NameProfileLink name={row.original.name} />
-        <CopyButton value={row.original.name} />
-      </div>
-    ),
+    cell: ({ row }) => <NameBadge name={row.original.name} />,
   },
   {
     id: 'arrow',
@@ -106,18 +97,9 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
     id: 'sharedWith',
     header: 'Shares its record with',
     cell: ({ row }) => (
-      <div className="flex flex-col gap-1 min-w-0">
+      <div className="flex flex-col gap-2 py-3 min-w-0">
         {row.original.sharedWith.map((other) => (
-          <div key={other} className="flex items-center gap-3 min-w-0">
-            <NameAvatar
-              name={other}
-              width="28px"
-              height="28px"
-              rounded="rounded-sm"
-            />
-            <NameProfileLink name={other} />
-            <CopyButton value={other} />
-          </div>
+          <NameBadge key={other} name={other} />
         ))}
       </div>
     ),
@@ -342,16 +324,7 @@ function RouteComponent() {
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <NameAvatar
-                        name={row.original.name}
-                        width="28px"
-                        height="28px"
-                        rounded="rounded-sm"
-                      />
-                      <NameProfileLink name={row.original.name} />
-                      <CopyButton value={row.original.name} />
-                    </div>
+                    <NameBadge name={row.original.name} />
                     {canLink && (
                       <Button
                         variant="ghost"
@@ -371,16 +344,7 @@ function RouteComponent() {
                   {row.original.sharedWith.map((other) => (
                     <div key={other} className="flex items-center gap-2 pl-2">
                       <ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />
-                      <div className="flex items-center gap-3 min-w-0">
-                        <NameAvatar
-                          name={other}
-                          width="24px"
-                          height="24px"
-                          rounded="rounded-sm"
-                        />
-                        <NameProfileLink name={other} />
-                        <CopyButton value={other} />
-                      </div>
+                      <NameBadge name={other} />
                     </div>
                   ))}
                 </div>
