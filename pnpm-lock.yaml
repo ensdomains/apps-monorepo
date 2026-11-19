@@ -313,6 +313,9 @@ importers:
       '@ens-apps/og':
         specifier: workspace:*
         version: link:../../packages/og
+      '@ens-apps/record-catalog':
+        specifier: workspace:*
+        version: link:../../packages/record-catalog
       '@ens-apps/shared-schema':
         specifier: workspace:*
         version: link:../../packages/shared-schema
@@ -632,6 +635,9 @@ importers:
       '@ens-apps/og':
         specifier: workspace:*
         version: link:../../packages/og
+      '@ens-apps/record-catalog':
+        specifier: workspace:*
+        version: link:../../packages/record-catalog
       '@ens-apps/smart-account':
         specifier: workspace:*
         version: link:../../packages/smart-account
@@ -1125,6 +1131,22 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.12(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(esbuild@0.28.1)(happy-dom@20.14.6)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+
+  packages/record-catalog:
+    dependencies:
+      '@ens-apps/l2-primary':
+        specifier: workspace:*
+        version: link:../l2-primary
+      '@ensdomains/address-encoder':
+        specifier: 'catalog:'
+        version: 3.0.0
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(esbuild@0.28.2)(happy-dom@20.14.6)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
   packages/shared-schema:
     dependencies:

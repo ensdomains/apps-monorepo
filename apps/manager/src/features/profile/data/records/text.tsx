@@ -1,3 +1,4 @@
+import { PROFILE_TEXT_RECORDS } from '@ens-apps/record-catalog'
 import {
   SiDiscord,
   SiFarcaster,
@@ -29,23 +30,22 @@ export const sections = {
 } as const satisfies Record<string, SectionData>
 
 export const staticTextRecords = [
-  'name',
-  'avatar',
-  'header',
-  'description',
-  'url',
-  'theme',
-  'language',
-  'primary-contact',
-  'domains.ens.primary-contacts',
+  PROFILE_TEXT_RECORDS.name.key,
+  PROFILE_TEXT_RECORDS.avatar.key,
+  PROFILE_TEXT_RECORDS.header.key,
+  PROFILE_TEXT_RECORDS.description.key,
+  PROFILE_TEXT_RECORDS.url.key,
+  PROFILE_TEXT_RECORDS.theme.key,
+  PROFILE_TEXT_RECORDS.language.key,
+  PROFILE_TEXT_RECORDS.primaryContact.key,
+  PROFILE_TEXT_RECORDS.primaryContacts.key,
 ] as const
 
 export const textRecords: TextRecordDef[] = [
   // Social
   {
-    key: 'com.twitter',
+    ...PROFILE_TEXT_RECORDS.twitter,
     section: 'social',
-    name: 'X (Twitter)',
     displayPrefix: '@',
     href: 'https://x.com/',
     kind: 'link',
@@ -56,9 +56,8 @@ export const textRecords: TextRecordDef[] = [
     icon: SiX,
   },
   {
-    key: 'org.telegram',
+    ...PROFILE_TEXT_RECORDS.telegram,
     section: 'social',
-    name: 'Telegram',
     displayPrefix: '@',
     href: 'https://t.me/',
     kind: 'link',
@@ -69,9 +68,8 @@ export const textRecords: TextRecordDef[] = [
     icon: SiTelegram,
   },
   {
-    key: 'xyz.farcaster',
+    ...PROFILE_TEXT_RECORDS.farcaster,
     section: 'social',
-    name: 'Farcaster',
     displayPrefix: '@',
     href: 'https://farcaster.xyz/',
     kind: 'link',
@@ -82,9 +80,8 @@ export const textRecords: TextRecordDef[] = [
     icon: SiFarcaster,
   },
   {
-    key: 'com.instagram',
+    ...PROFILE_TEXT_RECORDS.instagram,
     section: 'social',
-    name: 'Instagram',
     displayPrefix: '@',
     kind: 'link',
     href: 'https://instagram.com/',
@@ -94,17 +91,15 @@ export const textRecords: TextRecordDef[] = [
     icon: SiInstagram,
   },
   {
-    key: 'com.discord',
+    ...PROFILE_TEXT_RECORDS.discord,
     section: 'social',
-    name: 'Discord',
     kind: 'copy',
     forceFetch: 'always',
     icon: SiDiscord,
   },
   {
-    key: 'com.github',
+    ...PROFILE_TEXT_RECORDS.github,
     section: 'social',
-    name: 'GitHub',
     kind: 'link',
     href: 'https://github.com/',
     forceFetch: 'always',
@@ -114,9 +109,8 @@ export const textRecords: TextRecordDef[] = [
     icon: SiGithub,
   },
   {
-    key: 'com.linkedin',
+    ...PROFILE_TEXT_RECORDS.linkedin,
     section: 'social',
-    name: 'LinkedIn',
     href: 'https://www.linkedin.com/in/',
     kind: 'link',
     normalize: createSocialProfileValueNormalizer({
@@ -126,17 +120,15 @@ export const textRecords: TextRecordDef[] = [
     icon: LinkedInIcon,
   },
   {
-    key: 'com.youtube',
+    ...PROFILE_TEXT_RECORDS.youtube,
     section: 'social',
-    name: 'YouTube',
     kind: 'link',
     href: 'https://youtube.com/',
     icon: SiYoutube,
   },
   {
-    key: 'com.reddit',
+    ...PROFILE_TEXT_RECORDS.reddit,
     section: 'social',
-    name: 'Reddit',
     displayPrefix: 'u/',
     kind: 'link',
     href: 'https://reddit.com/user/',
@@ -147,9 +139,8 @@ export const textRecords: TextRecordDef[] = [
     icon: SiReddit,
   },
   {
-    key: 'com.tiktok',
+    ...PROFILE_TEXT_RECORDS.tiktok,
     section: 'social',
-    name: 'TikTok',
     displayPrefix: '@',
     kind: 'link',
     href: 'https://www.tiktok.com/@',
@@ -159,9 +150,8 @@ export const textRecords: TextRecordDef[] = [
     icon: SiTiktok,
   },
   {
-    key: 'com.twitch',
+    ...PROFILE_TEXT_RECORDS.twitch,
     section: 'social',
-    name: 'Twitch',
     kind: 'link',
     href: 'https://twitch.tv/',
     normalize: createSocialProfileValueNormalizer({
@@ -170,50 +160,44 @@ export const textRecords: TextRecordDef[] = [
     icon: SiTwitch,
   },
   {
-    key: 'com.mastodon',
+    ...PROFILE_TEXT_RECORDS.mastodon,
     section: 'social',
-    name: 'Mastodon',
     kind: 'copy',
     icon: SiMastodon,
   },
 
   // Contact
   {
-    key: 'email',
+    ...PROFILE_TEXT_RECORDS.email,
     section: 'contact',
-    name: 'Email Address',
     kind: 'link',
     href: 'mailto:',
     forceFetch: 'always',
     icon: MailIcon,
   },
   {
-    key: 'location',
+    ...PROFILE_TEXT_RECORDS.location,
     section: 'contact',
-    name: 'Location',
     kind: 'copy',
     icon: MapPinIcon,
   },
   {
-    key: 'phone',
+    ...PROFILE_TEXT_RECORDS.phone,
     section: 'contact',
-    name: 'Phone Number',
     kind: 'link',
     href: 'tel:',
     forceFetch: 'always',
     icon: PhoneIcon,
   },
   {
-    key: 'mail',
+    ...PROFILE_TEXT_RECORDS.mail,
     section: 'contact',
-    name: 'Mailing Address',
     kind: 'copy',
     icon: HouseIcon,
   },
   {
-    key: 'timezone',
+    ...PROFILE_TEXT_RECORDS.timezone,
     section: 'contact',
-    name: 'Timezone',
     kind: 'copy',
     icon: ClockIcon,
   },

@@ -163,6 +163,19 @@ export function createNewRecord(
     .exhaustive()
 }
 
+/** New address record for an exact coin type; `key` is only its display name. */
+export const createAddressRecord = (
+  coinType: number,
+  key: string,
+  value: string,
+): EditableRecord => ({
+  type: 'address',
+  key,
+  value,
+  id: coinType,
+  _uid: generateUid(),
+})
+
 /** Every key of a record type, or only these. */
 type EditableKeys<K> = 'all' | ReadonlySet<K>
 

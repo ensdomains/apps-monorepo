@@ -1,0 +1,23 @@
+{
+  "name": "@ens-apps/record-catalog",
+  "version": "1.0.0",
+  "description": "Shared ENS text and address record metadata and search",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "biome check"
+  },
+  "dependencies": {
+    "@ens-apps/l2-primary": "workspace:*",
+    "@ensdomains/address-encoder": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

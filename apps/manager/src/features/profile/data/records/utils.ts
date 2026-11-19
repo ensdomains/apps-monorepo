@@ -1,3 +1,4 @@
+import { PROFILE_TEXT_RECORDS } from '@ens-apps/record-catalog'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { safeRecordHref } from '../../utils/safeUrl'
 import { addressRecords } from './address'
@@ -49,10 +50,10 @@ export const mainProfileRecords = {
     ...new Set([
       ...forceFetchRecords.always,
       ...forceFetchRecords.whenNotIndexed,
-      'location',
-      'timezone',
+      PROFILE_TEXT_RECORDS.location.key,
+      PROFILE_TEXT_RECORDS.timezone.key,
       // Newly saved links must be readable before the indexer discovers the key.
-      'links',
+      PROFILE_TEXT_RECORDS.links.key,
     ]),
   ],
   coins: [

@@ -46,9 +46,11 @@ function SheetContent({
   className,
   children,
   side = 'right',
+  showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'
+  readonly showCloseButton?: boolean
 }) {
   return (
     <SheetPortal>
@@ -77,19 +79,21 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close
-          className={cn(
-            'focus:ring-ring focus:ring-2 focus:outline-hidden disabled:pointer-events-none',
-            side === 'right'
-              ? // floating card outside the panel's left edge (Figma overlay)
-                'absolute top-4 -left-12 flex size-10 items-center justify-center rounded-lg bg-background shadow-[0px_1px_2px_rgba(0,0,0,0.07)] text-foreground max-sm:hidden'
-              : 'ring-offset-background data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-offset-2',
-          )}
-        >
-          <XIcon className="size-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-        {side === 'right' && (
+        {showCloseButton && (
+          <SheetPrimitive.Close
+            className={cn(
+              'focus:ring-ring focus:ring-2 focus:outline-hidden disabled:pointer-events-none',
+              side === 'right'
+                ? // floating card outside the panel's left edge (Figma overlay)
+                  'absolute top-4 -left-12 flex size-10 items-center justify-center rounded-lg bg-background shadow-[0px_1px_2px_rgba(0,0,0,0.07)] text-foreground max-sm:hidden'
+                : 'ring-offset-background data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-offset-2',
+            )}
+          >
+            <XIcon className="size-4" />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
+        )}
+        {showCloseButton && side === 'right' && (
           <SheetPrimitive.Close className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden sm:hidden">
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>

@@ -1,3 +1,4 @@
+import type { AddressRecordOption } from '@ens-apps/record-catalog'
 import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
@@ -11,9 +12,9 @@ import {
   useRef,
   useState,
 } from 'react'
+import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual } from 'viem'
 import { useAccount, useConnection, useWalletClient } from 'wagmi'
-import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -31,7 +32,17 @@ import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
+import {
+  AddressRecordPicker,
+  TextRecordPicker,
+} from '@/features/records/components/RecordCatalogPicker'
 import { RecordImageUploadDialog } from '@/features/records/components/RecordImageUploadDialog'
+import { getNewRecordKey } from '@/features/records/helpers/newRecordKey'
+import {
+  getEditableCoin,
+  searchEditableAddressRecords,
+  searchEditableTextRecords,
+} from '@/features/records/helpers/recordCatalog'
 import {
   invalidateAvatar,
   refreshRecordImage,
@@ -79,9 +90,6 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: 'abi', label: 'ABI' },
   { value: 'contentHash', label: 'Contenthash' },
 ]
-
-/** Record types that don't require a key input (single-value records) */
-const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
 
 const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
 
@@ -271,12 +279,16 @@ const EditRecordsContent = ({
       ? pickedType
       : ''
   const [keyInput, setKeyInput] = useState('')
+  const [pickedCoin, setPickedCoin] = useState<AddressRecordOption>()
+  const selectedCoin = getEditableCoin(editableTypes, pickedCoin)
   const [valueInput, setValueInput] = useState('')
+  const valueInputRef = useRef<HTMLInputElement>(null)
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
     setPickedType(newType)
     setKeyInput('') // Reset key when type changes
+    setPickedCoin(undefined)
   }
 
   // UI state
@@ -301,6 +313,7 @@ const EditRecordsContent = ({
     hasImageRecordDraft,
     keepHostedImage,
     addRecord,
+    addAddressRecord,
     deleteRecord,
     updateRecord,
     discardAll,
@@ -533,24 +546,34 @@ const EditRecordsContent = ({
   const searchRecordsId = useId()
   const typeSelectId = useId()
   const keyInputId = useId()
+  const keyLabelId = useId()
   const valueInputId = useId()
 
-  // Check if the selected type requires a key
-  const requiresKey =
-    selectedType !== '' && !KEYLESS_RECORD_TYPES.includes(selectedType)
+  const newRecordKey = getNewRecordKey(selectedType, keyInput, selectedCoin)
 
   const addImageKind = getRecordImageKind({ type: selectedType, key: keyInput })
   const addImageChoice = getImageChoice(addImageKind)
 
   const handleAddRecord = () => {
-    if (operation.current || !selectedType) return
-    if (requiresKey && !keyInput) return
+    if (operation.current || !newRecordKey) return
 
-    addRecord(selectedType, keyInput, valueInput)
+    // Address records keep the exact coin type picked, not one looked up from a name.
+    match(newRecordKey)
+      .with({ type: 'address' }, ({ coin }) =>
+        addAddressRecord(coin.coinType, coin.name, valueInput),
+      )
+      .with({ type: 'text' }, ({ type, key }) =>
+        addRecord(type, key, valueInput),
+      )
+      .with({ type: P.union('abi', 'contentHash') }, ({ type }) =>
+        addRecord(type, '', valueInput),
+      )
+      .exhaustive()
 
     // Reset form
     setPickedType('')
     setKeyInput('')
+    setPickedCoin(undefined)
     setValueInput('')
   }
 
@@ -607,27 +630,48 @@ const EditRecordsContent = ({
             </div>
           </div>
 
-          {/* Key Input - dropdown for address, text input for text, hidden for contentHash and abi */}
+          {/* Key: a catalog picker for address; a key field with a catalog browser for text; none for contentHash and abi */}
           {selectedType === 'address' && (
-            <div className="flex flex-col gap-1 min-w-[220px]">
+            <div className="flex flex-col gap-1 flex-1 min-w-[220px]">
               <label
+                id={keyLabelId}
                 htmlFor={keyInputId}
                 className="text-small text-muted-foreground flex items-center gap-1"
               >
                 Coin
               </label>
-              <CoinSelect
-                value={keyInput}
-                onChange={setKeyInput}
-                placeholder="Select coin..."
-                coinTypes={
-                  editableTypes.address === 'all'
-                    ? undefined
-                    : editableTypes.address
+              <AddressRecordPicker
+                search={(query) =>
+                  searchEditableAddressRecords(editableTypes, query)
                 }
-                // Sits in a row of plain inputs, so it takes their flat fill
-                // rather than the outline button's dark tint.
-                className="dark:bg-background dark:hover:bg-accent"
+                onSelect={setPickedCoin}
+                focusAfterSelectRef={valueInputRef}
+                isDisabled={isEditorLocked}
+                trigger={
+                  <Button
+                    id={keyInputId}
+                    variant="outline"
+                    aria-labelledby={`${keyLabelId} ${keyInputId}`}
+                    // Sits in a row of plain inputs, so it takes their flat fill
+                    // rather than the outline button's dark tint.
+                    className="min-w-0 flex-1 justify-between gap-3 px-3 font-normal dark:bg-background dark:hover:bg-accent"
+                  >
+                    {selectedCoin ? (
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="truncate">{selectedCoin.name}</span>
+                        <span className="font-mono text-small text-muted-foreground">
+                          <span className="sr-only">coin type </span>
+                          {selectedCoin.coinType}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Select coin...
+                      </span>
+                    )}
+                    <Search aria-hidden="true" className="text-primary" />
+                  </Button>
+                }
               />
             </div>
           )}
@@ -639,33 +683,52 @@ const EditRecordsContent = ({
               >
                 Key
               </label>
-              {editableTypes.text === 'all' ? (
-                <input
-                  id={keyInputId}
-                  type="text"
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder=""
-                  className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                />
-              ) : (
-                <div className="relative">
-                  <select
+              <TextRecordPicker
+                search={(query) =>
+                  searchEditableTextRecords(editableTypes, query)
+                }
+                onSelect={(option) => setKeyInput(option.key)}
+                focusAfterSelectRef={valueInputRef}
+                isDisabled={isEditorLocked}
+                trigger={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 text-primary dark:bg-background dark:hover:bg-accent"
+                  >
+                    <Search aria-hidden="true" />
+                    <span className="sr-only">Browse text records</span>
+                  </Button>
+                }
+              >
+                {editableTypes.text === 'all' ? (
+                  <input
                     id={keyInputId}
+                    type="text"
                     value={keyInput}
                     onChange={(e) => setKeyInput(e.target.value)}
-                    className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
-                  >
-                    <option value="">Select...</option>
-                    {[...editableTypes.text].toSorted().map((key) => (
-                      <option key={key} value={key}>
-                        {key}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                </div>
-              )}
+                    placeholder="Type or browse"
+                    className="h-9 w-full min-w-0 flex-1 rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  />
+                ) : (
+                  <div className="relative min-w-0 flex-1">
+                    <select
+                      id={keyInputId}
+                      value={keyInput}
+                      onChange={(e) => setKeyInput(e.target.value)}
+                      className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                    >
+                      <option value="">Select...</option>
+                      {[...editableTypes.text].toSorted().map((key) => (
+                        <option key={key} value={key}>
+                          {key}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                )}
+              </TextRecordPicker>
             </div>
           )}
 
@@ -678,6 +741,7 @@ const EditRecordsContent = ({
               Value
             </label>
             <input
+              ref={valueInputRef}
               id={valueInputId}
               type="text"
               value={valueInput}
@@ -700,7 +764,7 @@ const EditRecordsContent = ({
             <Button
               variant="default"
               onClick={handleAddRecord}
-              disabled={!selectedType || (requiresKey && !keyInput)}
+              disabled={!newRecordKey}
               className="flex items-center gap-2 whitespace-nowrap"
             >
               Add record
