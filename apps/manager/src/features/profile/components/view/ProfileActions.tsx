@@ -86,7 +86,7 @@ export const ProfileActions = ({
   useIntercomClearance(bar)
   const hasBottomNav = isUpgradeRequired && !isInGrace
 
-  const renderBarActions = () => (
+  const barActions = (
     <>
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
@@ -109,7 +109,7 @@ export const ProfileActions = ({
         isUpgradeRequired={isUpgradeRequired}
         keepMounted
         // Owned profiles keep favorite, share, and renew in this bar at every width.
-        leftActions={renderBarActions()}
+        leftActions={barActions}
         name={name}
         onUpdated={onUpdated}
         owner={owner}
@@ -132,15 +132,17 @@ export const ProfileActions = ({
           ref={setBar}
         >
           <div className={editBottomNavContentClassName}>
-            <div
-              className={cn(
-                profileBarActionsClassName,
-                'w-full',
-                hasDesktopBar ? 'xl:mr-auto xl:w-auto' : 'xl:hidden',
-              )}
-            >
-              {renderBarActions()}
-            </div>
+            {/* Without the bar the header holds the actions, at every width */}
+            {hasDesktopBar ? (
+              <div
+                className={cn(
+                  profileBarActionsClassName,
+                  'w-full xl:mr-auto xl:w-auto',
+                )}
+              >
+                {barActions}
+              </div>
+            ) : null}
             <ProfileEditAction
               canEdit={canEdit}
               className={editActionClassName}
@@ -161,9 +163,7 @@ export const ProfileActions = ({
           ref={setBar}
         >
           <div className={cn(editBottomBarContentClassName, 'justify-center')}>
-            <div className={profileBarActionsClassName}>
-              {renderBarActions()}
-            </div>
+            <div className={profileBarActionsClassName}>{barActions}</div>
           </div>
         </nav>
       )}
