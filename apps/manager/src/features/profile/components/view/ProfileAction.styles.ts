@@ -1,6 +1,11 @@
-// Secondary action from the Explore CTA design (6714:72931): 44px, grey, darker on hover
-export const iconActionClassName =
-  'inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-ens-quartz-75 p-0.5 text-ens-quartz-500 transition-colors hover:bg-ens-quartz-200 hover:text-ens-quartz-900 disabled:cursor-not-allowed disabled:opacity-50'
+import { actionButtonVariants } from '@/components/ui/action-button'
+import { cn } from '@/lib/utils'
+
+// Square secondary action (favorite, share)
+export const iconActionClassName = cn(
+  actionButtonVariants({ intent: 'secondary', shape: 'square' }),
+  'overflow-hidden',
+)
 
 // With the 2px outer padding this gives the bar's 14px (12px on desktop) inset
 export const iconActionInnerClassName =
@@ -18,38 +23,40 @@ export const favoriteActionClassName =
 export const favoritedActionClassName =
   'bg-ens-garnet-100 text-ens-garnet-core hover:bg-ens-garnet-100 hover:text-ens-garnet-core'
 
-// Text secondary action (Renew, Explore) from the same design; its 1px tracking has no token
-export const renewActionClassName =
-  'inline-flex h-11 min-h-11 w-auto max-h-11 shrink-0 items-center justify-center overflow-hidden rounded-[4px] border-0 bg-ens-quartz-75 p-0.5 font-medium font-mono text-ens-quartz-500 text-sm uppercase leading-none tracking-[1px] transition-colors hover:bg-ens-quartz-200 hover:text-ens-quartz-900 disabled:cursor-wait disabled:opacity-60'
-
-export const renewActionSymbolClassName =
-  'ms-opsz-12 ms-wght-500 text-[12px] leading-none max-xs:hidden'
+// Text secondary action (Renew, Explore); the inner label span carries the padding
+export const renewActionClassName = cn(
+  actionButtonVariants({ intent: 'secondary' }),
+  'overflow-hidden border-0 px-0.5',
+)
 
 export const editActionClassName =
   'h-15.25 w-full max-w-87 rounded border-none bg-(--theme-button-bg) px-6 py-0 font-semi-mono text-sm text-(--theme-button-text) uppercase tracking-[1.12px] shadow-none hover:bg-(--theme-button-hover-bg) xl:h-12.5 xl:w-42.75'
 
-// Sizes the shared Button to the 42px / 4px spec; colors come from its variants
-export const profileButtonClassName = 'h-10.5 rounded-sm text-xs uppercase'
+// Edit Profile, Preview, Publish
+export const primaryActionClassName = actionButtonVariants({
+  intent: 'primary',
+})
 
-// Primary action (Edit Profile, Preview, Publish): black, lighter on hover; overrides the Button variant
-export const primaryActionClassName =
-  'bg-ens-quartz-900 text-white hover:bg-ens-quartz-500 active:bg-ens-quartz-900 disabled:bg-ens-quartz-50 disabled:text-ens-quartz-300 disabled:opacity-100 aria-disabled:bg-ens-quartz-50 aria-disabled:text-ens-quartz-300'
+// Set up or replace resolver, beside Edit
+export const secondaryActionClassName = actionButtonVariants({
+  intent: 'secondary',
+})
 
-// Tertiary action (Cancel, Discard): white, off-white on hover
-export const tertiaryActionClassName =
-  'bg-white text-ens-quartz-900 hover:bg-ens-quartz-50 hover:text-ens-quartz-900'
+// Cancel, Discard
+export const tertiaryActionClassName = actionButtonVariants({
+  intent: 'tertiary',
+})
 
 // The design's action tooltips hug their text up to 220px; longer copy breaks lines itself. 10px text has no token
 export const actionTooltipClassName =
   'w-max max-w-55 rounded-sm bg-ens-quartz-900 px-2 py-1.25 text-center text-[10px] leading-3.5'
 
-// The floating bar's Edit button, sized and set like the Renew action beside it
-export const barEditActionClassName =
-  'h-11 gap-2 rounded-sm px-3.5 font-medium text-sm uppercase leading-none tracking-[1.56px] max-xs:px-2.5 xl:px-3'
+// The floating bar's Edit button; the dialog gives each of its buttons an intent
+export const barEditActionClassName = primaryActionClassName
 
-// Below 352px the icon no longer fits beside the Renew action, so it drops
+// Below xl the bar holds every action on one row, so Edit drops its icon
 export const barEditActionSymbolClassName =
-  'ms-opsz-20 ms-wght-500 text-sm leading-none max-[22rem]:hidden'
+  'ms-opsz-20 ms-wght-500 text-sm leading-none max-xl:hidden'
 
 // Trims the label box to the cap height so it centres on the caps, as in Figma
 export const actionLabelClassName =
@@ -77,9 +84,12 @@ export const desktopActionClusterClassName =
 // Visitors' header actions; the header decides where they show at each width
 export const headerActionClusterClassName = 'flex shrink-0 items-center gap-2'
 
-// When the owner's actions and Edit don't fit on one row, Edit wraps to its own
-export const ownerBarContentClassName = `${editBottomBarContentClassName} flex-wrap`
+// Below xl every action sits on one centred row; Edit wraps only if a long label can't fit
+export const ownerBarContentClassName = cn(
+  editBottomBarContentClassName,
+  'flex-wrap justify-center gap-2 xl:justify-between xl:gap-3',
+)
 
-// Grow from an auto basis (not flex-1), so Edit wraps rather than squeezing under the actions
+// No grow, so Edit stays beside the other actions instead of pushing right
 export const ownerBarEditActionsClassName =
-  'flex min-w-0 grow items-center justify-end gap-3 xl:ml-auto xl:flex-none'
+  'flex min-w-0 items-center justify-end gap-3 xl:ml-auto xl:flex-none'

@@ -15,7 +15,6 @@ import {
   primaryActionClassName,
   profileBarActionsClassName,
   renewActionClassName,
-  renewActionSymbolClassName,
 } from './ProfileAction.styles'
 import { ProfileExploreAction } from './ProfileExploreAction'
 
@@ -70,10 +69,6 @@ export const InOwnerBar: Story = {
                 <span className={cn(actionLabelClassName, 'hidden xl:inline')}>
                   Renew Name
                 </span>
-                <MSymbol
-                  className={renewActionSymbolClassName}
-                  symbol="double_arrow"
-                />
               </span>
             </span>
           </div>

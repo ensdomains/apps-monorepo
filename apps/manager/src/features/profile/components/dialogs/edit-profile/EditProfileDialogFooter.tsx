@@ -10,10 +10,8 @@ import {
 import {
   actionTooltipClassName,
   primaryActionClassName,
-  profileButtonClassName,
   tertiaryActionClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
-import { cn } from '@/lib/utils'
 
 interface EditProfileDialogFooterProps {
   readonly canPreview: boolean
@@ -58,11 +56,7 @@ export const EditProfileDialogFooter = ({
   const previewButton = (
     <Button
       aria-disabled={!canPreview}
-      className={cn(
-        profileButtonClassName,
-        primaryActionClassName,
-        'aria-disabled:cursor-not-allowed',
-      )}
+      className={primaryActionClassName}
       onClick={handlePreviewClick}
       type="button"
       variant="blue"
@@ -92,7 +86,7 @@ export const EditProfileDialogFooter = ({
       </p>
       <div className="flex shrink-0 items-center justify-end gap-3">
         <Button
-          className={cn(profileButtonClassName, tertiaryActionClassName)}
+          className={tertiaryActionClassName}
           onClick={onCancel}
           type="button"
           variant="ghost"

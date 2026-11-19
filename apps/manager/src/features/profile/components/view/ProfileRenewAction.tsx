@@ -1,7 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
-import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
   TooltipContent,
@@ -25,7 +24,6 @@ import {
   actionLabelClassName,
   actionTooltipClassName,
   iconActionInnerClassName,
-  renewActionSymbolClassName,
 } from './ProfileAction.styles'
 
 type ProfileRenewActionProps = {
@@ -67,11 +65,6 @@ export const ProfileRenewAction = ({
       <span className={cn(actionLabelClassName, 'hidden xl:inline')}>
         <Trans>Renew Name</Trans>
       </span>
-      <MSymbol
-        aria-hidden="true"
-        className={renewActionSymbolClassName}
-        symbol="double_arrow"
-      />
     </span>
   )
 
