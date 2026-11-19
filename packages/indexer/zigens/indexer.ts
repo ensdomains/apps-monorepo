@@ -115,8 +115,8 @@ export type ZigensIndexerOptions = Readonly<{
   chainId: number
   /** The chain's NameWrapper, which tells a wrapped ENSv1 name from a stale wrapper token. */
   nameWrapper: string
-  /** Reads the ENSv1 block timestamps the subgraph lacks; give it a batching transport. Without it they stay null. */
-  rpcClient?: Client
+  /** Reads the ENSv1 block timestamps the subgraph lacks, which time filters and registration scope need; give it a batching transport. */
+  rpcClient: Client
   fetch?: typeof fetch
   timeoutMs?: number
   /** The clock registration status is decided against. */
@@ -531,7 +531,7 @@ export const createZigensIndexer = ({
     return registrationTimes.andThen((byEvent) => {
       const missing = toMissingBlocks(events, byEvent)
       const blockTimes =
-        rpcClient && missing.length > 0
+        missing.length > 0
           ? readBlockTimestamps(rpcClient, missing)
           : okAsync<ReadonlyMap<number, bigint>, IndexerReadError>(new Map())
       return blockTimes.map((byBlock) => toEventTimes(events, byEvent, byBlock))

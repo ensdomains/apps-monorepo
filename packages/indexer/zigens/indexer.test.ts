@@ -49,6 +49,21 @@ const v1 = (name: string): V1Domain => ({
   wrappedDomain: null,
 })
 
+// Answers `eth_getBlockByNumber` with the block's timestamp, in seconds.
+const rpcWith = (timestampOf: (block: bigint) => bigint) => {
+  const getBlock = vi.fn(async (blockNumber: `0x${string}`) => ({
+    number: blockNumber,
+    timestamp: numberToHex(timestampOf(BigInt(blockNumber))),
+  }))
+  const rpcClient = createClient({
+    transport: custom({
+      request: async ({ method, params }) =>
+        method === 'eth_getBlockByNumber' ? getBlock(params[0]) : null,
+    }),
+  })
+  return { rpcClient, getBlock }
+}
+
 type Answer = (variables: Readonly<Record<string, unknown>>) => unknown
 
 /** Answers each GraphQL request by endpoint and operation name; anything else gets a 503. */
@@ -71,6 +86,7 @@ const indexerWith = (
     nameWrapper: '0x0635513f179d50a207757e05759cbd106d7dfce8',
     fetch,
     now: () => new Date('2026-11-17T12:00:00Z'),
+    rpcClient: rpcWith(() => 0n).rpcClient,
     ...options,
   })
   return { indexer, fetch }
@@ -319,16 +335,7 @@ describe('createZigensIndexer', () => {
   })
 
   it('dates ENSv1 history from the registration date, then the blocks over RPC', async () => {
-    const getBlock = vi.fn(async (blockNumber: string) => ({
-      number: blockNumber,
-      timestamp: numberToHex(1690405000n),
-    }))
-    const rpcClient = createClient({
-      transport: custom({
-        request: async ({ method, params }) =>
-          method === 'eth_getBlockByNumber' ? getBlock(params[0]) : null,
-      }),
-    })
+    const { rpcClient, getBlock } = rpcWith(() => 1690405000n)
     const node = namehash('test.eth')
     const { indexer } = indexerWith(
       {
@@ -391,6 +398,79 @@ describe('createZigensIndexer', () => {
     ])
     expect(getBlock).toHaveBeenCalledTimes(1)
     expect(getBlock).toHaveBeenCalledWith(numberToHex(3970143))
+  })
+
+  it('scopes ENSv1 history to the current registration, keeping every row since it began', async () => {
+    // test.eth was registered again at block 3970144; blocks are 12 seconds apart.
+    const { rpcClient } = rpcWith(
+      (block) => 1690405056n + (block - 3970144n) * 12n,
+    )
+    const node = namehash('test.eth')
+    const event = (
+      __typename: string,
+      blockNumber: number,
+      fields: object = {},
+    ) => ({
+      __typename,
+      id: `11155111-${blockNumber}-1`,
+      blockNumber,
+      transactionID: '0x01',
+      ...fields,
+    })
+    const { indexer } = indexerWith(
+      {
+        [`${ZIGENS} DomainsByNames`]: () => ({ domains: [] }),
+        [`${ENSNODE} DomainsByNames`]: () => ({ domains: [v1('test.eth')] }),
+        [`${ENSNODE} NameEvents`]: () => ({
+          domain: {
+            name: 'test.eth',
+            events: [
+              event('NewResolver', 3970300, { resolver: { address: ADDRESS } }),
+              event('Transfer', 3970200, { owner: { id: ADDRESS } }),
+              // Before the current registration began.
+              event('NewResolver', 3000000, { resolver: { address: ADDRESS } }),
+            ],
+            registration: {
+              events: [
+                event('NameRenewed', 3970400, { expiryDate: '2039526758' }),
+                event('NameRegistered', 3970144, {
+                  registrationId: node,
+                  registrant: { id: ADDRESS },
+                  expiryDate: '2007950758',
+                }),
+              ],
+            },
+          },
+        }),
+        [`${ENSNODE} LatestRegistrations`]: () => ({
+          nameRegistereds: [
+            {
+              id: '11155111-3970144-1',
+              registrationId: node,
+              registration: { registrationDate: '1690405056' },
+            },
+          ],
+        }),
+      },
+      { rpcClient },
+    )
+
+    const page = (
+      await indexer.getNameHistory({
+        name: 'test.eth',
+        scope: 'registration',
+        pageSize: 10,
+      })
+    )._unsafeUnwrap()
+
+    expect(
+      page?.items.map(({ kind, blockNumber }) => [kind, blockNumber]),
+    ).toEqual([
+      ['RegistrationRenewed', 3970400],
+      ['ResolverChanged', 3970300],
+      ['TokenControlTransferred', 3970200],
+      ['RegistrationGranted', 3970144],
+    ])
   })
 
   it('reports a block both sources have indexed', async () => {
