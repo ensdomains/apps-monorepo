@@ -41,7 +41,7 @@ type PendingChanges = {
 export type SaveRecordsTransactionParameters = {
   name: string
   resolverAddress: Address
-  originalRecords: NameRecord[]
+  readonly originalRecords: readonly NameRecord[]
   pendingChanges: PendingChanges
   walletClient: WalletClient
   chainId: number
