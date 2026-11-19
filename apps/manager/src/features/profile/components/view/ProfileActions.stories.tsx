@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { http } from 'viem'
+import { createConfig, WagmiProvider } from 'wagmi'
+import { chain } from '@/config'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import { ProfileActions, ProfileDesktopActions } from './ProfileActions'
@@ -20,17 +23,25 @@ const withExpiry = (expiry: bigint) => {
   return queryClient
 }
 
+// The favorite reads the wallet connection; no wallet is connected here
+const PREVIEW_WAGMI_CONFIG = createConfig({
+  chains: [chain],
+  transports: { [chain.id]: http() },
+})
+
 const meta = {
   title: 'Features/Profile/Profile actions',
   component: ProfileActions,
   parameters: { layout: 'fullscreen' },
   decorators: [
     (Story) => (
-      <QueryClientProvider client={withExpiry(IN_A_YEAR)}>
-        <div className="min-h-100">
-          <Story />
-        </div>
-      </QueryClientProvider>
+      <WagmiProvider config={PREVIEW_WAGMI_CONFIG}>
+        <QueryClientProvider client={withExpiry(IN_A_YEAR)}>
+          <div className="min-h-100">
+            <Story />
+          </div>
+        </QueryClientProvider>
+      </WagmiProvider>
     ),
   ],
   args: {
