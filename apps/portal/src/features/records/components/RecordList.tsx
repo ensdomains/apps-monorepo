@@ -73,14 +73,17 @@ export const RecordList = ({
   return (
     <>
       <header className="flex flex-col gap-4">
-        <div className="flex flex-row justify-between">
-          <PageHeading parent={{ type: 'name', name }}>
+        <div className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
+          <PageHeading
+            parent={{ type: 'name', name }}
+            className="w-full lg:flex-1 [&_a]:min-w-0 [&_a]:[overflow-wrap:anywhere]"
+          >
             {recordCount > 0 ? `Records (${recordCount})` : 'Records'}
           </PageHeading>
           {canEdit && (
             <Button
               variant="default"
-              className="flex items-center gap-2"
+              className="flex h-auto min-h-9 max-w-full items-center gap-2 whitespace-normal"
               asChild
             >
               <Link to="/$name/edit-records" params={{ name }}>

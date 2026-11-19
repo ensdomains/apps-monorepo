@@ -347,6 +347,7 @@ async function quoteIntentUsdc(input: {
     calls: [...calls],
     sponsored: { gas: false, bridging: false, swaps: false },
     feeAsset: 'USDC',
+    sourceAssets: [usdc],
     tokenRequests: [],
     gasLimit,
     ...(declaredInflow > 0n
@@ -390,6 +391,8 @@ export interface HcaIntentFunding {
   >
   /** The fee funded for, with any margin, for logging/telemetry. */
   readonly quotedFeeUsdc: bigint
+  /** The USDC the intent funds and pays its fee in, for `rhinestoneParams.paymentToken`. */
+  readonly paymentToken: Address
 }
 
 export interface PlanHcaIntentFundingParams {
@@ -478,6 +481,28 @@ export const STANDALONE_INTENT_PERMIT_PURPOSE: PermitPurpose = {
     'what the smart account already holds.',
 }
 
+/** What a leg's pull pays for, as a wallet too short for it is told. */
+type FundingLegPays = 'network-fee' | 'cost' | 'cost-and-network-fee'
+
+const FUNDING_LEG_PAYS_COPY: Readonly<Record<FundingLegPays, string>> = {
+  'network-fee': 'to pay the network fee',
+  cost: 'to cover its cost',
+  'cost-and-network-fee': 'to cover its cost and the network fee',
+}
+
+/** The USDC leg pays only the fee unless the intent also buys something in USDC. */
+const usdcLegPays = (requiredUsdc: bigint): FundingLegPays =>
+  requiredUsdc > 0n ? 'cost-and-network-fee' : 'network-fee'
+
+/** What a wallet holding `walletBalance`, short of the leg, is told. */
+const walletShortOfLegMessage = (
+  leg: Pick<FundingLeg, 'shortfall' | 'decimals' | 'symbol' | 'pays'>,
+  walletBalance: bigint,
+): string =>
+  `This action needs ${formatUnits(leg.shortfall, leg.decimals)} ` +
+  `${leg.symbol} ${FUNDING_LEG_PAYS_COPY[leg.pays]}, but your wallet ` +
+  `holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`
+
 /** One token the wallet tops the HCA up with. */
 type FundingLeg = {
   readonly token: Address
@@ -485,6 +510,7 @@ type FundingLeg = {
   readonly decimals: number
   /** What the HCA is short of this token. */
   readonly shortfall: bigint
+  readonly pays: FundingLegPays
   /** `false` when a standing allowance on the wallet already covers the pull. */
   readonly requiresPermit: boolean
   readonly permitKind: PermitKind
@@ -514,11 +540,7 @@ async function planFundingLeg(
     }),
   ])
   if (walletBalance < leg.shortfall) {
-    throw new Error(
-      `This action needs ${formatUnits(leg.shortfall, leg.decimals)} ` +
-        `${leg.symbol} moved into the smart account, but the connected ` +
-        `wallet holds ${formatUnits(walletBalance, leg.decimals)} ${leg.symbol}.`,
-    )
+    throw new Error(walletShortOfLegMessage(leg, walletBalance))
   }
   return { ...leg, requiresPermit: allowance < leg.shortfall }
 }
@@ -851,7 +873,7 @@ export async function planHcaIntentFunding(
     // The HCA already covers it — submit the bare action. The quote was taken
     // over a larger batch, so it only over-estimated, which is safe here
     // because nothing is being permitted.
-    return { calls: [...calls], quotedFeeUsdc }
+    return { calls: [...calls], quotedFeeUsdc, paymentToken: usdc }
   }
 
   return fundShortfalls(params, {
@@ -1053,6 +1075,7 @@ async function fundShortfalls(
           symbol: 'USDC',
           decimals: 6,
           shortfall: usdcShortfall,
+          pays: usdcLegPays(requiredUsdc),
           permitKind: 'eip2612',
         })
       : null
@@ -1063,6 +1086,7 @@ async function fundShortfalls(
           symbol: otherSpend.symbol,
           decimals: otherSpend.decimals,
           shortfall: quoted.tokenShortfall,
+          pays: 'cost',
           permitKind: otherSpend.permitKind ?? 'eip2612',
         })
       : null
@@ -1153,5 +1177,6 @@ async function buildFundingCalls(
         }
       : {}),
     quotedFeeUsdc: quoted.quotedFeeUsdc,
+    paymentToken: usdc,
   }
 }

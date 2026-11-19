@@ -24,7 +24,7 @@ const INJECTED_CONNECTOR = { type: 'injected' } as Connector
 const mocks = vi.hoisted(() => ({
   connector: undefined as Connector | undefined,
   setPrimaryName: vi.fn(),
-  setPrimaryNameWithHca: vi.fn(),
+  setPrimaryNameWithEthFallback: vi.fn(),
 }))
 
 vi.mock('wagmi', () => ({
@@ -47,7 +47,7 @@ vi.mock('@/lib/smart-account', () => ({
 }))
 vi.mock('../service/setPrimaryName', () => ({
   setPrimaryName: mocks.setPrimaryName,
-  setPrimaryNameWithHca: mocks.setPrimaryNameWithHca,
+  setPrimaryNameWithEthFallback: mocks.setPrimaryNameWithEthFallback,
 }))
 
 const wrapper = ({ children }: { readonly children: ReactNode }) => (
@@ -59,7 +59,7 @@ const wrapper = ({ children }: { readonly children: ReactNode }) => (
 describe('useSetPrimaryName', () => {
   beforeEach(() => {
     mocks.setPrimaryName.mockReset().mockResolvedValue(undefined)
-    mocks.setPrimaryNameWithHca.mockReset().mockResolvedValue(undefined)
+    mocks.setPrimaryNameWithEthFallback.mockReset().mockResolvedValue(undefined)
   })
 
   it.each<{
@@ -74,12 +74,12 @@ describe('useSetPrimaryName', () => {
       connector: SAFE_CONNECTOR,
       sent: mocks.setPrimaryName,
       sentWith: { connector: SAFE_CONNECTOR },
-      skipped: mocks.setPrimaryNameWithHca,
+      skipped: mocks.setPrimaryNameWithEthFallback,
     },
     {
-      wallet: 'another wallet signs the HCA intent',
+      wallet: 'another wallet goes through the HCA, falling back to ETH',
       connector: INJECTED_CONNECTOR,
-      sent: mocks.setPrimaryNameWithHca,
+      sent: mocks.setPrimaryNameWithEthFallback,
       sentWith: { signer: HCA_SIGNER },
       skipped: mocks.setPrimaryName,
     },

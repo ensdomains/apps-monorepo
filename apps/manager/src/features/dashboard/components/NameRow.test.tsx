@@ -37,6 +37,19 @@ describe('NameRow', () => {
     )
   })
 
+  it.each([
+    ['links a known name to its profile', 'ucles.eth', true],
+    [
+      'shows a name with an unknown label as text, since its profile cannot load',
+      `[${'ab'.repeat(32)}].ucles.eth`,
+      false,
+    ],
+  ])('%s', (_, label, isLinked) => {
+    const { getByText } = render(<NameRow label={label} />)
+
+    expect(getByText(label).closest('a') !== null).toBe(isLinked)
+  })
+
   it('renders each supplied name role', () => {
     const { getByText } = render(
       <NameRow label="wrapped.eth" nameRoles={['owner', 'manager']} />,
@@ -79,6 +92,24 @@ describe('NameRow', () => {
     expect(managerBadge).toHaveClass(ownerBadge?.className ?? '')
   })
 
+  it('shows when a name in grace expired, and under it when grace ends', () => {
+    const { getByText } = render(
+      <NameRow
+        expiryLabel="August 29, 2026"
+        graceEndLabel="November 27, 2026"
+        isInGrace
+        label="banana.eth"
+      />,
+    )
+
+    expect(getByText('Expires on').nextElementSibling).toHaveTextContent(
+      'August 29, 2026',
+    )
+    expect(getByText('Grace period ends').nextElementSibling).toHaveTextContent(
+      'November 27, 2026',
+    )
+  })
+
   it('shows non-expiring names without the expires-on prefix', () => {
     const { getByText, queryByText } = render(
       <NameRow expiryLabel="Does not expire" label="pokemon.fgeorgescu.eth" />,
@@ -86,6 +117,59 @@ describe('NameRow', () => {
 
     expect(getByText('Does not expire')).toBeInTheDocument()
     expect(queryByText('Expires on')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['loaded', false],
+    ['loading', true],
+  ])(
+    'marks a selected name with a single check while its avatar is %s',
+    (_, avatarPending) => {
+      const { container, getByRole } = render(
+        <NameRow
+          avatarPending={avatarPending}
+          isSelected
+          label="thanksv1rtl.eth"
+          selectable
+        />,
+      )
+
+      expect(
+        getByRole('button', { name: 'Deselect thanksv1rtl.eth' }),
+      ).toHaveAttribute('aria-pressed', 'true')
+      expect(container.querySelectorAll('.lucide-check')).toHaveLength(1)
+    },
+  )
+
+  it('states the expiry once, with the warning and the date, when the name expires soon', () => {
+    const { container, getAllByText, getByText, queryByText } = render(
+      <NameRow
+        expiringInDays={18}
+        expiryLabel="November 24, 2026"
+        label="thanksv1rtl.eth"
+      />,
+    )
+
+    expect(getAllByText(/Expires/)).toHaveLength(1)
+    expect(getByText('Expires in 18 days')).toBeInTheDocument()
+    expect(getByText('November 24, 2026')).toBeInTheDocument()
+    expect(queryByText('Expires on')).not.toBeInTheDocument()
+    expect(container.firstElementChild?.childElementCount).toBe(2)
+  })
+
+  it('keeps the grace period badge instead of the expiry warning for a name in grace', () => {
+    const { getByText, queryByText } = render(
+      <NameRow
+        expiringInDays={18}
+        expiryLabel="November 24, 2026"
+        isInGrace
+        label="thanksv1rtl.eth"
+      />,
+    )
+
+    expect(getByText('Grace period')).toBeInTheDocument()
+    expect(getByText('Expires on')).toBeInTheDocument()
+    expect(queryByText('Expires in 18 days')).not.toBeInTheDocument()
   })
 
   it('does not render the renew menu item when the name cannot be renewed', () => {

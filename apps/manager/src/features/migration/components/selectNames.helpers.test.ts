@@ -6,6 +6,7 @@ import {
   buildRootSubtreeIndex,
   collectAllSelectable,
   filterGroupsBySearch,
+  getSelectNamesTitle,
   shouldShowBulkSelection,
   shouldShowNameSearch,
   shouldShowSmartTransactionsNotice,
@@ -212,4 +213,69 @@ describe('shouldShowSmartTransactionsNotice', () => {
       expect(shouldShowSmartTransactionsNotice(input)).toBe(expected)
     },
   )
+})
+
+describe('getSelectNamesTitle', () => {
+  const titleFor = (
+    overrides: Partial<Parameters<typeof getSelectNamesTitle>[0]>,
+  ) =>
+    getSelectNamesTitle({
+      isRecoveryStale: false,
+      isFinishingRecovery: false,
+      isEligibilityError: false,
+      isPending: false,
+      eligibleCount: 0,
+      graceCount: 0,
+      wrapperSyncCount: 0,
+      unavailableCount: 0,
+      ...overrides,
+    })
+
+  it.each([
+    { input: { isPending: true }, expected: 'checking-eligibility' },
+    {
+      input: { isPending: true, eligibleCount: 2 },
+      expected: 'checking-eligibility',
+    },
+    {
+      input: { isPending: true, graceCount: 1, unavailableCount: 1 },
+      expected: 'checking-eligibility',
+    },
+    {
+      input: { isPending: true, isEligibilityError: true },
+      expected: 'eligibility-error',
+    },
+    {
+      input: { isRecoveryStale: true, isFinishingRecovery: true },
+      expected: 'recovery-stale',
+    },
+    {
+      input: { isFinishingRecovery: true, isEligibilityError: true },
+      expected: 'finishing-recovery',
+    },
+    {
+      input: { isEligibilityError: true, graceCount: 1 },
+      expected: 'eligibility-error',
+    },
+    {
+      input: { graceCount: 1, wrapperSyncCount: 1, unavailableCount: 1 },
+      expected: 'needs-renewal',
+    },
+    {
+      input: { wrapperSyncCount: 1, unavailableCount: 1 },
+      expected: 'needs-wrapper-sync',
+    },
+    { input: { unavailableCount: 1 }, expected: 'unavailable' },
+    {
+      input: {
+        eligibleCount: 2,
+        graceCount: 1,
+        wrapperSyncCount: 1,
+        unavailableCount: 1,
+      },
+      expected: 'ready',
+    },
+  ] as const)('is $expected for $input', ({ input, expected }) => {
+    expect(titleFor(input)).toBe(expected)
+  })
 })

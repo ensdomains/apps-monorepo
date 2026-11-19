@@ -8,6 +8,8 @@ import {
   HCA_ADDR_REVERSE_CLEAR_GAS,
   primaryNameGas,
 } from '@ens-apps/smart-account'
+import { defaultReverseRegistrarAdapterSetNameWithHcaSnippet } from '@ensdomains/ensjs-abi/v2/defaultReverseRegistrarAdapter'
+import { reverseRegistrarAdapterClaimWithHcaSnippet } from '@ensdomains/ensjs-abi/v2/reverseRegistrarAdapter'
 import { RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, Hex, PublicClient } from 'viem'
 import {
@@ -1045,9 +1047,7 @@ describe('submitRevealBatchActor', () => {
       // Last, after setNameWithHCA, for the wallet with resolver 0.
       expect(claim).toBe(calls.at(-1))
       const decoded = decodeFunctionData({
-        abi: parseAbi([
-          'function claimWithHCA(address addr, address resolver) returns (bytes32)',
-        ]),
+        abi: reverseRegistrarAdapterClaimWithHcaSnippet,
         // biome-ignore lint/style/noNonNullAssertion: asserted defined above
         data: claim!.data,
       })
@@ -1682,6 +1682,16 @@ describe('estimateHcaBudgetActor', () => {
     expect(breakdown.registerCost).toBeGreaterThanOrEqual(breakdown.commitCost)
   })
 
+  it('quotes both legs in the USDC the run pays in, whatever else the account holds', async () => {
+    await estimateHcaBudgetActor(input)
+
+    const quoted = prepareTransaction.mock.calls.map(
+      ([params]) =>
+        (params as { sourceAssets?: readonly Address[] }).sourceAssets,
+    )
+    expect(quoted).toEqual([[C.usdc], [C.usdc]])
+  })
+
   it('quotes the reveal batch WITH the primary-name call when one is set', async () => {
     // The permit is sized from this quote, so the quoted batch must be the
     // batch that gets submitted. Pricing a reveal without the adapter call
@@ -1700,7 +1710,7 @@ describe('estimateHcaBudgetActor', () => {
     expect(adapterCall).toBeDefined()
 
     const decoded = decodeFunctionData({
-      abi: parseAbi(['function setNameWithHCA(address addr, string name)']),
+      abi: defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
       // biome-ignore lint/style/noNonNullAssertion: asserted defined above
       data: adapterCall!.data,
     })
