@@ -85,7 +85,10 @@ export const ProfileRenewAction = ({
 
   const tooltip = (
     <TooltipContent className={actionTooltipClassName}>
-      <Trans>Extend this name’s registration</Trans>
+      <Trans>
+        Extend this name’s <br />
+        registration
+      </Trans>
     </TooltipContent>
   )
 

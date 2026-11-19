@@ -44,9 +44,15 @@ export const ProfileExploreAction = ({
       </TooltipTrigger>
       <TooltipContent className={actionTooltipClassName}>
         {isOwner ? (
-          <Trans>Manage advanced settings in ENS Explorer</Trans>
+          <Trans>
+            Manage advanced <br />
+            settings in ENS Explorer
+          </Trans>
         ) : (
-          <Trans>View details and history in ENS Explorer</Trans>
+          <Trans>
+            View details and <br />
+            history in ENS Explorer
+          </Trans>
         )}
       </TooltipContent>
     </Tooltip>

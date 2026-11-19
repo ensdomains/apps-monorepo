@@ -39,9 +39,9 @@ export const primaryActionClassName =
 export const tertiaryActionClassName =
   'bg-white text-ens-quartz-900 hover:bg-ens-quartz-50 hover:text-ens-quartz-900'
 
-// The design's action tooltips: smaller and darker than the shared Tooltip; 10px text has no token
+// The design's action tooltips hug their text up to 220px; longer copy breaks lines itself. 10px text has no token
 export const actionTooltipClassName =
-  'max-w-36 rounded-sm bg-ens-quartz-900 px-2 py-1.25 text-center text-[10px] leading-3.5'
+  'w-max max-w-55 rounded-sm bg-ens-quartz-900 px-2 py-1.25 text-center text-[10px] leading-3.5'
 
 // The floating bar's Edit button, sized and set like the Renew action beside it
 export const barEditActionClassName =

@@ -1490,7 +1490,7 @@ msgid "Explore"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileRenewAction.tsx
-msgid "Extend this name’s registration"
+msgid "Extend this name’s <0/>registration"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -1922,7 +1922,7 @@ msgid "Making your name work everywhere"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileExploreAction.tsx
-msgid "Manage advanced settings in ENS Explorer"
+msgid "Manage advanced <0/>settings in ENS Explorer"
 msgstr ""
 
 #: src/features/migration/components/value-props/migrationValueProps.ts
@@ -4041,7 +4041,7 @@ msgid "View address"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileExploreAction.tsx
-msgid "View details and history in ENS Explorer"
+msgid "View details and <0/>history in ENS Explorer"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
