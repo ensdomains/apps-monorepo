@@ -13,27 +13,16 @@
  *
  * Release tags are <app>-YYYY-MM-DD, then <app>-YYYY-MM-DD.2, .3, ... the same
  * day; the previous release is the highest such tag for the same app below
- * <tag> that has a GitHub release. Apps and their directories are listed in
- * APP_DIRS; the shared paths every app ships with are in SHARED_PATHS.
+ * <tag> that has a GitHub release.
  *
  * Needs the gh CLI, authenticated (GH_TOKEN in CI), to list the releases.
  */
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { APP_DIRS, RELEASE_TAG, SHARED_PATHS } from './linear-release-config.mjs';
 
 const MESSAGE_MAX_BYTES = 1000;
-const APP_DIRS = {
-  portal: 'apps/portal',
-  manager: 'apps/manager',
-  'api-worker': 'workers/api-worker',
-};
-// Shared code every app ships with. Keep in sync with include_paths in
-// .github/workflows/linear-releases.yml.
-const SHARED_PATHS = ['packages', 'patches', 'package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml'];
-const RELEASE_TAG = new RegExp(
-  `^(${Object.keys(APP_DIRS).join('|')})-(\\d{4}-\\d{2}-\\d{2})(?:\\.([2-9]|[1-9]\\d+))?$`,
-);
 
 const [tag, outDir = '.'] = process.argv.slice(2);
 const match = tag?.match(RELEASE_TAG);

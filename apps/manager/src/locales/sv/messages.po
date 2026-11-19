@@ -393,10 +393,6 @@ msgstr ""
 msgid "Advanced"
 msgstr ""
 
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
-msgstr ""
-
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Agent ID"
 msgstr ""
@@ -3194,11 +3190,7 @@ msgid "Sign in with Wallet"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Sign once to enable gasless transactions for your ENS operations."
-msgstr ""
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Sign once to enable seamless transactions."
+msgid "Sign once to skip wallet prompts for registrations and renewals.<0/>It's free and costs no gas."
 msgstr ""
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
@@ -3733,10 +3725,6 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."
-msgstr ""
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
@@ -4407,7 +4395,7 @@ msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
-msgid "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
+msgid "You can keep browsing, but registering or managing names needs a session.<0/>Try again when you're ready."
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
