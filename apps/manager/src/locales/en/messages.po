@@ -187,8 +187,8 @@ msgid "{name} needs a resolver this wallet can write before it can be a primary 
 msgstr "{name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
-msgstr "{name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name."
+msgid "{name} no longer resolves, usually because its parent name expired or was upgraded to ENSv2 without it, so it can’t be a primary name."
+msgstr "{name} no longer resolves, usually because its parent name expired or was upgraded to ENSv2 without it, so it can’t be a primary name."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "{name} uses an offchain resolver, so its ETH address is set with that resolver’s provider. Point it at this wallet there, then try again."
@@ -2118,8 +2118,8 @@ msgid "No favorites to display"
 msgstr "No favorites to display"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "No longer resolves, usually because its parent name has expired"
-msgstr "No longer resolves, usually because its parent name has expired"
+msgid "No longer resolves, usually because its parent name expired or was upgraded without it"
+msgstr "No longer resolves, usually because its parent name expired or was upgraded without it"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/general/GeneralTab.tsx
 msgid "No matches"

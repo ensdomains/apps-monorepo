@@ -190,7 +190,8 @@ const PrimaryNameOption = ({
           {isUnreachable && (
             <span className="font-sans text-muted-foreground text-xs">
               <Trans>
-                No longer resolves, usually because its parent name has expired
+                No longer resolves, usually because its parent name expired or
+                was upgraded without it
               </Trans>
             </span>
           )}
@@ -589,7 +590,7 @@ export const ChoosePrimaryNameDialog = ({
     setIsCheckingPreparation(false)
     return new Error(
       isUnreachable
-        ? t`${name} no longer resolves, usually because its parent name has expired, so it can’t be a primary name.`
+        ? t`${name} no longer resolves, usually because its parent name expired or was upgraded to ENSv2 without it, so it can’t be a primary name.`
         : t`${name} needs a resolver this wallet can write before it can be a primary name, and setting one up here only works for ENSv2 names. Upgrade it first, or set its resolver in the ENSv1 app.`,
     )
   }
