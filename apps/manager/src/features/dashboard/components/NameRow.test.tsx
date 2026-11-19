@@ -37,6 +37,19 @@ describe('NameRow', () => {
     )
   })
 
+  it.each([
+    ['links a known name to its profile', 'ucles.eth', true],
+    [
+      'shows a name with an unknown label as text, since its profile cannot load',
+      `[${'ab'.repeat(32)}].ucles.eth`,
+      false,
+    ],
+  ])('%s', (_, label, isLinked) => {
+    const { getByText } = render(<NameRow label={label} />)
+
+    expect(getByText(label).closest('a') !== null).toBe(isLinked)
+  })
+
   it('renders each supplied name role', () => {
     const { getByText } = render(
       <NameRow label="wrapped.eth" nameRoles={['owner', 'manager']} />,
