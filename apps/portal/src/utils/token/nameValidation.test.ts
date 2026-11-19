@@ -2,12 +2,9 @@ import { ensNameArbitraries } from '@ens-apps/test-utils/arbitraries/names'
 import * as fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
-  getSubnameLabelError,
   validateNameLength,
   validateRegistrableEthName,
 } from './nameValidation'
-
-const EVM_ADDRESS = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
 
 describe('validateRegistrableEthName', () => {
   it('returns undefined for valid .eth 2LD names', () => {
@@ -151,20 +148,5 @@ describe('validateRegistrableEthName — encoded labelhash labels', () => {
         '[023e0d05ab821f1deb4821991c1a5bb8e1d9d71b7113d61cce6972934f939773].eth',
       ),
     ).toMatch(/cannot be registered/)
-  })
-})
-
-describe('getSubnameLabelError', () => {
-  it.each([
-    { label: EVM_ADDRESS, parent: 'parent.eth', refused: true },
-    { label: 'pay', parent: `${EVM_ADDRESS}.eth`, refused: true },
-    { label: 'pay', parent: 'parent.eth', refused: false },
-    { label: '', parent: `${EVM_ADDRESS}.eth`, refused: false },
-  ])('refuses $label under $parent: $refused', ({ label, parent, refused }) => {
-    expect(getSubnameLabelError(label, parent)).toBe(
-      refused
-        ? 'Names that look like a wallet address can’t be created here, because they can be passed off as that address.'
-        : null,
-    )
   })
 })

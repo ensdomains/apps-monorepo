@@ -247,45 +247,6 @@ describe('SearchModalContent', () => {
     availabilityOverride = null
   })
 
-  it('never offers a name that reads like a wallet address for registration', async () => {
-    const name = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth'
-    mockBuildSearchSuggestions.mockReturnValue([
-      {
-        id: `name:${name}`,
-        label: name,
-        description: 'View ENS name details',
-        inputValue: name,
-        action: () => mockNavigateToName(name),
-      },
-    ])
-    availabilityOverride = { isAvailable: true, name }
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    })
-    queryClient.setQueryData(['get-ens-owner', { name }], null)
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <Command>
-          <SearchModalContent
-            searchValue={name}
-            onSelectSuggestion={mockOnSelectSuggestion}
-            navigateToName={mockNavigateToName}
-            navigateToAddress={mockNavigateToAddress}
-            navigateToResolver={mockNavigateToResolver}
-          />
-        </Command>
-      </QueryClientProvider>,
-    )
-
-    expect(
-      await screen.findByRole('option', { name: /View ENS name details/ }),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Register' })).toBeNull()
-    availabilityOverride = null
-  })
-
   it('calls onSelectAvailableName when an available name is selected and callback is provided', async () => {
     mockBuildSearchSuggestions.mockReturnValue([
       {

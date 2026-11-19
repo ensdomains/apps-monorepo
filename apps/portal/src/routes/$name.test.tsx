@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, assert, describe, expect, it, vi } from 'vitest'
-import { createTestQueryClient, createTestWrapper } from '@/test-utils'
+import { createTestWrapper } from '@/test-utils'
 
 let routeName = 'alice.eth'
 
@@ -27,15 +27,6 @@ vi.mock('@/components/ProfileSidebar', () => ({
   ProfileSidebar: () => null,
 }))
 vi.mock('@/hooks/useRememberName', () => ({ useRememberName: () => null }))
-
-// Tests seed the answer, so nothing refetches over it.
-vi.mock('@/features/profile/hooks/useNameAvailability', () => ({
-  getNameAvailabilityQueryOptions: (params: { name: string }) => ({
-    queryKey: ['check-name-availability', params],
-    queryFn: () => Promise.resolve({ isAvailable: false, name: params.name }),
-    staleTime: Number.POSITIVE_INFINITY,
-  }),
-}))
 
 // WEB-2022: a spelling that is not a valid ENS name must say so plainly and
 // must not open the name's pages, because every read and write there would
@@ -97,46 +88,28 @@ describe('name layout — invalid names', () => {
 })
 
 describe('name layout — address-like names', () => {
-  const name = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth'
+  const VITALIK = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
 
   afterEach(() => {
     routeName = 'alice.eth'
   })
 
-  // A free one gets the page's refusal to register it instead.
-  it.each([
-    { isAvailable: false, hasWarning: true },
-    { isAvailable: true, hasWarning: false },
-  ])(
-    'warns above the pages unless the name is free (free: $isAvailable)',
-    ({ isAvailable, hasWarning }) => {
+  // Registered or free, a subname or a 2LD: the pages stay open under the note.
+  it.each([`${VITALIK}.eth`, `${VITALIK}.base.eth`])(
+    'notes above the pages of %s that it may resolve to another address',
+    (name) => {
       routeName = name
-      const queryClient = createTestQueryClient()
-      queryClient.setQueryData(['check-name-availability', { name }], {
-        isAvailable,
-        name,
-      })
 
-      render(<NameLayout />, { wrapper: createTestWrapper(queryClient) })
+      renderLayout()
 
       expect(
-        screen.queryByText(/This name may resolve to another address/) !== null,
-      ).toBe(hasWarning)
+        screen.getByText(/This name may resolve to another address/),
+      ).toBeInTheDocument()
       expect(screen.getByTestId('outlet')).toBeInTheDocument()
     },
   )
 
-  it('warns on a subname, which has no availability to check', () => {
-    routeName = `0xd8da6bf26964af9d7eed9e03e53415d37aa96045.base.eth`
-
-    renderLayout()
-
-    expect(
-      screen.getByText(/This name may resolve to another address/),
-    ).toBeInTheDocument()
-  })
-
-  it('does not warn on an ordinary name', () => {
+  it('adds no note to an ordinary name', () => {
     renderLayout()
 
     expect(

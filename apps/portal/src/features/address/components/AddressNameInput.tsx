@@ -37,7 +37,7 @@ export const AddressNameInput = ({
   placeholder = 'ENS name or address',
   ...inputProps
 }: AddressNameInputProps) => {
-  const { status, address, isRawAddress, isInvalid } = resolution
+  const { status, address, isRawAddress, isAddressLike, isInvalid } = resolution
 
   return (
     <>
@@ -82,15 +82,15 @@ export const AddressNameInput = ({
             Enter a valid ENS name or address
           </p>
         ))
-        .with('address-like', () => (
-          <p className="text-p mt-1.5 text-danger">
-            This name looks like a wallet address and may resolve to a different
-            one. Enter the address itself.
-          </p>
-        ))
         // No message before the user has typed anything.
         .with('empty', () => null)
         .exhaustive()}
+      {isAddressLike && (
+        <p className="text-p mt-1.5 text-warning-text">
+          Note: This name may resolve to another address, confirm the final
+          address is the intended address.
+        </p>
+      )}
     </>
   )
 }

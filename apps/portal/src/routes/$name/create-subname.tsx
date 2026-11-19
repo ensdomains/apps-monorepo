@@ -53,7 +53,7 @@ import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { ROOT_RESOURCE_ID } from '@/lib/resource/resourceId'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
-import { getSubnameLabelError } from '@/utils/token/nameValidation'
+import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 
 export const Route = createFileRoute('/$name/create-subname')({
   // Only ENSv2 subname creation is paused; an unknown protocol counts as ENSv2.
@@ -147,6 +147,10 @@ const CreateSubnameForm = ({
 
   const ownerResolution = useAddressResolution(ownerInput)
   const ownerAddress = ownerResolution.address
+  const ownerInvalid =
+    ownerResolution.status === 'invalid' ||
+    ownerResolution.status === 'unresolved' ||
+    ownerResolution.status === 'error'
 
   useSyncOwnerWithConnectedAddress(
     connectedAddress,
@@ -172,7 +176,7 @@ const CreateSubnameForm = ({
   } = useCreateSubname()
 
   const trimmedLabel = label.trim()
-  const labelError = getSubnameLabelError(trimmedLabel, name)
+  const labelError = getLabelRegistrationError(trimmedLabel)
   // One lookup per pause in typing, not per keystroke.
   const lookupLabel = useDebouncedValue(trimmedLabel, LABEL_LOOKUP_DEBOUNCE_MS)
   const isLookupCurrent = lookupLabel === trimmedLabel
@@ -190,7 +194,7 @@ const CreateSubnameForm = ({
             registryAddress: target.registryAddress,
           },
     ),
-    enabled: Boolean(lookupLabel) && !getSubnameLabelError(lookupLabel, name),
+    enabled: Boolean(lookupLabel) && !getLabelRegistrationError(lookupLabel),
   })
   const labelStatus = isLookupCurrent ? labelStatusQuery.data : undefined
   const isLabelTaken = labelStatus === 'registered'
@@ -304,7 +308,7 @@ const CreateSubnameForm = ({
           )}
         </Field>
 
-        <Field data-invalid={ownerResolution.isInvalid}>
+        <Field data-invalid={ownerInvalid}>
           <FieldLabel htmlFor="owner">Owner</FieldLabel>
           <AddressNameInput
             id="owner"

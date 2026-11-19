@@ -9,7 +9,6 @@ const RESOLVER = '0x2222222222222222222222222222222222222222'
 let protocolVersion: 'ENSv1' | 'ENSv2' = 'ENSv1'
 let routeName = 'alice.eth'
 let hasOwner = true
-let isAvailable = false
 let profile: { records: unknown } | undefined
 let isInGrace = false
 let migrationStatus: {
@@ -159,7 +158,7 @@ vi.mock('@tanstack/react-query', async () => {
           return { data: profile, isLoading: false, error: null }
         case 'check-name-availability':
           return {
-            data: { isAvailable },
+            data: { isAvailable: false },
             isLoading: false,
             error: null,
           }
@@ -258,35 +257,6 @@ describe('name route — ownerless subname', () => {
     expect(
       screen.queryByRole('heading', { name: 'jesse.base.eth' }) !== null,
     ).toBe(isFound)
-  })
-})
-
-describe('name route — available name', () => {
-  afterEach(() => {
-    routeName = 'alice.eth'
-    hasOwner = true
-    isAvailable = false
-  })
-
-  it.each([
-    { name: 'alice.eth', canRegister: true },
-    {
-      name: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth',
-      canRegister: false,
-    },
-  ])('offers $name for registration: $canRegister', ({ name, canRegister }) => {
-    routeName = name
-    hasOwner = false
-    isAvailable = true
-
-    renderRoute()
-
-    expect(screen.queryByRole('link', { name: 'Register' }) !== null).toBe(
-      canRegister,
-    )
-    expect(screen.queryByText('Name can’t be registered') !== null).toBe(
-      !canRegister,
-    )
   })
 })
 

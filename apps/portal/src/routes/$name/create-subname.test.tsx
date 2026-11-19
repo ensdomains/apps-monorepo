@@ -259,21 +259,6 @@ describe('create subname under a V1 parent', () => {
     ).toBeDisabled()
   })
 
-  it('refuses a label that reads like a wallet address', async () => {
-    v1()
-    labelLookup = 'available'
-    renderRoute()
-
-    await userEvent.type(
-      await screen.findByLabelText('Subname'),
-      '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
-    )
-
-    expect(
-      screen.getByText(/look like a wallet address can’t be created here/),
-    ).toBeInTheDocument()
-  })
-
   it('shows a failed label lookup and retries it', async () => {
     labelLookup = 'error'
     v1()

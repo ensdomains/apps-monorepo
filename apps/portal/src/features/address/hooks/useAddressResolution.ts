@@ -13,8 +13,6 @@ export type AddressResolutionStatus =
   | 'empty'
   /** Non-empty, but not a syntactically valid ENS name or 0x address. */
   | 'invalid'
-  /** A name that reads like a wallet address, so it is never resolved. */
-  | 'address-like'
   /** Valid input; debouncing or fetching the resolution. */
   | 'resolving'
   /** Resolved to an address. */
@@ -33,6 +31,8 @@ export type AddressResolution = {
   readonly isValid: boolean
   /** Whether the trimmed input is a raw 0x address (vs. a name to resolve). */
   readonly isRawAddress: boolean
+  /** Whether the input is a name that reads like a wallet address; it still resolves. */
+  readonly isAddressLike: boolean
   /** True when the input is present but can't be used (invalid/unresolved/error). */
   readonly isInvalid: boolean
   readonly status: AddressResolutionStatus
@@ -54,9 +54,6 @@ export const useAddressResolution = (input: string): AddressResolution => {
   const debounced = useDebouncedValue(trimmed, isRawAddress ? 0 : DEBOUNCE_MS)
 
   const isValid = trimmed.length > 0 && isNameOrAddress(trimmed)
-  // Such a name gets passed off as the address it spells, so make the user paste that.
-  const isAddressLike = !isRawAddress && isAddressLikeName(trimmed)
-  const canResolve = isValid && !isAddressLike
   const isDebouncing = debounced !== trimmed
 
   const {
@@ -65,22 +62,20 @@ export const useAddressResolution = (input: string): AddressResolution => {
     isError,
   } = useQuery({
     ...getResolvedAddressQueryOptions({ nameOrAddress: debounced }),
-    enabled: canResolve && !isDebouncing,
+    enabled: isValid && !isDebouncing,
   })
 
-  const isResolving = canResolve && (isDebouncing || isFetching)
+  const isResolving = isValid && (isDebouncing || isFetching)
 
   const status = match({
     isEmpty: trimmed.length === 0,
-    isAddressLike,
     isValid,
     isResolving,
-    isError: canResolve && isError,
+    isError: isValid && isError,
     resolved,
   })
     .with({ isEmpty: true }, () => 'empty' as const)
     .with({ isValid: false }, () => 'invalid' as const)
-    .with({ isAddressLike: true }, () => 'address-like' as const)
     .with({ isResolving: true }, () => 'resolving' as const)
     .with({ resolved: P.nonNullable }, () => 'resolved' as const)
     .with({ isError: true }, () => 'error' as const)
@@ -91,11 +86,9 @@ export const useAddressResolution = (input: string): AddressResolution => {
     isResolving,
     isValid,
     isRawAddress,
+    isAddressLike: !isRawAddress && isAddressLikeName(trimmed),
     isInvalid:
-      status === 'invalid' ||
-      status === 'address-like' ||
-      status === 'unresolved' ||
-      status === 'error',
+      status === 'invalid' || status === 'unresolved' || status === 'error',
     status,
   }
 }

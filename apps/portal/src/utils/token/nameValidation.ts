@@ -1,4 +1,3 @@
-import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 import { getLabel } from './getLabel'
@@ -33,23 +32,6 @@ export const validateRegistrableEthName = (
 
   return undefined
 }
-
-/** Refuses a name that reads like a wallet address, which ENS itself allows. */
-export const getAddressLikeNameError = (
-  name: string,
-  action: 'registered' | 'created' | 'imported',
-): string | null =>
-  isAddressLikeName(name)
-    ? `Names that look like a wallet address can’t be ${action} here, because they can be passed off as that address.`
-    : null
-
-/** Refuses a subname label, including one whose new name reads like a wallet address. */
-export const getSubnameLabelError = (
-  label: string,
-  parentName: string,
-): string | null =>
-  getLabelRegistrationError(label) ??
-  (label ? getAddressLikeNameError(`${label}.${parentName}`, 'created') : null)
 
 /**
  * Validates that a name meets ENS minimum length (3+ chars for the first label).

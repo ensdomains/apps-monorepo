@@ -20,7 +20,6 @@ import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
-  getAddressLikeNameError,
   validateNameLength,
   validateRegistrableEthName,
 } from '@/utils/token/nameValidation'
@@ -32,7 +31,7 @@ type RegisterNameProps = {
   readonly name: string
 }
 
-const RegisterNameFlow = ({ name }: RegisterNameProps) => {
+export const RegisterName = ({ name }: RegisterNameProps) => {
   const [duration, setDuration] = useState<number>(() =>
     getDurationInSecondsFromYears(1),
   )
@@ -228,18 +227,5 @@ const RegisterNameFlow = ({ name }: RegisterNameProps) => {
         </>
       )}
     </main>
-  )
-}
-
-/** Refused before the flow mounts, so a run stored for the name never resumes. */
-export const RegisterName = ({ name }: RegisterNameProps) => {
-  const addressLikeError = getAddressLikeNameError(name, 'registered')
-  return addressLikeError ? (
-    <InvalidNameMessage
-      title="Name can’t be registered"
-      description={addressLikeError}
-    />
-  ) : (
-    <RegisterNameFlow name={name} />
   )
 }
