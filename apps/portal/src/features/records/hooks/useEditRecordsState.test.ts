@@ -87,6 +87,31 @@ describe('editRecordsReducer', () => {
     })
   })
 
+  describe('ADD_ADDRESS_RECORD', () => {
+    // A name lookup would turn Base Sepolia into mainnet Base and an unknown name into ETH.
+    it.each([
+      { key: 'Bitcoin', coinType: 0 },
+      { key: 'Base Sepolia', coinType: 2147568180 },
+    ])('stages $key with coin type $coinType', ({ key, coinType }) => {
+      const result = editRecordsReducer(initialEditRecordsState, {
+        type: 'ADD_ADDRESS_RECORD',
+        coinType,
+        key,
+        value: '0x123',
+      })
+
+      expect(result.newRecords).toEqual([
+        {
+          type: 'address',
+          key,
+          value: '0x123',
+          id: coinType,
+          _uid: expect.any(String),
+        },
+      ])
+    })
+  })
+
   describe('DELETE_RECORD', () => {
     it('removes a new record from newRecords', () => {
       const newRecord: EditableRecord = {

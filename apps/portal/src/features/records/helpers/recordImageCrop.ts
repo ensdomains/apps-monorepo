@@ -1,7 +1,8 @@
+import type { ImageTextRecordKey } from '@ens-apps/record-catalog/text'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { match } from 'ts-pattern'
 
-export type RecordImageKind = 'avatar' | 'header'
+export type RecordImageKind = ImageTextRecordKey
 
 export interface ImageSize {
   readonly height: number

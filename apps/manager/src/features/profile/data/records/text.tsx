@@ -1,24 +1,8 @@
 import {
-  SiDiscord,
-  SiFarcaster,
-  SiGithub,
-  SiInstagram,
-  SiMastodon,
-  SiReddit,
-  SiTelegram,
-  SiTiktok,
-  SiTwitch,
-  SiX,
-  SiYoutube,
-} from '@icons-pack/react-simple-icons'
-import {
-  ClockIcon,
-  HouseIcon,
-  MailIcon,
-  MapPinIcon,
-  PhoneIcon,
-} from 'lucide-react'
-import { LinkedInIcon } from '../../components/icons/LinkedInIcon'
+  PROFILE_TEXT_RECORDS,
+  type TextRecordDescriptor,
+} from '@ens-apps/record-catalog/text'
+import { getTextRecordIcon } from '@ens-apps/record-catalog/text-icons'
 import { createSocialProfileValueNormalizer } from './social'
 import type { SectionData, TextRecordDef } from './types'
 
@@ -29,192 +13,67 @@ export const sections = {
 } as const satisfies Record<string, SectionData>
 
 export const staticTextRecords = [
-  'name',
-  'avatar',
-  'header',
-  'description',
-  'url',
-  'theme',
-  'language',
-  'primary-contact',
-  'domains.ens.primary-contacts',
+  PROFILE_TEXT_RECORDS.name.key,
+  PROFILE_TEXT_RECORDS.avatar.key,
+  PROFILE_TEXT_RECORDS.header.key,
+  PROFILE_TEXT_RECORDS.description.key,
+  PROFILE_TEXT_RECORDS.url.key,
+  PROFILE_TEXT_RECORDS.theme.key,
+  PROFILE_TEXT_RECORDS.language.key,
+  PROFILE_TEXT_RECORDS.primaryContact.key,
+  PROFILE_TEXT_RECORDS.primaryContacts.key,
 ] as const
 
-export const textRecords: TextRecordDef[] = [
-  // Social
-  {
-    key: 'com.twitter',
-    section: 'social',
-    name: 'X (Twitter)',
-    displayPrefix: '@',
-    href: 'https://x.com/',
-    kind: 'link',
-    forceFetch: 'always',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['x.com', 'twitter.com'],
-    }),
-    icon: SiX,
-  },
-  {
-    key: 'org.telegram',
-    section: 'social',
-    name: 'Telegram',
-    displayPrefix: '@',
-    href: 'https://t.me/',
-    kind: 'link',
-    forceFetch: 'always',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['t.me', 'telegram.me'],
-    }),
-    icon: SiTelegram,
-  },
-  {
-    key: 'xyz.farcaster',
-    section: 'social',
-    name: 'Farcaster',
-    displayPrefix: '@',
-    href: 'https://farcaster.xyz/',
-    kind: 'link',
-    forceFetch: 'always',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['farcaster.xyz'],
-    }),
-    icon: SiFarcaster,
-  },
-  {
-    key: 'com.instagram',
-    section: 'social',
-    name: 'Instagram',
-    displayPrefix: '@',
-    kind: 'link',
-    href: 'https://instagram.com/',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['instagram.com'],
-    }),
-    icon: SiInstagram,
-  },
-  {
-    key: 'com.discord',
-    section: 'social',
-    name: 'Discord',
-    kind: 'copy',
-    forceFetch: 'always',
-    icon: SiDiscord,
-  },
-  {
-    key: 'com.github',
-    section: 'social',
-    name: 'GitHub',
-    kind: 'link',
-    href: 'https://github.com/',
-    forceFetch: 'always',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['github.com'],
-    }),
-    icon: SiGithub,
-  },
-  {
-    key: 'com.linkedin',
-    section: 'social',
-    name: 'LinkedIn',
-    href: 'https://www.linkedin.com/in/',
-    kind: 'link',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['linkedin.com'],
-      pathPrefixes: ['in'],
-    }),
-    icon: LinkedInIcon,
-  },
-  {
-    key: 'com.youtube',
-    section: 'social',
-    name: 'YouTube',
-    kind: 'link',
-    href: 'https://youtube.com/',
-    icon: SiYoutube,
-  },
-  {
-    key: 'com.reddit',
-    section: 'social',
-    name: 'Reddit',
-    displayPrefix: 'u/',
-    kind: 'link',
-    href: 'https://reddit.com/user/',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['reddit.com'],
-      pathPrefixes: ['user'],
-    }),
-    icon: SiReddit,
-  },
-  {
-    key: 'com.tiktok',
-    section: 'social',
-    name: 'TikTok',
-    displayPrefix: '@',
-    kind: 'link',
-    href: 'https://www.tiktok.com/@',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['tiktok.com'],
-    }),
-    icon: SiTiktok,
-  },
-  {
-    key: 'com.twitch',
-    section: 'social',
-    name: 'Twitch',
-    kind: 'link',
-    href: 'https://twitch.tv/',
-    normalize: createSocialProfileValueNormalizer({
-      hosts: ['twitch.tv'],
-    }),
-    icon: SiTwitch,
-  },
-  {
-    key: 'com.mastodon',
-    section: 'social',
-    name: 'Mastodon',
-    kind: 'copy',
-    icon: SiMastodon,
-  },
+const ALWAYS_FETCH_TEXT_RECORDS: ReadonlySet<string> = new Set([
+  PROFILE_TEXT_RECORDS.twitter.key,
+  PROFILE_TEXT_RECORDS.telegram.key,
+  PROFILE_TEXT_RECORDS.farcaster.key,
+  PROFILE_TEXT_RECORDS.discord.key,
+  PROFILE_TEXT_RECORDS.github.key,
+  PROFILE_TEXT_RECORDS.email.key,
+  PROFILE_TEXT_RECORDS.phone.key,
+])
 
-  // Contact
-  {
-    key: 'email',
-    section: 'contact',
-    name: 'Email Address',
+type ProfileDetailRecord = Extract<
+  TextRecordDescriptor,
+  { readonly role: 'social' | 'contact' }
+>
+
+function toTextRecordDef({
+  key,
+  name,
+  role,
+  presentation,
+}: ProfileDetailRecord): TextRecordDef {
+  const record = {
+    key,
+    name,
+    section: role,
+    icon: getTextRecordIcon(key),
+    ...(ALWAYS_FETCH_TEXT_RECORDS.has(key) && {
+      forceFetch: 'always' as const,
+    }),
+  }
+
+  if (presentation.kind === 'copy') {
+    return { ...record, kind: 'copy' }
+  }
+
+  return {
+    ...record,
     kind: 'link',
-    href: 'mailto:',
-    forceFetch: 'always',
-    icon: MailIcon,
-  },
-  {
-    key: 'location',
-    section: 'contact',
-    name: 'Location',
-    kind: 'copy',
-    icon: MapPinIcon,
-  },
-  {
-    key: 'phone',
-    section: 'contact',
-    name: 'Phone Number',
-    kind: 'link',
-    href: 'tel:',
-    forceFetch: 'always',
-    icon: PhoneIcon,
-  },
-  {
-    key: 'mail',
-    section: 'contact',
-    name: 'Mailing Address',
-    kind: 'copy',
-    icon: HouseIcon,
-  },
-  {
-    key: 'timezone',
-    section: 'contact',
-    name: 'Timezone',
-    kind: 'copy',
-    icon: ClockIcon,
-  },
-]
+    href: presentation.href,
+    ...('displayPrefix' in presentation && {
+      displayPrefix: presentation.displayPrefix,
+    }),
+    ...('normalization' in presentation && {
+      normalize: createSocialProfileValueNormalizer(presentation.normalization),
+    }),
+  }
+}
+
+export const textRecords: readonly TextRecordDef[] = Object.values(
+  PROFILE_TEXT_RECORDS,
+)
+  .filter((record) => record.role === 'social' || record.role === 'contact')
+  .map(toTextRecordDef)

@@ -8,6 +8,7 @@ import {
 import type { RecordImageKind } from './recordImageCrop'
 import {
   getRecordImageChoice,
+  getRecordImageKind,
   type PreparedRecordImage,
   prepareRecordImage,
   submitRecordImage,
@@ -46,6 +47,22 @@ const makeUpload = (kind: RecordImageKind = 'avatar'): PreparedRecordImage => ({
   imageUrl: kind === 'avatar' ? SEPOLIA_AVATAR : `${SEPOLIA_AVATAR}/h`,
   dataURL: JPEG_DATA_URL,
   hash: JPEG_HASH,
+})
+
+describe('getRecordImageKind', () => {
+  it.each(['avatar', 'header'] as const)(
+    'allows the upload affordance for the exact text key %s',
+    (key) => {
+      expect(getRecordImageKind({ type: 'text', key })).toBe(key)
+    },
+  )
+
+  it.each(['banner', 'cover', 'HEADER', 'url'])(
+    'keeps %s in the raw editor',
+    (key) => {
+      expect(getRecordImageKind({ type: 'text', key })).toBeUndefined()
+    },
+  )
 })
 
 describe('getRecordImageChoice', () => {

@@ -8,6 +8,25 @@ import {
 } from './validateRecord'
 
 describe('validateRecord', () => {
+  it.each(['BANNER', 'COVER', 'URL', 'EMAIL'])(
+    'checks the format for the raw key %s regardless of case',
+    (key) => {
+      expect(
+        validateRecord({ type: 'text', key, value: 'plain text' }),
+      ).toContain('Invalid')
+    },
+  )
+
+  it('accepts an unformatted social value in the raw editor', () => {
+    expect(
+      validateRecord({
+        type: 'text',
+        key: 'com.twitter',
+        value: '  @value as entered  ',
+      }),
+    ).toBeNull()
+  })
+
   describe('URL validation (avatar, url, banner, header, cover)', () => {
     const urlKeys = ['avatar', 'url', 'banner', 'header', 'cover']
 

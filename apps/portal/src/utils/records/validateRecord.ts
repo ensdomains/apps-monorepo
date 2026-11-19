@@ -1,3 +1,4 @@
+import { getTextRecordDescriptor } from '@ens-apps/record-catalog/text'
 import {
   coinNameToTypeMap,
   getCoderByCoinType,
@@ -17,11 +18,7 @@ export interface ValidationError {
   message: string
 }
 
-/** Text record keys that should contain valid URLs */
-const URL_KEYS = new Set(['avatar', 'url', 'banner', 'header', 'cover'])
-
-/** Text record keys that should contain valid email addresses */
-const EMAIL_KEYS = new Set(['email'])
+const LEGACY_URL_TEXT_RECORD_KEYS = new Set(['banner', 'cover'])
 
 /**
  * Validates a URL string.
@@ -46,6 +43,23 @@ function isValidEmail(value: string): boolean {
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(value)
+}
+
+function validateTextRecord(key: string, value: string): string | null {
+  const lookupKey = key.toLowerCase()
+  const format = getTextRecordDescriptor(lookupKey)?.format
+  const isUrlRecord =
+    format === 'url' ||
+    format === 'image-url' ||
+    LEGACY_URL_TEXT_RECORD_KEYS.has(lookupKey)
+
+  if (isUrlRecord && !isValidUrl(value)) {
+    return 'Invalid URL format. Must start with http://, https://, ipfs://, or ipns://'
+  }
+  if (format === 'email' && !isValidEmail(value)) {
+    return 'Invalid email address format'
+  }
+  return null
 }
 
 /**
@@ -186,23 +200,7 @@ export function validateRecord(record: EditableRecord): string | null {
   // Empty values are always valid (they represent deletion)
   if (!value || value.trim() === '') return null
 
-  if (type === 'text') {
-    const key = record.key.toLowerCase()
-
-    // URL validation
-    if (URL_KEYS.has(key)) {
-      if (!isValidUrl(value)) {
-        return `Invalid URL format. Must start with http://, https://, ipfs://, or ipns://`
-      }
-    }
-
-    // Email validation
-    if (EMAIL_KEYS.has(key)) {
-      if (!isValidEmail(value)) {
-        return 'Invalid email address format'
-      }
-    }
-  }
+  if (type === 'text') return validateTextRecord(record.key, value)
 
   if (type === 'address') {
     const error = validateAddressRecord(record.id, record.key, value)

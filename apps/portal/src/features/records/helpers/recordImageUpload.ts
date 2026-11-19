@@ -1,4 +1,5 @@
 import type { EnsNetwork } from '@ens-apps/config'
+import { getTextRecordDescriptor } from '@ens-apps/record-catalog/text'
 import { type Address, type Hex, sha256 } from 'viem'
 import {
   canEditRecord,
@@ -37,8 +38,11 @@ export const getRecordImageKind = ({
 }: {
   readonly type: string
   readonly key?: string
-}): RecordImageKind | undefined =>
-  type === 'text' && (key === 'avatar' || key === 'header') ? key : undefined
+}): RecordImageKind | undefined => {
+  if (type !== 'text' || key === undefined) return undefined
+  const record = getTextRecordDescriptor(key)
+  return record?.format === 'image-url' ? record.key : undefined
+}
 
 const isSameRecordImageUrl = (url: string | undefined, canonical: string) =>
   url?.trim() === canonical || url?.trim() === new URL(canonical).href

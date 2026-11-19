@@ -14,6 +14,30 @@ const inventory = (
 })
 
 describe('selectProfileRecordKeys', () => {
+  it('preserves the text keys and read order for a name without inventory', () => {
+    expect(selectProfileRecordKeys(undefined).texts).toEqual([
+      'name',
+      'avatar',
+      'header',
+      'description',
+      'url',
+      'theme',
+      'language',
+      'primary-contact',
+      'domains.ens.primary-contacts',
+      'com.twitter',
+      'org.telegram',
+      'xyz.farcaster',
+      'com.discord',
+      'com.github',
+      'email',
+      'phone',
+      'location',
+      'timezone',
+      'links',
+    ])
+  })
+
   it.each([
     { state: 'no inventory', value: undefined, isRead: false },
     {

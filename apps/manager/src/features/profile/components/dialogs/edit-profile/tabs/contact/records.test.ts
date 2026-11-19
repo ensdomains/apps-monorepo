@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { contactMethods, defaultEnabledContactMethodKeys } from './constants'
+import {
+  contactMethods,
+  defaultEnabledContactMethodKeys,
+  rowMethods,
+} from './constants'
 import * as contactRecordHelpers from './records'
 import {
   getBaseWithPrimarySocialContactKeys,
@@ -169,6 +173,58 @@ describe('contact record helpers', () => {
       ])
     })
   })
+
+  it('keeps separate orders for choosing contact methods and editing enabled ones', () => {
+    expect(contactMethods.map(({ key }) => key)).toEqual([
+      'com.twitter',
+      'org.telegram',
+      'xyz.farcaster',
+      'com.discord',
+      'com.instagram',
+      'com.linkedin',
+      'com.github',
+      'com.mastodon',
+      'com.reddit',
+      'com.tiktok',
+      'com.twitch',
+      'email',
+      'phone',
+      'mail',
+    ])
+    expect(rowMethods.map(({ key }) => key)).toEqual([
+      'email',
+      'com.twitter',
+      'org.telegram',
+      'xyz.farcaster',
+      'com.discord',
+      'com.instagram',
+      'com.linkedin',
+      'mail',
+      'phone',
+      'com.github',
+      'com.mastodon',
+      'com.reddit',
+      'com.tiktok',
+      'com.twitch',
+    ])
+  })
+
+  it.each([
+    ['com.twitter', 'Twitter', 'Twitter', 'social', undefined],
+    ['email', 'E-mail', 'myemail@me.com', 'contact', 'email'],
+    ['phone', 'Phone', 'Phone', 'contact', 'tel'],
+    ['mail', 'Address', 'Address', 'contact', undefined],
+  ])(
+    'keeps the contact editor labels and input hints for %s',
+    (key, label, placeholder, section, type) => {
+      expect(getContactMethod(key)).toMatchObject({
+        label,
+        placeholder,
+        section,
+      })
+      expect(getContactMethod(key).type).toBe(type)
+    },
+  )
 
   describe('contact error message presentation', () => {
     it('uses the 12px warning icon treatment from the edit profile design', () => {

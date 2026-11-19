@@ -1,140 +1,52 @@
 import {
-  getCoinTypeForReverseRegistrarChainId,
-  L2_REVERSE_REGISTRAR_CHAIN_IDS,
-} from '@ens-apps/l2-primary/v1'
-import {
-  coinNameToTypeMap,
-  coinTypeToNameMap,
-} from '@ensdomains/address-encoder'
-import SiBitcoinsv from '@icons-pack/react-simple-icons/icons/SiBitcoinsv'
-import SiChianetwork from '@icons-pack/react-simple-icons/icons/SiChianetwork'
-import SiSui from '@icons-pack/react-simple-icons/icons/SiSui'
-import { coinIcons } from '@/assets/coins/'
+  type AddressRecordOption,
+  CANONICAL_ADDRESS_RECORDS,
+  REMOVED_ADDRESS_RECORDS,
+  SEPOLIA_ADDRESS_RECORDS,
+} from '@ens-apps/record-catalog'
+import { getAddressRecordIcon } from '@ens-apps/record-catalog/address-icons'
 import { envConfig } from '@/config'
 import type { AddressRecordDef } from './types'
 
-// Key overrides by canonical coin type, before deployment-specific L2 mapping.
-// Artwork aliases affect presentation only, never the address coder or record key.
-const ADDRESS_PRESENTATION_OVERRIDES: Readonly<
-  Record<number, { readonly name?: string; readonly iconKey?: string }>
-> = {
-  [coinNameToTypeMap.default]: { name: 'Any EVM chain' },
-  [coinNameToTypeMap.bsc]: { iconKey: 'bnb' },
-  [coinNameToTypeMap.avaxc]: { iconKey: 'avax' },
-  [coinNameToTypeMap.scr]: { iconKey: 'scroll' },
-  // The Lisk mainnet moved to this L2, which keeps the Lisk brand.
-  [coinNameToTypeMap.lisk]: { iconKey: 'lsk' },
-}
+const toAddressRecordDef = ({
+  coinType,
+  name,
+  notation,
+}: AddressRecordOption): AddressRecordDef => ({
+  coinType,
+  name,
+  notation,
+  icon: getAddressRecordIcon(coinType),
+})
 
-// Removed in address-encoder 3.0.0: saved records still load via ensjs, so keep their names.
-const REMOVED_COINS: Readonly<
-  Record<number, readonly [notation: string, name: string]>
-> = {
-  55: ['aib', 'AIB'],
-  105: ['strat', 'Stratis'],
-  134: ['lsk', 'Lisk'],
-  178: ['poaLegacy', '[LEGACY] POA'],
-  194: ['eos', 'EOS'],
-  204: ['bcn', 'Bytecoin'],
-  330: ['luna', 'Terra'],
-  367: ['abbc', 'ABBC'],
-  415: ['etn', 'Electroneum'],
-  489: ['cca', 'Counos'],
-  535: ['xhv', 'Haven Protocol'],
-  568: ['lrg', 'Large Coin'],
-  569: ['sero', 'Super Zero Protocol'],
-  571: ['ccxx', 'Counos X'],
-  573: ['srm', 'Serum'],
-  576: ['bps', 'BitcoinPoS'],
-  714: ['bnb', 'Binance Chain'],
-  904: ['hnt', 'Helium'],
-  999: ['bcd', 'Bitcoin Diamond'],
-  99999: ['wicc', 'Waykichain'],
-  2147483747: ['poa', 'POA'],
-}
-
-// Reuse the installed brand library for coins without bundled SVGs. These are
-// local components: address rendering never depends on a remote icon service.
-const ADDITIONAL_COIN_ICONS: Readonly<
-  Record<string, React.FC<{ className?: string }>>
-> = {
-  sui: ({ className }) => <SiSui className={className} color="default" />,
-  bsv: ({ className }) => <SiBitcoinsv className={className} color="default" />,
-  xch: ({ className }) => (
-    <SiChianetwork className={className} color="default" />
-  ),
-}
-
-const toAddressRecordDef = ([coinType, [notation, name]]: readonly [
-  string,
-  readonly [string, string],
-]): AddressRecordDef => {
-  const canonicalCoinType = Number(coinType)
-  const override = ADDRESS_PRESENTATION_OVERRIDES[canonicalCoinType]
-  return {
-    coinType: canonicalCoinType,
-    name: override?.name ?? name,
-    notation,
-    // Encoder legacy records retain their own key/name but share the brand's
-    // artwork (e.g. etcLegacy and etc are both Ethereum Classic).
-    icon:
-      coinIcons[override?.iconKey ?? notation] ??
-      coinIcons[notation.replace(/Legacy$/, '')] ??
-      ADDITIONAL_COIN_ICONS[notation],
-  }
-}
-
-const canonicalAddressRecords: AddressRecordDef[] =
-  Object.entries(coinTypeToNameMap).map(toAddressRecordDef)
-
-const removedAddressRecords: AddressRecordDef[] =
-  Object.entries(REMOVED_COINS).map(toAddressRecordDef)
-
-const canonicalAddressRecordIndex = new Map(
-  canonicalAddressRecords.map((record) => [record.coinType, record]),
-)
-
-// Metadata describes the record's actual coin type, independently of the build.
-// Keep canonical L2s AND Sepolia aliases: indexed records can contain both.
-const sepoliaAddressRecords = L2_REVERSE_REGISTRAR_CHAIN_IDS.flatMap(
-  (chainId): AddressRecordDef[] => {
-    const canonical = canonicalAddressRecordIndex.get(
-      getCoinTypeForReverseRegistrarChainId(chainId, 'mainnet'),
-    )
-    return canonical
-      ? [
-          {
-            ...canonical,
-            coinType: getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
-            name: `${canonical.name} Sepolia`,
-          },
-        ]
-      : []
-  },
-)
+const canonicalAddressRecords =
+  CANONICAL_ADDRESS_RECORDS.map(toAddressRecordDef)
 
 const addressPresentationIndex = new Map(
   [
-    ...removedAddressRecords,
+    ...REMOVED_ADDRESS_RECORDS.map(toAddressRecordDef),
     ...canonicalAddressRecords,
-    ...sepoliaAddressRecords,
+    ...SEPOLIA_ADDRESS_RECORDS.map(toAddressRecordDef),
   ].map((record) => [record.coinType, record]),
 )
 
 // Only the picker/probe list follows the deployment's reverse-registrar keys.
 // Recognizing a canonical record must not also offer it as a new Sepolia record.
-const deploymentCoinTypeByCanonical = new Map(
-  L2_REVERSE_REGISTRAR_CHAIN_IDS.map((chainId) => [
-    getCoinTypeForReverseRegistrarChainId(chainId, 'mainnet'),
-    getCoinTypeForReverseRegistrarChainId(chainId, envConfig.network),
+const sepoliaCoinTypeByCanonical = new Map(
+  SEPOLIA_ADDRESS_RECORDS.map(({ canonicalCoinType, coinType }) => [
+    canonicalCoinType,
+    coinType,
   ]),
 )
-const rawAddressRecords = canonicalAddressRecords.map(
-  (record) =>
-    addressPresentationIndex.get(
-      deploymentCoinTypeByCanonical.get(record.coinType) ?? record.coinType,
-    ) ?? record,
-)
+const rawAddressRecords =
+  envConfig.network === 'sepolia'
+    ? canonicalAddressRecords.map((record) => {
+        const coinType = sepoliaCoinTypeByCanonical.get(record.coinType)
+        return (
+          addressPresentationIndex.get(coinType ?? record.coinType) ?? record
+        )
+      })
+    : canonicalAddressRecords
 
 // Optional custom sort preference for addresses (by coinType or notation)
 // Put most important chains first; remaining follow encoder order

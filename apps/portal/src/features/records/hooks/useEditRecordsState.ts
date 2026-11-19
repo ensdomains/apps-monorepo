@@ -7,6 +7,7 @@ import {
 } from '@/features/records/helpers/recordImageUpload'
 import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import {
+  createAddressRecord,
   createNewRecord,
   type EditableRecord,
   getRecordId,
@@ -40,6 +41,12 @@ export type EditRecordsState = {
 
 export type EditRecordsAction =
   | { type: 'ADD_RECORD'; recordType: RecordType; key: string; value: string }
+  | {
+      readonly type: 'ADD_ADDRESS_RECORD'
+      readonly coinType: number
+      readonly key: string
+      readonly value: string
+    }
   | { type: 'DELETE_RECORD'; record: EditableRecord }
   | {
       type: 'UPDATE_RECORD'
@@ -164,6 +171,15 @@ export function editRecordsReducer(
         newRecords: [...state.newRecords, newRecord],
       }
     }
+
+    case 'ADD_ADDRESS_RECORD':
+      return {
+        ...state,
+        newRecords: [
+          ...state.newRecords,
+          createAddressRecord(action.coinType, action.key, action.value),
+        ],
+      }
 
     case 'STAGE_IMAGE':
       return stageRecordImage(state, action)
@@ -308,6 +324,10 @@ export function useEditRecordsState(originalRecords: readonly NameRecord[]) {
     dispatch({ type: 'ADD_RECORD', recordType, key, value })
   }
 
+  const addAddressRecord = (coinType: number, key: string, value: string) => {
+    dispatch({ type: 'ADD_ADDRESS_RECORD', coinType, key, value })
+  }
+
   const deleteRecord = (record: EditableRecord) => {
     dispatch({ type: 'DELETE_RECORD', record })
   }
@@ -357,6 +377,7 @@ export function useEditRecordsState(originalRecords: readonly NameRecord[]) {
 
     // Actions
     addRecord,
+    addAddressRecord,
     deleteRecord,
     updateRecord,
     discardAll,
