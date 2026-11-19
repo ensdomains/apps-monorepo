@@ -6,8 +6,8 @@ import {
 } from './walletConnection.helpers'
 
 it.each([
-  { isReconnected: true, ownsConnection: true },
-  { isReconnected: false, ownsConnection: false },
+  { isReconnected: true, isOwnedConnection: true },
+  { isReconnected: false, isOwnedConnection: false },
 ])(
   'closes the picker for connections outside its active request: %o',
   (connection) => {

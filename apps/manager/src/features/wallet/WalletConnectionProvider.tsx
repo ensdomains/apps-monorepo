@@ -102,16 +102,16 @@ export const WalletConnectionProvider = ({
     if (!didWalletChange(current, previous)) return
 
     const isReconnected = previous.status === 'reconnecting'
-    const ownsConnection =
+    const isOwnedConnection =
       current.status === 'connected' &&
       request.current?.connectorId === current.connector.uid
-    if (request.current && (!ownsConnection || isReconnected)) {
+    if (request.current && (!isOwnedConnection || isReconnected)) {
       request.current = { connectorId: null }
     }
     signIn.reset()
     setIsConfirmingSkip(false)
     setStep((step) =>
-      getConnectedDialogStep({ step, ownsConnection, isReconnected }),
+      getConnectedDialogStep({ step, isOwnedConnection, isReconnected }),
     )
   })
 

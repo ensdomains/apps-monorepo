@@ -86,7 +86,7 @@ export const SignInContent = ({
           <EnsMobileIcon className="h-12 w-11" />
         </div>
         <DialogTitle
-          className="font-medium text-ens-blue-midnight text-xl tracking-tight outline-none"
+          className="font-medium text-ens-blue-midnight text-xl tracking-tight"
           ref={titleRef}
           tabIndex={-1}
         >

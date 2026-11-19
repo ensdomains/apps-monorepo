@@ -38,14 +38,14 @@ export const didWalletChange = (
 
 export const getConnectedDialogStep = ({
   step,
-  ownsConnection,
+  isOwnedConnection,
   isReconnected,
 }: {
   readonly step: WalletDialogStep
-  readonly ownsConnection: boolean
+  readonly isOwnedConnection: boolean
   readonly isReconnected: boolean
 }): WalletDialogStep =>
-  step !== 'closed' && ownsConnection && !isReconnected ? 'signIn' : 'closed'
+  step !== 'closed' && isOwnedConnection && !isReconnected ? 'signIn' : 'closed'
 
 export const getConnectionResultDialogStep = (
   step: WalletDialogStep,
