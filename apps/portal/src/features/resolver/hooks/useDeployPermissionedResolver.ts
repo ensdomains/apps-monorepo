@@ -106,11 +106,13 @@ const deployPermissionedResolver = async ({
   })
 
   const result = await waitForTransaction(txId)
-  const resolverAddress = findDeployedProxyAddress({
+  const deployed = findDeployedProxyAddress({
     logs: result.receipt?.logs ?? [],
     factory: verifiableFactory,
   })
+  if (deployed.isErr()) return Promise.reject(deployed.error)
 
+  const resolverAddress = deployed.value
   if (!resolverAddress) {
     throw new Error('Could not extract deployed resolver address from receipt')
   }

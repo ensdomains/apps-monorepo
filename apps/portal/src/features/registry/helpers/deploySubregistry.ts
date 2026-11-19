@@ -115,11 +115,13 @@ export const deploySubregistry = async ({
   })
 
   const result = await waitForTransaction(txId)
-  const deployedAddress = findDeployedProxyAddress({
+  const deployed = findDeployedProxyAddress({
     logs: result.receipt?.logs ?? [],
     factory: factoryAddress,
   })
+  if (deployed.isErr()) return Promise.reject(deployed.error)
 
+  const deployedAddress = deployed.value
   if (!deployedAddress) {
     throw new Error('Could not extract deployed contract address from receipt')
   }

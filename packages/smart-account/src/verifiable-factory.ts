@@ -1,6 +1,9 @@
+import { fromSync } from '@ens-apps/utils/neverthrow'
+import { err, ok, Result } from 'neverthrow'
 import {
   type Address,
   concatHex,
+  type DecodeEventLogErrorType,
   decodeEventLog,
   encodeAbiParameters,
   getContractAddress,
@@ -8,8 +11,12 @@ import {
   isAddressEqual,
   keccak256,
   parseAbi,
+  toEventSelector,
 } from 'viem'
-import { AmbiguousProxyDeploymentError } from './errors'
+import {
+  AmbiguousProxyDeploymentError,
+  DecodeProxyDeployedError,
+} from './errors'
 
 const VERIFIABLE_PROXY_PREFIX =
   '0x3d604d80600a3d3981f3363d3d373d3d3d363d73' as const
@@ -61,6 +68,27 @@ const proxyDeployedAbi = parseAbi([
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 ])
 
+const PROXY_DEPLOYED_TOPIC = toEventSelector(proxyDeployedAbi[0])
+
+function decodeProxyDeployed(
+  log: ProxyDeployedLogLike,
+): Result<Address, DecodeProxyDeployedError> {
+  return fromSync(
+    () =>
+      decodeEventLog({
+        abi: proxyDeployedAbi,
+        eventName: 'ProxyDeployed',
+        data: log.data,
+        topics: log.topics as [Hex, ...Hex[]],
+      }).args.proxyAddress,
+    (error) =>
+      new DecodeProxyDeployedError({
+        message: `Could not decode ProxyDeployed from ${log.address}`,
+        cause: error as DecodeEventLogErrorType,
+      }),
+  )
+}
+
 /** The parts of a receipt log this reader needs. */
 export interface ProxyDeployedLogLike {
   readonly address: Address
@@ -85,34 +113,26 @@ export interface FindDeployedProxyAddressParams {
 export function findDeployedProxyAddress({
   logs,
   factory,
-}: FindDeployedProxyAddressParams): Address | null {
-  const deployed: Address[] = []
+}: FindDeployedProxyAddressParams): Result<
+  Address | null,
+  DecodeProxyDeployedError | AmbiguousProxyDeploymentError
+> {
+  const factoryLogs = logs.filter(
+    (log) =>
+      isAddressEqual(log.address, factory) &&
+      log.topics[0] === PROXY_DEPLOYED_TOPIC,
+  )
 
-  for (const log of logs) {
-    if (!isAddressEqual(log.address, factory) || log.topics.length === 0) {
-      continue
-    }
-    try {
-      const decoded = decodeEventLog({
-        abi: proxyDeployedAbi,
-        data: log.data,
-        topics: log.topics as [Hex, ...Hex[]],
-      })
-      if (decoded.eventName === 'ProxyDeployed') {
-        deployed.push(decoded.args.proxyAddress)
-      }
-    } catch {
-      // A log from the factory that is not ProxyDeployed.
-    }
-  }
-
-  if (deployed.length > 1) {
-    throw new AmbiguousProxyDeploymentError({
-      message: `Expected one ProxyDeployed log from ${factory}, found ${deployed.length}`,
-      factory,
-      count: deployed.length,
-    })
-  }
-
-  return deployed[0] ?? null
+  return Result.combine(factoryLogs.map(decodeProxyDeployed)).andThen(
+    (deployed) =>
+      deployed.length > 1
+        ? err(
+            new AmbiguousProxyDeploymentError({
+              message: `Expected one ProxyDeployed log from ${factory}, found ${deployed.length}`,
+              factory,
+              count: deployed.length,
+            }),
+          )
+        : ok(deployed[0] ?? null),
+  )
 }

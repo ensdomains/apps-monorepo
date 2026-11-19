@@ -643,23 +643,24 @@ export function resolveResolverDeploymentActor(input: {
   readonly chainId: number
 }): ResultAsync<{ resolverAddress: Address }, Error> {
   return fromPromise(
-    (async () => {
-      const receipt = await waitForTransactionReceiptById(input.txId)
-      const resolverAddress = findDeployedProxyAddress({
-        logs: receipt.logs,
-        factory: getDestinationContracts(input.chainId).verifiableFactory,
-      })
-
-      if (!resolverAddress) {
-        throw new Error(
-          'ProxyDeployed event not found in resolver deployment receipt',
-        )
-      }
-
-      return { resolverAddress }
-    })(),
+    waitForTransactionReceiptById(input.txId),
     (error) => error as Error,
   )
+    .andThen((receipt) =>
+      findDeployedProxyAddress({
+        logs: receipt.logs,
+        factory: getDestinationContracts(input.chainId).verifiableFactory,
+      }),
+    )
+    .andThen((resolverAddress) =>
+      resolverAddress
+        ? okAsync({ resolverAddress })
+        : errAsync(
+            new Error(
+              'ProxyDeployed event not found in resolver deployment receipt',
+            ),
+          ),
+    )
 }
 
 /**

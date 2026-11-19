@@ -1,7 +1,16 @@
-import { type Address, encodeAbiParameters, pad, toEventSelector } from 'viem'
+import {
+  type Address,
+  DecodeLogDataMismatch,
+  encodeAbiParameters,
+  pad,
+  toEventSelector,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
-import { AmbiguousProxyDeploymentError } from './errors'
+import {
+  AmbiguousProxyDeploymentError,
+  DecodeProxyDeployedError,
+} from './errors'
 import {
   computeResolverSalt,
   getDestinationContracts,
@@ -76,7 +85,7 @@ describe('findDeployedProxyAddress', () => {
       findDeployedProxyAddress({
         logs: [proxyDeployedLog(FACTORY, RESOLVER)],
         factory: FACTORY,
-      }),
+      })._unsafeUnwrap(),
     ).toBe(RESOLVER)
   })
 
@@ -88,7 +97,7 @@ describe('findDeployedProxyAddress', () => {
           proxyDeployedLog(FACTORY, RESOLVER),
         ],
         factory: FACTORY,
-      }),
+      })._unsafeUnwrap(),
     ).toBe(RESOLVER)
   })
 
@@ -97,19 +106,29 @@ describe('findDeployedProxyAddress', () => {
       findDeployedProxyAddress({
         logs: [proxyDeployedLog(OTHER_FACTORY, OTHER_RESOLVER)],
         factory: FACTORY,
-      }),
+      })._unsafeUnwrap(),
     ).toBeNull()
   })
 
   it('refuses a receipt in which the factory announced two proxies', () => {
-    expect(() =>
+    expect(
       findDeployedProxyAddress({
         logs: [
           proxyDeployedLog(FACTORY, RESOLVER),
           proxyDeployedLog(FACTORY, OTHER_RESOLVER),
         ],
         factory: FACTORY,
-      }),
-    ).toThrow(AmbiguousProxyDeploymentError)
+      })._unsafeUnwrapErr(),
+    ).toBeInstanceOf(AmbiguousProxyDeploymentError)
+  })
+
+  it("fails with viem's decode error when the factory's ProxyDeployed is malformed", () => {
+    const error = findDeployedProxyAddress({
+      logs: [{ ...proxyDeployedLog(FACTORY, RESOLVER), data: '0x' }],
+      factory: FACTORY,
+    })._unsafeUnwrapErr()
+
+    expect(error).toBeInstanceOf(DecodeProxyDeployedError)
+    expect(error.cause).toBeInstanceOf(DecodeLogDataMismatch)
   })
 })
