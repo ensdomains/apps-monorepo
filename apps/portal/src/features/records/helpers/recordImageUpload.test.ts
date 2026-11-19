@@ -1,5 +1,5 @@
 import type { EnsNetwork } from '@ens-apps/config'
-import type { Hex } from 'viem'
+import { type Hex, zeroAddress } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ALL_EDITABLE_TYPES,
@@ -7,7 +7,9 @@ import {
 } from '@/utils/records/editRecordUtils'
 import type { RecordImageKind } from './recordImageCrop'
 import {
+  assertRecordImageOwnership,
   getRecordImageChoice,
+  isMatchingRecordImageChoice,
   type PreparedRecordImage,
   prepareRecordImage,
   submitRecordImage,
@@ -19,6 +21,8 @@ const SEPOLIA_AVATAR =
   'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/alice.eth'
 const MAINNET_HEADER = 'https://euc.li/alice.eth/h'
 const ADDRESS = '0x1234567890123456789012345678901234567890' as const
+const OTHER_ADDRESS = '0x2345678901234567890123456789012345678901' as const
+const HCA_ADDRESS = '0x3456789012345678901234567890123456789012' as const
 const SIG: Hex = '0x1234'
 const JPEG_DATA_URL = 'data:image/jpeg;base64,YWJj'
 const JPEG_HASH =
@@ -29,6 +33,7 @@ const choose = (
   network: EnsNetwork,
   savedUrl?: string,
   editableTypes = ALL_EDITABLE_TYPES,
+  overrides?: Partial<Parameters<typeof getRecordImageChoice>[0]>,
 ) =>
   getRecordImageChoice({
     name: NAME,
@@ -38,6 +43,8 @@ const choose = (
     savedRecords: savedUrl
       ? [{ type: 'text', key: kind, value: savedUrl }]
       : [],
+    ownership: { address: ADDRESS, owner: ADDRESS },
+    ...overrides,
   })
 
 const makeUpload = (kind: RecordImageKind = 'avatar'): PreparedRecordImage => ({
@@ -96,6 +103,138 @@ describe('getRecordImageChoice', () => {
       choose('avatar', 'sepolia', SEPOLIA_AVATAR, editable),
     ).toBeUndefined()
   })
+
+  it.each([undefined, SEPOLIA_AVATAR])(
+    'withholds upload from a resolver role holder without ownership with saved URL %s',
+    (savedUrl) => {
+      const editable = { ...NO_EDITABLE_TYPES, text: new Set(['avatar']) }
+      expect(
+        choose('avatar', 'sepolia', savedUrl, editable, {
+          ownership: { address: ADDRESS, owner: OTHER_ADDRESS },
+        }),
+      ).toBeUndefined()
+    },
+  )
+
+  it('requires the exact owner of an existing child name', () => {
+    const name = 'child.alice.eth'
+    const childOwner = { address: OTHER_ADDRESS, owner: OTHER_ADDRESS }
+    const parentOwner = { ...childOwner, address: ADDRESS }
+
+    expect(
+      choose('avatar', 'mainnet', undefined, ALL_EDITABLE_TYPES, {
+        name,
+        ownership: parentOwner,
+      }),
+    ).toBeUndefined()
+    expect(
+      choose('avatar', 'mainnet', undefined, ALL_EDITABLE_TYPES, {
+        name,
+        ownership: childOwner,
+      }),
+    ).toEqual({
+      name,
+      mode: 'stage',
+      kind: 'avatar',
+      imageUrl: 'https://euc.li/child.alice.eth',
+    })
+  })
+
+  it.each([zeroAddress, '0x1234'] as const)(
+    'withholds upload when the reported name owner is %s',
+    (owner) => {
+      expect(
+        choose('avatar', 'mainnet', undefined, ALL_EDITABLE_TYPES, {
+          ownership: { owner, address: owner },
+        }),
+      ).toBeUndefined()
+    },
+  )
+
+  it.each([
+    [HCA_ADDRESS, ADDRESS, 'replace'],
+    [OTHER_ADDRESS, ADDRESS, undefined],
+    [HCA_ADDRESS, OTHER_ADDRESS, undefined],
+  ] as const)(
+    'scopes HCA verification to account %s and signer %s',
+    (owner, address, mode) => {
+      const ownership = {
+        owner,
+        address,
+        verifiedHca: { owner: HCA_ADDRESS, signer: ADDRESS },
+      }
+      expect(
+        choose('header', 'mainnet', MAINNET_HEADER, ALL_EDITABLE_TYPES, {
+          ownership,
+        })?.mode,
+      ).toBe(mode)
+    },
+  )
+})
+
+describe('assertRecordImageOwnership', () => {
+  it('checks the current name owner without querying HCA verification for a direct owner', async () => {
+    const readNameOwner = vi.fn(async () => ADDRESS)
+    const readVerifiedHca = vi.fn(async () => undefined)
+    await expect(
+      assertRecordImageOwnership({
+        owner: ADDRESS,
+        address: ADDRESS,
+        readNameOwner,
+        readVerifiedHca,
+      }),
+    ).resolves.toBeUndefined()
+    expect(readNameOwner).toHaveBeenCalledOnce()
+    expect(readVerifiedHca).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, OTHER_ADDRESS])(
+    'rejects when the current owner is %s instead of the owner in the editor',
+    async (currentOwner) => {
+      const readVerifiedHca = vi.fn(async () => ({
+        owner: HCA_ADDRESS,
+        signer: ADDRESS,
+      }))
+      await expect(
+        assertRecordImageOwnership({
+          owner: HCA_ADDRESS,
+          address: ADDRESS,
+          readNameOwner: async () => currentOwner,
+          readVerifiedHca,
+        }),
+      ).rejects.toThrow(/name owner changed or could not be verified/)
+      expect(readVerifiedHca).not.toHaveBeenCalled()
+    },
+  )
+
+  it('requires current proof for a standalone HCA signer', async () => {
+    const readVerifiedHca = vi
+      .fn<Parameters<typeof assertRecordImageOwnership>[0]['readVerifiedHca']>()
+      .mockResolvedValueOnce({ owner: HCA_ADDRESS, signer: ADDRESS })
+      .mockResolvedValueOnce(undefined)
+    const params = {
+      owner: HCA_ADDRESS,
+      address: ADDRESS,
+      readNameOwner: async () => HCA_ADDRESS,
+      readVerifiedHca,
+    }
+    await expect(assertRecordImageOwnership(params)).resolves.toBeUndefined()
+    await expect(assertRecordImageOwnership(params)).rejects.toThrow(
+      /verify this wallet as the signer/,
+    )
+  })
+})
+
+describe('isMatchingRecordImageChoice', () => {
+  it('rejects a staged upload once the record is already hosted at its URL', () => {
+    const choice = choose('avatar', 'sepolia', SEPOLIA_AVATAR)
+    expect(isMatchingRecordImageChoice(choice, makeUpload(), 'stage')).toBe(
+      false,
+    )
+    expect(isMatchingRecordImageChoice(choice, makeUpload(), 'replace')).toBe(
+      true,
+    )
+  })
 })
 
 describe('prepareRecordImage', () => {
@@ -136,6 +275,7 @@ describe('submitRecordImage', () => {
     put: vi.fn<typeof fetch>(async () => Response.json(body)),
     signal: new AbortController().signal,
     assertCurrent: vi.fn(),
+    checkEligibility: vi.fn(async () => {}),
   })
 
   it('uses the Manager signature and sends the worker a PUT', async () => {
@@ -188,6 +328,42 @@ describe('submitRecordImage', () => {
     expect(params.put).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['before signing', 0],
+    ['after signing', 1],
+  ] as const)(
+    'blocks upload when eligibility is lost %s',
+    async (_phase, signatureCount) => {
+      const params = setup()
+      params.checkEligibility.mockRejectedValue(new Error('Ownership changed'))
+      if (signatureCount === 1)
+        params.checkEligibility.mockResolvedValueOnce(undefined)
+
+      await expect(submitRecordImage(params)).rejects.toThrow(
+        'Ownership changed',
+      )
+      expect(params.sign).toHaveBeenCalledTimes(signatureCount)
+      expect(params.put).not.toHaveBeenCalled()
+    },
+  )
+
+  it('settles on cancellation while waiting for the ownership recheck', async () => {
+    const params = setup()
+    const controller = new AbortController()
+    params.checkEligibility
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(() => {
+        controller.abort()
+        return new Promise<void>(() => {})
+      })
+
+    await expect(
+      submitRecordImage({ ...params, signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    expect(params.sign).toHaveBeenCalledOnce()
+    expect(params.put).not.toHaveBeenCalled()
+  })
+
   it('requires the worker to confirm receipt, even with a 200 response', async () => {
     await expect(
       submitRecordImage(setup({ error: 'Not authorized' })),
@@ -210,6 +386,7 @@ describe('submitRecordImage', () => {
       () => status('uploaded'),
       () => status('cancelled'),
     )
+    await vi.waitFor(() => expect(params.sign).toHaveBeenCalledOnce())
     controller.abort()
     await new Promise((resolve) => setTimeout(resolve, 0))
 

@@ -1,5 +1,5 @@
 import type { EnsNetwork } from '@ens-apps/config'
-import { type Address, type Hex, sha256 } from 'viem'
+import { type Address, type Hex, isAddress, sha256, zeroAddress } from 'viem'
 import {
   canEditRecord,
   type EditableRecord,
@@ -31,6 +31,61 @@ export type PreparedRecordImage = RecordImageTarget & {
   readonly hash: string
 }
 
+type RecordImageOwner = {
+  readonly owner: Address
+  readonly address: Address
+}
+
+type RecordImageOwnership = RecordImageOwner & {
+  readonly verifiedHca?: {
+    readonly owner: Address
+    readonly signer: Address
+  }
+}
+
+const isSameNonzeroAddress = (
+  address: Address | undefined,
+  expected: Address,
+) =>
+  isAddress(expected, { strict: false }) &&
+  expected !== zeroAddress &&
+  address?.toLowerCase() === expected.toLowerCase()
+
+export const isRecordImageOwner = ({
+  owner,
+  address,
+  verifiedHca,
+}: RecordImageOwnership): boolean =>
+  isSameNonzeroAddress(owner, address) ||
+  (verifiedHca !== undefined &&
+    isSameNonzeroAddress(verifiedHca.owner, owner) &&
+    isSameNonzeroAddress(verifiedHca.signer, address))
+
+export const assertRecordImageOwnership = async ({
+  owner,
+  address,
+  readNameOwner,
+  readVerifiedHca,
+}: RecordImageOwner & {
+  readonly readNameOwner: () => Promise<Address | undefined>
+  readonly readVerifiedHca: () => Promise<RecordImageOwnership['verifiedHca']>
+}) => {
+  const currentOwner = await readNameOwner()
+  if (!isSameNonzeroAddress(currentOwner, owner)) {
+    throw new Error(
+      'The name owner changed or could not be verified. Please try again.',
+    )
+  }
+  if (isRecordImageOwner({ owner, address })) return
+
+  const verifiedHca = await readVerifiedHca()
+  if (!isRecordImageOwner({ owner, address, verifiedHca })) {
+    throw new Error(
+      'Could not verify this wallet as the signer for the smart account that owns this name.',
+    )
+  }
+}
+
 export const getRecordImageKind = ({
   type,
   key,
@@ -49,14 +104,16 @@ export const getRecordImageChoice = ({
   savedRecords,
   editableTypes,
   network,
+  ownership,
 }: {
   readonly name: string
   readonly kind: RecordImageKind
   readonly savedRecords: readonly EditableRecord[]
   readonly editableTypes: EditableTypes
   readonly network: EnsNetwork
+  readonly ownership: RecordImageOwnership
 }): RecordImageChoice | undefined => {
-  if (!isCanonicalName(name)) return undefined
+  if (!isCanonicalName(name) || !isRecordImageOwner(ownership)) return undefined
 
   const path = `${network === 'sepolia' ? '/sepolia' : ''}/${name}${kind === 'header' ? '/h' : ''}`
   const imageUrl = `${network === 'sepolia' ? SEPOLIA_UPLOAD_ORIGIN : MAINNET_UPLOAD_ORIGIN}${path}`
@@ -74,6 +131,16 @@ export const getRecordImageChoice = ({
 
   return { name, kind, imageUrl, mode: 'stage' }
 }
+
+export const isMatchingRecordImageChoice = (
+  choice: RecordImageChoice | undefined,
+  image: RecordImageTarget,
+  mode: RecordImageChoice['mode'],
+): boolean =>
+  choice?.mode === mode &&
+  choice.name === image.name &&
+  choice.kind === image.kind &&
+  choice.imageUrl === image.imageUrl
 
 const readImageData = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -126,10 +193,10 @@ const getUploadTypedData = (
     message: { upload: kind, expiry, name, hash },
   }) as const
 
-const signUntilCancelled = async (
-  sign: () => Promise<Hex>,
+const runUntilCancelled = async <T>(
+  run: () => Promise<T>,
   signal: AbortSignal,
-): Promise<Hex> => {
+): Promise<T> => {
   signal.throwIfAborted()
   let stopListening = () => {}
   const cancelled = new Promise<never>((_resolve, reject) => {
@@ -138,7 +205,7 @@ const signUntilCancelled = async (
     stopListening = () => signal.removeEventListener('abort', cancel)
   })
   try {
-    return await Promise.race([cancelled, sign()])
+    return await Promise.race([cancelled, run()])
   } finally {
     stopListening()
   }
@@ -152,6 +219,7 @@ export const submitRecordImage = async ({
   put,
   signal,
   assertCurrent,
+  checkEligibility,
 }: {
   readonly upload: PreparedRecordImage
   readonly address: Address
@@ -162,14 +230,18 @@ export const submitRecordImage = async ({
   readonly put: typeof fetch
   readonly signal: AbortSignal
   readonly assertCurrent: () => void
+  readonly checkEligibility: () => Promise<void>
 }) => {
+  await runUntilCancelled(checkEligibility, signal)
   assertCurrent()
   const expiry = String(now + ONE_WEEK_MS)
-  const sig = await signUntilCancelled(
+  const sig = await runUntilCancelled(
     () => sign(getUploadTypedData(upload, expiry)),
     signal,
   )
+  await runUntilCancelled(checkEligibility, signal)
   assertCurrent()
+  signal.throwIfAborted()
 
   const timeout = AbortSignal.timeout(UPLOAD_TIMEOUT_MS)
   const response = await put(upload.imageUrl, {

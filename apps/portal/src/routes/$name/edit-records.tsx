@@ -1,18 +1,10 @@
-import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
-import {
-  useCallback,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
-import { type Address, isAddressEqual } from 'viem'
-import { useAccount, useConnection, useWalletClient } from 'wagmi'
+import { useCallback, useId, useMemo, useState } from 'react'
+import type { Address } from 'viem'
+import { useAccount, useConnection } from 'wagmi'
 import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -32,36 +24,24 @@ import { EditRecordsDeniedMessage } from '@/features/records/components/EditReco
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
 import { RecordImageUploadDialog } from '@/features/records/components/RecordImageUploadDialog'
-import {
-  invalidateAvatar,
-  refreshRecordImage,
-} from '@/features/records/helpers/recordImageCache'
-import {
-  getRecordImageKind,
-  submitStagedRecordImages,
-} from '@/features/records/helpers/recordImageUpload'
+import { getRecordImageKind } from '@/features/records/helpers/recordImageUpload'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useRecordImageEditor } from '@/features/records/hooks/useRecordImageEditor'
-import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
-import { getSaveRecordsIntentQueryOptions } from '@/features/records/queries/getSaveRecordsIntent'
+import { useSaveRecordsFlow } from '@/features/records/hooks/useSaveRecordsFlow'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
-import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import {
   canEditType,
   type EditableRecord,
   type EditableTypes,
-  hasDisallowedChanges,
   type RecordType,
 } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
-import { validateRecords } from '@/utils/records/validateRecord'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -82,8 +62,6 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 
 /** Record types that don't require a key input (single-value records) */
 const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
-
-const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
 
 function EditRecordsPage() {
   const { name } = Route.useParams()
@@ -239,6 +217,7 @@ function EditRecordsPage() {
       address={connectedAddress}
       connectorUid={connector?.uid}
       name={name}
+      owner={ownerQuery.data.owner}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
       editableTypes={editableTypes}
@@ -250,16 +229,18 @@ const EditRecordsContent = ({
   address,
   connectorUid,
   name,
+  owner,
   records: rawRecords,
   resolverAddress,
   editableTypes,
 }: {
   readonly address: Address
   readonly connectorUid: string | undefined
-  name: string
-  records: GetRecordsReturnType
-  resolverAddress: Address
-  editableTypes: EditableTypes
+  readonly name: string
+  readonly owner: Address
+  readonly records: GetRecordsReturnType
+  readonly resolverAddress: Address
+  readonly editableTypes: EditableTypes
 }) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
@@ -306,19 +287,21 @@ const EditRecordsContent = ({
     discardAll,
   } = useEditRecordsState(originalRecords)
 
+  const { isOpen: isTransactionModalOpen } = useTransactionModal()
+  const imageEditor = useRecordImageEditor({
+    address,
+    connectorUid,
+    name,
+    owner,
+    originalRecords,
+    editableTypes,
+    isTransactionModalOpen,
+    stageImage,
+    keepHostedImage,
+  })
   const {
-    isOpen: isTransactionModalOpen,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
-
-  const { data: walletClient } = useWalletClient()
-  const {
-    run: runImageOperation,
-    isRunning: isUploading,
     isEditorLocked,
     operation,
-    isCurrent,
     imageDialog,
     closeImageDialog,
     handleConfirmImage,
@@ -326,183 +309,23 @@ const EditRecordsContent = ({
     openImageDialog,
     canUploadImage,
     onUploadImage,
-    uploadImage,
-  } = useRecordImageEditor({
-    address,
-    connectorUid,
-    name,
-    originalRecords,
-    editableTypes,
-    isTransactionModalOpen,
-    stageImage,
-    keepHostedImage,
-  })
-  const [imageSaveError, setImageSaveError] = useState<string>()
-  const ownsSaveModal = useRef(false)
-  const startingTransaction = useRef(false)
+  } = imageEditor
 
-  useLayoutEffect(
-    () => () => {
-      if (ownsSaveModal.current) closeTransactionModal()
-    },
-    [closeTransactionModal],
-  )
-
-  // Names the attempt the modal is showing. Without this the step id is a fixed
-  // string, so an attempt abandoned while its transaction was still in flight
-  // leaves a settled actor under that id: the next attempt's modal reads it as
-  // Done, the button becomes "Done", and the save is never sent. The modal only
-  // clears on error, and a route change only closes it, so that actor can
-  // outlive the attempt that made it.
-  const attempt = useFlowAttempt()
-  const saveRecordsTxId = scopeTransactionId(
-    SAVE_RECORDS_TRANSACTION_ID,
-    attempt.scope,
-  )
-  const endSaveReview = () => {
-    ownsSaveModal.current = false
-    attempt.end()
-  }
-
-  // Validate records whenever they change
-  const validationErrors = useMemo(() => validateRecords(records), [records])
-  const hasValidationErrors = validationErrors.length > 0
-  const isSaveBlocked = hasDisallowedChanges(records, editableTypes)
-
-  const canSave = !isSaveBlocked && !hasValidationErrors
-  const latest = useRef({ originalRecords, pendingChanges, canSave })
-  useLayoutEffect(() => {
-    latest.current = { originalRecords, pendingChanges, canSave }
-  }, [originalRecords, pendingChanges, canSave])
-
-  const isDraftSavable = () =>
-    latest.current.pendingChanges === pendingChanges &&
-    latest.current.originalRecords === originalRecords &&
-    latest.current.canSave
-
-  // Navigate to records page after sync completes.
-  // This avoids the issue where deleted records reappear if we clear local state
-  // before the indexer has caught up.
-  const handleSyncComplete = useCallback(() => {
-    void invalidateAvatar(name)
-    if (isCurrent()) navigate({ to: '/$name/records', params: { name } })
-  }, [isCurrent, navigate, name])
-
-  // Save records hook
-  const {
-    saveRecords,
-    isWriting,
-    isConfirming,
-    isSyncing,
-    error: saveError,
-    reset: resetSaveError,
-    isWrongChain,
-    isSwitchingChain,
-    switchToRequiredNetwork,
-  } = useSaveRecords({
-    onSyncComplete: handleSyncComplete,
-  })
-
-  const handleStartSaveRecordsTransaction = () => {
-    if (startingTransaction.current || !attempt.scope) return
-    let isPrepared = false
-    const assertCurrent = () => {
-      if (
-        !ownsSaveModal.current ||
-        !isCurrent(ensChain.id) ||
-        !isDraftSavable() ||
-        pendingImages.length > 0
-      ) {
-        throw new Error('The editor or wallet changed. Please try again.')
-      }
-      isPrepared = true
-    }
-
-    startingTransaction.current = true
-    saveRecords(
-      {
-        name,
-        resolverAddress,
-        originalRecords,
-        pendingChanges,
-        id: saveRecordsTxId,
-        assertCurrent,
-      },
-      {
-        onError: () => {
-          if (!isPrepared && ownsSaveModal.current) {
-            endSaveReview()
-            closeTransactionModal()
-          }
-        },
-        onSettled: () => {
-          startingTransaction.current = false
-        },
-      },
-    )
-  }
-
-  const saveRecordsIntentQuery = useQuery(
-    getSaveRecordsIntentQueryOptions({
+  const { validationErrors, saveControls, transactions, dismissReview } =
+    useSaveRecordsFlow({
+      address,
       name,
       resolverAddress,
-      originalRecords,
-      pendingChanges,
-      walletClient,
-      chainId: ensChain.id,
-      isOpen: isTransactionModalOpen,
+      draft: { originalRecords, pendingChanges },
+      records,
+      editableTypes,
       changesCount,
-    }),
-  )
-
-  const handleOpenSaveRecordsFlow = async () => {
-    if (
-      operation.current ||
-      isTransactionModalOpen ||
-      imageDialog ||
-      isWriting ||
-      isSyncing ||
-      isSwitchingChain ||
-      changesCount === 0 ||
-      !isDraftSavable()
-    )
-      return
-
-    if (isWrongChain) {
-      switchToRequiredNetwork()
-      return
-    }
-
-    if (
-      !walletClient?.account ||
-      !isAddressEqual(walletClient.account.address, address)
-    )
-      return
-    setImageSaveError(undefined)
-    resetSaveError()
-    try {
-      await runImageOperation(
-        async (assertCurrent, signal) => {
-          await submitStagedRecordImages({
-            uploads: pendingImages,
-            submit: (upload) => uploadImage(upload, assertCurrent, signal),
-            onUploaded: (upload) => {
-              markImageUploaded(upload)
-              refreshRecordImage(upload.imageUrl, Date.now())
-            },
-            assertCurrent,
-          })
-          ownsSaveModal.current = true
-          attempt.start(address)
-        },
-        () => isCurrent(ensChain.id) && isDraftSavable(),
-      )
-    } catch (error) {
-      setImageSaveError(
-        extractErrorMessage(error, 'Could not save the record images.'),
-      )
-    }
-  }
+      pendingImages,
+      imageEditor,
+      markImageUploaded,
+      onSyncComplete: () =>
+        navigate({ to: '/$name/records', params: { name } }),
+    })
 
   // Compute counts for each tab (excluding deleted records)
   const tabCounts = useMemo(() => {
@@ -783,22 +606,11 @@ const EditRecordsContent = ({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={handleOpenSaveRecordsFlow}
+        {...saveControls}
         onDiscard={() => {
           if (!operation.current && !isTransactionModalOpen) discardAll()
         }}
-        onDismissError={() => {
-          setImageSaveError(undefined)
-          resetSaveError()
-        }}
-        isSaving={isUploading || isWriting || isConfirming}
-        isSyncing={isSyncing}
-        isSwitchingChain={isSwitchingChain}
-        isWrongChain={isWrongChain}
         isConnected={isConnected}
-        errorMessage={imageSaveError ?? saveError?.message}
-        hasValidationErrors={hasValidationErrors}
-        hasDisallowedChanges={isSaveBlocked}
       />
       {imageDialog && (
         <RecordImageUploadDialog
@@ -809,31 +621,7 @@ const EditRecordsContent = ({
           onClose={closeImageDialog}
         />
       )}
-      <TransactionModal
-        onDismiss={endSaveReview}
-        transactions={
-          attempt.scope
-            ? [
-                {
-                  id: saveRecordsTxId,
-                  title: 'Save records',
-                  transactionName: 'Set resolver records',
-                  intent: {
-                    prepare: () => saveRecordsIntentQuery.data,
-                    isPending: saveRecordsIntentQuery.isLoading,
-                    isError: saveRecordsIntentQuery.isError,
-                  },
-                  onStart: handleStartSaveRecordsTransaction,
-                  onDone: () => {
-                    endSaveReview()
-                    closeTransactionModal()
-                    clearTransaction()
-                  },
-                },
-              ]
-            : []
-        }
-      />
+      <TransactionModal onDismiss={dismissReview} transactions={transactions} />
     </div>
   )
 }

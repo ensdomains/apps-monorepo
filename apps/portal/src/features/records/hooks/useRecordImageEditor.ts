@@ -1,21 +1,26 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { Address } from 'viem'
-import { useSignTypedData } from 'wagmi'
+import { usePublicClient, useSignTypedData } from 'wagmi'
 import { envConfig } from '@/config'
+import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import {
   invalidateAvatar,
   refreshRecordImage,
 } from '@/features/records/helpers/recordImageCache'
 import type { RecordImageKind } from '@/features/records/helpers/recordImageCrop'
 import {
+  assertRecordImageOwnership,
   getRecordImageChoice,
   getRecordImageKind,
+  isMatchingRecordImageChoice,
   type PreparedRecordImage,
   prepareRecordImage,
   type RecordImageChoice,
   submitRecordImage,
 } from '@/features/records/helpers/recordImageUpload'
+import { getRecordImageHcaQueryOptions } from '@/features/records/queries/getRecordImageHcaQueryOptions'
 import type {
   EditableRecord,
   EditableTypes,
@@ -24,6 +29,7 @@ import { useRecordImageOperation } from './useRecordImageOperation'
 
 export const useRecordImageEditor = ({
   address,
+  owner,
   connectorUid,
   name,
   originalRecords,
@@ -33,6 +39,7 @@ export const useRecordImageEditor = ({
   keepHostedImage,
 }: {
   readonly address: Address
+  readonly owner: Address
   readonly connectorUid: string | undefined
   readonly name: string
   readonly originalRecords: readonly EditableRecord[]
@@ -43,6 +50,16 @@ export const useRecordImageEditor = ({
 }) => {
   const identity = useRecordImageOperation(address, connectorUid)
   const signTypedData = useSignTypedData()
+  const queryClient = useQueryClient()
+  const chainId = envConfig.chain.id
+  const publicClient = usePublicClient({ chainId })
+  const hcaOptions = getRecordImageHcaQueryOptions(
+    { owner, address, chainId },
+    publicClient,
+  )
+  const hcaQuery = useQuery(hcaOptions)
+  const verifiedHca =
+    hcaOptions.enabled && hcaQuery.isSuccess ? hcaQuery.data : undefined
   const { operation, run: runImageOperation } = identity
   const [imageDialog, setImageDialog] = useState<RecordImageChoice | null>(null)
   const getImageChoice = useCallback(
@@ -54,9 +71,10 @@ export const useRecordImageEditor = ({
         savedRecords: originalRecords,
         editableTypes,
         network: envConfig.network,
+        ownership: { owner, address, verifiedHca },
       })
     },
-    [name, originalRecords, editableTypes],
+    [name, originalRecords, editableTypes, owner, address, verifiedHca],
   )
   const latestChoice = useRef(getImageChoice)
   useLayoutEffect(() => {
@@ -88,12 +106,28 @@ export const useRecordImageEditor = ({
     [openImageDialog],
   )
 
-  const uploadImage = (
+  const submitImage = (
     upload: PreparedRecordImage,
+    mode: RecordImageChoice['mode'],
     assertCurrent: () => void,
     signal: AbortSignal,
-  ) =>
-    submitRecordImage({
+  ) => {
+    const assertUploadCurrent = () => {
+      assertCurrent()
+      if (
+        !isMatchingRecordImageChoice(
+          latestChoice.current(upload.kind),
+          upload,
+          mode,
+        )
+      ) {
+        throw new Error(
+          'This image can no longer be uploaded. Check the wallet, name ownership, and record permissions, then choose the image again.',
+        )
+      }
+    }
+
+    return submitRecordImage({
       upload,
       address,
       now: Date.now(),
@@ -101,16 +135,34 @@ export const useRecordImageEditor = ({
         signTypedData.mutateAsync({ ...request, account: address }),
       put: fetch,
       signal,
-      assertCurrent,
+      assertCurrent: assertUploadCurrent,
+      checkEligibility: async () => {
+        assertUploadCurrent()
+        await assertRecordImageOwnership({
+          address,
+          owner,
+          readNameOwner: async () =>
+            (await getEnsOwner({ name })).unwrapOr(null)?.owner,
+          readVerifiedHca: () =>
+            queryClient
+              .fetchQuery({ ...hcaOptions, staleTime: 0 })
+              .catch(() => undefined),
+        })
+      },
     })
+  }
+
+  const uploadImage = (
+    upload: PreparedRecordImage,
+    assertCurrent: () => void,
+    signal: AbortSignal,
+  ) => submitImage(upload, 'stage', assertCurrent, signal)
 
   const handleConfirmImage = async (file: File) => {
     if (!imageDialog) return
-    const { kind, mode, imageUrl } = imageDialog
-    const isChoiceCurrent = () => {
-      const current = latestChoice.current(kind)
-      return current?.mode === mode && current.imageUrl === imageUrl
-    }
+    const { kind, mode } = imageDialog
+    const isChoiceCurrent = () =>
+      isMatchingRecordImageChoice(latestChoice.current(kind), imageDialog, mode)
 
     await runImageOperation(async (assertCurrent, signal) => {
       const upload = await prepareRecordImage(imageDialog, file)
@@ -119,7 +171,7 @@ export const useRecordImageEditor = ({
       if (mode === 'stage') {
         stageImage(upload)
       } else {
-        await uploadImage(upload, assertCurrent, signal)
+        await submitImage(upload, 'replace', assertCurrent, signal)
         refreshRecordImage(upload.imageUrl, Date.now())
         if (kind === 'avatar') void invalidateAvatar(name)
         assertCurrent()
