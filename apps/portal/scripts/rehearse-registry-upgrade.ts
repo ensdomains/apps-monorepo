@@ -28,12 +28,15 @@ import {
   labelhash,
   parseAbi,
   publicActions,
+  toFunctionSelector,
   toHex,
   walletActions,
 } from 'viem'
 import { mainnet } from 'viem/chains'
 import { packetToBytes } from 'viem/ens'
 import { computeRegistryUpdateSalt } from '../src/features/registry/utils/registryUpdate'
+
+const REVOKE_ROOT_ROLES = toFunctionSelector('revokeRootRoles(uint256,address)')
 
 const getParentAbi = parseAbi([
   'function getParent() view returns (address parent, string label)',
@@ -156,7 +159,7 @@ const rehearse = async (row: Row) => {
 
   const read = (
     registry: Address,
-    parent?: { registry: Address; label: string },
+    parent?: { readonly registry: Address; readonly label: string },
   ) =>
     unwrap(
       readRegistryRepairState({
@@ -217,7 +220,16 @@ const rehearse = async (row: Row) => {
     args: [label],
   })
   const after = await read(replacement)
-  const differences = compareRegistryRepair(state, after)
+  const gaveBack = recheck.finalCalls.some((call) =>
+    call.data.startsWith(REVOKE_ROOT_ROLES),
+  )
+  // In Case A an upgrader without the old root roles keeps the admin roles it was given; any other difference fails.
+  const differences = compareRegistryRepair(state, after).filter(
+    (difference) =>
+      gaveBack ||
+      difference.kind !== 'root-roles' ||
+      !isAddressEqual(difference.account, controller),
+  )
   const unmovedChildren = (
     await Promise.all(
       children

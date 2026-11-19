@@ -119,17 +119,24 @@ export const getRegistryUpdateBlocker = (params: {
   readonly label: string
   /** The account holds `ROLE_SET_SUBREGISTRY` on the name, which the final switch needs. */
   readonly canSwitch: boolean
-}): RegistryUpdateBlocker | null => {
-  // Never copy onto an implementation that would itself need updating.
-  if (isPendingUpgradeImplementation(params)) return 'outdated-implementation'
-  // Someone pointed the name elsewhere; switching it back would drop their registry.
-  if (!isAddressEqual(params.currentSubregistry, params.registry))
-    return 'registry-replaced'
-  // `setParent` needs the label's text, which an encoded label doesn't give.
-  if (isEncodedLabelhash(params.label)) return 'unknown-label'
-  if (!params.canSwitch) return 'cannot-switch'
-  return null
-}
+}): RegistryUpdateBlocker | null =>
+  match(params)
+    .returnType<RegistryUpdateBlocker | null>()
+    // Never copy onto an implementation that would itself need updating.
+    .when(isPendingUpgradeImplementation, () => 'outdated-implementation')
+    // Someone pointed the name elsewhere; switching it back would drop their registry.
+    .when(
+      ({ currentSubregistry, registry }) =>
+        !isAddressEqual(currentSubregistry, registry),
+      () => 'registry-replaced',
+    )
+    // `setParent` needs the label's text, which an encoded label doesn't give.
+    .when(
+      ({ label }) => isEncodedLabelhash(label),
+      () => 'unknown-label',
+    )
+    .with({ canSwitch: false }, () => 'cannot-switch')
+    .otherwise(() => null)
 
 export type RegistryUpdateFailure =
   | 'missing-roles'
