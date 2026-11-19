@@ -17,7 +17,11 @@ const io = vi.hoisted(() => ({
   subnamesTotal: { current: 2 },
   isRealHook: { current: false },
   isGraceDown: { current: false },
+  hasGraceName: { current: true },
   account: '0x0000000000000000000000000000000000000abc',
+  smartAccount: '0x0000000000000000000000000000000000000def',
+  // The smart account's address, null until it initialises.
+  smartAccountAddress: { current: null as string | null },
 }))
 beforeEach(() => {
   vi.clearAllMocks()
@@ -27,6 +31,8 @@ beforeEach(() => {
   io.subnamesTotal.current = 2
   io.isRealHook.current = false
   io.isGraceDown.current = false
+  io.hasGraceName.current = true
+  io.smartAccountAddress.current = io.account
 })
 
 vi.mock(import('@xstate/store-react'), async (importOriginal) => ({
@@ -62,7 +68,7 @@ vi.mock('../useDashboardNames', async (importOriginal) => {
 })
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
   useSmartAccountContextSafe: () => ({
-    accountAddress: io.account,
+    accountAddress: io.smartAccountAddress.current,
     ownerAddress: io.account,
   }),
 }))
@@ -91,35 +97,50 @@ vi.mock('../service/queries/getFavorites', () => ({
 }))
 vi.mock('@/lib/bigname', () => ({
   bigname: {
-    // The address holds nothing now; its only name is an ENSv2 name in grace.
-    addressNames: (
-      _address: string,
-      query: { readonly relation?: unknown },
-    ) => {
+    // The owner holds nothing now; its only name is an ENSv2 name in grace.
+    // The smart account owns `held.eth`.
+    addressNames: (address: string, query: { readonly relation?: unknown }) => {
       if (query.relation === 'former_owner' && io.isGraceDown.current)
         return errAsync(new Error('bigname unavailable'))
       const now = Math.floor(Date.now() / 1000)
+      const isSmartAccount =
+        address.toLowerCase() === io.smartAccount.toLowerCase()
+      const held = {
+        name: 'held.eth',
+        display_name: 'held.eth',
+        namespace: 'ens',
+        namehash: '0x0a',
+        status: 'active',
+        authority: 'ens_v2',
+        expires_at: String(now + 300 * 86_400),
+        relations: ['owner'],
+        is_primary: false,
+      }
       const data =
         query.relation === 'former_owner'
-          ? [
-              {
-                name: 'lapsed.eth',
-                display_name: 'lapsed.eth',
-                namespace: 'ens',
-                namehash: '0x09',
-                status: 'expired',
-                authority: 'ens_v2',
-                expires_at: String(now - 3 * 86_400),
-                grace_ends_at: String(now + 25 * 86_400),
-                relations: ['former_owner'],
-                is_primary: false,
-                lapsed_registration: {
-                  owner: io.account,
-                  release_kind: 'expired',
+          ? io.hasGraceName.current && !isSmartAccount
+            ? [
+                {
+                  name: 'lapsed.eth',
+                  display_name: 'lapsed.eth',
+                  namespace: 'ens',
+                  namehash: '0x09',
+                  status: 'expired',
+                  authority: 'ens_v2',
+                  expires_at: String(now - 3 * 86_400),
+                  grace_ends_at: String(now + 25 * 86_400),
+                  relations: ['former_owner'],
+                  is_primary: false,
+                  lapsed_registration: {
+                    owner: io.account,
+                    release_kind: 'expired',
+                  },
                 },
-              },
-            ]
-          : []
+              ]
+            : []
+          : isSmartAccount
+            ? [held]
+            : []
       return okAsync({
         data,
         page: {
@@ -365,5 +386,47 @@ describe('NamesTable filters', () => {
       'true',
     )
     expect(screen.getByTestId('my-names')).toBeInTheDocument()
+  })
+
+  it('keeps Owned while the smart account address resolves, and shows its names once it arrives', async () => {
+    io.isRealHook.current = true
+    io.hasGraceName.current = false
+    io.smartAccountAddress.current = null
+    const view = render(<NamesTable />)
+
+    // Favorites has names, so a wrong fallback would have somewhere to go.
+    await screen.findByRole('button', { name: 'Favorites 7' })
+    expect(screen.getByRole('button', { name: /^Owned/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByTestId('my-names')).toBeInTheDocument()
+
+    io.smartAccountAddress.current = io.smartAccount
+    view.rerender(<NamesTable />)
+    expect(
+      await screen.findByRole('button', { name: 'Owned 1' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('my-names')).toBeInTheDocument()
+  })
+
+  it('falls back to Favorites for accounts without names, but not for the next accounts', async () => {
+    io.isRealHook.current = true
+    io.hasGraceName.current = false
+    const view = render(<NamesTable />)
+
+    // These accounts are resolved and own nothing, so Favorites opens.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Favorites 7' }),
+      ).toHaveAttribute('aria-pressed', 'true'),
+    )
+    expect(screen.queryByRole('button', { name: /^Owned/ })).toBeNull()
+
+    io.smartAccountAddress.current = io.smartAccount
+    view.rerender(<NamesTable />)
+    expect(
+      await screen.findByRole('button', { name: 'Owned 1' }),
+    ).toHaveAttribute('aria-pressed', 'true')
   })
 })

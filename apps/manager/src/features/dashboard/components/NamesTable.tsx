@@ -18,6 +18,7 @@ import {
 import { isHeldName } from '../dashboardNames'
 import { firstOpenChip, resolveSelectedChip } from '../filterChipSelection'
 import { useAccountSelection } from '../hooks/useAccountSelection'
+import { useChipChoice } from '../hooks/useChipChoice'
 import type { NameVersion, SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
@@ -83,8 +84,10 @@ const toScopeFilter = (scope: NameScope | null) => ({
 
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
-  const [filter, setFilter] = useState<FilterKey>('owned')
-  const [selectedScope, setScope] = useState<NameScope | null>(null)
+  const addresses = useDashboardAddresses()
+  const accountsKey = addresses.join(',')
+  const filterChoice = useChipChoice<FilterKey>('owned', accountsKey)
+  const scopeChoice = useChipChoice<NameScope | null>(null, accountsKey)
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
@@ -140,8 +143,6 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     [favorites],
   )
 
-  const addresses = useDashboardAddresses()
-  const accountsKey = addresses.join(',')
   const {
     selected,
     labels: selectedLabels,
@@ -238,7 +239,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   // A hidden chip can't be clicked, so an emptied selection falls back.
   const activeFilter = resolveSelectedChip(
     chips,
-    filter,
+    filterChoice.current,
     firstOpenChip(chips, 'owned'),
   )
   // Subnames, v1 and v2 are exclusive; clicking the active one shows all again.
@@ -252,13 +253,12 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
       v2: countOf(v2Names),
     },
   )
-  const scope = resolveSelectedChip(scopeChips, selectedScope, null)
-  // Keep the fallback, so the emptied filter doesn't reopen when names return.
-  if (activeFilter !== filter) setFilter(activeFilter)
-  if (scope !== selectedScope) setScope(scope)
+  const scope = resolveSelectedChip(scopeChips, scopeChoice.current, null)
+  filterChoice.fallBackTo(activeFilter)
+  scopeChoice.fallBackTo(scope)
   const { version, isSubnamesOnly, canSelectAll } = toScopeFilter(scope)
   const changeScope = (next: NameScope | null) => {
-    setScope(next)
+    scopeChoice.choose(next)
     clearSelection()
   }
 
@@ -321,7 +321,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
           <FilterChips
             chips={chips}
             onChange={(next) => {
-              setFilter(next)
+              filterChoice.choose(next)
               setSearchQuery('')
             }}
             shouldHideEmpty
