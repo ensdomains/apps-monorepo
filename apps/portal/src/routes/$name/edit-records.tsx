@@ -43,6 +43,7 @@ import {
   getNewRecordKey,
 } from '@/features/records/helpers/newRecordKey'
 import {
+  getAvailableTextRecordKeys,
   getEditableCoin,
   searchEditableAddressRecords,
   searchEditableTextRecords,
@@ -662,7 +663,7 @@ const EditRecordsContent = ({
               </label>
               <AddressRecordPicker
                 search={(query) =>
-                  searchEditableAddressRecords(editableTypes, query)
+                  searchEditableAddressRecords(editableTypes, query, records)
                 }
                 onSelect={setPickedCoin}
                 focusAfterSelectRef={valueInputRef}
@@ -709,7 +710,7 @@ const EditRecordsContent = ({
               </label>
               <TextRecordPicker
                 search={(query) =>
-                  searchEditableTextRecords(editableTypes, query)
+                  searchEditableTextRecords(editableTypes, query, records)
                 }
                 onSelect={(option) => setKeyInput(option.key)}
                 focusAfterSelectRef={valueInputRef}
@@ -743,7 +744,10 @@ const EditRecordsContent = ({
                       className="h-9 w-full appearance-none rounded-sm border border-input bg-background px-3 pr-8 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
                     >
                       <option value="">Select...</option>
-                      {[...editableTypes.text].toSorted().map((key) => (
+                      {getAvailableTextRecordKeys(
+                        editableTypes.text,
+                        records,
+                      ).map((key) => (
                         <option key={key} value={key}>
                           {key}
                         </option>

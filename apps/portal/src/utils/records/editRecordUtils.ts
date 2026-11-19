@@ -51,7 +51,7 @@ export type RecordSlot =
   | { readonly type: 'abi' | 'contentHash' }
 
 /** One slot per exact coin type, exact case-sensitive text key, ABI, and content hash. */
-const getRecordSlot = (slot: RecordSlot): string =>
+export const getRecordSlot = (slot: RecordSlot): string =>
   match(slot)
     .with({ type: 'address' }, ({ id }) => `address-${id}`)
     .with({ type: 'text' }, ({ key }) => `text-${key}`)

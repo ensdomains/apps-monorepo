@@ -73,7 +73,7 @@ const TEXT_CATALOG: Catalog<TextRecordOption> = {
   getEmptyMessage: (query) =>
     query
       ? `No known text record matches “${query}”.`
-      : 'No known text records you can edit.',
+      : 'No known text records available to add.',
 }
 
 const ADDRESS_CATALOG: Catalog<AddressRecordOption> = {
@@ -102,7 +102,7 @@ const ADDRESS_CATALOG: Catalog<AddressRecordOption> = {
   getEmptyMessage: (query) =>
     query
       ? `No coin or chain matches “${query}”.`
-      : 'No coins or chains you can edit.',
+      : 'No coins or chains available to add.',
 }
 
 type RecordCatalogPickerProps<T> = {

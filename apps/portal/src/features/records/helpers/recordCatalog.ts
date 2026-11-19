@@ -8,7 +8,9 @@ import {
 } from '@ens-apps/record-catalog/text'
 import {
   canEditRecord,
+  type EditableRecord,
   type EditableTypes,
+  getRecordSlot,
 } from '@/utils/records/editRecordUtils'
 
 /** Whether the wallet may write the coin type `option` names. */
@@ -30,20 +32,44 @@ export const getEditableCoin = (
 ): AddressRecordOption | undefined =>
   coin && canEditAddressOption(editableTypes, coin) ? coin : undefined
 
-/** Known text records matching `query` that the wallet may write. */
+const getTakenRecordSlots = (records: readonly EditableRecord[]) =>
+  new Set(records.filter(({ isDeleted }) => !isDeleted).map(getRecordSlot))
+
+/** Permitted raw text keys for the restricted editor's key selector. */
+export const getAvailableTextRecordKeys = (
+  keys: ReadonlySet<string>,
+  records: readonly EditableRecord[],
+): readonly string[] => {
+  const taken = getTakenRecordSlots(records)
+  return [...keys]
+    .filter((key) => !taken.has(getRecordSlot({ type: 'text', key })))
+    .toSorted()
+}
+
+/** Known text records matching `query` that the wallet may add. */
 export const searchEditableTextRecords = (
   editableTypes: EditableTypes,
   query: string,
-): readonly TextRecordOption[] =>
-  searchTextRecords(query).filter(({ key }) =>
-    canEditRecord(editableTypes, { type: 'text', key, value: '' }),
+  records: readonly EditableRecord[],
+): readonly TextRecordOption[] => {
+  const taken = getTakenRecordSlots(records)
+  return searchTextRecords(query).filter(
+    ({ key }) =>
+      canEditRecord(editableTypes, { type: 'text', key, value: '' }) &&
+      !taken.has(getRecordSlot({ type: 'text', key })),
   )
+}
 
-/** Known coins and chains matching `query` that the wallet may write. */
+/** Known coins and chains matching `query` that the wallet may add. */
 export const searchEditableAddressRecords = (
   editableTypes: EditableTypes,
   query: string,
-): readonly AddressRecordOption[] =>
-  searchAddressRecords(query).filter((option) =>
-    canEditAddressOption(editableTypes, option),
+  records: readonly EditableRecord[],
+): readonly AddressRecordOption[] => {
+  const taken = getTakenRecordSlots(records)
+  return searchAddressRecords(query).filter(
+    (option) =>
+      canEditAddressOption(editableTypes, option) &&
+      !taken.has(getRecordSlot({ type: 'address', id: option.coinType })),
   )
+}
