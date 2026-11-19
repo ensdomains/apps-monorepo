@@ -387,10 +387,6 @@ msgstr "Addresses"
 msgid "Advanced"
 msgstr "Advanced"
 
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
-msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
-
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Agent ID"
 msgstr "Agent ID"
@@ -3177,12 +3173,8 @@ msgid "Sign in with Wallet"
 msgstr "Sign in with Wallet"
 
 #: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Sign once to enable gasless transactions for your ENS operations."
-msgstr "Sign once to enable gasless transactions for your ENS operations."
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Sign once to enable seamless transactions."
-msgstr "Sign once to enable seamless transactions."
+msgid "Sign once to skip wallet prompts for registrations and renewals.<0/>It's free and costs no gas."
+msgstr "Sign once to skip wallet prompts for registrations and renewals.<0/>It's free and costs no gas."
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign payment approval"
@@ -3717,10 +3709,6 @@ msgstr "This name points to an address that isn’t a working resolver, so its r
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."
 msgstr "This parent has subnames whose protections cannot be preserved by this upgrade yet."
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "This signature is free and doesn't cost any gas."
-msgstr "This signature is free and doesn't cost any gas."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This subname must be included through its parent name. It cannot be copied on its own."
@@ -4386,8 +4374,8 @@ msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr "You can buy this name at any point during the {periodDays}-day cooldown."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
-msgid "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
-msgstr "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
+msgid "You can keep browsing, but registering or managing names needs a session.<0/>Try again when you're ready."
+msgstr "You can keep browsing, but registering or managing names needs a session.<0/>Try again when you're ready."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "You can sign in anytime from your wallet menu."
