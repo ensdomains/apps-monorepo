@@ -34,8 +34,31 @@ describe('selectRegistryWarning', () => {
     ['a registry whose affected check failed', false, 'failed', null],
     ['a registry whose checks both failed', 'failed', 'failed', null],
   ] as const)('%s', (_, untrusted, affected, expected) => {
-    expect(selectRegistryWarning({ untrusted, affected })).toBe(expected)
+    expect(
+      selectRegistryWarning({ untrusted, affected, isAffectedWarningOn: true }),
+    ).toBe(expected)
   })
+
+  it.each([
+    ['an affected registry shows nothing', false, true, null],
+    [
+      'an untrusted registry still shows its alert',
+      true,
+      'pending',
+      'untrusted',
+    ],
+  ] as const)(
+    'with the affected warning switched off, %s',
+    (_, untrusted, affected, expected) => {
+      expect(
+        selectRegistryWarning({
+          untrusted,
+          affected,
+          isAffectedWarningOn: false,
+        }),
+      ).toBe(expected)
+    },
+  )
 })
 
 describe('toRegistryCheck', () => {

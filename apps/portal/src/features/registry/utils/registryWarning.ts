@@ -14,20 +14,26 @@ export const toRegistryCheck = ({
   readonly isError: boolean
 }): RegistryCheck => data ?? (isError ? 'failed' : 'pending')
 
-/** The one warning a registry page shows: untrusted outranks affected; a pending or failed affected check shows nothing. */
+/** The one warning a registry page shows: untrusted outranks affected; a pending or failed affected check, or a switched-off affected warning, shows nothing. */
 export const selectRegistryWarning = ({
   untrusted,
   affected,
+  isAffectedWarningOn,
 }: {
   readonly untrusted: RegistryCheck
   readonly affected: RegistryCheck
+  readonly isAffectedWarningOn: boolean
 }): RegistryWarning | null =>
-  match({ untrusted, affected })
+  match({ untrusted, affected, isAffectedWarningOn })
     .returnType<RegistryWarning | null>()
     .with({ untrusted: true }, () => 'untrusted')
     // Waits on a pending untrusted check, so an untrusted registry never flashes the affected banner first.
     .with(
-      { untrusted: P.union(false, 'failed'), affected: true },
+      {
+        untrusted: P.union(false, 'failed'),
+        affected: true,
+        isAffectedWarningOn: true,
+      },
       () => 'affected',
     )
     .otherwise(() => null)
