@@ -41,18 +41,33 @@ export type RecordType = 'text' | 'address' | 'abi' | 'contentHash'
 export const getRecordId = (record: NameRecord | EditableRecord): string => {
   const editableRecord = record as EditableRecord
   const uid = editableRecord._uid ? `-${editableRecord._uid}` : ''
-
-  if (record.type === 'contentHash') {
-    return `contentHash${uid}`
-  }
-  if (record.type === 'abi') {
-    return `abi${uid}`
-  }
-  if (record.type === 'address') {
-    return `address-${record.id}${uid}`
-  }
-  return `text-${record.key}${uid}`
+  return `${getRecordSlot(record)}${uid}`
 }
+
+/** What a record writes on the resolver; its display name plays no part. */
+export type RecordSlot =
+  | { readonly type: 'address'; readonly id: number }
+  | { readonly type: 'text'; readonly key: string }
+  | { readonly type: 'abi' | 'contentHash' }
+
+/** One slot per exact coin type, exact case-sensitive text key, ABI, and content hash. */
+const getRecordSlot = (slot: RecordSlot): string =>
+  match(slot)
+    .with({ type: 'address' }, ({ id }) => `address-${id}`)
+    .with({ type: 'text' }, ({ key }) => `text-${key}`)
+    .with({ type: 'abi' }, () => 'abi')
+    .with({ type: 'contentHash' }, () => 'contentHash')
+    .exhaustive()
+
+/** Whether a saved or staged row not marked for deletion already writes `slot`. */
+export const isRecordSlotTaken = (
+  records: readonly EditableRecord[],
+  slot: RecordSlot,
+): boolean =>
+  records.some(
+    (record) =>
+      !record.isDeleted && getRecordSlot(record) === getRecordSlot(slot),
+  )
 
 /**
  * Merges original records with pending changes (edits, deletions, new records).

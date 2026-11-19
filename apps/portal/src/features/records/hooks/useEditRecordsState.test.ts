@@ -14,6 +14,7 @@ describe('editRecordsReducer', () => {
     it('adds a text record to newRecords', () => {
       const action: EditRecordsAction = {
         type: 'ADD_RECORD',
+        originalRecords: [],
         recordType: 'text',
         key: 'name',
         value: 'John',
@@ -33,6 +34,7 @@ describe('editRecordsReducer', () => {
     it('adds an address record with default coin type', () => {
       const action: EditRecordsAction = {
         type: 'ADD_RECORD',
+        originalRecords: [],
         recordType: 'address',
         key: 'ETH',
         value: '0x123',
@@ -52,6 +54,7 @@ describe('editRecordsReducer', () => {
     it('adds a contentHash record', () => {
       const action: EditRecordsAction = {
         type: 'ADD_RECORD',
+        originalRecords: [],
         recordType: 'contentHash',
         key: '',
         value: 'ipfs://abc',
@@ -74,6 +77,7 @@ describe('editRecordsReducer', () => {
 
       const action: EditRecordsAction = {
         type: 'ADD_RECORD',
+        originalRecords: [],
         recordType: 'text',
         key: 'new',
         value: 'newval',
@@ -87,6 +91,51 @@ describe('editRecordsReducer', () => {
     })
   })
 
+  describe('adding to a slot that already has a row', () => {
+    const savedEth: NameRecord = {
+      type: 'address',
+      key: 'ETH',
+      value: '0xsaved',
+      id: 60,
+    }
+    const addEthereum = {
+      type: 'ADD_ADDRESS_RECORD',
+      coinType: 60,
+      key: 'Ethereum',
+      value: '0xnew',
+      originalRecords: [savedEth],
+    } as const satisfies EditRecordsAction
+
+    it('keeps a saved ETH row the only coin type 60 slot when Ethereum is added', () => {
+      expect(editRecordsReducer(initialEditRecordsState, addEthereum)).toBe(
+        initialEditRecordsState,
+      )
+    })
+
+    it('stages only the first of two rapid adds to the same slot', () => {
+      const add = { ...addEthereum, originalRecords: [] }
+      const result = [add, add].reduce(
+        editRecordsReducer,
+        initialEditRecordsState,
+      )
+
+      expect(result.newRecords).toEqual([
+        expect.objectContaining({ id: 60, key: 'Ethereum', value: '0xnew' }),
+      ])
+    })
+
+    it('re-adds a saved slot after it is deleted, which the encoder coalesces', () => {
+      const deleted = editRecordsReducer(initialEditRecordsState, {
+        type: 'DELETE_RECORD',
+        record: savedEth,
+      })
+
+      expect(editRecordsReducer(deleted, addEthereum).newRecords).toEqual([
+        expect.objectContaining({ id: 60, value: '0xnew' }),
+      ])
+    })
+  })
+
   describe('ADD_ADDRESS_RECORD', () => {
     // A name lookup would turn Base Sepolia into mainnet Base and an unknown name into ETH.
     it.each([
@@ -95,6 +144,7 @@ describe('editRecordsReducer', () => {
     ])('stages $key with coin type $coinType', ({ key, coinType }) => {
       const result = editRecordsReducer(initialEditRecordsState, {
         type: 'ADD_ADDRESS_RECORD',
+        originalRecords: [],
         coinType,
         key,
         value: '0x123',
@@ -341,12 +391,6 @@ describe('staged record images', () => {
       originalRecords: [],
       newValue: 'https://example.com/replacement.jpg',
     },
-    {
-      type: 'ADD_RECORD',
-      recordType: 'text',
-      key: 'avatar',
-      value: 'ipfs://override',
-    },
   ] satisfies readonly EditRecordsAction[])(
     'omits the staged image after $type supersedes its URL',
     (action) => {
@@ -355,6 +399,20 @@ describe('staged record images', () => {
       ).toEqual([])
     },
   )
+
+  it('refuses a second avatar row while an upload is staged and keeps the upload', () => {
+    const staged = stage()
+    const added = editRecordsReducer(staged, {
+      type: 'ADD_RECORD',
+      recordType: 'text',
+      key: 'avatar',
+      value: 'ipfs://override',
+      originalRecords: [],
+    })
+
+    expect(added).toBe(staged)
+    expect(getPendingRecordImages(added, [])).toEqual([avatarUpload])
+  })
 
   it('does not upload a completed draft again but uploads a newly staged image', () => {
     const staged = stage()

@@ -38,7 +38,10 @@ import {
   TextRecordPicker,
 } from '@/features/records/components/RecordCatalogPicker'
 import { RecordImageUploadDialog } from '@/features/records/components/RecordImageUploadDialog'
-import { getNewRecordKey } from '@/features/records/helpers/newRecordKey'
+import {
+  getNewRecordConflict,
+  getNewRecordKey,
+} from '@/features/records/helpers/newRecordKey'
 import {
   getEditableCoin,
   searchEditableAddressRecords,
@@ -93,6 +96,20 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 ]
 
 const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
+
+/** Why Add record is off: the picked key already has a row. */
+const NewRecordConflictMessage = ({
+  id,
+  message,
+}: {
+  readonly id: string
+  readonly message: string | undefined
+}) =>
+  message ? (
+    <p id={id} role="alert" className="basis-full text-small text-destructive">
+      {message}
+    </p>
+  ) : null
 
 function EditRecordsPage() {
   const { name } = Route.useParams()
@@ -549,14 +566,16 @@ const EditRecordsContent = ({
   const keyInputId = useId()
   const keyLabelId = useId()
   const valueInputId = useId()
+  const conflictId = useId()
 
   const newRecordKey = getNewRecordKey(selectedType, keyInput, selectedCoin)
+  const newRecordConflict = getNewRecordConflict(records, newRecordKey)
 
   const addImageKind = getRecordImageKind({ type: selectedType, key: keyInput })
   const addImageChoice = getImageChoice(addImageKind)
 
   const handleAddRecord = () => {
-    if (operation.current || !newRecordKey) return
+    if (operation.current || !newRecordKey || newRecordConflict) return
 
     // Address records keep the exact coin type picked, not one looked up from a name.
     match(newRecordKey)
@@ -769,13 +788,18 @@ const EditRecordsContent = ({
             <Button
               variant="default"
               onClick={handleAddRecord}
-              disabled={!newRecordKey}
+              disabled={!newRecordKey || newRecordConflict !== undefined}
+              aria-describedby={newRecordConflict ? conflictId : undefined}
               className="flex items-center gap-2 whitespace-nowrap"
             >
               Add record
               <CirclePlus className="size-4" />
             </Button>
           </div>
+          <NewRecordConflictMessage
+            id={conflictId}
+            message={newRecordConflict}
+          />
         </div>
       </header>
 

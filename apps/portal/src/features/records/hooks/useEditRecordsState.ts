@@ -11,6 +11,7 @@ import {
   createNewRecord,
   type EditableRecord,
   getRecordId,
+  isRecordSlotTaken,
   mergeRecordsWithChanges,
   type RecordType,
 } from '@/utils/records/editRecordUtils'
@@ -40,12 +41,19 @@ export type EditRecordsState = {
 // ============================================================================
 
 export type EditRecordsAction =
-  | { type: 'ADD_RECORD'; recordType: RecordType; key: string; value: string }
+  | {
+      type: 'ADD_RECORD'
+      recordType: RecordType
+      key: string
+      value: string
+      readonly originalRecords: readonly NameRecord[]
+    }
   | {
       readonly type: 'ADD_ADDRESS_RECORD'
       readonly coinType: number
       readonly key: string
       readonly value: string
+      readonly originalRecords: readonly NameRecord[]
     }
   | { type: 'DELETE_RECORD'; record: EditableRecord }
   | {
@@ -130,6 +138,22 @@ const stageRecordImage = (
   }
 }
 
+/** Stages `newRecord` unless a saved or staged row already writes its slot. */
+const addNewRecord = (
+  state: EditRecordsState,
+  newRecord: EditableRecord,
+  originalRecords: readonly NameRecord[],
+): EditRecordsState => {
+  const records = mergeRecordsWithChanges(
+    originalRecords,
+    state.newRecords,
+    state.editedValues,
+    state.deletedIds,
+  )
+  if (isRecordSlotTaken(records, newRecord)) return state
+  return { ...state, newRecords: [...state.newRecords, newRecord] }
+}
+
 export const getPendingRecordImages = (
   state: EditRecordsState,
   originalRecords: readonly NameRecord[],
@@ -160,26 +184,19 @@ export function editRecordsReducer(
   action: EditRecordsAction,
 ): EditRecordsState {
   switch (action.type) {
-    case 'ADD_RECORD': {
-      const newRecord = createNewRecord(
-        action.recordType,
-        action.key,
-        action.value,
+    case 'ADD_RECORD':
+      return addNewRecord(
+        state,
+        createNewRecord(action.recordType, action.key, action.value),
+        action.originalRecords,
       )
-      return {
-        ...state,
-        newRecords: [...state.newRecords, newRecord],
-      }
-    }
 
     case 'ADD_ADDRESS_RECORD':
-      return {
-        ...state,
-        newRecords: [
-          ...state.newRecords,
-          createAddressRecord(action.coinType, action.key, action.value),
-        ],
-      }
+      return addNewRecord(
+        state,
+        createAddressRecord(action.coinType, action.key, action.value),
+        action.originalRecords,
+      )
 
     case 'STAGE_IMAGE':
       return stageRecordImage(state, action)
@@ -321,11 +338,17 @@ export function useEditRecordsState(originalRecords: readonly NameRecord[]) {
 
   // Action dispatchers
   const addRecord = (recordType: RecordType, key: string, value: string) => {
-    dispatch({ type: 'ADD_RECORD', recordType, key, value })
+    dispatch({ type: 'ADD_RECORD', recordType, key, value, originalRecords })
   }
 
   const addAddressRecord = (coinType: number, key: string, value: string) => {
-    dispatch({ type: 'ADD_ADDRESS_RECORD', coinType, key, value })
+    dispatch({
+      type: 'ADD_ADDRESS_RECORD',
+      coinType,
+      key,
+      value,
+      originalRecords,
+    })
   }
 
   const deleteRecord = (record: EditableRecord) => {

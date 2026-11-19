@@ -6,6 +6,7 @@ import {
   type EditableTypes,
   getRecordId,
   hasDisallowedChanges,
+  isRecordSlotTaken,
   mergeRecordsWithChanges,
   NO_EDITABLE_TYPES,
 } from './editRecordUtils'
@@ -316,6 +317,37 @@ describe('createNewRecord', () => {
       value: '[{"type":"function"}]',
     })
     expect(record._uid).toBeDefined()
+  })
+})
+
+describe('isRecordSlotTaken', () => {
+  const rows: readonly EditableRecord[] = [
+    { type: 'address', key: 'ETH', value: '0x1', id: 60 },
+    {
+      type: 'address',
+      key: 'BTC',
+      value: 'bc1',
+      id: 0,
+      _uid: 'a',
+      isNew: true,
+    },
+    { type: 'text', key: 'avatar', value: 'ipfs://a' },
+    { type: 'abi', value: '[]', _uid: 'b', isNew: true },
+    { type: 'address', key: 'DOGE', value: 'D1', id: 3, isDeleted: true },
+  ]
+
+  it.each([
+    { slot: { type: 'address', id: 60 }, isTaken: true },
+    { slot: { type: 'address', id: 0 }, isTaken: true },
+    // A deleted row frees its slot, so it can be added again.
+    { slot: { type: 'address', id: 3 }, isTaken: false },
+    { slot: { type: 'address', id: 2147483708 }, isTaken: false },
+    { slot: { type: 'text', key: 'avatar' }, isTaken: true },
+    { slot: { type: 'text', key: 'Avatar' }, isTaken: false },
+    { slot: { type: 'abi' }, isTaken: true },
+    { slot: { type: 'contentHash' }, isTaken: false },
+  ] as const)('$slot is taken: $isTaken', ({ slot, isTaken }) => {
+    expect(isRecordSlotTaken(rows, slot)).toBe(isTaken)
   })
 })
 
