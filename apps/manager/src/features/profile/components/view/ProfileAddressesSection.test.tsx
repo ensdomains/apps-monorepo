@@ -1,7 +1,7 @@
 import { getCoinTypeForReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
+import { addressIconUrls as coinIcons } from '@ens-apps/record-catalog/address-icons'
 import { fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { coinIcons } from '@/assets/coins'
 import type { ProfileRecords } from '@/features/profile/types'
 import { copyToClipboard } from '@/lib/clipboard'
 import { render } from '@/utils/test-utils'

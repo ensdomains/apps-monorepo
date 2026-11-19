@@ -1,4 +1,6 @@
-export const LinkedInIcon = (props: React.SVGProps<SVGSVGElement>) => {
+import type { SVGProps } from 'react'
+
+export const LinkedInIcon = (props: SVGProps<SVGSVGElement>) => {
   return (
     <svg
       aria-hidden="true"

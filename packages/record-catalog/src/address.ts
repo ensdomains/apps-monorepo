@@ -103,6 +103,26 @@ export const SEPOLIA_ADDRESS_RECORDS = Object.freeze(
   }),
 )
 
+const ADDRESS_ICON_ALIASES: ReadonlyMap<string, string> = new Map([
+  ['bsc', 'bnb'],
+  ['avaxc', 'avax'],
+  ['scr', 'scroll'],
+  ['lisk', 'lsk'],
+])
+
+/** Returns the artwork key for a known record, including records without artwork. */
+export function getAddressRecordIconKey(coinType: number): string | undefined {
+  const notation =
+    CANONICAL_ADDRESS_RECORD_INDEX.get(coinType)?.notation ??
+    REMOVED_COINS[coinType]?.[0] ??
+    SEPOLIA_ADDRESS_RECORDS.find((record) => record.coinType === coinType)
+      ?.notation
+  if (notation === undefined) return undefined
+
+  const key = notation.replace(/Legacy$/, '')
+  return ADDRESS_ICON_ALIASES.get(key) ?? key
+}
+
 const PREFERRED_COIN_TYPES: readonly number[] = [
   coinNameToTypeMap.eth,
   coinNameToTypeMap.default,

@@ -1,4 +1,4 @@
-import { PROFILE_TEXT_RECORDS } from '@ens-apps/record-catalog'
+import { PROFILE_TEXT_RECORDS } from '@ens-apps/record-catalog/text'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { safeRecordHref } from '../../utils/safeUrl'
 import { addressRecords } from './address'

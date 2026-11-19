@@ -1,125 +1,97 @@
-import type { HTMLInputTypeAttribute } from 'react'
+import { PROFILE_TEXT_RECORDS } from '@ens-apps/record-catalog/text'
 
-export const primaryContactRecordKey = 'primary-contact'
-export const primaryContactsRecordKey = 'domains.ens.primary-contacts'
+export const primaryContactRecordKey = PROFILE_TEXT_RECORDS.primaryContact.key
+export const primaryContactsRecordKey = PROFILE_TEXT_RECORDS.primaryContacts.key
 export const maxPrimaryContactMethods = 3
 
-export const contactMethods = [
-  {
-    key: 'com.twitter',
-    label: 'Twitter',
-    placeholder: 'Twitter',
-    section: 'social',
-  },
-  {
-    key: 'org.telegram',
-    label: 'Telegram',
-    placeholder: 'Telegram',
-    section: 'social',
-  },
-  {
-    key: 'xyz.farcaster',
-    label: 'Farcaster',
-    placeholder: 'Farcaster',
-    section: 'social',
-  },
-  {
-    key: 'com.discord',
-    label: 'Discord',
-    placeholder: 'Discord',
-    section: 'social',
-  },
-  {
-    key: 'com.instagram',
-    label: 'Instagram',
-    placeholder: 'Instagram',
-    section: 'social',
-  },
-  {
-    key: 'com.linkedin',
-    label: 'LinkedIn',
-    placeholder: 'LinkedIn',
-    section: 'social',
-  },
-  {
-    key: 'com.github',
-    label: 'GitHub',
-    placeholder: 'GitHub',
-    section: 'social',
-  },
-  {
-    key: 'com.mastodon',
-    label: 'Mastodon',
-    placeholder: 'Mastodon',
-    section: 'social',
-  },
-  {
-    key: 'com.reddit',
-    label: 'Reddit',
-    placeholder: 'Reddit',
-    section: 'social',
-  },
-  {
-    key: 'com.tiktok',
-    label: 'TikTok',
-    placeholder: 'TikTok',
-    section: 'social',
-  },
-  {
-    key: 'com.twitch',
-    label: 'Twitch',
-    placeholder: 'Twitch',
-    section: 'social',
-  },
-  {
-    key: 'email',
-    label: 'E-mail',
-    placeholder: 'myemail@me.com',
-    section: 'contact',
-    type: 'email',
-  },
-  {
-    key: 'phone',
-    label: 'Phone',
-    placeholder: 'Phone',
-    section: 'contact',
-    type: 'tel',
-  },
-  {
-    key: 'mail',
-    label: 'Address',
-    placeholder: 'Address',
-    section: 'contact',
-  },
-] as const satisfies readonly {
-  readonly key: string
+const {
+  discord,
+  email,
+  farcaster,
+  github,
+  instagram,
+  linkedin,
+  mail,
+  mastodon,
+  phone,
+  reddit,
+  telegram,
+  tiktok,
+  twitch,
+  twitter,
+} = PROFILE_TEXT_RECORDS
+
+const CONTACT_METHOD_RECORDS = [
+  twitter,
+  telegram,
+  farcaster,
+  discord,
+  instagram,
+  linkedin,
+  github,
+  mastodon,
+  reddit,
+  tiktok,
+  twitch,
+  email,
+  phone,
+  mail,
+] as const
+
+type ContactMethodRecord = (typeof CONTACT_METHOD_RECORDS)[number]
+export type ContactMethodKey = ContactMethodRecord['key']
+
+const CONTACT_METHOD_LABELS: Readonly<
+  Partial<Record<ContactMethodKey, string>>
+> = {
+  [twitter.key]: 'Twitter',
+  [email.key]: 'E-mail',
+  [phone.key]: 'Phone',
+  [mail.key]: 'Address',
+}
+
+const CONTACT_METHOD_INPUT_TYPES = { email: 'email', phone: 'tel' } as const
+
+export interface ContactMethod {
+  readonly key: ContactMethodKey
   readonly label: string
   readonly placeholder: string
-  readonly section: 'contact' | 'social'
-  readonly type?: HTMLInputTypeAttribute
-}[]
+  readonly section: ContactMethodRecord['role']
+  readonly type?: (typeof CONTACT_METHOD_INPUT_TYPES)[keyof typeof CONTACT_METHOD_INPUT_TYPES]
+}
 
-export type ContactMethod = (typeof contactMethods)[number]
-export type ContactMethodKey = ContactMethod['key']
+export const contactMethods: readonly ContactMethod[] =
+  CONTACT_METHOD_RECORDS.map(({ key, name, role, format }) => {
+    const label = CONTACT_METHOD_LABELS[key] ?? name
+    return {
+      key,
+      label,
+      placeholder: format === 'email' ? 'myemail@me.com' : label,
+      section: role,
+      ...((format === 'email' || format === 'phone') && {
+        type: CONTACT_METHOD_INPUT_TYPES[format],
+      }),
+    }
+  })
 
 export const defaultEnabledContactMethodKeys: ReadonlySet<ContactMethodKey> =
-  new Set<ContactMethodKey>(['com.twitter', 'org.telegram'])
+  new Set([twitter.key, telegram.key])
 
 const rowMethodKeys = [
-  'email',
-  'com.twitter',
-  'org.telegram',
-  'xyz.farcaster',
-  'com.discord',
-  'com.instagram',
-  'com.linkedin',
-  'mail',
-  'phone',
-  'com.github',
-  'com.mastodon',
-  'com.reddit',
-  'com.tiktok',
-  'com.twitch',
+  email.key,
+  twitter.key,
+  telegram.key,
+  farcaster.key,
+  discord.key,
+  instagram.key,
+  linkedin.key,
+  mail.key,
+  phone.key,
+  github.key,
+  mastodon.key,
+  reddit.key,
+  tiktok.key,
+  twitch.key,
 ] as const satisfies readonly ContactMethodKey[]
 
 const contactMethodByKey = new Map(

@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+import { AddressRecordArtwork, TextRecordArtwork } from './RecordArtwork'
 
 type CatalogDetail<T> = {
   readonly label: string
@@ -44,6 +45,7 @@ type Catalog<T> = {
   /** Grid columns for the name column followed by each detail. */
   readonly columns: string
   readonly getId: (option: T) => string
+  readonly renderArtwork: (option: T, className?: string) => ReactNode
   readonly getEmptyMessage: (query: string) => string
 }
 
@@ -55,6 +57,9 @@ const TEXT_CATALOG: Catalog<TextRecordOption> = {
   details: [{ label: 'Key', getValue: (option) => option.key }],
   columns: 'grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]',
   getId: (option) => option.key,
+  renderArtwork: (option, className) => (
+    <TextRecordArtwork option={option} className={className} />
+  ),
   getEmptyMessage: (query) =>
     query
       ? `No known text record matches “${query}”.`
@@ -77,6 +82,9 @@ const ADDRESS_CATALOG: Catalog<AddressRecordOption> = {
   // Wide enough for a ten-digit coin type and chain ID without wrapping.
   columns: 'grid-cols-[minmax(0,1fr)_7.5rem_7rem]',
   getId: (option) => String(option.coinType),
+  renderArtwork: (option, className) => (
+    <AddressRecordArtwork option={option} className={className} />
+  ),
   getEmptyMessage: (query) =>
     query
       ? `No coin or chain matches “${query}”.`
@@ -144,7 +152,8 @@ const CatalogResults = <T extends { readonly name: string }>({
             catalog.columns,
           )}
         >
-          <span>{catalog.nameLabel}</span>
+          {/* Lines up with the names, past their artwork. */}
+          <span className="pl-8">{catalog.nameLabel}</span>
           {catalog.details.map((detail) => (
             <span key={detail.label}>{detail.label}</span>
           ))}
@@ -167,45 +176,58 @@ const CatalogResults = <T extends { readonly name: string }>({
             className={cn(
               'cursor-pointer px-3',
               isStacked
-                ? 'flex-col items-start gap-0.5 py-2.5'
+                ? 'gap-3 py-2.5'
                 : cn('grid gap-4 py-2', catalog.columns),
             )}
           >
-            <span className="min-w-0 truncate">{option.name}</span>
             {isStacked ? (
-              <span className="flex flex-wrap gap-x-4 gap-y-0.5 text-small text-muted-foreground">
+              <>
+                {catalog.renderArtwork(option, 'size-6')}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate">{option.name}</span>
+                  <span className="flex flex-wrap gap-x-4 gap-y-0.5 text-small text-muted-foreground">
+                    {catalog.details.map((detail) => {
+                      const value = detail.getValue(option)
+                      return value === undefined ? null : (
+                        <span key={detail.label}>
+                          {detail.label}{' '}
+                          <span className="font-mono text-foreground">
+                            {value}
+                          </span>
+                        </span>
+                      )
+                    })}
+                  </span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="flex min-w-0 items-center gap-3">
+                  {catalog.renderArtwork(option)}
+                  <span className="truncate">{option.name}</span>
+                </span>
                 {catalog.details.map((detail) => {
                   const value = detail.getValue(option)
-                  return value === undefined ? null : (
-                    <span key={detail.label}>
-                      {detail.label}{' '}
-                      <span className="font-mono text-foreground">{value}</span>
+                  return (
+                    <span key={detail.label} className="min-w-0 break-all">
+                      <span className="sr-only">{detail.label} </span>
+                      {value === undefined ? (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="text-muted-foreground"
+                          >
+                            —
+                          </span>
+                          <span className="sr-only">none</span>
+                        </>
+                      ) : (
+                        <span className="font-mono">{value}</span>
+                      )}
                     </span>
                   )
                 })}
-              </span>
-            ) : (
-              catalog.details.map((detail) => {
-                const value = detail.getValue(option)
-                return (
-                  <span key={detail.label} className="min-w-0 break-all">
-                    <span className="sr-only">{detail.label} </span>
-                    {value === undefined ? (
-                      <>
-                        <span
-                          aria-hidden="true"
-                          className="text-muted-foreground"
-                        >
-                          —
-                        </span>
-                        <span className="sr-only">none</span>
-                      </>
-                    ) : (
-                      <span className="font-mono">{value}</span>
-                    )}
-                  </span>
-                )
-              })
+              </>
             )}
           </CommandItem>
         ))}

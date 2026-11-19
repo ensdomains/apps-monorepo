@@ -1,6 +1,6 @@
+import { addressIconUrls as coinIcons } from '@ens-apps/record-catalog/address-icons'
 import { coinTypeToNameMap } from '@ensdomains/address-encoder'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { coinIcons } from '@/assets/coins'
 
 describe.each(['mainnet', 'sepolia'] as const)(
   'address presentation on %s',

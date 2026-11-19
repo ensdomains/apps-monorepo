@@ -1,3 +1,6 @@
+import arbitrumIcon from '@ens-apps/record-catalog/address-assets/arb1-icon.svg?no-inline'
+import baseIcon from '@ens-apps/record-catalog/address-assets/base-icon.svg?no-inline'
+import optimismIcon from '@ens-apps/record-catalog/address-assets/op-icon.svg?no-inline'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { match, P } from 'ts-pattern'
 import {
@@ -8,7 +11,6 @@ import {
   optimism,
   optimismSepolia,
 } from 'viem/chains'
-import { coinIcons } from '@/assets/coins'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -20,12 +22,12 @@ import { PaymentMethodRow } from './PaymentMethodRow'
 const USDC_DECIMALS = 6
 
 const NETWORK_BADGES: Readonly<Record<number, string | undefined>> = {
-  [base.id]: coinIcons.base,
-  [arbitrum.id]: coinIcons.arb1,
-  [optimism.id]: coinIcons.op,
-  [baseSepolia.id]: coinIcons.base,
-  [arbitrumSepolia.id]: coinIcons.arb1,
-  [optimismSepolia.id]: coinIcons.op,
+  [base.id]: baseIcon,
+  [arbitrum.id]: arbitrumIcon,
+  [optimism.id]: optimismIcon,
+  [baseSepolia.id]: baseIcon,
+  [arbitrumSepolia.id]: arbitrumIcon,
+  [optimismSepolia.id]: optimismIcon,
 }
 
 // A balance just over what the HCA is sent can still fall short of the fee.

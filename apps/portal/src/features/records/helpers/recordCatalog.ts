@@ -1,9 +1,11 @@
 import {
   type AddressRecordOption,
   searchAddressRecords,
+} from '@ens-apps/record-catalog'
+import {
   searchTextRecords,
   type TextRecordOption,
-} from '@ens-apps/record-catalog'
+} from '@ens-apps/record-catalog/text'
 import {
   canEditRecord,
   type EditableTypes,

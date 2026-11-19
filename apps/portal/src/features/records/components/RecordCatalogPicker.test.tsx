@@ -2,11 +2,13 @@ import {
   type AddressRecordOption,
   searchAddressRecords,
 } from '@ens-apps/record-catalog'
-import { render, screen } from '@testing-library/react'
+import { getAddressRecordIcon } from '@ens-apps/record-catalog/address-icons'
+import { searchTextRecords } from '@ens-apps/record-catalog/text'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRef, useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AddressRecordPicker } from './RecordCatalogPicker'
+import { AddressRecordPicker, TextRecordPicker } from './RecordCatalogPicker'
 
 const Form = () => {
   const [coin, setCoin] = useState<AddressRecordOption>()
@@ -85,5 +87,71 @@ describe('AddressRecordPicker', () => {
     await user.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Coin' })).toHaveFocus()
+  })
+})
+
+describe('record artwork', () => {
+  const openPicker = async (picker: React.ReactNode, query: string) => {
+    const user = userEvent.setup()
+    render(picker)
+    await user.click(screen.getByRole('button', { name: 'Browse' }))
+    await user.type(screen.getByRole('combobox'), query)
+  }
+  const artworkOf = (option: HTMLElement) =>
+    option.querySelector('[data-slot="record-artwork"]')
+
+  it('draws the shared coin logo beside an unchanged option name', async () => {
+    await openPicker(
+      <AddressRecordPicker
+        search={searchAddressRecords}
+        onSelect={() => undefined}
+        trigger={<button type="button">Browse</button>}
+      />,
+      'litecoin',
+    )
+
+    const option = screen.getByRole('option', {
+      name: 'Litecoin Coin type 2 EVM chain ID none',
+    })
+    const logo = await within(option).findByRole('presentation', {
+      hidden: true,
+    })
+    expect(logo.getAttribute('src')).toBe(getAddressRecordIcon(2))
+    expect(artworkOf(option)).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('keeps the same frame with a monogram when a coin has no logo', async () => {
+    await openPicker(
+      <AddressRecordPicker
+        search={searchAddressRecords}
+        onSelect={() => undefined}
+        trigger={<button type="button">Browse</button>}
+      />,
+      '2147483648',
+    )
+
+    const option = screen.getByRole('option', {
+      name: 'Any EVM chain Coin type 2147483648 EVM chain ID none',
+    })
+    expect(getAddressRecordIcon(2147483648)).toBeUndefined()
+    expect(await within(option).findByText('A')).toHaveAttribute(
+      'data-slot',
+      'record-artwork-monogram',
+    )
+  })
+
+  it('draws a text record glyph without adding its title to the option name', async () => {
+    await openPicker(
+      <TextRecordPicker
+        search={searchTextRecords}
+        onSelect={() => undefined}
+        trigger={<button type="button">Browse</button>}
+      />,
+      'com.github',
+    )
+
+    const option = screen.getByRole('option', { name: 'GitHub Key com.github' })
+    await within(option).findByTitle('GitHub')
+    expect(artworkOf(option)?.querySelector('svg')).toBeInTheDocument()
   })
 })

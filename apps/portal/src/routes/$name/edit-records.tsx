@@ -32,6 +32,7 @@ import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
+import { AddressRecordArtwork } from '@/features/records/components/RecordArtwork'
 import {
   AddressRecordPicker,
   TextRecordPicker,
@@ -657,11 +658,15 @@ const EditRecordsContent = ({
                     className="min-w-0 flex-1 justify-between gap-3 px-3 font-normal dark:bg-background dark:hover:bg-accent"
                   >
                     {selectedCoin ? (
-                      <span className="flex min-w-0 items-baseline gap-2">
-                        <span className="truncate">{selectedCoin.name}</span>
-                        <span className="font-mono text-small text-muted-foreground">
-                          <span className="sr-only">coin type </span>
-                          {selectedCoin.coinType}
+                      // Artwork only after a pick, so the unopened editor loads none.
+                      <span className="flex min-w-0 items-center gap-2">
+                        <AddressRecordArtwork option={selectedCoin} />
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span className="truncate">{selectedCoin.name}</span>
+                          <span className="font-mono text-small text-muted-foreground">
+                            <span className="sr-only">coin type </span>
+                            {selectedCoin.coinType}
+                          </span>
                         </span>
                       </span>
                     ) : (

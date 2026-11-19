@@ -1,7 +1,4 @@
-interface SocialProfileValueNormalizerOptions {
-  readonly hosts: readonly string[]
-  readonly pathPrefixes?: readonly string[]
-}
+import type { SocialProfileValueNormalization } from '@ens-apps/record-catalog/text'
 
 const urlLikePattern = /^[\w.-]+\.[a-z]{2,}(?:[/#?]|$)/i
 const urlSchemePattern = /^[a-z][a-z\d+.-]*:\/\//i
@@ -62,7 +59,7 @@ const getProfileSegment = (
 export const createSocialProfileValueNormalizer = ({
   hosts,
   pathPrefixes = [],
-}: SocialProfileValueNormalizerOptions): ((value: string) => string) => {
+}: SocialProfileValueNormalization): ((value: string) => string) => {
   const allowedHosts = new Set(hosts.map(normalizeHost))
 
   return (value: string): string => {
