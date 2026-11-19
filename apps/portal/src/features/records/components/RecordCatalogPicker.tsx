@@ -29,7 +29,12 @@ import {
 } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
-import { AddressRecordArtwork, TextRecordArtwork } from './RecordArtwork'
+import {
+  AddressRecordArtwork,
+  type ArtworkViewport,
+  TextRecordArtwork,
+  useArtworkViewport,
+} from './RecordArtwork'
 
 type CatalogDetail<T> = {
   readonly label: string
@@ -45,7 +50,11 @@ type Catalog<T> = {
   /** Grid columns for the name column followed by each detail. */
   readonly columns: string
   readonly getId: (option: T) => string
-  readonly renderArtwork: (option: T, className?: string) => ReactNode
+  readonly renderArtwork: (
+    option: T,
+    viewport: ArtworkViewport | undefined,
+    className?: string,
+  ) => ReactNode
   readonly getEmptyMessage: (query: string) => string
 }
 
@@ -57,7 +66,8 @@ const TEXT_CATALOG: Catalog<TextRecordOption> = {
   details: [{ label: 'Key', getValue: (option) => option.key }],
   columns: 'grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]',
   getId: (option) => option.key,
-  renderArtwork: (option, className) => (
+  // Text glyphs are inline SVG, so they need no viewport.
+  renderArtwork: (option, _viewport, className) => (
     <TextRecordArtwork option={option} className={className} />
   ),
   getEmptyMessage: (query) =>
@@ -82,8 +92,12 @@ const ADDRESS_CATALOG: Catalog<AddressRecordOption> = {
   // Wide enough for a ten-digit coin type and chain ID without wrapping.
   columns: 'grid-cols-[minmax(0,1fr)_7.5rem_7rem]',
   getId: (option) => String(option.coinType),
-  renderArtwork: (option, className) => (
-    <AddressRecordArtwork option={option} className={className} />
+  renderArtwork: (option, viewport, className) => (
+    <AddressRecordArtwork
+      option={option}
+      viewport={viewport}
+      className={className}
+    />
   ),
   getEmptyMessage: (query) =>
     query
@@ -118,6 +132,7 @@ const CatalogResults = <T extends { readonly name: string }>({
 }) => {
   const [query, setQuery] = useState('')
   const options = search(query)
+  const { listRef, viewport } = useArtworkViewport()
 
   return (
     <Command
@@ -160,6 +175,7 @@ const CatalogResults = <T extends { readonly name: string }>({
         </div>
       )}
       <CommandList
+        ref={listRef}
         className={cn(
           'p-1',
           isStacked ? 'max-h-none min-h-0 flex-1' : 'max-h-80',
@@ -182,7 +198,7 @@ const CatalogResults = <T extends { readonly name: string }>({
           >
             {isStacked ? (
               <>
-                {catalog.renderArtwork(option, 'size-6')}
+                {catalog.renderArtwork(option, viewport, 'size-6')}
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="truncate">{option.name}</span>
                   <span className="flex flex-wrap gap-x-4 gap-y-0.5 text-small text-muted-foreground">
@@ -203,7 +219,7 @@ const CatalogResults = <T extends { readonly name: string }>({
             ) : (
               <>
                 <span className="flex min-w-0 items-center gap-3">
-                  {catalog.renderArtwork(option)}
+                  {catalog.renderArtwork(option, viewport)}
                   <span className="truncate">{option.name}</span>
                 </span>
                 {catalog.details.map((detail) => {

@@ -4,10 +4,10 @@ import {
 } from '@ens-apps/record-catalog'
 import { getAddressRecordIcon } from '@ens-apps/record-catalog/address-icons'
 import { searchTextRecords } from '@ens-apps/record-catalog/text'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRef, useState } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddressRecordPicker, TextRecordPicker } from './RecordCatalogPicker'
 
 const Form = () => {
@@ -90,7 +90,49 @@ describe('AddressRecordPicker', () => {
   })
 })
 
+// happy-dom's observer never reports, so rows report themselves in view as a browser would.
+const stubIntersectionObserver = ({
+  isInView,
+}: {
+  readonly isInView: boolean
+}) => {
+  const observers: {
+    readonly root: unknown
+    readonly reportInView: (target: Element | null) => void
+  }[] = []
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      readonly report: (target: Element | null) => void
+      constructor(
+        notify: IntersectionObserverCallback,
+        { root }: IntersectionObserverInit,
+      ) {
+        this.report = (target) =>
+          notify(
+            [{ target, isIntersecting: true } as IntersectionObserverEntry],
+            {} as IntersectionObserver,
+          )
+        observers.push({ root, reportInView: this.report })
+      }
+      observe(target: Element) {
+        if (isInView) queueMicrotask(() => this.report(target))
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  )
+  return observers
+}
+
 describe('record artwork', () => {
+  beforeEach(() => {
+    stubIntersectionObserver({ isInView: true })
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   const openPicker = async (picker: React.ReactNode, query: string) => {
     const user = userEvent.setup()
     render(picker)
@@ -118,6 +160,33 @@ describe('record artwork', () => {
     })
     expect(logo.getAttribute('src')).toBe(getAddressRecordIcon(2))
     expect(artworkOf(option)).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('fetches a coin logo only once its row nears the list viewport', async () => {
+    const observers = stubIntersectionObserver({ isInView: false })
+    await openPicker(
+      <AddressRecordPicker
+        search={searchAddressRecords}
+        onSelect={() => undefined}
+        trigger={<button type="button">Browse</button>}
+      />,
+      'litecoin',
+    )
+
+    const option = screen.getByRole('option', {
+      name: 'Litecoin Coin type 2 EVM chain ID none',
+    })
+    const frame = artworkOf(option)
+    expect(observers).toHaveLength(1)
+    expect(observers[0]?.root).toBe(screen.getByRole('listbox'))
+    expect(frame?.querySelector('img')).toBeNull()
+
+    act(() => observers[0]?.reportInView(frame))
+
+    const logo = await within(option).findByRole('presentation', {
+      hidden: true,
+    })
+    expect(logo.getAttribute('src')).toBe(getAddressRecordIcon(2))
   })
 
   it('keeps the same frame with a monogram when a coin has no logo', async () => {

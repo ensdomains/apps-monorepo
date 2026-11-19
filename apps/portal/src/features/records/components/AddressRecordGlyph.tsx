@@ -12,14 +12,13 @@ export const AddressRecordGlyph = ({
   const Icon = getAddressRecordIcon(coinType)
   if (Icon === undefined) return fallback
   if (typeof Icon !== 'string') return <Icon className="size-4 text-current" />
-  // Lazy, so a long list only fetches the logos scrolled into view.
+  // Lists mount this only near view (see AddressRecordArtwork), so load at once.
   return (
     <img
       src={Icon}
       alt=""
       width={20}
       height={20}
-      loading="lazy"
       decoding="async"
       draggable={false}
       className="size-full object-contain"
