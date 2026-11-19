@@ -97,7 +97,7 @@ const baseColumns: ColumnDef<ResolverLink>[] = [
     id: 'sharedWith',
     header: 'Shares its record with',
     cell: ({ row }) => (
-      <div className="flex flex-col gap-2 py-2 min-w-0">
+      <div className="flex flex-col gap-2 py-3 min-w-0">
         {row.original.sharedWith.map((other) => (
           <NameBadge key={other} name={other} />
         ))}
@@ -356,8 +356,8 @@ function RouteComponent() {
             )}
           </div>
 
-          {/* Desktop view; badges' hover fill and chips spill past the table instead of adding a scrollbar. */}
-          <div className="hidden md:block [&_.overflow-x-auto]:overflow-visible">
+          {/* Desktop view */}
+          <div className="hidden md:block">
             <Table className="relative">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
