@@ -9,6 +9,7 @@ describe('AddressLikeNameNotice', () => {
     ['a Bitcoin bech32', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq.eth'],
     ['a Bitcoin legacy base58', '1a1zp1ep5qgefi2dmptftl5slmv7divfna.eth'],
     ['a Solana base58', '9wzdxwbbmkg8ztbnmquxvqrayrzzdsgydlvl9zytawwm.eth'],
+    ['a subname EVM', 'pay.0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth'],
   ])('warns on a name that reads like %s address', (_case, name) => {
     render(<AddressLikeNameNotice name={name} />)
 
