@@ -1,4 +1,5 @@
-import type { Connector } from 'wagmi'
+import { match, P } from 'ts-pattern'
+import type { Connector, ConnectorEventMap } from 'wagmi'
 
 // Connector ids for the two non-injected connectors configured in
 // `@/lib/wagmi`. Injected wallets (MetaMask, Rabby, …) arrive via EIP-6963 with
@@ -7,7 +8,56 @@ export const COINBASE_ID = 'coinbaseWalletSDK'
 export const WALLETCONNECT_ID = 'walletConnect'
 export const METAMASK_RDNS = 'io.metamask'
 export const METAMASK_DOWNLOAD_URL = 'https://metamask.io/download/'
-export const METAMASK_DAPP_LINK_URL = 'https://link.metamask.io/dapp/'
+const METAMASK_APP_URL = 'metamask://'
+
+type MetaMaskRoute =
+  | { readonly kind: 'injected'; readonly connector: Connector }
+  | { readonly kind: 'app'; readonly connector: Connector }
+  | { readonly kind: 'install' }
+
+export const getMetaMaskRoute = (input: {
+  readonly injected: Connector | undefined
+  readonly walletConnect: Connector | undefined
+  readonly isTouchDevice: boolean
+}): MetaMaskRoute =>
+  match(input)
+    .returnType<MetaMaskRoute>()
+    .with({ injected: P.nonNullable }, ({ injected }) => ({
+      kind: 'injected',
+      connector: injected,
+    }))
+    .with(
+      { isTouchDevice: true, walletConnect: P.nonNullable },
+      ({ walletConnect }) => ({ kind: 'app', connector: walletConnect }),
+    )
+    .otherwise(() => ({ kind: 'install' }))
+
+export const handOffPairingToMetaMask = (
+  connector: Connector,
+  {
+    openUrl,
+    storage,
+  }: {
+    readonly openUrl: (url: string) => void
+    readonly storage: Pick<Storage, 'setItem'>
+  },
+): (() => void) => {
+  const onMessage = ({ type, data }: ConnectorEventMap['message']) => {
+    if (type !== 'display_uri' || typeof data !== 'string') return
+    try {
+      // WalletConnect reopens the app saved here for later requests, as its wallet list does.
+      storage.setItem(
+        'WALLETCONNECT_DEEPLINK_CHOICE',
+        JSON.stringify({ href: METAMASK_APP_URL, name: 'MetaMask' }),
+      )
+    } catch {
+      // Runs inside WalletConnect's emit, so throwing would fail the connection.
+    }
+    openUrl(`${METAMASK_APP_URL}wc?uri=${encodeURIComponent(data)}`)
+  }
+  connector.emitter.on('message', onMessage)
+  return () => connector.emitter.off('message', onMessage)
+}
 
 // Non-empty tuple, matching wagmi's `config.chains` — encodes the "at least one
 // chain" invariant the fallback in `resolveConnectChainId` relies on. Generic in

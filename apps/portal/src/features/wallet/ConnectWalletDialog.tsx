@@ -2,7 +2,7 @@ import { logger } from '@ens-apps/utils/logger'
 import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { match, P } from 'ts-pattern'
+import { match } from 'ts-pattern'
 import type { Connector } from 'wagmi'
 import { useConnect, useConnectors, useSwitchChain } from 'wagmi'
 import {
@@ -16,10 +16,11 @@ import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
   connectOnSupportedChain,
+  getMetaMaskRoute,
+  handOffPairingToMetaMask,
   isCoinbase,
   isConnectionCancelled,
   isMetaMask,
-  METAMASK_DAPP_LINK_URL,
   METAMASK_DOWNLOAD_URL,
   normalizeConnectError,
   WALLETCONNECT_ID,
@@ -44,12 +45,8 @@ type WalletRowProps = {
   readonly isPending?: boolean
   readonly disabled?: boolean
 } & (
-  | {
-      readonly onClick: () => void
-      readonly href?: never
-      readonly label?: never
-    }
-  | { readonly href: string; readonly label: string; readonly onClick?: never }
+  | { readonly onClick: () => void; readonly href?: never }
+  | { readonly href: string; readonly onClick?: never }
 )
 
 const WalletRow = ({
@@ -60,7 +57,6 @@ const WalletRow = ({
   disabled,
   onClick,
   href,
-  label,
 }: WalletRowProps) => {
   const content = (
     <>
@@ -87,7 +83,7 @@ const WalletRow = ({
         target="_blank"
         rel="noreferrer"
         className={className}
-        aria-label={label}
+        aria-label={`Install ${name}`}
       >
         {content}
       </a>
@@ -107,19 +103,19 @@ const WalletRow = ({
 }
 
 // A single row in the connect list: either a connectable wallet (has a
-// `connector`) or a link out to install or open one (has an `href`).
+// `connector`) or a link out to install one (has an `href`).
 type WalletOption = {
   readonly key: string
   readonly icon: ReactNode
   readonly name: string
   readonly badge?: string
 } & (
-  | { readonly connector: Connector; readonly href?: never }
   | {
-      readonly href: string
-      readonly label: string
-      readonly connector?: never
+      readonly connector: Connector
+      readonly connectWith?: (connector: Connector) => Promise<void>
+      readonly href?: never
     }
+  | { readonly href: string; readonly connector?: never }
 )
 
 type ConnectWalletDialogProps = {
@@ -149,10 +145,14 @@ export const ConnectWalletDialog = ({
     }
   }, [open])
 
-  const metaMask = connectors.find(isMetaMask)
   const isTouchDevice = useMediaQuery('(pointer: coarse)')
   const coinbase = connectors.find(isCoinbase)
   const walletConnect = connectors.find((c) => c.id === WALLETCONNECT_ID)
+  const metaMaskRoute = getMetaMaskRoute({
+    injected: connectors.find(isMetaMask),
+    walletConnect,
+    isTouchDevice,
+  })
 
   // Other injected wallets (Rabby, Frame, …), deduped by `uid` so wallets that
   // share a display name aren't collapsed into one.
@@ -219,32 +219,42 @@ export const ConnectWalletDialog = ({
     }
   }
 
-  // Curated wallets first; undetected MetaMask opens the MetaMask app on phones, else the install page.
+  const metaMaskRow = {
+    key: 'metamask',
+    icon: <MetaMaskIcon className="size-8" />,
+    name: 'MetaMask',
+  }
+  const metaMaskOption: WalletOption = match(metaMaskRoute)
+    .with({ kind: 'injected' }, ({ connector }) => ({
+      ...metaMaskRow,
+      badge: 'Detected',
+      connector,
+    }))
+    .with({ kind: 'app' }, ({ connector }) => ({
+      ...metaMaskRow,
+      connector,
+      connectWith: async () => {
+        const stopHandOff = handOffPairingToMetaMask(connector, {
+          openUrl: (url) => window.location.assign(url),
+          storage: window.localStorage,
+        })
+        try {
+          await connect(connector)
+        } finally {
+          stopHandOff()
+        }
+      },
+    }))
+    .with({ kind: 'install' }, () => ({
+      ...metaMaskRow,
+      badge: 'Install',
+      href: METAMASK_DOWNLOAD_URL,
+    }))
+    .exhaustive()
+
+  // Curated wallets first, in priority order.
   const prioritizedWallets: WalletOption[] = [
-    match({ metaMask, isTouchDevice })
-      .with({ metaMask: P.nonNullable }, ({ metaMask: connector }) => ({
-        key: 'metamask',
-        icon: <MetaMaskIcon className="size-8" />,
-        name: 'MetaMask',
-        badge: 'Detected',
-        connector,
-      }))
-      .with({ isTouchDevice: true }, () => ({
-        key: 'metamask',
-        icon: <MetaMaskIcon className="size-8" />,
-        name: 'MetaMask',
-        badge: 'Open app',
-        label: 'Open in the MetaMask app',
-        href: `${METAMASK_DAPP_LINK_URL}${window.location.host}${window.location.pathname}`,
-      }))
-      .otherwise(() => ({
-        key: 'metamask',
-        icon: <MetaMaskIcon className="size-8" />,
-        name: 'MetaMask',
-        badge: 'Install',
-        label: 'Install MetaMask',
-        href: METAMASK_DOWNLOAD_URL,
-      })),
+    metaMaskOption,
     ...(coinbase
       ? [
           {
@@ -288,11 +298,10 @@ export const ConnectWalletDialog = ({
           name={option.name}
           badge={option.badge}
           href={option.href}
-          label={option.label}
         />
       )
     }
-    const { connector } = option
+    const { connector, connectWith = connect } = option
     return (
       <WalletRow
         key={option.key}
@@ -301,7 +310,7 @@ export const ConnectWalletDialog = ({
         badge={option.badge}
         isPending={pendingId === connector.uid}
         disabled={isConnecting}
-        onClick={() => connect(connector)}
+        onClick={() => connectWith(connector)}
       />
     )
   }
