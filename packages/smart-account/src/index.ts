@@ -23,6 +23,7 @@ export {
   AccountInitError,
   AccountVerificationError,
   AmbiguousProxyDeploymentError,
+  DecodeProxyDeployedError,
   SessionEnableError,
   SessionRestoreError,
   SessionRevokeError,

@@ -8,7 +8,7 @@
  */
 
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import type { Address } from 'viem'
+import type { Address, DecodeEventLogErrorType } from 'viem'
 
 /** Raised when creating/enabling a Rhinestone HCA owner-key session fails. */
 export class SessionEnableError extends TaggedError('SessionEnableError')<{
@@ -46,6 +46,14 @@ export class AmbiguousProxyDeploymentError extends TaggedError(
   message: string
   factory: Address
   count: number
+}> {}
+
+/** Raised when a factory log carrying `ProxyDeployed`'s topic does not decode. */
+export class DecodeProxyDeployedError extends TaggedError(
+  'DecodeProxyDeployedError',
+)<{
+  message: string
+  cause: DecodeEventLogErrorType
 }> {}
 
 /** Raised when restoring a stored session fails (e.g. expired). */
