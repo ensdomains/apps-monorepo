@@ -9,6 +9,7 @@ import {
   keccak256,
   parseAbi,
 } from 'viem'
+import { AmbiguousProxyDeploymentError } from './errors'
 
 const VERIFIABLE_PROXY_PREFIX =
   '0x3d604d80600a3d3981f3363d3d373d3d3d363d73' as const
@@ -106,9 +107,11 @@ export function findDeployedProxyAddress({
   }
 
   if (deployed.length > 1) {
-    throw new Error(
-      `Expected one ProxyDeployed log from ${factory}, found ${deployed.length}`,
-    )
+    throw new AmbiguousProxyDeploymentError({
+      message: `Expected one ProxyDeployed log from ${factory}, found ${deployed.length}`,
+      factory,
+      count: deployed.length,
+    })
   }
 
   return deployed[0] ?? null

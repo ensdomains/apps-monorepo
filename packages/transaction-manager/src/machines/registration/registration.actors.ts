@@ -640,7 +640,7 @@ export function readEthAddressActor(input: {
  */
 export function resolveResolverDeploymentActor(input: {
   txId: string
-  chainId: number
+  readonly chainId: number
 }): ResultAsync<{ resolverAddress: Address }, Error> {
   return fromPromise(
     (async () => {

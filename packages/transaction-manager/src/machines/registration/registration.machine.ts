@@ -765,7 +765,7 @@ export const registrationMachine = setup({
       },
     ),
     resolveResolverDeployment: fromResultAsync(
-      (input: { txId: string; chainId: number }) => {
+      (input: { txId: string; readonly chainId: number }) => {
         return resolveResolverDeploymentActor(input)
       },
     ),
