@@ -16,9 +16,14 @@
  *          PublicResolverV2, records still editable in both apps.
  */
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { type Address, parseAbi, zeroAddress } from 'viem'
+import { type Address, namehash, parseAbi, zeroAddress } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
+import {
+  CERTIFIED_V1_RESOLVER,
+  createMakeV1Name,
+  V1_NAME_WRAPPER,
+  V1_PUBLIC_RESOLVER,
+} from '../../../fixtures/makeV1Name.js'
 import {
   type AppSession,
   expect,
@@ -26,8 +31,9 @@ import {
   PORTAL_APP_URL,
   test,
 } from '../../../fixtures/playwright.cross-app.fixture.js'
-import { publicClient } from '../../../helpers/anvil-client.js'
+import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import { waitForBignameBlock } from '../../../helpers/bigname-sync.js'
+import { expectedKeptResolver } from '../../../helpers/migration-assertions.js'
 import {
   openMigrationFlow,
   runMigrationFlow,
@@ -47,6 +53,8 @@ const PERMISSIONED_RESOLVER_IMPL = sepolia.ensPermissionedResolverImpl
   .address as Address
 /** PublicResolverV2 on Sepolia, as the ticket names it. */
 const PUBLIC_RESOLVER_V2 = '0xdC4a563d00F5c3012b699794eB9e13A561Be386F'
+const CANNOT_SET_RESOLVER = 8
+
 const ABI = parseAbi([
   'function getResolver(string label) view returns (address)',
   'function verifyContract(address proxy) view returns (address)',
@@ -170,4 +178,80 @@ test.describe('Migration resolver: never-wrapped names stay editable', () => {
     await editInExplorer(explorer, name, fromExplorer)
     await expectDescription(name, fromExplorer)
   })
+
+  // The locked controller swaps only the V1 resolvers in its
+  // PUBLIC_RESOLVER_SET for PublicResolverV2. On Sepolia that set holds the
+  // older public resolver (0xE99638b4) but not the current one (0x8FADE66B,
+  // ensjs's ensPublicResolver), so the two take different routes.
+  for (const variant of [
+    {
+      tag: 'certified',
+      v1Resolver: CERTIFIED_V1_RESOLVER,
+    },
+    { tag: 'current', v1Resolver: V1_PUBLIC_RESOLVER as Address },
+  ]) {
+    test(`check 2 — a locked CANNOT_SET_RESOLVER name on the ${variant.tag} V1 public resolver stays editable in both apps`, {
+      tag: ['@scenario:GW6'],
+    }, async ({ explorer, manager, accounts }) => {
+      test.fail(
+        variant.tag === 'current',
+        'E2E-037: the controller does not certify this V1 public resolver, so the manager refuses the upgrade',
+      )
+      const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+      const name = await createMakeV1Name({ userAccount: owner })({
+        label: `qa-locked-csr-${variant.tag}`,
+        type: 'locked',
+      })
+      const node = namehash(name)
+      const send = async (
+        functionName: 'setResolver' | 'setFuses',
+        arg: Address | number,
+      ) => {
+        const hash = await walletClient.writeContract({
+          account: owner,
+          chain: walletClient.chain,
+          address: V1_NAME_WRAPPER,
+          abi: ABI,
+          functionName,
+          args: [node, arg as never],
+        } as never)
+        await publicClient.waitForTransactionReceipt({ hash })
+      }
+      // Point it at the variant's public resolver, then freeze the choice.
+      await send('setResolver', variant.v1Resolver)
+      await send('setFuses', CANNOT_SET_RESOLVER)
+      const [, fuses] = await publicClient.readContract({
+        address: V1_NAME_WRAPPER,
+        abi: ABI,
+        functionName: 'getData',
+        args: [BigInt(node)],
+      })
+      expect(fuses & CANNOT_SET_RESOLVER, 'precondition: CSR burnt').toBe(
+        CANNOT_SET_RESOLVER,
+      )
+      const kept = await expectedKeptResolver(variant.v1Resolver)
+      console.log(
+        `[migration-resolver] ${variant.tag}: controller keeps ${kept} for V1 resolver ${variant.v1Resolver}`,
+      )
+
+      await migrateInManager(manager, owner.address, name, 'locked')
+
+      const resolver = await v2ResolverOf(name)
+      console.log(`[migration-resolver] ${name} → resolver ${resolver}`)
+      expect(resolver.toLowerCase()).toBe(kept.toLowerCase())
+      await waitForBignameBlock()
+
+      // The ticket's oracle, whichever resolver it kept: the owner can still
+      // edit the name's records in both apps.
+      const fromManager = unique(`locked ${variant.tag}, edited in the manager`)
+      await editInManager(manager, name, fromManager)
+      await expectDescription(name, fromManager)
+
+      const fromExplorer = unique(
+        `locked ${variant.tag}, edited in the explorer`,
+      )
+      await editInExplorer(explorer, name, fromExplorer)
+      await expectDescription(name, fromExplorer)
+    })
+  }
 })

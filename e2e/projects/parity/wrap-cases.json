@@ -1,0 +1,298 @@
+[
+  {
+    "id": "L286",
+    "title": "should not show wrap button if the connected wallet is not the registrant",
+    "config": {
+      "label": "other-registrant",
+      "type": "legacy",
+      "owner": "user2"
+    },
+    "body": "test('should not show wrap button if the connected wallet is not the registrant', async ({\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'other-registrant',\n    type: 'legacy',\n    owner: 'user2',\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await expect(morePage.wrapButton).toHaveCount(0)\n})"
+  },
+  {
+    "id": "L287",
+    "title": "should not show wrap notification if the name is already wrapped",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped"
+    },
+    "body": "test('should not show wrap notification if the name is already wrapped', async ({\n  page,\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await page.waitForTimeout(3000)\n  await expect(morePage.wrapButton).not.toBeVisible()\n\n  await expect(morePage.pccStatus).toBeVisible()\n  await expect(morePage.nameWrapperStatus).toHaveText('Wrapped')\n})"
+  },
+  {
+    "id": "L288",
+    "title": "should show wrap button on unwrapped name",
+    "config": {
+      "label": "to-be-wrapped",
+      "type": "legacy"
+    },
+    "body": "test('should show wrap button on unwrapped name', async ({ login, makeName, makePageObject }) => {\n  const name = await makeName({\n    label: 'to-be-wrapped',\n    type: 'legacy',\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await expect(morePage.wrapButton).toBeVisible()\n})"
+  },
+  {
+    "id": "L289",
+    "title": "should show resume state if wrap steps are incomplete",
+    "config": {
+      "label": "resume-and-wrap",
+      "type": "legacy",
+      "records": {
+        "texts": [
+          {
+            "key": "test",
+            "value": "test"
+          }
+        ]
+      }
+    },
+    "body": "test('should show resume state if wrap steps are incomplete', async ({\n  page,\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'resume-and-wrap',\n    type: 'legacy',\n    records: {\n      texts: [{ key: 'test', value: 'test' }],\n    },\n  })\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await morePage.wrapButton.click()\n\n  await transactionModal.introButton.click()\n  await transactionModal.confirm()\n  await transactionModal.complete()\n\n  await page.getByTestId('toast-close-icon').click()\n  await transactionModal.closeButton.click()\n\n  // should open to correctly resumed state\n  await morePage.wrapButton.click()\n  await expect(page.getByTestId('display-item-Step 1-fade')).toBeVisible()\n  await expect(transactionModal.introButton).toHaveText(/Resume/)\n\n  // should allow resuming the steps\n  await transactionModal.introButton.click()\n  await transactionModal.autoComplete()\n\n  // should remove the notification once the resumed steps are complete\n  await expect(page.getByTestId('transaction-modal-inner')).toHaveCount(0)\n  await expect(morePage.wrapButton).toHaveCount(0)\n})"
+  },
+  {
+    "id": "L290",
+    "title": "should wrap name",
+    "config": {
+      "label": "to-be-wrapped",
+      "type": "legacy"
+    },
+    "body": "test('should wrap name', async ({ makeName, login, makePageObject }) => {\n  const name = await makeName({\n    label: 'to-be-wrapped',\n    type: 'legacy',\n  })\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n\n  await morePage.goto(name)\n  await login.connect()\n\n  // should migrate the profile\n  await morePage.wrapButton.click()\n  await transactionModal.autoComplete()\n\n  await morePage.goto(name)\n  await expect(morePage.wrapButton).toHaveCount(0)\n})"
+  },
+  {
+    "id": "L291",
+    "title": "should allow wrapping a subdomain",
+    "config": {
+      "label": "unwrapped-with-wrapped-subnames",
+      "type": "legacy",
+      "subnames": [
+        {
+          "label": "sub"
+        }
+      ]
+    },
+    "body": "test('should allow wrapping a subdomain', async ({ makeName, login, makePageObject }) => {\n  const name = await makeName({\n    label: 'unwrapped-with-wrapped-subnames',\n    type: 'legacy',\n    subnames: [\n      {\n        label: 'sub',\n      },\n    ],\n  })\n  const subname = `sub.${name}`\n\n  const approveTx = await walletClient.writeContract({\n    abi: registrySetApprovalForAllSnippet,\n    address: testClient.chain.contracts.ensRegistry.address,\n    functionName: 'setApprovalForAll',\n    args: [testClient.chain.contracts.ensNameWrapper.address, true],\n    account: createAccounts().getAddress('user') as `0x${string}`,\n  })\n  await waitForTransaction(approveTx)\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n\n  await morePage.goto(subname)\n  await login.connect()\n\n  // should approve name wrapper for address\n  await morePage.wrapButton.click()\n\n  await transactionModal.autoComplete()\n\n  // should remove the notification once the name is wrapped\n  await expect(morePage.unwrapButton).toBeVisible({ timeout: 15000 })\n})"
+  },
+  {
+    "id": "L292",
+    "title": "should allow wrapping a name with an unknown label",
+    "config": {
+      "label": "unknown-labels",
+      "type": "legacy",
+      "subnames": [
+        {
+          "label": "unknown-parity-label",
+          "owner": "user"
+        }
+      ]
+    },
+    "body": "test('should allow wrapping a name with an unknown label', async ({\n  page,\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const unknownLabel = `testing123-${Date.now()}`\n\n  const name = await makeName({\n    label: 'unknown-labels',\n    type: 'legacy',\n    subnames: [\n      {\n        label: unknownLabel,\n        owner: 'user',\n      },\n    ],\n  })\n\n  const unknownLabelhash = labelhash(unknownLabel)\n  const unknownEncodedLabel = `[${unknownLabelhash.slice(2)}]`\n  const subname = `${unknownEncodedLabel}.${name}`\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n\n  await morePage.goto(subname)\n  await login.connect()\n\n  await morePage.wrapButton.click()\n\n  const input = page.getByTestId(`unknown-label-input-${unknownLabelhash}`)\n\n  // fail to confirm with invalid label\n  await input.fill('failure')\n  await expect(page.getByText('Label is incorrect')).toBeVisible()\n  await expect(page.getByTestId('unknown-labels-confirm')).toBeDisabled()\n\n  await input.fill(unknownLabel)\n  await page.getByTestId('unknown-labels-confirm').click()\n\n  await transactionModal.autoComplete()\n\n  await expect(morePage.wrapButton).toHaveCount(0)\n\n  // should direct to the known label page\n  await expect(page).toHaveURL(`/${unknownLabel}.${name}?tab=more`)\n})"
+  },
+  {
+    "id": "L293",
+    "title": "should calculate needed steps without localstorage",
+    "config": {
+      "label": "unwrapped",
+      "type": "legacy",
+      "subnames": [
+        {
+          "label": "sub",
+          "records": {
+            "texts": [
+              {
+                "key": "description",
+                "value": "test"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "body": "test('should calculate needed steps without localstorage', async ({\n  page,\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  test.slow()\n\n  await walletClient.writeContract({\n    abi: registrySetApprovalForAllSnippet,\n    address: testClient.chain.contracts.ensRegistry.address,\n    functionName: 'setApprovalForAll',\n    args: [testClient.chain.contracts.ensNameWrapper.address, false],\n    account: createAccounts().getAddress('user') as `0x${string}`,\n  })\n  await testClient.mine({ blocks: 1 })\n\n  const name = await makeName({\n    label: 'unwrapped',\n    type: 'legacy',\n    subnames: [\n      {\n        label: 'sub',\n        records: {\n          texts: [{ key: 'description', value: 'test' }],\n        },\n      },\n    ],\n  })\n  const subname = `sub.${name}`\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n  const profilePage = makePageObject('ProfilePage')\n\n  await morePage.goto(subname)\n  await login.connect()\n\n  await morePage.wrapButton.click()\n  await expect(page.getByTestId('display-item-Step 1-normal')).toContainText('Approve NameWrapper')\n  await expect(page.getByTestId('display-item-Step 2-normal')).toContainText('Migrate profile')\n  await expect(page.getByTestId('display-item-Step 3-normal')).toContainText('Wrap name')\n\n  await transactionModal.introButton.click()\n  await transactionModal.confirm()\n  await expect(transactionModal.completeButton).toBeEnabled()\n\n  await page.waitForTimeout(10000)\n\n  await page.evaluate(() => window.localStorage.clear())\n  await page.evaluate(() => window.sessionStorage.clear())\n  await page.reload()\n  await login.reconnect()\n\n  await morePage.wrapButton.click()\n\n  await expect(page.getByTestId('display-item-Step 1-normal')).toContainText('Migrate profile', {\n    timeout: 10000,\n  })\n  await expect(page.getByTestId('display-item-Step 2-normal')).toContainText('Wrap name')\n\n  await transactionModal.introButton.click()\n  await transactionModal.confirm()\n  await expect(transactionModal.completeButton).toBeEnabled()\n\n  await page.evaluate(() => localStorage.clear())\n  await page.reload()\n  await login.reconnect()\n\n  await morePage.wrapButton.click()\n\n  await transactionModal.introButton.click()\n  await transactionModal.confirm()\n  await transactionModal.complete()\n\n  await expect(page.getByTestId('namewrapper-status')).not.toContainText('Unwrapped', {\n    timeout: 10000,\n  })\n\n  await profilePage.goto(subname)\n  await expect(profilePage.record('text', 'description')).toHaveText('test')\n})"
+  },
+  {
+    "id": "L294",
+    "title": "Wrapped, emancipated, 2LD",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "owner": "user"
+    },
+    "body": "test('Wrapped, emancipated, 2LD', async ({ login, makeName, makePageObject }) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    owner: 'user',\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await expect(morePage.wrapButton).not.toBeVisible()\n  await expect(morePage.unwrapButton).toBeVisible()\n  await expect(morePage.nameWrapperStatus).toContainText('Wrapped')\n  await expect(morePage.pccStatus).toContainText('Not parent-controllable')\n  await expect(morePage.nameWrapperCheckIcon).toBeVisible()\n  await expect(morePage.npcIcon).toBeVisible()\n})"
+  },
+  {
+    "id": "L295",
+    "title": "Wrapped, locked, 2LD",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "owner": "user",
+      "fuses": {
+        "named": ["CANNOT_UNWRAP"]
+      }
+    },
+    "body": "test('Wrapped, locked, 2LD', async ({ login, makeName, makePageObject }) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    owner: 'user',\n    fuses: {\n      named: ['CANNOT_UNWRAP'],\n    },\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await expect(morePage.wrapButton).not.toBeVisible()\n  await expect(morePage.unwrapButtonDisabled).toBeVisible()\n  await expect(morePage.nameWrapperStatus).toContainText('Wrapped')\n  await expect(morePage.pccStatus).toContainText('Not parent-controllable')\n  await expect(morePage.nameWrapperLockIcon).toBeVisible()\n  await expect(morePage.npcIcon).toBeVisible()\n})"
+  },
+  {
+    "id": "L296",
+    "title": "Wrapped, not-emancipated (PCC), 3LD",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "owner": "user",
+      "subnames": [
+        {
+          "label": "test",
+          "owner": "user"
+        }
+      ]
+    },
+    "body": "test('Wrapped, not-emancipated (PCC), 3LD', async ({ login, makeName, makePageObject }) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    owner: 'user',\n    subnames: [\n      {\n        label: 'test',\n        owner: 'user',\n      },\n    ],\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(`test.${name}`)\n\n  await login.connect()\n\n  await expect(morePage.unwrapButton).toBeVisible()\n  await expect(morePage.nameWrapperStatus).toContainText('Wrapped')\n  await expect(morePage.pccStatus).toContainText('Parent-controllable')\n  await expect(morePage.nameWrapperCheckIcon).toBeVisible()\n  await expect(morePage.nameWrapperLockIcon).not.toBeVisible()\n  await expect(morePage.pccIcon).toBeVisible()\n  await expect(morePage.nameWrapperLockIcon).not.toBeVisible()\n})"
+  },
+  {
+    "id": "L297",
+    "title": "Wrapped, emancipated(NPC), 3LD",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "owner": "user",
+      "fuses": {
+        "named": ["CANNOT_UNWRAP"]
+      },
+      "subnames": [
+        {
+          "label": "test",
+          "owner": "user",
+          "fuses": {
+            "parent": {
+              "named": ["PARENT_CANNOT_CONTROL"]
+            }
+          }
+        }
+      ]
+    },
+    "body": "test('Wrapped, emancipated(NPC), 3LD', async ({ login, makeName, makePageObject }) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    owner: 'user',\n    fuses: {\n      named: ['CANNOT_UNWRAP'],\n    },\n    subnames: [\n      {\n        label: 'test',\n        owner: 'user',\n        fuses: {\n          parent: {\n            named: ['PARENT_CANNOT_CONTROL'],\n          },\n        },\n      },\n    ],\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(`test.${name}`)\n\n  await login.connect()\n\n  await expect(morePage.unwrapButton).toBeVisible()\n  await expect(morePage.nameWrapperStatus).toContainText('Wrapped')\n  await expect(morePage.pccStatus).toContainText('Not parent-controllable')\n  await expect(morePage.nameWrapperCheckIcon).toBeVisible()\n  await expect(morePage.npcIcon).toBeVisible()\n  await expect(morePage.nameWrapperLockIcon).not.toBeVisible()\n})"
+  },
+  {
+    "id": "L298",
+    "title": "Wrapped, emancipated(NPC), Locked, 3LD",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "owner": "user",
+      "fuses": {
+        "named": ["CANNOT_UNWRAP"]
+      },
+      "subnames": [
+        {
+          "label": "test",
+          "owner": "user",
+          "fuses": {
+            "parent": {
+              "named": ["PARENT_CANNOT_CONTROL"]
+            },
+            "child": {
+              "named": ["CANNOT_UNWRAP"]
+            }
+          }
+        }
+      ]
+    },
+    "body": "test('Wrapped, emancipated(NPC), Locked, 3LD', async ({ login, makeName, makePageObject }) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    owner: 'user',\n    fuses: {\n      named: ['CANNOT_UNWRAP'],\n    },\n    subnames: [\n      {\n        label: 'test',\n        owner: 'user',\n        fuses: {\n          parent: {\n            named: ['PARENT_CANNOT_CONTROL'],\n          },\n          child: {\n            named: ['CANNOT_UNWRAP'],\n          },\n        },\n      },\n    ],\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(`test.${name}`)\n\n  await login.connect()\n\n  await expect(morePage.nameWrapperStatus).toContainText('Wrapped')\n  await expect(morePage.pccStatus).toContainText('Not parent-controllable')\n  await expect(morePage.nameWrapperLockIcon).toBeVisible()\n  await expect(morePage.npcIcon).toBeVisible()\n  await expect(morePage.unwrapButtonDisabled).toBeVisible()\n})"
+  },
+  {
+    "id": "L299",
+    "title": "Wrapped, emancipated(NPC), 3LD Manager",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "owner": "user2",
+      "fuses": {
+        "named": ["CANNOT_UNWRAP"]
+      },
+      "subnames": [
+        {
+          "label": "test",
+          "owner": "user",
+          "fuses": {
+            "parent": {
+              "named": ["PARENT_CANNOT_CONTROL"]
+            }
+          }
+        }
+      ]
+    },
+    "body": "test('Wrapped, emancipated(NPC), 3LD Manager', async ({ login, makeName, makePageObject }) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    owner: 'user2',\n    fuses: {\n      named: ['CANNOT_UNWRAP'],\n    },\n    subnames: [\n      {\n        label: 'test',\n        owner: 'user',\n        fuses: {\n          parent: {\n            named: ['PARENT_CANNOT_CONTROL'],\n          },\n        },\n      },\n    ],\n  })\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n  await morePage.goto(`test.${name}`)\n\n  await login.connect()\n\n  await expect(morePage.unwrapButton).toBeVisible()\n  await expect(morePage.nameWrapperStatus).toContainText('Wrapped')\n  await expect(morePage.pccStatus).toContainText('Not parent-controllable')\n  await expect(morePage.nameWrapperCheckIcon).toBeVisible()\n  await expect(morePage.npcIcon).toBeVisible()\n  await expect(morePage.nameWrapperLockIcon).not.toBeVisible()\n\n  await morePage.unwrapButton.click()\n  await transactionModal.autoComplete()\n  await expect(morePage.wrapButton).toBeVisible()\n})"
+  },
+  {
+    "id": "L300",
+    "title": "Should not show wrap button on unwrapped name in Grace period",
+    "config": {
+      "label": "to-be-wrapped",
+      "type": "legacy",
+      "duration": -86400
+    },
+    "body": "test('Should not show wrap button on unwrapped name in Grace period', async ({\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'to-be-wrapped',\n    type: 'legacy',\n    duration: -24 * 60 * 60,\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await expect(morePage.wrapButton).not.toBeVisible()\n  await expect(morePage.wrapButton).toHaveCount(0)\n})"
+  },
+  {
+    "id": "L301",
+    "title": "should show wrap button on unwrapped subname in Grace period",
+    "config": {
+      "label": "to-be-wrapped",
+      "type": "legacy",
+      "subnames": [
+        {
+          "label": "sub"
+        }
+      ],
+      "duration": -86400
+    },
+    "body": "test('should show wrap button on unwrapped subname in Grace period', async ({\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'to-be-wrapped',\n    type: 'legacy',\n    subnames: [\n      {\n        label: 'sub',\n      },\n    ],\n    duration: -24 * 60 * 60,\n  })\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n  await morePage.goto(`sub.${name}`)\n\n  await login.connect()\n\n  await expect(morePage.wrapButton).toBeVisible()\n  await expect(morePage.wrapButton).toBeEnabled()\n\n  await morePage.wrapButton.click()\n  await transactionModal.autoComplete()\n\n  await morePage.goto(`sub.${name}`)\n  await expect(morePage.wrapButton).toHaveCount(0)\n})"
+  },
+  {
+    "id": "L302",
+    "title": "should not show unwrap button on wrapped name in Grace period",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "duration": -86400
+    },
+    "body": "test('should not show unwrap button on wrapped name in Grace period', async ({\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    duration: -24 * 60 * 60,\n  })\n\n  const morePage = makePageObject('MorePage')\n  await morePage.goto(name)\n\n  await login.connect()\n\n  await expect(morePage.unwrapButton).toHaveCount(0)\n})"
+  },
+  {
+    "id": "L303",
+    "title": "should show unwrap button on wrapped subname in Grace period",
+    "config": {
+      "label": "to-be-wrapped",
+      "type": "wrapped",
+      "owner": "user",
+      "subnames": [
+        {
+          "label": "sub",
+          "owner": "user"
+        }
+      ],
+      "duration": -86400
+    },
+    "body": "test('should show unwrap button on wrapped subname in Grace period', async ({\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'to-be-wrapped',\n    type: 'wrapped',\n    owner: 'user',\n    subnames: [\n      {\n        label: 'sub',\n        owner: 'user',\n      },\n    ],\n    duration: -24 * 60 * 60,\n  })\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n  await morePage.goto(`sub.${name}`)\n\n  await login.connect()\n\n  await expect(morePage.unwrapButton).toBeVisible()\n  await expect(morePage.unwrapButton).toBeEnabled()\n\n  await morePage.unwrapButton.click()\n  await transactionModal.autoComplete()\n\n  await morePage.goto(`sub.${name}`)\n  await expect(morePage.unwrapButton).toHaveCount(0)\n})"
+  },
+  {
+    "id": "L304",
+    "title": "Wrapped, emancipated(NPC), 3LD Manager should be able to unwrap when parent is in Grace period",
+    "config": {
+      "label": "wrapped",
+      "type": "wrapped",
+      "owner": "user2",
+      "fuses": {
+        "named": ["CANNOT_UNWRAP"]
+      },
+      "subnames": [
+        {
+          "label": "test",
+          "owner": "user",
+          "fuses": {
+            "parent": {
+              "named": ["PARENT_CANNOT_CONTROL"]
+            }
+          }
+        }
+      ],
+      "duration": -86400
+    },
+    "body": "test('Wrapped, emancipated(NPC), 3LD Manager should be able to unwrap when parent is in Grace period', async ({\n  login,\n  makeName,\n  makePageObject,\n}) => {\n  const name = await makeName({\n    label: 'wrapped',\n    type: 'wrapped',\n    owner: 'user2',\n    fuses: {\n      named: ['CANNOT_UNWRAP'],\n    },\n    subnames: [\n      {\n        label: 'test',\n        owner: 'user',\n        fuses: {\n          parent: {\n            named: ['PARENT_CANNOT_CONTROL'],\n          },\n        },\n      },\n    ],\n    duration: -24 * 60 * 60,\n  })\n\n  const morePage = makePageObject('MorePage')\n  const transactionModal = makePageObject('TransactionModal')\n  await morePage.goto(`test.${name}`)\n\n  await login.connect()\n\n  await expect(morePage.unwrapButton).toBeVisible()\n  await expect(morePage.unwrapButton).toBeEnabled()\n  await morePage.unwrapButton.click()\n  await transactionModal.autoComplete()\n  await expect(morePage.wrapButton).toBeVisible()\n})"
+  }
+]

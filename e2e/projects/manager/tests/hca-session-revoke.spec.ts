@@ -53,8 +53,8 @@ import {
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
-import type {
-  PortalAccounts,
+import {
+  type PortalAccounts,
   switchWalletToUndeclaredChain,
 } from '../../../helpers/portal-auth.js'
 
@@ -354,6 +354,82 @@ test.describe('reset smart session access on-chain (WEB-674)', () => {
     expect((await readOwnerAndNonce(hca)).nonce).toBe(before.nonce + 1n)
     expect(await storedSessionFor(page, hca)).toBeUndefined()
   })
+
+  // App bug found while rewriting for WEB-2110 (2026-11-02), not yet filed:
+  // off its chain the manager keeps offering the reset, and a live switch
+  // lets "Reset access" send a transaction to the wallet on the wrong chain.
+  // Lands on main with the bug's ID.
+  test.fail(
+    'loaded on another chain, the menu hides the reset entry',
+    async ({ connectedPage: page, wallet }) => {
+      // Guard: loaded off its chain, the smart-account context has no HCA, so
+      // there is nothing to revoke for. A live switch keeps the HCA (and the
+      // entry) — that case is the next test. Positive control on Sepolia first.
+      const resetEntry = page.getByRole('button', { name: RESET_ENTRY })
+      await openAccountMenu(page)
+      await expect(resetEntry).toBeVisible()
+      await page.keyboard.press('Escape')
+
+      await switchWalletToUndeclaredChain(page, wallet)
+      await page.goto(MANAGER_URL)
+      // The reloaded page is on the foreign chain. (The trigger label is no
+      // signal: it shows the primary name once another spec has set one.)
+      await expect
+        .poll(() =>
+          page.evaluate(() =>
+            (
+              window as Window & {
+                ethereum?: { request: (a: { method: string }) => unknown }
+              }
+            ).ethereum?.request({ method: 'eth_chainId' }),
+          ),
+        )
+        .toBe('0x1')
+      // Absent once the menu has rendered (Disconnect), and still absent after
+      // a settle window — not just before the account has loaded. On Sepolia
+      // the entry appears well within it.
+      await openAccountMenu(page)
+      await expect(resetEntry).toHaveCount(0)
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(5_000)
+      await openAccountMenu(page)
+      await expect(resetEntry).toHaveCount(0)
+    },
+  )
+
+  // App bug found while rewriting for WEB-2110 (2026-11-02), not yet filed:
+  // off its chain the manager keeps offering the reset, and a live switch
+  // lets "Reset access" send a transaction to the wallet on the wrong chain.
+  // Lands on main with the bug's ID.
+  test.fail(
+    'a live chain switch with the dialog open sends nothing and leaves sessions live',
+    async ({ connectedPage: page, wallet, accounts }) => {
+      const owner = accounts.getAddress('user') as Address
+      const session = await enableSessionFromMenu(page, owner)
+      const hca = session.smartAccountAddress
+      await ensureHcaDeployed(hca, owner, accounts)
+      const before = await readOwnerAndNonce(hca)
+
+      await withEmptyHca(hca, async () => {
+        const dialog = await openRevokeDialog(page)
+        await switchWalletToUndeclaredChain(page, wallet)
+        const fromBlock = await publicClient.getBlockNumber({ cacheTime: 0 })
+        await dialog.getByRole('button', { name: 'Reset access' }).click()
+
+        // Wait for the failure to land before checking nothing was sent.
+        await expect(
+          dialog.getByRole('button', { name: 'Try Again' }),
+        ).toBeVisible()
+        await expect(dialog).toContainText('Switch your wallet to')
+        expect(
+          wallet.getPendingRequestCount(Web3RequestKind.SendTransaction),
+        ).toBe(0)
+        expect(await minedTxsSince(fromBlock, owner)).toHaveLength(0)
+      })
+      expect((await readOwnerAndNonce(hca)).nonce).toBe(before.nonce)
+      expect(await storedSessionFor(page, hca)).toBeTruthy()
+    },
+  )
 
   test('an undeployed account offers set-up-and-reset, sends nothing until confirmed, then deploys and revokes in order', async ({
     page,
