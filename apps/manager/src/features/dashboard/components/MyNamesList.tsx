@@ -33,6 +33,7 @@ interface MyNamesListProps {
   readonly primaryLabel?: string | null
   readonly searchQuery?: string
   readonly version?: NameVersion | null
+  readonly isSubnamesOnly?: boolean
   readonly sort: Sort
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
@@ -201,6 +202,7 @@ export const MyNamesList = ({
   primaryLabel,
   searchQuery = '',
   version = null,
+  isSubnamesOnly,
   sort,
   favoriteLabels,
   onToggleFavorite,
@@ -237,10 +239,11 @@ export const MyNamesList = ({
     sortDir,
     search: searchQuery,
     version,
+    isSubnamesOnly,
     page,
   })
 
-  const filterKey = `${addresses.join(',')}:${searchQuery}:${version ?? 'all'}:${sort}`
+  const filterKey = `${addresses.join(',')}:${searchQuery}:${version ?? 'all'}:${isSubnamesOnly ? 'subnames' : 'all'}:${sort}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)

@@ -12,6 +12,7 @@ import {
   type AddressNamesChunk,
   type DashboardName,
   isAwaitingMigratedNames,
+  isInSubnamesScope,
   mergeDashboardChunks,
   type NameVersion,
   type SortDir,
@@ -66,6 +67,7 @@ type Options = {
   readonly sortDir?: SortDir
   readonly search?: string
   readonly version?: NameVersion | null
+  readonly isSubnamesOnly?: boolean
   /** One-based. */
   readonly page?: number
 }
@@ -76,12 +78,16 @@ export const useDashboardNames = ({
   sortDir = 'asc',
   search = '',
   version = null,
+  isSubnamesOnly = false,
   page = 1,
 }: Options = {}) => {
   const addresses = useDashboardAddresses()
   const { address } = useConnection()
   const smartAccount = useSmartAccountContextSafe()
   const recordEditorAddress = smartAccount?.ownerAddress ?? address
+  // Until the smart account's address is known, its names are not counted yet.
+  const isResolvingAddresses =
+    smartAccount !== null && !smartAccount.accountAddress
   const queryClient = useQueryClient()
   const hasAddresses = addresses.length > 0
   const query = useInfiniteQuery({
@@ -92,6 +98,7 @@ export const useDashboardNames = ({
         sortDir,
         search: search.trim(),
         version,
+        isSubnamesOnly,
         recordEditorAddress,
       },
       queryClient,
@@ -99,8 +106,10 @@ export const useDashboardNames = ({
     refetchInterval: ({ state }) =>
       isAwaitingMigratedNames(
         state.data?.pages.flat() ?? [],
-        getRecentlyMigratedNames().filter((name) =>
-          name.toLowerCase().includes(search.trim().toLowerCase()),
+        getRecentlyMigratedNames().filter(
+          (name) =>
+            name.toLowerCase().includes(search.trim().toLowerCase()) &&
+            isInSubnamesScope(name, isSubnamesOnly),
         ),
         version,
       )
@@ -115,10 +124,12 @@ export const useDashboardNames = ({
     () =>
       version === 'v1'
         ? NO_NAMES
-        : (grace.data ?? NO_NAMES).filter((name) =>
-            name.name.includes(searchLower),
+        : (grace.data ?? NO_NAMES).filter(
+            (name) =>
+              name.name.includes(searchLower) &&
+              isInSubnamesScope(name.name, isSubnamesOnly),
           ),
-    [grace.data, searchLower, version],
+    [grace.data, searchLower, version, isSubnamesOnly],
   )
   const merged = useMemo(
     () => mergePages(query.data?.pages, graceNames, sortField, sortDir),
@@ -157,7 +168,8 @@ export const useDashboardNames = ({
     hasAddresses,
     pageNames,
     total: merged.total,
-    isComplete: merged.isComplete,
+    // Grace names and the smart account's names add to the total, so it isn't final until both are read.
+    isComplete: merged.isComplete && grace.isSuccess && !isResolvingAddresses,
     isPending: hasAddresses && query.isPending,
     isPagePending: needsMore,
     loadPage,

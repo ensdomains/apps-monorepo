@@ -16,7 +16,9 @@ import {
   toSelectableDomain,
 } from '../bulkRenewSelection'
 import { isHeldName } from '../dashboardNames'
+import { firstOpenChip, resolveSelectedChip } from '../filterChipSelection'
 import { useAccountSelection } from '../hooks/useAccountSelection'
+import { useChipChoice } from '../hooks/useChipChoice'
 import type { NameVersion, SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
@@ -34,6 +36,7 @@ import { SelectionCheckbox } from './SelectionCheckbox'
 import { SortMenu, type SortOption } from './SortMenu'
 
 type FilterKey = 'owned' | 'favorites'
+type NameScope = NameVersion | 'subnames'
 
 interface NamesTableProps {
   readonly primaryLabel?: string | null
@@ -56,10 +59,35 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
+const SCOPES: readonly NameScope[] = ['subnames', 'v1', 'v2']
+
+// Favorites filter by version only, and their counts are not read.
+const toScopeChips = (
+  isOwnedList: boolean,
+  labels: Readonly<Record<NameScope, string>>,
+  counts: Readonly<Record<NameScope, number | undefined>>,
+): FilterChipDef<NameScope>[] =>
+  SCOPES.filter((value) => isOwnedList || value !== 'subnames').map(
+    (value) => ({
+      value,
+      label: labels[value],
+      count: isOwnedList ? counts[value] : undefined,
+    }),
+  )
+
+const toScopeFilter = (scope: NameScope | null) => ({
+  version: scope === 'subnames' ? null : scope,
+  isSubnamesOnly: scope === 'subnames',
+  // Only ENSv2 second-level names are renewed in bulk.
+  canSelectAll: scope === null || scope === 'v2',
+})
+
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
-  const [filter, setFilter] = useState<FilterKey>('owned')
-  const [version, setVersion] = useState<NameVersion | null>(null)
+  const addresses = useDashboardAddresses()
+  const accountsKey = addresses.join(',')
+  const filterChoice = useChipChoice<FilterKey>('owned', accountsKey)
+  const scopeChoice = useChipChoice<NameScope | null>(null, accountsKey)
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
@@ -68,7 +96,6 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     parseDirectionalSort<FavoritesSortField>(favoritesSort)
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
 
   // Searching reads bigname, so wait for typing to pause.
   const { debouncedValue: search } = useDebounce(searchQuery.trim(), {
@@ -82,12 +109,19 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   // The chip counts do not depend on the sort, so they keep one read each.
   const v1Names = useDashboardNames({ version: 'v1' })
   const v2Names = useDashboardNames({ version: 'v2' })
-  const { data: favorites = [] } = useQuery({
+  const subnames = useDashboardNames({ isSubnamesOnly: true })
+  const {
+    data: favorites = [],
+    isSuccess,
+    isPlaceholderData,
+  } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
   })
 
-  const favoritesCount = favorites.length
+  // Unknown until read: the placeholder list is not a count of zero.
+  const isFavoritesLoaded = isSuccess && !isPlaceholderData
+  const favoritesCount = isFavoritesLoaded ? favorites.length : undefined
   // V1 does not filter registry-only names, so keep its bigname total while
   // paging. V2 and mixed totals require all permission checks to finish.
   const countOf = (
@@ -109,8 +143,6 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
     [favorites],
   )
 
-  const addresses = useDashboardAddresses()
-  const accountsKey = addresses.join(',')
   const {
     selected,
     labels: selectedLabels,
@@ -189,33 +221,44 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
         'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
       activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
     },
-    {
-      value: 'favorites',
-      label: t`Favorites`,
-      count: favoritesCount,
-      disabled: !isAuthed,
-      activeClassName:
-        'bg-ens-garnet-100 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
-      activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
-    },
+    // Favorites need a sign-in; signed out there are none to show.
+    ...(isAuthed
+      ? [
+          {
+            value: 'favorites' as const,
+            label: t`Favorites`,
+            count: favoritesCount,
+            activeClassName:
+              'bg-ens-garnet-100 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
+            activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
+          },
+        ]
+      : []),
   ]
 
-  // v1 / v2 are mutually exclusive; clicking the active one shows all again.
+  // A hidden chip can't be clicked, so an emptied selection falls back.
+  const activeFilter = resolveSelectedChip(
+    chips,
+    filterChoice.current,
+    firstOpenChip(chips, 'owned'),
+  )
+  // Subnames, v1 and v2 are exclusive; clicking the active one shows all again.
   // Switching drops the selection so Renew can't include a name that's hidden.
-  const versionChips: FilterChipDef<NameVersion>[] = [
+  const scopeChips = toScopeChips(
+    activeFilter === 'owned',
+    { subnames: t`Subnames`, v1: t`V1`, v2: t`V2` },
     {
-      value: 'v1',
-      label: t`V1`,
-      count: activeFilter === 'owned' ? countOf(v1Names, false) : undefined,
+      subnames: countOf(subnames),
+      v1: countOf(v1Names, false),
+      v2: countOf(v2Names),
     },
-    {
-      value: 'v2',
-      label: t`V2`,
-      count: activeFilter === 'owned' ? countOf(v2Names) : undefined,
-    },
-  ]
-  const changeVersion = (next: NameVersion | null) => {
-    setVersion(next)
+  )
+  const scope = resolveSelectedChip(scopeChips, scopeChoice.current, null)
+  filterChoice.fallBackTo(activeFilter)
+  scopeChoice.fallBackTo(scope)
+  const { version, isSubnamesOnly, canSelectAll } = toScopeFilter(scope)
+  const changeScope = (next: NameScope | null) => {
+    scopeChoice.choose(next)
     clearSelection()
   }
 
@@ -278,20 +321,22 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
           <FilterChips
             chips={chips}
             onChange={(next) => {
-              setFilter(next)
+              filterChoice.choose(next)
               setSearchQuery('')
             }}
+            shouldHideEmpty
             value={activeFilter}
           />
           <FilterChips
-            chips={versionChips}
-            onChange={changeVersion}
-            onClear={() => changeVersion(null)}
-            value={version}
+            chips={scopeChips}
+            onChange={changeScope}
+            onClear={() => changeScope(null)}
+            shouldHideEmpty
+            value={scope}
           />
         </div>
 
-        {activeFilter === 'owned' && ownedTotal > 0 && version !== 'v1' && (
+        {activeFilter === 'owned' && ownedTotal > 0 && canSelectAll && (
           <div className="flex w-full items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <SelectionCheckbox
@@ -353,6 +398,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
               <MyNamesList
                 favoriteLabels={favoriteLabels}
                 isAuthenticated={isAuthed}
+                isSubnamesOnly={isSubnamesOnly}
                 onToggleFavorite={onToggleFavorite}
                 onToggleSelect={onToggleSelect}
                 primaryLabel={primaryLabel}
