@@ -1170,6 +1170,17 @@ describe('TokenPickerContentBase while a payment is in flight', () => {
     rerender(picker({ funding: covered }))
     expect(screen.getByText(/No additional payment needed/)).toBeVisible()
   })
+
+  it('keeps the clicked figures when refreshed data and busy land together', () => {
+    const { rerender } = render(picker({ funding: owed }))
+
+    rerender(picker({ funding: covered, isBusy: true }))
+
+    expect(receiptRow('You pay')).toHaveTextContent('$0.04')
+    expect(
+      screen.queryByText(/No additional payment needed/),
+    ).not.toBeInTheDocument()
+  })
 })
 
 describe('TokenPickerContentBase L2 rows', () => {
@@ -1844,6 +1855,46 @@ describe('TokenPickerContentBase ETH row', () => {
 
     rerender(sheet({ stablecoinBalances: [usdc] }))
     expect(screen.getByRole('button', { name: 'Select USDC' })).toBeVisible()
+  })
+
+  it('keeps the clicked method when refreshed balances and busy land together', () => {
+    const clickedEthPayment = ethPaymentOf({}, true)
+    const refreshedEthPayment = ethPaymentOf()
+    const sheet = (
+      props: Partial<Parameters<typeof TokenPickerContentBase>[0]>,
+    ) => (
+      <I18nProvider i18n={i18n}>
+        <TokenPickerContentBase
+          ethPayment={clickedEthPayment}
+          funding={underfunded}
+          isConnected
+          isLoadingBalances={false}
+          label="jeff"
+          onNext={() => {}}
+          onSelectCoin={() => {}}
+          pricingData={330}
+          pricingLoading={false}
+          selectedToken="USDC"
+          showNetworkFeeDetails
+          stablecoinBalances={[emptyUsdc]}
+          {...props}
+        />
+      </I18nProvider>
+    )
+    const { rerender } = render(sheet({}))
+
+    rerender(
+      sheet({
+        ethPayment: refreshedEthPayment,
+        isBusy: true,
+        stablecoinBalances: [usdc],
+      }),
+    )
+
+    expect(screen.getByRole('button', { name: 'Pay with ETH' })).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Select USDC' }),
+    ).not.toBeInTheDocument()
   })
 
   it('registers with ETH once quoted, whatever USDC the wallet holds', () => {
