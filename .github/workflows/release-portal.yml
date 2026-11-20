@@ -105,12 +105,18 @@ jobs:
       - &setup-pnpm
         name: Setup pnpm and Node.js
         uses: pnpm/setup@v3
-        env:
-          # pnpm/setup has no frozen-lockfile input; force it via config env.
-          PNPM_CONFIG_FROZEN_LOCKFILE: true
         with:
           runtime: node@24
           cache: true
+          # A store saved after a portal-only install would miss the other
+          # apps' packages; leave saving the shared store to the CI workflows.
+          save-cache: false
+          install: false
+
+      # Only the portal and the workspace packages it depends on.
+      - &install
+        name: Install Portal dependencies
+        run: pnpm install --frozen-lockfile --no-runtime --filter 'portal...'
 
       # vars resolves per job, so each target builds with its environment's URL.
       - &build
@@ -168,6 +174,7 @@ jobs:
     steps:
       - *checkout
       - *setup-pnpm
+      - *install
       - *build
 
       - &download-notes
