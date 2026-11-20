@@ -494,14 +494,21 @@ the rule in its message.
 `settlementLayers: ['ACROSS']`; Rhinestone confirmed Across stays available
 when asked for. If every L2 source turns unavailable at once, check this first.
 
-**A delegated payer gets no permit.** For a wallet with an EIP-7702 delegation
-on the source chain, the `approval` requirement has no `permit`, although the
-SDK sends `accountType: 'EOA'` for it. The quote is accepted with
-`needsOnchainApproval`, and the pay path sends `approve(Permit2, max)` on the
-L2 before quoting again; that takes a little ETH there, once per L2. A wallet
-without a delegation gets the permit and sends no transaction. Rhinestone said
-(2026-11-20) they can add the permit for MetaMask-delegated payers; until
-then both paths are needed.
+**Only a plain or MetaMask-delegated payer gets a permit.** The `approval`
+requirement carries a `permit` for a wallet with no code, and for one delegated
+to MetaMask's `EIP7702StatelessDeleGator` (`0x63c0c19a…`). Any other EIP-7702
+delegate gets none, although the SDK sends `accountType: 'EOA'`. That includes
+Calibur (Rainbow, Uniswap), whose ERC-1271 accepts the permit
+(`HCA_7702_WALLETS.md` in transaction-manager). Quoted on Base on 2026-11-20
+against eleven delegates. The quote is accepted with `needsOnchainApproval`,
+and the pay path sends `approve(Permit2, max)` on the L2 before quoting again;
+that takes a little ETH there, once per L2.
+
+**The requirement is the allowance check.** It is listed only while the
+wallet's Permit2 allowance falls short; an approved wallet gets none. So the
+picker reads no allowance itself, and a fresh quote that still lists the
+approval after the approve is refused rather than signed: the orchestrator has
+not seen the approval yet, and the intent would fail at claim.
 
 **Check the payer, not only the app.** A wallet can gain a delegation between
 two tests (MetaMask offers the upgrade on its own), which changes the quote
