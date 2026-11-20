@@ -97,7 +97,9 @@ export interface RhinestoneSigner {
 /**
  * The wallet's USDC on an L2, paying for an HCA intent on the app chain: the
  * wallet signs one Permit2 transfer on `chain`, Across delivers the intent's
- * token request to the HCA, and the HCA then runs the intent's calls.
+ * token request to the HCA, and the HCA then runs the intent's calls. The
+ * Permit2 allowance is an EIP-2612 permit the wallet signs when the quote has
+ * one, and an approval transaction (`ensureAllowance`) when it does not.
  */
 export interface L2FundingSource {
   readonly chain: Chain

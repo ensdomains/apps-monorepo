@@ -622,6 +622,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
   const USDC = getDestinationContracts(sepolia.id).usdc
   const HCA_CONFIG = { account: { type: 'hca' } } as RhinestoneAccountConfig
   const QUOTE = { amountIn: 5_012_000n } as L2BridgeQuote
+  const UNAPPROVED_QUOTE = { ...QUOTE, needsOnchainApproval: true }
   const INTENT = {
     type: 'intent',
     id: 7n,
@@ -664,14 +665,13 @@ describe('submitWarpTransaction — paid from an L2', () => {
     vi.mocked(submitL2Bridge).mockReturnValue(okAsync(INTENT))
   })
 
-  it('approves Permit2, quotes the HCA calls from the L2 and waits for the fill', async () => {
+  it('quotes the HCA calls from the L2 and waits for the fill, without an approval', async () => {
     const { wallet, source, request, onIntentSubmitted, signer } = setup()
 
     const result = await submitWarpTransaction({ request, signer })
 
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
-    // The fee cap's worth on top, so any route the validator accepts is allowed.
-    expect(source.ensureAllowance).toHaveBeenCalledWith(6_000_000n)
+    expect(source.ensureAllowance).not.toHaveBeenCalled()
     expect(quoteL2Bridge).toHaveBeenCalledWith(wallet, {
       owner: OWNER,
       sourceChain: baseSepolia,
@@ -682,9 +682,6 @@ describe('submitWarpTransaction — paid from an L2', () => {
       recipient: { address: HCA, config: HCA_CONFIG },
       calls: MOCK_CALLS,
     })
-    expect(source.ensureAllowance.mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(quoteL2Bridge).mock.invocationCallOrder[0] ?? 0,
-    )
     expect(submitL2Bridge).toHaveBeenCalledWith(wallet, QUOTE)
     expect(onIntentSubmitted).toHaveBeenCalledWith(7n)
     expect(wallet.waitForExecution).toHaveBeenCalledWith(INTENT, false)
@@ -859,8 +856,24 @@ describe('submitWarpTransaction — paid from an L2', () => {
     )
   })
 
-  it('reports a failed approval as never sent, without quoting', async () => {
+  it('approves Permit2 when the quote has no permit, then signs a fresh quote', async () => {
+    const { wallet, source, request, signer } = setup()
+    const fresh = { ...UNAPPROVED_QUOTE, amountIn: 5_013_000n }
+    vi.mocked(quoteL2Bridge)
+      .mockReturnValueOnce(okAsync(UNAPPROVED_QUOTE))
+      .mockReturnValueOnce(okAsync(fresh))
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    // The fee cap's worth on top, so any route the validator accepts is allowed.
+    expect(source.ensureAllowance).toHaveBeenCalledWith(6_000_000n)
+    expect(submitL2Bridge).toHaveBeenCalledWith(wallet, fresh)
+  })
+
+  it('reports a failed approval as never sent, without signing', async () => {
     const { source, request, signer } = setup()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(UNAPPROVED_QUOTE))
     source.ensureAllowance.mockRejectedValueOnce(
       new Error('insufficient funds for gas'),
     )
@@ -868,7 +881,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
     const result = await submitWarpTransaction({ request, signer })
 
     expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
-    expect(quoteL2Bridge).not.toHaveBeenCalled()
+    expect(submitL2Bridge).not.toHaveBeenCalled()
   })
 
   // Submitted, so it may still fill: the caller checks the chain instead.

@@ -83,6 +83,8 @@ export type L2BridgeQuote = Readonly<{
   amountReceived: bigint
   /** Unix seconds after which the permit is void. */
   deadline: bigint
+  /** The Permit2 allowance comes with no permit to sign, so it takes an approve. */
+  needsOnchainApproval: boolean
 }>
 
 /** The orchestrator could not quote the route. */
@@ -278,7 +280,7 @@ export function validateL2BridgeQuote(params: {
         prepared.intentRoute.tokenRequirements,
         accepted,
         now,
-      ).map(() => accepted),
+      ).map((needsOnchainApproval) => ({ ...accepted, needsOnchainApproval })),
     )
     .map((accepted) => ({ route, prepared, ...accepted }))
     .mapErr((message) => new L2BridgeRejectedError({ message }))
@@ -386,8 +388,8 @@ function readPermit(
 
 /**
  * Rule 9, on the allowance the route needs. Every setup step must be a Permit2
- * allowance on the source token. One without an EIP-2612 permit is covered by
- * the caller's own approve; one with a permit has it checked before signing.
+ * allowance on the source token. One without an EIP-2612 permit is left to the
+ * caller's own approve, and reported; one with a permit has it checked.
  */
 function readApproval(
   route: L2BridgeRoute,
@@ -395,7 +397,7 @@ function readApproval(
   /** What the witness transfer moves, and how long it may still fill. */
   transfer: Pick<PermitTerms, 'amountIn' | 'deadline'>,
   now: bigint,
-): Result<undefined, string> {
+): Result<boolean, string> {
   const requirements = Object.entries(tokenRequirements ?? {}).flatMap(
     ([chainId, tokens]) =>
       Object.entries(tokens).map(([token, requirement]) => ({
@@ -421,7 +423,12 @@ function readApproval(
     )
     if (rejection !== undefined) return err(rejection)
   }
-  return ok(undefined)
+  return ok(
+    requirements.some(
+      ({ requirement }) =>
+        requirement.type === 'approval' && !requirement.permit,
+    ),
+  )
 }
 
 /**

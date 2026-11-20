@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isShortOfApprovalGas } from './l2ApprovalGas'
+import { getApprovingWallet, isShortOfApprovalGas } from './l2ApprovalGas'
 
 const wallet = (overrides: { permit2Allowance?: bigint; eth?: bigint }) => ({
   usdc: 1_000n,
@@ -36,5 +36,25 @@ describe('isShortOfApprovalGas', () => {
 
   it('needs nothing when nothing is bridged', () => {
     expect(isShortOfApprovalGas(wallet({}), 0n, 100n)).toBe(false)
+  })
+})
+
+describe('getApprovingWallet', () => {
+  it.each([
+    {
+      name: 'a quote with a permit to sign',
+      quote: { needsOnchainApproval: false },
+    },
+    { name: 'no quote yet', quote: undefined },
+  ])('$name never blocks a wallet without ETH', ({ quote }) => {
+    const approving = getApprovingWallet(wallet({}), quote)
+    expect(isShortOfApprovalGas(approving, 10n, 100n)).toBe(false)
+  })
+
+  it('checks the wallet when the quote takes an onchain approval', () => {
+    const approving = getApprovingWallet(wallet({}), {
+      needsOnchainApproval: true,
+    })
+    expect(isShortOfApprovalGas(approving, 10n, 100n)).toBe(true)
   })
 })

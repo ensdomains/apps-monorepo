@@ -474,12 +474,12 @@ describe('validateL2BridgeQuote', () => {
     ).toBe(true)
   })
 
-  it('allows an approval without a permit, which is approved onchain', () => {
-    expect(
-      validate((q) => {
-        delete (q.approval as { permit?: unknown }).permit
-      }).isOk(),
-    ).toBe(true)
+  it('reports an approval without a permit as needing an onchain approval', () => {
+    const withoutPermit = validate((q) => {
+      delete (q.approval as { permit?: unknown }).permit
+    })
+    expect(withoutPermit._unsafeUnwrap().needsOnchainApproval).toBe(true)
+    expect(validate()._unsafeUnwrap().needsOnchainApproval).toBe(false)
   })
 
   it('matches a destination value sent as a bigint', () => {

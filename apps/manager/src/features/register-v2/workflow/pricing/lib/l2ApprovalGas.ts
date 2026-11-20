@@ -1,5 +1,12 @@
 import type { L2Wallet } from '../../../data/queries/l2Balances.query'
 
+/** The wallet the approval checks apply to: none unless the quote has no permit to sign. */
+export const getApprovingWallet = (
+  wallet: L2Wallet | null | undefined,
+  quote: Readonly<{ needsOnchainApproval: boolean }> | undefined,
+): L2Wallet | null | undefined =>
+  quote?.needsOnchainApproval ? wallet : undefined
+
 /** The one-off Permit2 approval is still needed for `amountRaw` on this L2. */
 export const needsPermit2Approval = (
   wallet: L2Wallet | null | undefined,

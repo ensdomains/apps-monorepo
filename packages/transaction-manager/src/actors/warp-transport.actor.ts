@@ -175,24 +175,28 @@ function submitL2FundedIntent(
   }
 
   return ResultFn(async function* () {
-    // Approve first: an approval can outlast a two-minute quote.
-    yield* fromPromise(
-      source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut)),
-      notSent('approve USDC for Permit2'),
-    )
     const wallet = yield* source
       .getAccount()
       .mapErr(notSent('reach the wallet'))
-    const quote = yield* quoteL2Bridge(wallet, {
-      owner: wallet.getAddress(),
-      sourceChain: source.chain,
-      sourceToken: source.token,
-      targetChain: chain,
-      targetToken,
-      amountOut,
-      recipient: { address: hca.getAddress(), config: hca.config },
-      calls: request.rhinestoneParams.calls,
-    }).mapErr(notSent('quote the payment'))
+    const quotePayment = () =>
+      quoteL2Bridge(wallet, {
+        owner: wallet.getAddress(),
+        sourceChain: source.chain,
+        sourceToken: source.token,
+        targetChain: chain,
+        targetToken,
+        amountOut,
+        recipient: { address: hca.getAddress(), config: hca.config },
+        calls: request.rhinestoneParams.calls,
+      }).mapErr(notSent('quote the payment'))
+    const firstQuote = yield* quotePayment()
+    // An approval can outlast a two-minute quote, so quote again after it.
+    const quote = firstQuote.needsOnchainApproval
+      ? yield* fromPromise(
+          source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut)),
+          notSent('approve USDC for Permit2'),
+        ).andThen(quotePayment)
+      : firstQuote
     // The fee cap bounds the quote alone; this holds it to what checkout showed.
     if (
       displayedCharge !== undefined &&
