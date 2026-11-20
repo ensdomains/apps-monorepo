@@ -4,9 +4,15 @@ export function isOgAvatarContentType(contentType: string): boolean {
   return type.startsWith('image/') && !type.startsWith('image/svg')
 }
 
-/** {@link isOgAvatarContentType} for an inline `data:` URI, judged by the type it declares. */
-export function isOgAvatarDataUri(uri: string): boolean {
+/** {@link isOgAvatarContentType} for an inline `data:` URI, judged by the type it declares, with a payload of at most `maxPayloadChars`. */
+export function isOgAvatarDataUri(
+  uri: string,
+  maxPayloadChars: number,
+): boolean {
+  const payload = uri.slice(uri.indexOf(',') + 1)
   return (
-    uri.startsWith('data:') && isOgAvatarContentType(uri.slice('data:'.length))
+    uri.startsWith('data:') &&
+    payload.length <= maxPayloadChars &&
+    isOgAvatarContentType(uri.slice('data:'.length))
   )
 }

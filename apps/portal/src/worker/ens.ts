@@ -114,9 +114,7 @@ export async function resolveAvatarDataUri(
     // through without re-fetching (fetching a huge data: URI is itself abusable).
     // Still enforce the card's accepted MIME types on the embedded one.
     if (resolved.kind === 'inline') {
-      const payload = resolved.uri.slice(resolved.uri.indexOf(',') + 1)
-      return payload.length <= INLINE_AVATAR_MAX_CHARS &&
-        isOgAvatarDataUri(resolved.uri)
+      return isOgAvatarDataUri(resolved.uri, INLINE_AVATAR_MAX_CHARS)
         ? inlineAvatarDataUri(resolved.uri, images)
         : null
     }

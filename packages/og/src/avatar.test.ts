@@ -30,6 +30,18 @@ describe('isOgAvatarDataUri', () => {
     ['data:text/html;base64,PHNjcmlwdD4=', false],
     ['https://cdn.example/a.png', false],
   ])('%s → %s', (uri, expected) => {
-    expect(isOgAvatarDataUri(uri)).toBe(expected)
+    expect(isOgAvatarDataUri(uri, 64)).toBe(expected)
   })
+
+  it.each([
+    [8, true],
+    [9, false],
+  ])(
+    'caps the payload, not the header, at 8 chars: %i chars → %s',
+    (chars, expected) => {
+      expect(
+        isOgAvatarDataUri(`data:image/png;base64,${'A'.repeat(chars)}`, 8),
+      ).toBe(expected)
+    },
+  )
 })
