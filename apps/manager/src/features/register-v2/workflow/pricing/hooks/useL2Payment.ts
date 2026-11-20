@@ -10,11 +10,7 @@ import { getL2PaymentQuoteQueryOptions } from '../../../data/queries/l2PaymentQu
 import { getL2QuoteRoute } from '../../../service/l2FundingSource'
 import type { RegistrationV2UiActor } from '../../../state/registrationUi.context'
 import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
-import {
-  getApprovingWallet,
-  isShortOfApprovalGas,
-  needsPermit2Approval,
-} from '../lib/l2ApprovalGas'
+import { isShortOfApprovalGas } from '../lib/l2ApprovalGas'
 import {
   getL2PaymentOptions,
   getSelectedL2ChainId,
@@ -180,16 +176,11 @@ export const useL2PaymentRows = ({
     queries: routes.map((route) => getL2PaymentQuoteQueryOptions(route)),
   })
   // Only a quote with no permit to sign takes the approval; unquoted never blocks.
-  const approvingWallets = options.map(({ source }, index) =>
-    getApprovingWallet(wallets?.[source.chain.id], quotes[index]?.data),
-  )
   const approvalCosts = useQueries({
     queries: options.map(({ source }, index) =>
       getL2ApprovalCostQueryOptions(
         owner ?? undefined,
-        needsPermit2Approval(approvingWallets[index], statusAmountRaw)
-          ? source
-          : undefined,
+        quotes[index]?.data?.needsOnchainApproval ? source : undefined,
       ),
     ),
   })
@@ -210,8 +201,8 @@ export const useL2PaymentRows = ({
         amountRaw !== 0n && (!isQuoted || !!quote?.isPlaceholderData),
       hasQuoteFailed: isQuoted && !!quote?.isError,
       isShortOfGas: isShortOfApprovalGas(
-        approvingWallets[index],
-        amountInRaw ?? statusAmountRaw,
+        quote?.data,
+        wallets?.[option.source.chain.id]?.eth,
         approvalCosts[index]?.data,
       ),
     }

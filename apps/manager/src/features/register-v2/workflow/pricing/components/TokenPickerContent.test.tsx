@@ -2,7 +2,6 @@ import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { maxUint256 } from 'viem'
 import { arbitrumSepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { L2Source } from '@/l2Sources'
@@ -160,15 +159,13 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
       if (key.includes('l2-usdc-balances')) {
         const balances = containerMocks.l2Balances
         return {
-          // Approved and holding ETH, so no approval cost is quoted.
+          // Holding ETH, so no row is short of gas for an approval.
           data:
             balances &&
             Object.fromEntries(
               Object.entries(balances).map(([chainId, usdc]) => [
                 chainId,
-                usdc === null
-                  ? null
-                  : { usdc, permit2Allowance: maxUint256, eth: 10n ** 18n },
+                usdc === null ? null : { usdc, eth: 10n ** 18n },
               ]),
             ),
           isLoading: false,
