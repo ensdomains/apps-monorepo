@@ -312,6 +312,25 @@ describe('submitWarpTransaction', () => {
     )
   })
 
+  it('lets the orchestrator spend only the payment token when one is named', async () => {
+    const signer = createMockSigner()
+    const usdc = '0x240b0316Df57887DBBE58b586508b19e633a14aa' as Address
+
+    await submitWarpTransaction({
+      request: createRhinestoneRequest({
+        rhinestoneParams: { calls: MOCK_CALLS, paymentToken: usdc },
+      }),
+      signer,
+    })
+    await submitWarpTransaction({ request: createRhinestoneRequest(), signer })
+
+    const [pinned, unpinned] = vi
+      .mocked(signer.account.prepareTransaction)
+      .mock.calls.map(([params]) => params)
+    expect(pinned).toEqual(expect.objectContaining({ sourceAssets: [usdc] }))
+    expect(unpinned).not.toHaveProperty('sourceAssets')
+  })
+
   it('calls waitForExecution and returns receipt.fill.hash', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest()
@@ -603,6 +622,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
   const USDC = getDestinationContracts(sepolia.id).usdc
   const HCA_CONFIG = { account: { type: 'hca' } } as RhinestoneAccountConfig
   const QUOTE = { amountIn: 5_012_000n } as L2BridgeQuote
+  const UNAPPROVED_QUOTE = { ...QUOTE, needsOnchainApproval: true }
   const INTENT = {
     type: 'intent',
     id: 7n,
@@ -618,6 +638,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
       chain: baseSepolia,
       token: BASE_USDC,
       getAccount: vi.fn(() => okAsync(wallet as unknown as RhinestoneAccount)),
+      ensureAllowance: vi.fn(async () => {}),
     } satisfies L2FundingSource
     const signer = createMockSigner()
     Object.assign(signer.account, { getAddress: () => HCA, config: HCA_CONFIG })
@@ -644,12 +665,13 @@ describe('submitWarpTransaction — paid from an L2', () => {
     vi.mocked(submitL2Bridge).mockReturnValue(okAsync(INTENT))
   })
 
-  it('quotes the HCA calls from the L2 and waits for the fill', async () => {
-    const { wallet, request, onIntentSubmitted, signer } = setup()
+  it('quotes the HCA calls from the L2 and waits for the fill, without an approval', async () => {
+    const { wallet, source, request, onIntentSubmitted, signer } = setup()
 
     const result = await submitWarpTransaction({ request, signer })
 
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    expect(source.ensureAllowance).not.toHaveBeenCalled()
     expect(quoteL2Bridge).toHaveBeenCalledWith(wallet, {
       owner: OWNER,
       sourceChain: baseSepolia,
@@ -698,6 +720,19 @@ describe('submitWarpTransaction — paid from an L2', () => {
     expect(submitL2Bridge).not.toHaveBeenCalled()
   })
 
+  it('refuses a charge above what checkout showed, before approving', async () => {
+    const { source, request, signer } = setup()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(UNAPPROVED_QUOTE))
+
+    const result = await submitWarpTransaction({
+      request,
+      signer: { ...signer, l2DisplayedCharge: 4_000_000n },
+    })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+    expect(source.ensureAllowance).not.toHaveBeenCalled()
+  })
+
   it('signs a charge within drift of what checkout showed', async () => {
     const { request, signer } = setup()
 
@@ -731,7 +766,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
   })
 
   it('needs exactly one token request', async () => {
-    const { signer } = setup()
+    const { source, signer } = setup()
 
     const result = await submitWarpTransaction({
       request: createRhinestoneRequest(),
@@ -739,6 +774,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
     })
 
     expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+    expect(source.ensureAllowance).not.toHaveBeenCalled()
   })
 
   it('does not ask for a signature when the quote is refused', async () => {
@@ -831,6 +867,46 @@ describe('submitWarpTransaction — paid from an L2', () => {
     expect(error.message).toBe(
       'Failed to submit transaction: Could not sign the payment on Base Sepolia: The payment was not signed. Chain 84532 is not added to the wallet',
     )
+  })
+
+  it('approves Permit2 when the quote has no permit, then signs a fresh quote', async () => {
+    const { wallet, source, request, signer } = setup()
+    const fresh = { ...QUOTE, amountIn: 5_013_000n }
+    vi.mocked(quoteL2Bridge)
+      .mockReturnValueOnce(okAsync(UNAPPROVED_QUOTE))
+      .mockReturnValueOnce(okAsync(fresh))
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
+    // The fee cap's worth on top, so any route the validator accepts is allowed.
+    expect(source.ensureAllowance).toHaveBeenCalledWith(6_000_000n)
+    expect(submitL2Bridge).toHaveBeenCalledWith(wallet, fresh)
+  })
+
+  // The orchestrator's node may not see the approval yet; that intent would fail at claim.
+  it('refuses a fresh quote that still asks for the approval, without signing', async () => {
+    const { source, request, signer } = setup()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(UNAPPROVED_QUOTE))
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+    expect(source.ensureAllowance).toHaveBeenCalledOnce()
+    expect(submitL2Bridge).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed approval as never sent, without signing', async () => {
+    const { source, request, signer } = setup()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(UNAPPROVED_QUOTE))
+    source.ensureAllowance.mockRejectedValueOnce(
+      new Error('insufficient funds for gas'),
+    )
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+    expect(submitL2Bridge).not.toHaveBeenCalled()
   })
 
   // Submitted, so it may still fill: the caller checks the chain instead.

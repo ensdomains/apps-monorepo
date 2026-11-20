@@ -73,6 +73,7 @@ export const getL2SelectionMessage = (
     status: row.option.status,
     isShort: isL2ShortOfFunds(row),
     hasQuoteFailed: row.hasQuoteFailed,
+    isShortOfGas: row.isShortOfGas,
     shortfall,
     isQuoted: quoted !== undefined,
     isEstimated: estimated !== undefined,
@@ -102,6 +103,12 @@ export const getL2SelectionMessage = (
     .with({ isShort: true }, () => (
       <Trans>Not enough USDC on {chainName}.</Trans>
     ))
+    .with({ isShortOfGas: true }, () => (
+      <Trans>
+        Paying from {chainName} the first time needs a little ETH there to
+        approve USDC.
+      </Trans>
+    ))
     .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying from {chainName} isn't available right now.</Trans>
     ))
@@ -112,15 +119,12 @@ export const getL2SelectionMessage = (
 export const L2SourceListItem = ({
   row,
   networkFee,
-  isFeeEstimated,
   isSelected,
   onSelect,
 }: {
   readonly row: L2PaymentRow
   /** What the registration costs on top of the name, paid from here, once quoted. */
   readonly networkFee: number | undefined
-  /** Borrowed from another chain's quote, as this one could not be quoted. */
-  readonly isFeeEstimated: boolean
   readonly isSelected: boolean
   readonly onSelect: () => void
 }) => {
@@ -137,13 +141,7 @@ export const L2SourceListItem = ({
           : formatUsd(decimalBigintToNumber(option.balanceRaw, USDC_DECIMALS))
       }
       amountLabel={<Trans>available</Trans>}
-      fee={
-        isFeeEstimated ? (
-          <Trans>Est. fee: ~{formatUsd(networkFee ?? Number.NaN)}</Trans>
-        ) : (
-          <Trans>Est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>
-        )
-      }
+      fee={<Trans>Est. fee: {formatUsd(networkFee ?? Number.NaN)}</Trans>}
       icon={
         <PaymentMethodIcon
           icon={<USDCIcon className="size-full" />}
@@ -159,6 +157,11 @@ export const L2SourceListItem = ({
       name="USDC"
       onSelect={onSelect}
       selectLabel={t`Select USDC on ${chainName}`}
+      warning={
+        row.isShortOfGas ? (
+          <Trans>Not enough ETH for approval</Trans>
+        ) : undefined
+      }
     />
   )
 }

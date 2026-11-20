@@ -387,10 +387,6 @@ msgstr "Addresses"
 msgid "Advanced"
 msgstr "Advanced"
 
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
-msgstr "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
-
 #: src/features/profile/components/view/AgentRecordCard.tsx
 msgid "Agent ID"
 msgstr "Agent ID"
@@ -776,6 +772,10 @@ msgstr "Checking whether a payment approval is needed"
 msgid "Checking whether your resolver is already deployed"
 msgstr "Checking whether your resolver is already deployed"
 
+#: src/features/migration/components/SelectNamesStep.tsx
+msgid "Checking which names can be upgraded"
+msgstr "Checking which names can be upgraded"
+
 #: src/features/migration/components/success/CommemorativeNftClaimDialog.tsx
 msgid "Checking your account…"
 msgstr "Checking your account…"
@@ -1143,6 +1143,14 @@ msgstr "Couldn't restore your upgrade progress. Reload to check the latest state
 msgid "Couldn't revoke sessions. Please try again."
 msgstr "Couldn't revoke sessions. Please try again."
 
+#: src/features/migration/service/migrationRecipientError.ts
+msgid "Couldn't verify whether {recipient} can receive upgraded names. Try again before changing your wallet settings."
+msgstr "Couldn't verify whether {recipient} can receive upgraded names. Try again before changing your wallet settings."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Couldn't verify whether your wallet can receive upgraded names. Please try again."
+msgstr "Couldn't verify whether your wallet can receive upgraded names. Please try again."
+
 #: src/features/migration/service/migrationPreparationError.ts
 msgid "Couldn't verify your name records. Please try again."
 msgstr "Couldn't verify your name records. Please try again."
@@ -1428,11 +1436,6 @@ msgstr "Error loading names"
 msgid "Est. fee: {0}"
 msgstr "Est. fee: {0}"
 
-#. placeholder {0}: formatUsd(networkFee ?? Number.NaN)
-#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
-msgid "Est. fee: ~{0}"
-msgstr "Est. fee: ~{0}"
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 #: src/features/register-v2/workflow/pricing/components/NetworkFeeLabel.tsx
 msgid "Estimated network fee"
@@ -1458,7 +1461,7 @@ msgstr "Existing balance"
 msgid "Expires"
 msgstr "Expires"
 
-#: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/dashboard/components/NameRow.tsx
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 
@@ -1655,6 +1658,12 @@ msgstr "Go to slide {0}"
 msgid "Grace period"
 msgstr "Grace period"
 
+#: src/features/dashboard/components/NameRow.tsx
+#: src/features/dashboard/components/PrimaryNameCard.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Grace period ends"
+msgstr "Grace period ends"
+
 #: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Growing your corner of the decentralized web"
 msgstr "Growing your corner of the decentralized web"
@@ -1787,8 +1796,8 @@ msgid "Keep renewal"
 msgstr "Keep renewal"
 
 #: src/features/register-v2/workflow/registering/lib/keepBrowserOpen.ts
-msgid "Keep this browser open while your name is registered"
-msgstr "Keep this browser open while your name is registered"
+msgid "Keep this browser open while your name is being registered"
+msgstr "Keep this browser open while your name is being registered"
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Keep this window open while the transaction confirms."
@@ -2153,6 +2162,10 @@ msgstr "No thanks"
 msgid "No upgrade access to remove"
 msgstr "No upgrade access to remove"
 
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Not enough ETH for approval"
+msgstr "Not enough ETH for approval"
+
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
 msgstr "Not enough ETH for gas. Top up before you start, or some names will be left mid-upgrade."
@@ -2305,6 +2318,10 @@ msgstr "Pay with ETH"
 #: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
 msgid "Paying from {chainName} isn't available right now."
 msgstr "Paying from {chainName} isn't available right now."
+
+#: src/features/register-v2/workflow/pricing/components/L2SourceListItem.tsx
+msgid "Paying from {chainName} the first time needs a little ETH there to approve USDC."
+msgstr "Paying from {chainName} the first time needs a little ETH there to approve USDC."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Paying from {l2ChainName}"
@@ -3160,12 +3177,8 @@ msgid "Sign in with Wallet"
 msgstr "Sign in with Wallet"
 
 #: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Sign once to enable gasless transactions for your ENS operations."
-msgstr "Sign once to enable gasless transactions for your ENS operations."
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "Sign once to enable seamless transactions."
-msgstr "Sign once to enable seamless transactions."
+msgid "Sign once to skip wallet prompts for registrations and renewals.<0/>It's free and costs no gas."
+msgstr "Sign once to skip wallet prompts for registrations and renewals.<0/>It's free and costs no gas."
 
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Sign payment approval"
@@ -3597,6 +3610,10 @@ msgstr "The session wasn't enabled."
 msgid "The upgrade contracts don't match this account. Please contact support."
 msgstr "The upgrade contracts don't match this account. Please contact support."
 
+#: src/features/migration/service/migrationRecipientError.ts
+msgid "The wallet {recipient} cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
+msgstr "The wallet {recipient} cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
+
 #: src/features/notifications/settings/contact-methods/pushErrorCopy.ts
 msgid "There was a problem reaching the notification service. Please try again in a moment."
 msgstr "There was a problem reaching the notification service. Please try again in a moment."
@@ -3696,10 +3713,6 @@ msgstr "This name points to an address that isn’t a working resolver, so its r
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This parent has subnames whose protections cannot be preserved by this upgrade yet."
 msgstr "This parent has subnames whose protections cannot be preserved by this upgrade yet."
-
-#: src/features/wallet/components/EnableSessionModal.tsx
-msgid "This signature is free and doesn't cost any gas."
-msgstr "This signature is free and doesn't cost any gas."
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "This subname must be included through its parent name. It cannot be copied on its own."
@@ -4365,8 +4378,8 @@ msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr "You can buy this name at any point during the {periodDays}-day cooldown."
 
 #: src/features/wallet/components/EnableSessionModal.tsx
-msgid "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
-msgstr "You can keep browsing, but registering or managing names needs a session. Try again when you're ready."
+msgid "You can keep browsing, but registering or managing names needs a session.<0/>Try again when you're ready."
+msgstr "You can keep browsing, but registering or managing names needs a session.<0/>Try again when you're ready."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "You can sign in anytime from your wallet menu."
@@ -4679,6 +4692,10 @@ msgstr "Your wallet asks you to approve the payment if needed, then to confirm e
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Your wallet asks you to approve the payment if needed, then to confirm the renewal transaction."
 msgstr "Your wallet asks you to approve the payment if needed, then to confirm the renewal transaction."
+
+#: src/features/migration/service/migrationPreparationError.ts
+msgid "Your wallet cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
+msgstr "Your wallet cannot receive ENSv2 name tokens with its current configuration. Ask your wallet's support for a compatible configuration before upgrading."
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts

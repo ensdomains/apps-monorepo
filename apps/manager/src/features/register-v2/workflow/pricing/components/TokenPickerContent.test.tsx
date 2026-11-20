@@ -159,12 +159,13 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
       if (key.includes('l2-usdc-balances')) {
         const balances = containerMocks.l2Balances
         return {
+          // Holding ETH, so no row is short of gas for an approval.
           data:
             balances &&
             Object.fromEntries(
               Object.entries(balances).map(([chainId, usdc]) => [
                 chainId,
-                usdc === null ? null : { usdc },
+                usdc === null ? null : { usdc, eth: 10n ** 18n },
               ]),
             ),
           isLoading: false,
@@ -1200,6 +1201,7 @@ describe('TokenPickerContentBase L2 rows', () => {
     isQuoteLoading: false,
     isQuoteStale: false,
     hasQuoteFailed: false,
+    isShortOfGas: false,
     ...overrides,
   })
   // One mock behind both selects, so a test sees every selection the picker makes.
@@ -1351,7 +1353,7 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(
       screen.getByText('You do not have enough USDC for this transaction.'),
     ).toBeVisible()
-    expect(screen.getByText('Est. fee: ~$0.20')).toBeVisible()
+    expect(screen.getByText('Est. fee: $0.20')).toBeVisible()
   })
 
   it('keeps a short L2 hidden in renewal', () => {
@@ -1482,6 +1484,27 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
   })
 
+  it('refuses an L2 whose first approval it has no ETH to pay for', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: l2Payment(
+        baseSepoliaRow('available', {
+          amountInRaw: 5_012_573n,
+          isShortOfGas: true,
+        }),
+        baseSepolia.id,
+      ),
+    })
+
+    expect(screen.getByText('Not enough ETH for approval')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Paying from Base Sepolia the first time needs a little ETH there to approve USDC.',
+    )
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
+  })
+
   it('holds the registration until the chosen L2 is quoted', () => {
     renderPicker({
       funding: underfunded,
@@ -1545,7 +1568,8 @@ describe('TokenPickerContentBase L2 rows', () => {
       l2Payment: l2PaymentOf([quoted, op], optimismSepolia.id),
     })
 
-    expect(screen.getByText('Est. fee: ~$0.21')).toBeVisible()
+    // The unquoted OP row borrows Base's quote, so both rows show its fee.
+    expect(screen.getAllByText('Est. fee: $0.21')).toHaveLength(2)
     expect(
       screen.getByText('About $2.01 more needed on OP Sepolia.'),
     ).toBeVisible()

@@ -33,8 +33,8 @@ const LandingPage = () => {
     >
       {/* Hero Section */}
       <div className="mx-auto flex w-full-[2rem] flex-col items-center pt-[20vh] pb-[min(10vh,5rem)]">
-        {/* The hero design uses a one-off 56px size and -2px letter spacing, outside the shared type scale. */}
-        <h1 className="whitespace-nowrap text-center text-[56px] leading-none tracking-[-2px]">
+        {/* The hero design uses a one-off 56px size and -2px letter spacing, outside the shared type scale; 14.5vw shrinks it to fit 320px. */}
+        <h1 className="wrap-anywhere max-w-full text-center text-[min(56px,14.5vw)] leading-none tracking-[-2px]">
           <span
             className={
               themeColor ? 'font-serif' : 'font-serif text-ens-lapis-core'
@@ -48,7 +48,7 @@ const LandingPage = () => {
           </span>
         </h1>
         {/* The design's 305px text column preserves the supporting copy's intended line break. */}
-        <p className="mt-3.5 w-[305px] text-center font-normal font-sans text-base text-ens-quartz-900 leading-none">
+        <p className="mt-3.5 w-full max-w-[305px] text-center font-normal font-sans text-base text-ens-quartz-900 leading-none">
           <Trans>A name you own that goes wherever you do</Trans>
         </p>
         <div className="mt-11 w-full max-w-3xl">

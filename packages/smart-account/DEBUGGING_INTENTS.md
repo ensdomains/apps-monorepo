@@ -472,3 +472,66 @@ intent: the session policy (`_checkRegistrationExecutions`) rejects any
 execution with value or outside the registration allowlist, while a 65-byte
 owner signature skips the policy entirely, so the quote must be checked in
 full before it is signed.
+
+## 11. L2 payments: the quote is refused before anything is signed
+
+Paying from USDC on an L2 (`l2-bridge.ts`) fails differently from everything
+above. Nothing is submitted, so there is no simulation and no revert to decode:
+the orchestrator answers the quote, and `validateL2BridgeQuote` refuses it.
+
+**How it looks.** The L2 row in the payment sheet says "Paying from \<chain\>
+isn't available right now", while the `POST /intents/route` request in the
+network tab returns 200. A failed request is the orchestrator; a 200 with that
+message is one of our rules. The quote query's `L2BridgeRejectedError` names
+the rule in its message.
+
+**Read the quote response.** Two fields decide the common cases:
+
+- `intentOp.elements[0].mandate.qualifier.settlementContext`: rule 2 wants one
+  element with `settlementLayer: 'ACROSS'` and `fundingMethod: 'PERMIT2'`.
+- `tokenRequirements[<source chain id>][<source USDC>]`: the Permit2 `approval`
+  the route needs, with or without a `permit` (the EIP-2612 typed data the
+  wallet signs in place of an approve transaction).
+
+**The default route is not Across.** Since the orchestrator update of
+2026-11-19 an L2 to mainnet USDC quote without `settlementLayers` comes back as
+`SAME_CHAIN` with an `ECO` bridge fill, on the same API version
+(`2026-01.alps`). `quoteL2Bridge` therefore sends
+`settlementLayers: ['ACROSS']`; Rhinestone confirmed Across stays available
+when asked for. If every L2 source turns unavailable at once, check this first.
+
+**A delegated payer may get no permit.** The `approval` requirement carries a
+`permit` for a wallet with no code. For a wallet with an EIP-7702 delegation it
+may not, although the SDK sends `accountType: 'EOA'`. Two accounts from
+2026-11-20, which do not fully agree:
+
+- Rhinestone said a delegated payer needs the onchain approve for now, and that
+  a permit for MetaMask-delegated payers was still to be built.
+- Quotes run on Base later that day against eleven delegates returned a permit
+  only for MetaMask's `EIP7702StatelessDeleGator` (`0x63c0c19a…`), and none for
+  the others, Calibur (Rainbow, Uniswap) included, whose ERC-1271 accepts the
+  permit (`HCA_7702_WALLETS.md` in transaction-manager).
+
+So read `permit` in the quote rather than assume it from the wallet. A quote
+without one is accepted with `needsOnchainApproval`, and the pay path sends
+`approve(Permit2, max)` on the L2 before quoting again; that takes a little ETH
+there, once per L2.
+
+**The requirement is the allowance check.** It is listed only while the
+wallet's Permit2 allowance falls short; an approved wallet gets none. So the
+picker reads no allowance itself. The pay path waits two confirmations of the
+approve before quoting again, and a fresh quote that still lists the approval
+is refused rather than signed: the orchestrator has not seen the approval yet,
+and the intent would fail at claim. Paying again skips the approve.
+
+**Check the payer, not only the app.** A wallet can gain a delegation between
+two tests (a wallet's own upgrade prompt is enough), which changes the quote
+with no change on our side:
+
+```bash
+cast code <payer> --rpc-url <l2 rpc>
+# 0xef0100… followed by 20 bytes: delegated. 0x: a plain wallet.
+```
+
+When reporting a quote to Rhinestone, include the payer address, the source
+chain and the quote id (`quote:<uuid>`).

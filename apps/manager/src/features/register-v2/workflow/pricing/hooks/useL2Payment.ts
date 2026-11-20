@@ -4,11 +4,13 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { l2Sources } from '@/config'
 import type { HcaBudgetQuote } from '../../../data/queries/hcaBudget.query'
+import { getL2ApprovalCostQueryOptions } from '../../../data/queries/l2ApprovalCost.query'
 import { getL2BalancesQueryOptions } from '../../../data/queries/l2Balances.query'
 import { getL2PaymentQuoteQueryOptions } from '../../../data/queries/l2PaymentQuote.query'
 import { getL2QuoteRoute } from '../../../service/l2FundingSource'
 import type { RegistrationV2UiActor } from '../../../state/registrationUi.context'
 import type { FundingSourceOrigin } from '../../../state/registrationUi.machine'
+import { isShortOfApprovalGas } from '../lib/l2ApprovalGas'
 import {
   getL2PaymentOptions,
   getSelectedL2ChainId,
@@ -25,6 +27,8 @@ export type L2PaymentRow = Readonly<{
   /** `amountInRaw` is the previous quote, shown while a new one loads; never pay on it. */
   isQuoteStale: boolean
   hasQuoteFailed: boolean
+  /** Needs the one-off Permit2 approval here, without the ETH to pay for it. */
+  isShortOfGas: boolean
 }>
 
 /** The registration picker's L2 rows, and what choosing one does. */
@@ -50,7 +54,8 @@ export const canPayFromL2 = (row: L2PaymentRow): boolean =>
   row.option.balanceRaw !== null &&
   row.option.balanceRaw >= row.amountInRaw &&
   !isL2Empty(row) &&
-  !row.isQuoteStale
+  !row.isQuoteStale &&
+  !row.isShortOfGas
 
 /** What the permit would carry: the budget less what the account holds. */
 const getShortfall = (
@@ -170,6 +175,15 @@ export const useL2PaymentRows = ({
   const quotes = useQueries({
     queries: routes.map((route) => getL2PaymentQuoteQueryOptions(route)),
   })
+  // Only a quote with no permit to sign takes the approval; unquoted never blocks.
+  const approvalCosts = useQueries({
+    queries: options.map(({ source }, index) =>
+      getL2ApprovalCostQueryOptions(
+        owner ?? undefined,
+        quotes[index]?.data?.needsOnchainApproval ? source : undefined,
+      ),
+    ),
+  })
 
   if (options.length === 0) return undefined
   const rows = options.map((option, index): L2PaymentRow => {
@@ -186,6 +200,11 @@ export const useL2PaymentRows = ({
       isQuoteStale:
         amountRaw !== 0n && (!isQuoted || !!quote?.isPlaceholderData),
       hasQuoteFailed: isQuoted && !!quote?.isError,
+      isShortOfGas: isShortOfApprovalGas(
+        quote?.data,
+        wallets?.[option.source.chain.id]?.eth,
+        approvalCosts[index]?.data,
+      ),
     }
   })
   return {

@@ -1,7 +1,9 @@
 'use client'
 
 import { Trans, useLingui } from '@lingui/react/macro'
-import { BrainCircuit, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { match } from 'ts-pattern'
+import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,7 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { SESSION_SIGNER_MISMATCH_MESSAGE } from '@/lib/smart-account/sessionMessages'
-import { cn } from '@/lib/utils'
 
 /** Why the last attempt in this dialog failed. */
 export type EnableSessionFailure = 'failed' | 'signer-mismatch'
@@ -57,104 +58,68 @@ export const EnableSessionModal = ({
       }}
       open={open}
     >
-      <DialogContent className="max-w-md border-ens-gray-two p-6">
-        <DialogHeader>
-          <DialogTitle asChild>
-            <h2 className="font-medium text-ens-blue-midnight text-xl tracking-tight">
-              <Trans>Enable Smart Sessions</Trans>
-            </h2>
+      <DialogContent className="gap-6 border-ens-gray-two p-6 sm:max-w-sm sm:p-8">
+        <DialogHeader className="items-center gap-0 text-center sm:text-center">
+          <div className="mb-5 flex h-12 items-center justify-center text-ens-blue">
+            {status === 'signing' ? (
+              <Loader2 className="size-10 animate-spin" />
+            ) : (
+              <EnsMobileIcon className="h-12 w-11" />
+            )}
+          </div>
+          <DialogTitle className="font-medium text-ens-blue-midnight text-xl tracking-tight">
+            <Trans>Enable Smart Sessions</Trans>
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            <Trans>
-              Sign once to enable gasless transactions for your ENS operations.
-            </Trans>
+          {status === 'error' && (
+            <p className="mt-2 font-medium text-destructive text-sm">
+              <Trans>The session wasn&apos;t enabled.</Trans>
+            </p>
+          )}
+          <DialogDescription className="mt-2 text-balance text-ens-gray text-sm leading-normal">
+            {match(status)
+              .with('signing', () => (
+                <Trans>
+                  Approve the signature in your wallet, then wait for on-chain
+                  confirmation.
+                </Trans>
+              ))
+              .with('error', () =>
+                failure === 'signer-mismatch' ? (
+                  t(SESSION_SIGNER_MISMATCH_MESSAGE)
+                ) : (
+                  <Trans>
+                    You can keep browsing, but registering or managing names
+                    needs a session.
+                    <br />
+                    Try again when you&apos;re ready.
+                  </Trans>
+                ),
+              )
+              .with('idle', () => (
+                <Trans>
+                  Sign once to skip wallet prompts for registrations and
+                  renewals.
+                  <br />
+                  It&apos;s free and costs no gas.
+                </Trans>
+              ))
+              .exhaustive()}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-4 py-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ens-blue/10">
-            {status === 'signing' ? (
-              <Loader2 className="animate-spin text-ens-blue" size={32} />
-            ) : (
-              <BrainCircuit className="text-ens-blue" size={32} />
-            )}
-          </div>
-
-          <div className="text-center">
-            {status === 'error' ? (
-              <div className="flex flex-col gap-2">
-                <p className="font-medium text-ens-blue-midnight">
-                  <Trans>The session wasn&apos;t enabled.</Trans>
-                </p>
-                <p className="text-ens-gray text-sm">
-                  {failure === 'signer-mismatch' ? (
-                    t(SESSION_SIGNER_MISMATCH_MESSAGE)
-                  ) : (
-                    <Trans>
-                      You can keep browsing, but registering or managing names
-                      needs a session. Try again when you&apos;re ready.
-                    </Trans>
-                  )}
-                </p>
-              </div>
-            ) : status === 'signing' ? (
-              <>
-                <p className="text-ens-blue-midnight">
-                  <Trans>Enabling sessions…</Trans>
-                </p>
-                <p className="mt-2 text-ens-gray text-sm">
-                  <Trans>
-                    Approve the signature in your wallet, then wait for on-chain
-                    confirmation.
-                  </Trans>
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-ens-blue-midnight">
-                  <Trans>Sign once to enable seamless transactions.</Trans>
-                </p>
-                <p className="mt-2 text-ens-gray text-sm">
-                  <Trans>
-                    After signing, your ENS operations (registrations, renewals,
-                    etc.) won&apos;t require additional wallet signatures.
-                  </Trans>
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Button
-            className={cn(
-              'h-11 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider',
-              'hover:bg-ens-blue-hover',
-              'disabled:cursor-not-allowed disabled:opacity-50',
-            )}
-            disabled={status === 'signing'}
-            onClick={handleEnable}
-            type="button"
-          >
-            {status === 'signing' ? (
-              <Trans>Enabling sessions…</Trans>
-            ) : status === 'error' ? (
-              <Trans>Try Again</Trans>
-            ) : (
-              <Trans>Enable Sessions</Trans>
-            )}
-          </Button>
-        </div>
-
-        {status === 'idle' && (
-          <div className="flex flex-col items-center gap-1">
-            <p className="text-center text-ens-gray text-xs">
-              <Trans>
-                This signature is free and doesn&apos;t cost any gas.
-              </Trans>
-            </p>
-          </div>
-        )}
+        <Button
+          className="w-full bg-ens-blue uppercase tracking-wider hover:bg-ens-blue-hover"
+          disabled={status === 'signing'}
+          onClick={handleEnable}
+          size="lg"
+          type="button"
+        >
+          {match(status)
+            .with('signing', () => <Trans>Enabling sessions…</Trans>)
+            .with('error', () => <Trans>Try Again</Trans>)
+            .with('idle', () => <Trans>Enable Sessions</Trans>)
+            .exhaustive()}
+        </Button>
       </DialogContent>
     </Dialog>
   )

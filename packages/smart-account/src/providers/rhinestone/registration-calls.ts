@@ -18,11 +18,13 @@
  */
 
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
+import { defaultReverseRegistrarAdapterSetNameWithHcaSnippet } from '@ensdomains/ensjs-abi/v2/defaultReverseRegistrarAdapter'
 import {
   permissionedResolverInitializeSnippet,
   permissionedResolverSetAddressSnippet,
   permissionedResolverSetTextSnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { reverseRegistrarAdapterClaimWithHcaSnippet } from '@ensdomains/ensjs-abi/v2/reverseRegistrarAdapter'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
@@ -55,10 +57,6 @@ const ethRegistrarAbi = parseAbi([
   'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer)',
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
   'function MAX_COMMITMENT_AGE() view returns (uint64)',
-])
-const reverseAdapterAbi = parseAbi([
-  'function setNameWithHCA(address addr, string name)',
-  'function claimWithHCA(address addr, address resolver) returns (bytes32)',
 ])
 const registryResolverAbi = parseAbi([
   'function resolver(bytes32 node) view returns (address)',
@@ -374,7 +372,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
       to: c.defaultReverseRegistrarHcaAdapter,
       value: 0n,
       data: encodeFunctionData({
-        abi: reverseAdapterAbi,
+        abi: defaultReverseRegistrarAdapterSetNameWithHcaSnippet,
         functionName: 'setNameWithHCA',
         args: [params.wallet, params.setPrimaryName],
       }),
@@ -387,7 +385,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
         to: c.reverseRegistrarHcaAdapter,
         value: 0n,
         data: encodeFunctionData({
-          abi: reverseAdapterAbi,
+          abi: reverseRegistrarAdapterClaimWithHcaSnippet,
           functionName: 'claimWithHCA',
           args: [params.wallet, zeroAddress],
         }),

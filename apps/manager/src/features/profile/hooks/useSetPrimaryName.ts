@@ -15,7 +15,7 @@ import { publicClient } from '@/lib/wagmi'
 import { getIsSafeWalletQueryOptions } from '@/lib/wallet/safe'
 import {
   setPrimaryName,
-  setPrimaryNameWithHca,
+  setPrimaryNameWithEthFallback,
 } from '../service/setPrimaryName'
 
 export interface SetPrimaryNameArgs {
@@ -92,19 +92,21 @@ export function useSetPrimaryName(
       // HCA path: one owner-signed, user-paid intent via the reverse adapters.
       // The wallet client is required even here — it signs the intent and, when
       // the HCA cannot cover its own USDC fee, the funding permit as well.
+      // With no USDC to pay, the owner sends the direct transactions in ETH.
       if (
         signer?.type === 'rhinestone' &&
         !isSafeWallet &&
         ownerAddress &&
         walletClient
       ) {
-        await setPrimaryNameWithHca({
+        await setPrimaryNameWithEthFallback({
           name,
           signer,
           ownerAddress: ownerAddress as Address,
           walletClient,
           publicClient: publicClient as PublicClient,
           chainId,
+          connector,
           onTxId: setTxId,
           confirmFunding: requestFundingApproval,
         })

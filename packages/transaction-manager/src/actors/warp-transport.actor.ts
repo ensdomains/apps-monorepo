@@ -14,7 +14,9 @@
 
 import {
   findGasRefundViolations,
+  type L2BridgeQuote,
   L2BridgeUnconfirmedError,
+  l2BridgeMaxFee,
   quoteL2Bridge,
   readQuotedGasRefunds,
   submitL2Bridge,
@@ -177,31 +179,52 @@ function submitL2FundedIntent(
     const wallet = yield* source
       .getAccount()
       .mapErr(notSent('reach the wallet'))
-    const quote = yield* quoteL2Bridge(wallet, {
-      owner: wallet.getAddress(),
-      sourceChain: source.chain,
-      sourceToken: source.token,
-      targetChain: chain,
-      targetToken,
-      amountOut,
-      recipient: { address: hca.getAddress(), config: hca.config },
-      calls: request.rhinestoneParams.calls,
-    }).mapErr(notSent('quote the payment'))
     // The fee cap bounds the quote alone; this holds it to what checkout showed.
-    if (
+    const heldToCheckout = (quoted: L2BridgeQuote) =>
       displayedCharge !== undefined &&
-      quote.amountIn > withBudgetDrift(displayedCharge)
-    ) {
-      return err(
-        notSent('quote the payment')(
-          new Error(
-            `the payment now costs ${formatUnits(quote.amountIn, 6)} USDC, ` +
-              `but ${formatUnits(displayedCharge, 6)} USDC was shown at ` +
-              'checkout. Please start the registration again.',
-          ),
-        ),
-      )
-    }
+      quoted.amountIn > withBudgetDrift(displayedCharge)
+        ? err(
+            notSent('quote the payment')(
+              new Error(
+                `the payment now costs ${formatUnits(quoted.amountIn, 6)} USDC, ` +
+                  `but ${formatUnits(displayedCharge, 6)} USDC was shown at ` +
+                  'checkout. Please start the registration again.',
+              ),
+            ),
+          )
+        : ok(quoted)
+    const quotePayment = () =>
+      quoteL2Bridge(wallet, {
+        owner: wallet.getAddress(),
+        sourceChain: source.chain,
+        sourceToken: source.token,
+        targetChain: chain,
+        targetToken,
+        amountOut,
+        recipient: { address: hca.getAddress(), config: hca.config },
+        calls: request.rhinestoneParams.calls,
+      })
+        .mapErr(notSent('quote the payment'))
+        .andThen(heldToCheckout)
+    const firstQuote = yield* quotePayment()
+    // An approval can outlast a two-minute quote, so quote again after it.
+    const quote = firstQuote.needsOnchainApproval
+      ? yield* fromPromise(
+          source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut)),
+          notSent('approve USDC for Permit2'),
+        )
+          .andThen(quotePayment)
+          // Signed now, it would fail at claim; the orchestrator hasn't seen the approval.
+          .andThen((fresh) =>
+            fresh.needsOnchainApproval
+              ? err(
+                  notSent('quote the payment')(
+                    new Error('the route still asks for a USDC approval'),
+                  ),
+                )
+              : ok(fresh),
+          )
+      : firstQuote
     const intent = yield* submitL2Bridge(wallet, quote).mapErr((error) => {
       if (error instanceof L2BridgeUnconfirmedError) {
         // It may still fill, so the caller must settle it before paying again.
@@ -326,8 +349,14 @@ export function submitWarpTransaction(
     return errAsync(new ChainIdMismatchError(request.chainId, chain))
   }
 
-  const { calls, feeAsset, sessionEnableData, tokenRequests, auxiliaryFunds } =
-    request.rhinestoneParams
+  const {
+    calls,
+    feeAsset,
+    paymentToken,
+    sessionEnableData,
+    tokenRequests,
+    auxiliaryFunds,
+  } = request.rhinestoneParams
 
   if (sessionEnableData && !signer.session) {
     return errAsync(
@@ -446,6 +475,7 @@ export function submitWarpTransaction(
         // Always user-paid; see UNSPONSORED above.
         sponsored: UNSPONSORED,
         feeAsset: feeAsset ?? DEFAULT_FEE_ASSET,
+        ...(paymentToken ? { sourceAssets: [paymentToken] } : {}),
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).
         // Cast needed: SDK's internal TokenRequests is a strict discriminated union
