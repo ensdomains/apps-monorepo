@@ -1,0 +1,54 @@
+{
+  "description": "Same checks as .claude/settings.json. Codex runs command hooks only. Trust the folder and choose Trust all and continue before the first prompt. See scripts/agent-checks/README.md.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}\"; script=\"$root/scripts/agent-checks/hook.sh\"; if [ ! -f \"$script\" ]; then gitdir=$(git rev-parse --git-dir 2>/dev/null || echo .git); mkdir -p \"$gitdir/agent-checks\"; if [ ! -f \"$gitdir/agent-checks/missing-script\" ]; then echo \"agent-checks: hook script missing at $script. Do not rebase, reset, or rebuild the branch onto another base to satisfy a hook. If a hook flags files you did not touch, say so and continue.\" >&2; printf '%s\\n' '{\"agent\":\"hook\",\"event\":\"missing-script\",\"check\":\"hook\",\"verdict\":\"block\",\"durationMs\":0}' >> \"$gitdir/agent-checks.log\"; : > \"$gitdir/agent-checks/missing-script\"; exit 2; fi; exit 0; fi; exec \"$script\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}\"; script=\"$root/scripts/agent-checks/hook.sh\"; if [ ! -f \"$script\" ]; then gitdir=$(git rev-parse --git-dir 2>/dev/null || echo .git); mkdir -p \"$gitdir/agent-checks\"; if [ ! -f \"$gitdir/agent-checks/missing-script\" ]; then echo \"agent-checks: hook script missing at $script. Do not rebase, reset, or rebuild the branch onto another base to satisfy a hook. If a hook flags files you did not touch, say so and continue.\" >&2; printf '%s\\n' '{\"agent\":\"hook\",\"event\":\"missing-script\",\"check\":\"hook\",\"verdict\":\"block\",\"durationMs\":0}' >> \"$gitdir/agent-checks.log\"; : > \"$gitdir/agent-checks/missing-script\"; exit 2; fi; exit 0; fi; exec \"$script\"",
+            "timeout": 15,
+            "statusMessage": "Checking the command"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|apply_patch|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}\"; script=\"$root/scripts/agent-checks/hook.sh\"; if [ ! -f \"$script\" ]; then gitdir=$(git rev-parse --git-dir 2>/dev/null || echo .git); mkdir -p \"$gitdir/agent-checks\"; if [ ! -f \"$gitdir/agent-checks/missing-script\" ]; then echo \"agent-checks: hook script missing at $script. Do not rebase, reset, or rebuild the branch onto another base to satisfy a hook. If a hook flags files you did not touch, say so and continue.\" >&2; printf '%s\\n' '{\"agent\":\"hook\",\"event\":\"missing-script\",\"check\":\"hook\",\"verdict\":\"block\",\"durationMs\":0}' >> \"$gitdir/agent-checks.log\"; : > \"$gitdir/agent-checks/missing-script\"; exit 2; fi; exit 0; fi; exec \"$script\"",
+            "timeout": 30,
+            "statusMessage": "Checking the diff"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}\"; script=\"$root/scripts/agent-checks/hook.sh\"; if [ ! -f \"$script\" ]; then gitdir=$(git rev-parse --git-dir 2>/dev/null || echo .git); mkdir -p \"$gitdir/agent-checks\"; if [ ! -f \"$gitdir/agent-checks/missing-script\" ]; then echo \"agent-checks: hook script missing at $script. Do not rebase, reset, or rebuild the branch onto another base to satisfy a hook. If a hook flags files you did not touch, say so and continue.\" >&2; printf '%s\\n' '{\"agent\":\"hook\",\"event\":\"missing-script\",\"check\":\"hook\",\"verdict\":\"block\",\"durationMs\":0}' >> \"$gitdir/agent-checks.log\"; : > \"$gitdir/agent-checks/missing-script\"; exit 2; fi; exit 0; fi; exec \"$script\"",
+            "timeout": 180,
+            "statusMessage": "Checking typecheck and tests"
+          }
+        ]
+      }
+    ]
+  }
+}

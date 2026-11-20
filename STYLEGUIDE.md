@@ -132,8 +132,13 @@ These rules represent best practices but allow pragmatic exceptions:
 - **Handle query states independently** - Don't group loading/error states with `||`
 - **Use useQueries for parallel queries** - More concise than multiple useQuery calls
 - **Use generics to preserve types** - Don't lose type information in utility functions
-- **Pattern matching over conditionals** - Use ts-pattern for complex conditions
-- **Readonly modifiers** - Mark data as readonly when it won't change
+- **Pattern matching over conditionals** - `match()` for 3 or more branches (Pattern Matching for Conditional Rendering)
+- **Readonly modifiers** - Mark inputs and fields `readonly`. Use `readonly T[]` for array inputs (Use Readonly for Immutability)
+- **One tagged error per operation** - `TaggedError('Name')<{ cause: unknown }>`, not a new plain `Error` subclass (Error Handling with neverthrow)
+- **ResultFn for multi-step async Results** - a generator and `yield*`, not a long `.andThen` chain (Advanced neverthrow Patterns)
+- **Query option factories** - `getXxxQueryOptions` with an object query key (Data Fetching with TanStack Query)
+- **Boolean names** - `is` / `has` / `should` / `can` (Boolean Naming)
+- **Constants** - `UPPER_SNAKE_CASE` (Constants)
 - **Custom hooks for logic** - Avoid custom hooks for business logic (use for DOM/framework APIs)
 - **Pure functions** - Extract testable logic to pure functions
 
