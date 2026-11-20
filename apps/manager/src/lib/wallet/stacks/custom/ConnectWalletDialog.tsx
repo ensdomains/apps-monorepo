@@ -1,6 +1,8 @@
 import { logger } from '@ens-apps/utils/logger'
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Connector } from 'wagmi'
 import { useConnect, useConnectors, useSwitchChain } from 'wagmi'
 import {
@@ -13,6 +15,8 @@ import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
   connectOnSupportedChain,
+  getMetaMaskRoute,
+  handOffPairingToMetaMask,
   isCoinbase,
   isConnectionCancelled,
   isMetaMask,
@@ -94,7 +98,11 @@ type WalletOption = {
   readonly name: string
   readonly badge?: string
 } & (
-  | { readonly connector: Connector; readonly href?: never }
+  | {
+      readonly connector: Connector
+      readonly connectWith?: (connector: Connector) => Promise<void>
+      readonly href?: never
+    }
   | { readonly href: string; readonly connector?: never }
 )
 
@@ -125,9 +133,14 @@ export const ConnectWalletDialog = ({
     }
   }, [open])
 
-  const metaMask = connectors.find(isMetaMask)
+  const isTouchDevice = useMediaQuery('(pointer: coarse)')
   const coinbase = connectors.find(isCoinbase)
   const walletConnect = connectors.find((c) => c.id === WALLETCONNECT_ID)
+  const metaMaskRoute = getMetaMaskRoute({
+    injected: connectors.find(isMetaMask),
+    walletConnect,
+    isTouchDevice,
+  })
 
   // Other injected wallets (Rabby, Frame, …), deduped by `uid` so wallets that
   // share a display name aren't collapsed into one.
@@ -215,24 +228,42 @@ export const ConnectWalletDialog = ({
     }
   }
 
-  // Curated wallets first, in priority order; MetaMask falls back to an install
-  // link when it isn't detected.
-  const prioritizedWallets: WalletOption[] = [
-    metaMask
-      ? {
-          key: 'metamask',
-          icon: <MetaMaskIcon className="size-8" />,
-          name: 'MetaMask',
-          badge: 'Detected',
-          connector: metaMask,
+  const metaMaskRow = {
+    key: 'metamask',
+    icon: <MetaMaskIcon className="size-8" />,
+    name: 'MetaMask',
+  }
+  const metaMaskOption: WalletOption = match(metaMaskRoute)
+    .with({ kind: 'injected' }, ({ connector }) => ({
+      ...metaMaskRow,
+      badge: 'Detected',
+      connector,
+    }))
+    .with({ kind: 'app' }, ({ connector }) => ({
+      ...metaMaskRow,
+      connector,
+      connectWith: async () => {
+        const stopHandOff = handOffPairingToMetaMask(connector, {
+          openUrl: (url) => window.location.assign(url),
+          storage: window.localStorage,
+        })
+        try {
+          await connect(connector)
+        } finally {
+          stopHandOff()
         }
-      : {
-          key: 'metamask',
-          icon: <MetaMaskIcon className="size-8" />,
-          name: 'MetaMask',
-          badge: 'Install',
-          href: METAMASK_DOWNLOAD_URL,
-        },
+      },
+    }))
+    .with({ kind: 'install' }, () => ({
+      ...metaMaskRow,
+      badge: 'Install',
+      href: METAMASK_DOWNLOAD_URL,
+    }))
+    .exhaustive()
+
+  // Curated wallets first, in priority order.
+  const prioritizedWallets: WalletOption[] = [
+    metaMaskOption,
     ...(coinbase
       ? [
           {
@@ -279,7 +310,7 @@ export const ConnectWalletDialog = ({
         />
       )
     }
-    const { connector } = option
+    const { connector, connectWith = connect } = option
     return (
       <WalletRow
         badge={option.badge}
@@ -288,7 +319,7 @@ export const ConnectWalletDialog = ({
         isPending={pendingId === connector.uid}
         key={option.key}
         name={option.name}
-        onClick={() => connect(connector)}
+        onClick={() => connectWith(connector)}
       />
     )
   }
