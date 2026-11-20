@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertCircle } from 'lucide-react'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
@@ -19,8 +19,10 @@ import {
   SubnamesTable,
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useFirstToExpire } from '@/features/profile/hooks/useFirstToExpire'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getSubnamePagesQueryOptions } from '@/features/profile/hooks/useSubnames'
+import { ChangeSubnameExpiry } from '@/features/registry/components/ChangeSubnameExpiry'
 import { V1SubnamesContent } from '@/features/registry/components/V1SubnamesContent'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -37,6 +39,11 @@ import {
 } from '@/features/registry/hooks/useSubnameDeleteQueue'
 import { getRegistrarAccess } from '@/features/registry/utils/create-subname.helpers'
 import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
+import {
+  canChangeSubnameExpiration,
+  canExtendExpiry,
+  getChangeExpirationBlockedReason,
+} from '@/features/registry/utils/subnameExpiry'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import type { IntentContext } from '@/features/transaction-manager/types'
@@ -48,6 +55,7 @@ import {
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getEthNamesAbove, toParentExpiry } from '@/utils/names/addressNames'
 
 export const Route = createFileRoute('/$name/subnames')({
   component: RouteComponent,
@@ -283,6 +291,7 @@ const SubregistrySubnames = ({
           owner: subname.owner,
           labelhash: subname.labelhash,
           protocol: subname.protocol,
+          expiryDate: subname.expiryDate,
           resourceId:
             subname.protocol === 'v2'
               ? resourceIdFromChainValue(subname.labelhash).unwrapOr(null)
@@ -308,6 +317,52 @@ const SubregistrySubnames = ({
       }),
       enabled: Boolean(connectedAccount),
     })
+
+  // `renew` checks ROLE_RENEW the same way: the root first, then only the rows that could move later.
+  const { data: hasRootRenewRole } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: subregistryAddress,
+      roles: ['ROLE_RENEW'],
+      account: connectedAccount as Address,
+    }),
+    enabled: Boolean(connectedAccount),
+  })
+  const renewResources = useMemo(
+    () =>
+      visibleSubnames.flatMap((subname) =>
+        subname.resourceId && canExtendExpiry(subname.expiryDate, Date.now())
+          ? [subname.resourceId.toString()]
+          : [],
+      ),
+    [visibleSubnames],
+  )
+  const { data: perRowRenewRoles } = useQuery({
+    ...getResourceRolesQueryOptions({
+      registryAddress: subregistryAddress,
+      account: connectedAccount as Address,
+      roles: ['ROLE_RENEW'],
+      resources: renewResources,
+    }),
+    enabled:
+      Boolean(connectedAccount) &&
+      hasRootRenewRole === false &&
+      renewResources.length > 0,
+    placeholderData: keepPreviousData,
+  })
+  const [changingExpiration, setChangingExpiration] =
+    useState<SubnameRow | null>(null)
+
+  // Every subname here lapses with this name and the names above it.
+  const namesAbove = getEthNamesAbove(name)
+  const ancestorExpiry = useFirstToExpire(namesAbove)
+  const parentExpiry = toParentExpiry({
+    isLoading: ancestorExpiry.isLoading,
+    namesAbove,
+    firstToExpire: ancestorExpiry.firstToExpire,
+  })
+  // A subname with no expiry of its own lasts until the first name above it expires, so that's what to extend.
+  const expiresWithName =
+    parentExpiry.status === 'ready' ? parentExpiry.parentExpiryName : undefined
 
   const unregisterResources = useMemo(
     () =>
@@ -360,8 +415,28 @@ const SubregistrySubnames = ({
           subname.resourceId !== null &&
           (hasRootUnregisterRole === true ||
             holdsRolesOn(perRowUnregisterRoles, subname.resourceId)),
+        expiryDate: subname.expiryDate,
+        canChangeExpiration: canChangeSubnameExpiration({
+          resourceId: subname.resourceId,
+          expiryDate: subname.expiryDate,
+          nowMs: Date.now(),
+          hasRootRenewRole,
+          perRowRenewRoles,
+        }),
+        changeExpirationBlockedReason: getChangeExpirationBlockedReason({
+          expiryDate: subname.expiryDate,
+          canRenew: hasRootRenewRole === true,
+          expiresWithName,
+        }),
       })),
-    [visibleSubnames, hasRootUnregisterRole, perRowUnregisterRoles],
+    [
+      visibleSubnames,
+      hasRootUnregisterRole,
+      perRowUnregisterRoles,
+      hasRootRenewRole,
+      perRowRenewRoles,
+      expiresWithName,
+    ],
   )
 
   const handleDeleteSubname = (subname: SubnameRow) =>
@@ -411,7 +486,22 @@ const SubregistrySubnames = ({
         onClearSelected={canDeleteSubname ? handleClearSelected : undefined}
         isDeleting={isDeleting}
         pendingNames={pendingNames}
+        onChangeExpiration={setChangingExpiration}
+        parentExpiry={parentExpiry}
       />
+      {changingExpiration?.resourceId && changingExpiration.expiryDate && (
+        <ChangeSubnameExpiry
+          key={changingExpiration.name}
+          parentName={name}
+          registryAddress={subregistryAddress}
+          subname={{
+            name: changingExpiration.name,
+            resourceId: changingExpiration.resourceId,
+            expiryDate: changingExpiration.expiryDate,
+          }}
+          onClose={() => setChangingExpiration(null)}
+        />
+      )}
       {deleteError && (
         <ErrorMessage
           title="Failed to delete subname"
