@@ -12,6 +12,7 @@ import {
   type PublicClient,
   zeroAddress,
 } from 'viem'
+import { call } from 'viem/actions'
 import { envConfig } from '@/config'
 import { publicClient } from '@/lib/wagmi'
 import {
@@ -56,8 +57,11 @@ export const canWriteEthAddressRecord = async (
     records: { coins: [{ coin: ETH_COIN_TYPE, value: ownerAddress }] },
   })
   try {
-    // Probe from the same owner EOA used by profile record writes.
-    await client.call({ account: ownerAddress, to: resolverAddress, data })
+    // Probe from the same owner EOA used by profile record writes; a gateway lookup reads as a revert.
+    await call(
+      { ...client, ccipRead: false },
+      { account: ownerAddress, to: resolverAddress, data },
+    )
     return true
   } catch (error) {
     if (

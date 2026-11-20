@@ -1,18 +1,15 @@
-import {
-  type Address,
-  ExecutionRevertedError,
-  type PublicClient,
-  RpcRequestError,
-} from 'viem'
+import { type Address, type PublicClient, RpcRequestError } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
+import {
+  createEthCallClient,
+  offchainLookupRevert,
+  revertWith,
+} from '@/test-utils/ethCallClient.fixture'
 import { canSetNameResolver } from './setResolverAccess'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 const REGISTRY = '0x2222222222222222222222222222222222222222' as Address
-
-const clientWith = (call: PublicClient['call']) =>
-  ({ call }) as unknown as PublicClient
 
 const probe = (publicClient: PublicClient) =>
   canSetNameResolver({
@@ -24,31 +21,40 @@ const probe = (publicClient: PublicClient) =>
 
 describe('canSetNameResolver', () => {
   it('probes the registry as the owner and reports a passing simulation', async () => {
-    const call = vi.fn(async () => ({ data: undefined })) as never
+    const ethCall = vi.fn(async () => '0x' as const)
 
-    await expect(probe(clientWith(call))).resolves.toBe(true)
-    expect(call).toHaveBeenCalledWith(
-      expect.objectContaining({ account: OWNER, to: REGISTRY }),
+    await expect(probe(createEthCallClient(ethCall).client)).resolves.toBe(true)
+    expect(ethCall).toHaveBeenCalledWith(
+      expect.objectContaining({ from: OWNER, to: REGISTRY }),
     )
   })
 
   it('reports false when the registry rejects the caller', async () => {
-    const call = vi.fn(async () => {
-      throw new ExecutionRevertedError({ message: 'Unauthorized' })
-    }) as never
+    const { client } = createEthCallClient(async () => {
+      throw revertWith()
+    })
 
-    await expect(probe(clientWith(call))).resolves.toBe(false)
+    await expect(probe(client)).resolves.toBe(false)
+  })
+
+  it('reports false without a gateway request when the registry answers with OffchainLookup', async () => {
+    const { client, gateway } = createEthCallClient(async () => {
+      throw offchainLookupRevert(REGISTRY)
+    })
+
+    await expect(probe(client)).resolves.toBe(false)
+    expect(gateway).not.toHaveBeenCalled()
   })
 
   it('throws on a non-revert failure so authority stays unknown', async () => {
-    const call = vi.fn(async () => {
+    const { client } = createEthCallClient(async () => {
       throw new RpcRequestError({
         body: {},
         error: { code: -32603, message: 'internal error' },
         url: 'http://rpc.test',
       })
-    }) as never
+    })
 
-    await expect(probe(clientWith(call))).rejects.toThrow(/internal error/i)
+    await expect(probe(client)).rejects.toThrow(/internal error/i)
   })
 })
