@@ -16,6 +16,9 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { ensureWalletChain } from '@/lib/wallet/ensureWalletChain'
 import { followChain } from '@/lib/wallet/followChain'
 
+// The quote that follows must see the approval on the orchestrator's node too.
+const APPROVAL_CONFIRMATIONS = 2
+
 const findL2Source = (chainId: number): L2Source | undefined =>
   l2Sources.find((source) => source.chain.id === chainId)
 
@@ -75,7 +78,10 @@ export const getL2FundingSource = (
         maxFeePerGas: fees.maxFeePerGas,
         maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
       })
-      const receipt = await client.waitForTransactionReceipt({ hash })
+      const receipt = await client.waitForTransactionReceipt({
+        hash,
+        confirmations: APPROVAL_CONFIRMATIONS,
+      })
       if (receipt.status !== 'success') {
         throw new Error('The Permit2 approval reverted.')
       }
