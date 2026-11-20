@@ -1,3 +1,4 @@
+import { PERMIT2_ADDRESS } from '@ens-apps/smart-account'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { okAsync, ResultAsync } from 'neverthrow'
@@ -5,9 +6,11 @@ import { type Address, erc20Abi } from 'viem'
 import { l2Sources } from '@/config'
 import type { L2Source } from '@/l2Sources'
 
-/** The owner's wallet on one L2: the USDC it can pay with. */
+/** The owner's wallet on one L2: USDC, what Permit2 may already move, and ETH for gas. */
 export type L2Wallet = Readonly<{
   usdc: bigint
+  permit2Allowance: bigint
+  eth: bigint
 }>
 
 export type L2Wallets = Record<number, L2Wallet | null>
@@ -18,18 +21,29 @@ const readL2Wallet = (
   { chain, usdc, client }: L2Source,
 ): ResultAsync<readonly [number, L2Wallet | null], never> =>
   ResultAsync.fromPromise(
-    client.readContract({
-      address: usdc,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [owner],
-    }),
+    Promise.all([
+      client.readContract({
+        address: usdc,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [owner],
+      }),
+      client.readContract({
+        address: usdc,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [owner, PERMIT2_ADDRESS],
+      }),
+      client.getBalance({ address: owner }),
+    ]),
     () => null,
   )
-    .map((balance): readonly [number, L2Wallet | null] => [
-      chain.id,
-      { usdc: balance },
-    ])
+    .map(
+      ([usdcBalance, permit2Allowance, eth]): readonly [
+        number,
+        L2Wallet | null,
+      ] => [chain.id, { usdc: usdcBalance, permit2Allowance, eth }],
+    )
     .orElse(() => okAsync([chain.id, null] as const))
 
 /** The owner's wallet on each L2 source by chain id; `null` where a read failed. */
