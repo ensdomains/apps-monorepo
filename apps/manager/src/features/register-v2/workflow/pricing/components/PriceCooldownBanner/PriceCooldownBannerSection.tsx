@@ -1,7 +1,10 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useMemo, useRef } from 'react'
-import { getNameStatsQueryOptions } from '@/features/register-v2/data/queries/nameStats.query'
+import {
+  getNameStatsDemand,
+  getNameStatsQueryOptions,
+} from '@/features/register-v2/data/queries/nameStats.query'
 import { getOracleParamsQueryOptions } from '@/features/register-v2/data/queries/oracleParams.query'
 import { getRegisterPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
@@ -44,13 +47,10 @@ export const PriceCooldownBannerSection = () => {
     ...getNameStatsQueryOptions(`${label}.eth`),
     enabled: isFeatureEnabled('TEMP_PREMIUM_NAME_STATS'),
   })
-  const demand = useMemo(() => {
-    if (!nameStatsQuery.data) return undefined
-    return {
-      favoriteCount: nameStatsQuery.data.favorites,
-      searchCount30d: nameStatsQuery.data.unique_searches_last_30d,
-    }
-  }, [nameStatsQuery.data])
+  const demand = useMemo(
+    () => getNameStatsDemand(nameStatsQuery.data),
+    [nameStatsQuery.data],
+  )
 
   const bannerData = useMemo(() => {
     const premiumDecay = oracleQuery.data?.premiumDecay

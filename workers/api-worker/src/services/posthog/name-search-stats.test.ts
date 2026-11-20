@@ -34,6 +34,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
       'https://posthog.example/api/environments/test/query_endpoints/unique-searches/run/',
       expect.objectContaining({
         method: 'POST',
+        signal: expect.any(AbortSignal),
         headers: expect.objectContaining({
           Authorization: 'Bearer secret',
           'Content-Type': 'application/json',
@@ -99,7 +100,7 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
     ).resolves.toMatchObject({ value: 42 })
   })
 
-  it('returns zero when PostHog fails', async () => {
+  it('returns an error when PostHog fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
 
     await expect(
@@ -114,6 +115,8 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
         } as unknown as CloudflareBindings,
         'vitalik.eth',
       ),
-    ).resolves.toMatchObject({ value: 0 })
+    ).resolves.toMatchObject({
+      error: { name: 'POSTHOG_NAME_SEARCH_STATS_ERROR' },
+    })
   })
 })

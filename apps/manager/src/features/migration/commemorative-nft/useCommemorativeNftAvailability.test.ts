@@ -1,6 +1,6 @@
 import type { EnsNetwork } from '@ens-apps/config'
+import { useFeatureFlagEnabled } from '@ens-apps/utils/posthog/useFeatureFlags'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useFeatureFlagEnabled } from '@posthog/react'
 import {
   onlineManager,
   QueryClient,
@@ -29,7 +29,9 @@ import type { CommemorativeNftEligibilityResult } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 
 vi.mock('wagmi', () => ({ useChainId: vi.fn(), useConfig: vi.fn() }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: vi.fn() }))
+vi.mock('@ens-apps/utils/posthog/useFeatureFlags', () => ({
+  useFeatureFlagEnabled: vi.fn(),
+}))
 const mockEnvConfig = vi.hoisted((): { network: EnsNetwork } => ({
   network: 'mainnet',
 }))

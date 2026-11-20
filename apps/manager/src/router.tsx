@@ -9,6 +9,7 @@ import { getGlobalStartContext } from '@tanstack/react-start'
 import { NotFoundPage } from './features/not-found/pages/NotFoundPage'
 import { initializeIntercom } from './lib/intercom'
 import { getLocale, loadCatalog } from './lib/locale'
+import { captureException } from './lib/posthog/events'
 import { routeTree } from './routeTree.gen'
 import {
   deserializeBigInts,
@@ -68,6 +69,7 @@ export async function getRouter() {
     routeTree,
     scrollRestoration: true,
     defaultPreload: 'intent',
+    defaultOnCatch: captureException,
     // Avoid TanStack's generic "<p>Not Found</p>" when a route throws notFound.
     defaultNotFoundComponent: NotFoundPage,
     context: {

@@ -472,6 +472,22 @@ describe('submitHcaRenewal', () => {
     expect(onSubmitted).toHaveBeenCalledWith('tx-1')
   })
 
+  it('preserves the fill error as an unobserved outcome after acceptance', async () => {
+    const cause = new Error('Could not observe intent fill')
+    mocks.waitForTransaction.mockImplementationOnce(async () => {
+      const [{ request }] = mocks.startTransaction.mock.calls[0] as [
+        { request: { rhinestoneParams: { onIntentSubmitted?: () => void } } },
+      ]
+      request.rhinestoneParams.onIntentSubmitted?.()
+      throw cause
+    })
+
+    await expect(submitHcaRenewal(params)).rejects.toMatchObject({
+      cause,
+      message: cause.message,
+    })
+  })
+
   it('refuses to sign with a wallet that does not control the owner', async () => {
     await expect(
       submitHcaRenewal({

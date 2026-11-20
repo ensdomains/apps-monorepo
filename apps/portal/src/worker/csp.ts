@@ -15,8 +15,7 @@
  * from its cookies by `getCustomRpcOrigins`), the only per-browser
  * connect-src entries.
  *
- * PostHog reporting is temporarily disabled while PostHog is retained only
- * for feature flags.
+ * CSP violation reporting to PostHog stays disabled; SDK error tracking is separate.
  */
 
 import { originFromEnvUrl } from '@ens-apps/config'

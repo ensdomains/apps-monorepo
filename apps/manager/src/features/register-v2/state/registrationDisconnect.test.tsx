@@ -64,7 +64,10 @@ vi.mock('@/utils/blockExplorer/verifyProxyContract', () => ({
 vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: { reset: vi.fn() },
 }))
-vi.mock('@/lib/posthog/events', () => ({ track: vi.fn() }))
+vi.mock('@/lib/posthog/events', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/posthog/events')>()),
+  track: vi.fn(),
+}))
 // Resuming re-quotes the price through the shared public client, which would
 // otherwise read live Sepolia and outlast `waitFor`.
 vi.mock('../data/queries/pricing.query', async (importOriginal) => {

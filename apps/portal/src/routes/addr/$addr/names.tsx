@@ -135,6 +135,8 @@ const NamesList = ({
     transactions: renewalTransactions,
     startFlow,
     startMultiFlow,
+    analyticsView,
+    beginAnalyticsFlow,
     clearIncompatibleRenewalState,
     openModal: openRenewalModal,
   } = useRenewalTransactions({
@@ -268,6 +270,7 @@ const NamesList = ({
                 clearIncompatibleRenewalState(
                   extendableNames.length === 1 ? 'single' : 'multi',
                 )
+                beginAnalyticsFlow(extendableNames, extendableNames.length > 1)
                 setExtendModalOpen(true)
               }}
             >
@@ -308,6 +311,7 @@ const NamesList = ({
       {extendableNames.length === 1 && (
         <ExtendNameModal
           open={extendModalOpen && !isTransactionModalOpen}
+          analyticsView={analyticsView}
           onClose={() => setExtendModalOpen(false)}
           selectedName={extendableNames[0]}
           onExtend={(config) => {
@@ -319,6 +323,7 @@ const NamesList = ({
       {extendableNames.length > 1 && (
         <MultiNameExtendModal
           open={extendModalOpen && !isTransactionModalOpen}
+          analyticsView={analyticsView}
           onClose={() => setExtendModalOpen(false)}
           selectedNames={extendableNames}
           onExtend={(config) => {

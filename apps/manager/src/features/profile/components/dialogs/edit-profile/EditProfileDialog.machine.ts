@@ -1,4 +1,5 @@
 import type { EOASigner } from '@ens-apps/transaction-manager'
+import { createProfileEditingAnalytics } from '@ens-apps/utils/posthog/profileEditing'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import type { Connector } from 'wagmi'
 import { assign, type SnapshotFrom, setup } from 'xstate'
@@ -10,6 +11,7 @@ import type { ResolverRecordReview } from '@/features/profile/service/resolverRe
 import { assertProfileResolverState } from '@/features/profile/service/resolverWriteAccess'
 import type { ProfileRecords } from '@/features/profile/types'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
+import { startAnalyticsOperation, track } from '@/lib/posthog/events'
 import { hasOwnerWallet } from '@/lib/wallet'
 import {
   type GeneralField,
@@ -67,6 +69,7 @@ const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
 export type PendingSave = PendingUpdateSave | PendingSetupSave
 
 interface EditProfileDialogContext {
+  readonly analytics: ReturnType<typeof createProfileEditingAnalytics>
   readonly ethAddressChanged: boolean
   readonly isPreviewing: boolean
   readonly name: string
@@ -83,6 +86,7 @@ interface EditProfileDialogInput {
 type EditProfileDialogEvent =
   | { type: 'OPEN'; name: string; records: ProfileRecords }
   | { type: 'CLOSE' }
+  | { type: 'RECORDS_CHANGED'; isChanged: boolean }
   | { type: 'PREVIEW' }
   | { type: 'RESUME_EDIT' }
   | { type: 'RESET_SAVE_STATE' }
@@ -208,6 +212,8 @@ export const editProfileDialogMachine = setup({
     input: {} as EditProfileDialogInput,
   },
   guards: {
+    hasRecordChange: ({ event }) =>
+      event.type === 'RECORDS_CHANGED' && event.isChanged,
     nameChanged: ({ context, event }) =>
       event.type === 'SAVE_REQUESTED' && context.name !== event.deps.name,
     missingOwner: ({ event }) =>
@@ -219,6 +225,8 @@ export const editProfileDialogMachine = setup({
       !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress),
   },
   actions: {
+    analyticsOpen: ({ context }) => context.analytics.open(context.name),
+    analyticsChange: ({ context }) => context.analytics.change(),
     openDialog: assign({
       ethAddressChanged: () => false,
       isPreviewing: () => false,
@@ -287,6 +295,10 @@ export const editProfileDialogMachine = setup({
 }).createMachine({
   id: 'editProfileDialog',
   context: ({ input }) => ({
+    analytics: createProfileEditingAnalytics({
+      track,
+      startOperation: startAnalyticsOperation,
+    }),
     ethAddressChanged: false,
     isPreviewing: false,
     name: input.name,
@@ -299,13 +311,17 @@ export const editProfileDialogMachine = setup({
       on: {
         OPEN: {
           target: 'editing.idle',
-          actions: 'openDialog',
+          actions: ['openDialog', 'analyticsOpen'],
         },
       },
     },
     editing: {
       initial: 'idle',
       on: {
+        RECORDS_CHANGED: {
+          guard: 'hasRecordChange',
+          actions: 'analyticsChange',
+        },
         CLOSE: {
           target: 'closed',
           actions: 'endPreview',

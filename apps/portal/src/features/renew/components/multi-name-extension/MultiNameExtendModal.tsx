@@ -12,11 +12,13 @@ import {
   useMultiNamePricing,
 } from '../../hooks/useMultiNamePricing'
 import { useOwnsAllNames } from '../../hooks/useOwnsAllNames'
+import { useRenewalFlowView } from '../../hooks/useRenewalFlowView'
 import type {
   MultiRenewalEntry,
   SelectedName,
 } from '../../hooks/useRenewalTransactions'
 import type { ExtensionSpan } from '../../utils/extensionDurationPicker'
+import type { RenewalView } from '../../utils/renewalAnalytics'
 import { ExtendNameDisclaimer } from '../ExtendNameDisclaimer'
 import { MultiNameExtendSettings } from './MultiNameExtendSettings'
 import { MultiNameExtendSummary } from './MultiNameExtendSummary'
@@ -29,6 +31,7 @@ type MultiRenewConfig = {
 
 type MultiNameExtendModalProps = {
   readonly open: boolean
+  readonly analyticsView?: RenewalView
   readonly onClose: () => void
   readonly selectedNames: readonly SelectedName[]
   readonly onExtend: (config: MultiRenewConfig) => void
@@ -38,6 +41,7 @@ export type MultiNameExtendModalStep = 'disclaimer' | 'settings' | 'summary'
 
 export const MultiNameExtendModal = ({
   open,
+  analyticsView,
   onClose,
   selectedNames,
   onExtend,
@@ -58,6 +62,8 @@ export const MultiNameExtendModal = ({
     selectedName: item.selectedName,
     duration: item.duration,
   }))
+
+  useRenewalFlowView(analyticsView, open, step)
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)

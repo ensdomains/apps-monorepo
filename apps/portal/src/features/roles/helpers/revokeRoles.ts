@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 /**
  * Pure async function to remove a user from an ENS V2 registry name.
  *
@@ -21,6 +22,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import {
   assertCalldataResourceId,
   canonicalResourceId,
@@ -120,6 +122,7 @@ export async function revokeRoles(
     throw new Error('No roles found to revoke')
   }
 
+  const operation = startAnalyticsOperation()
   const intent = prepareRevokeRolesTransaction(params)
 
   const txId = transactionManager.startTransaction(intent, signer, {
@@ -130,6 +133,11 @@ export async function revokeRoles(
   })
 
   const result = await waitForTransaction(txId)
+  operation.capture('roles:permissions_update', {
+    ...getAnalyticsNameProperties(name),
+    chain_id: chainId,
+    action: 'revoke',
+  })
 
   return {
     txId,

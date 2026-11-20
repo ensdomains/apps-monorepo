@@ -49,13 +49,17 @@ const FeedbackMenuItem = () => {
 
   return (
     <DropdownMenuItem
-      onSelect={() =>
-        posthog.displaySurvey(FEEDBACK_SURVEY_ID, {
-          displayType: 'popover',
-          ignoreConditions: true,
-          ignoreDelay: true,
-        })
-      }
+      onSelect={() => {
+        try {
+          posthog.displaySurvey(FEEDBACK_SURVEY_ID, {
+            displayType: 'popover',
+            ignoreConditions: true,
+            ignoreDelay: true,
+          })
+        } catch (error) {
+          console.warn('[posthog] feedback failed', error)
+        }
+      }}
     >
       <MessageSquareTextIcon className="size-4" />
       Feedback

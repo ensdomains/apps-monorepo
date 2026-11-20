@@ -2,6 +2,34 @@ import { describe, expect, it } from 'vitest'
 import { getRegistrationStageMessages } from './txStageMessages'
 
 describe('getRegistrationStageMessages', () => {
+  it.each(['waitingForCommitment', 'waitingForRhinestoneBundle'] as const)(
+    'shows the required session signature after reaching %s',
+    (highestProgressStage) => {
+      const message = getRegistrationStageMessages(
+        { value: 'reauthorizingSession' },
+        undefined,
+        highestProgressStage,
+      )
+
+      expect(message.stageLabel.message).toBe('Confirm updated network fees')
+      expect(message.stageDescription?.message).toBe(
+        'Network fees changed since you authorized this registration. Sign once more in your wallet to continue.',
+      )
+    },
+  )
+
+  it('keeps the highest progress message for ordinary submission states', () => {
+    const message = getRegistrationStageMessages(
+      { value: 'submittingSetupBundle' },
+      undefined,
+      'waitingForCommitment',
+    )
+
+    expect(message.stageLabel.message).toBe(
+      'Waiting for commitment confirmation',
+    )
+  })
+
   it('maps waiting for commitment pending stage', () => {
     const message = getRegistrationStageMessages(
       { value: 'waitingForCommitment' },

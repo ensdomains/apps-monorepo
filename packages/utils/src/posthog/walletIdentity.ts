@@ -1,0 +1,40 @@
+import { getAddress } from 'viem'
+
+type IdentityInput = {
+  readonly isGranted: boolean
+  readonly isIdentified: boolean
+  readonly distinctId: string
+  readonly address?: string
+}
+
+type IdentityAction =
+  | { readonly type: 'none' | 'reset' }
+  | { readonly type: 'identify' | 'replace'; readonly address: string }
+
+export const getWalletIdentityAction = (
+  input: IdentityInput,
+): IdentityAction => {
+  if (!input.isGranted) return { type: input.isIdentified ? 'reset' : 'none' }
+  if (!input.address) return { type: input.isIdentified ? 'reset' : 'none' }
+  const address = input.address.toLowerCase()
+  if (input.isIdentified && input.distinctId.toLowerCase() === address)
+    return { type: 'none' }
+  return {
+    type: input.isIdentified ? 'replace' : 'identify',
+    address: getAddress(input.address),
+  }
+}
+
+/** Undefined means the connector is unresolved; null means a stable disconnection. */
+export const hasMatchingWalletIdentity = (
+  address: string | null | undefined,
+  identity: string,
+  event?: string,
+): boolean => {
+  // Native anonymous activity can precede wallet restoration and is merged by SDK identify.
+  if (event?.startsWith('$') && !/^0x[\da-f]{40}$/i.test(identity)) return true
+  if (address === undefined) return false
+  if (address === null)
+    return event === 'wallet:disconnect' || !/^0x[\da-f]{40}$/i.test(identity)
+  return address.toLowerCase() === identity.toLowerCase()
+}

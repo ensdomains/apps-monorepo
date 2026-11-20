@@ -227,6 +227,8 @@ export type SmartAccountConfig = {
 }
 
 export interface TransactionOptions {
+  /** Connected wallet that initiated the run when the signer is a smart account. */
+  readonly initiatingWalletAddress?: Address
   usePrivateMempool?: boolean
   confirmations?: number
   timeout?: number

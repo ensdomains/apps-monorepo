@@ -31,7 +31,9 @@ import { MobileAccountDrawer } from './MobileAccountDrawer'
 vi.mock('@/features/wallet/hooks/useConnectedReverseName', () => ({
   useConnectedReverseName: () => ({ data: null, isSuccess: true }),
 }))
-vi.mock('@posthog/react', () => ({ useFeatureFlagEnabled: () => false }))
+vi.mock('@ens-apps/utils/posthog/useFeatureFlags', () => ({
+  useFeatureFlagEnabled: () => false,
+}))
 vi.mock('./AccountTriggerContent', () => ({
   AccountTriggerContent: () => <span>Account</span>,
 }))

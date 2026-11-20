@@ -86,9 +86,18 @@ export default createApp()
       return c.json({ error: 'Failed to fetch name stats' }, 500)
     }
 
+    if (uniqueSearchesResult.isErr()) {
+      logger.error('Failed to fetch name search statistics', {
+        error: uniqueSearchesResult.error,
+        name,
+      })
+    }
+
     return c.json({
       name,
       favorites: favoriteCountResult.value[0]?.value ?? 0,
-      unique_searches_last_30d: uniqueSearchesResult.unwrapOr(0),
+      unique_searches_last_30d: uniqueSearchesResult.isOk()
+        ? uniqueSearchesResult.value
+        : null,
     })
   })

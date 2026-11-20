@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { trackNftEvent } from '../../commemorative-nft/diagnostics'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 
 const RENDERER_TIMEOUT_MS = 10_000
 const RENDERER_MESSAGE_TYPE = 'ens-commemorative-nft-renderer'
@@ -39,6 +39,7 @@ export const useCommemorativeNftRenderer = (params: {
   readonly onError?: () => void
   readonly holdForReveal?: boolean
 }) => {
+  const [analytics] = useState(startAnalyticsOperation)
   const rendererRef = useRef<HTMLIFrameElement>(null)
   const [revealFrame, setRevealFrame] = useState<NftRevealFrame>()
   const rendererDocumentLoaded = useRef(false)
@@ -143,10 +144,12 @@ export const useCommemorativeNftRenderer = (params: {
       callbacks.current.onReady?.()
     } else if (failed && reportedStatus.current !== 'failed') {
       reportedStatus.current = 'failed'
-      trackNftEvent('nft:renderer_fallback', { reason: failureReason.current })
+      analytics.capture('nft:renderer_fallback', {
+        reason: failureReason.current,
+      })
       callbacks.current.onError?.()
     }
-  }, [failed, ready])
+  }, [analytics, failed, ready])
 
   return {
     rendererRef,

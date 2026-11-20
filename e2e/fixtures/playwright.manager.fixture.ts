@@ -48,6 +48,12 @@ export const MIGRATION_FEATURE_FLAGS = { migration: true } as const
 export const PROFILE_FEATURE_FLAGS = { 'profile-view-new': true } as const
 const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
 
+export async function mockManagerPostHog(page: Page): Promise<void> {
+  await page.route('https://posthog.e2e.invalid/**', (route) =>
+    route.fulfill({ json: { featureFlags: {}, featureFlagPayloads: {} } }),
+  )
+}
+
 export async function overrideManagerFeatureFlags(
   page: Page,
   featureFlags: Record<string, boolean>,
@@ -239,6 +245,7 @@ export const test = base.extend<ManagerFixtures>({
   // Install the bigname mock on every page when E2E_MOCK_BIGNAME=true.
   // Nothing indexes the local chain, so bigname reads are answered from the mock.
   page: async ({ page }, use) => {
+    await mockManagerPostHog(page)
     // Answer the analytics banner up front so it never covers a control.
     await page.context().addCookies([
       {

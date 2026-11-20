@@ -1,89 +1,26 @@
-import {
-  ANALYTICS_CONSENT_COOKIE,
-  type AnalyticsConsent,
-  hasAnalyticsConsent,
-  notifyAnalyticsConsent,
-} from '@ens-apps/utils/posthog/analyticsConsent'
-import type {
-  PostHog,
-  PostHogConfig,
-} from 'posthog-js/dist/module.full.no-external'
+import { canCaptureAnalytics } from '@ens-apps/utils/posthog/analyticsConfiguration'
+import { getAppPostHogConfig } from '@ens-apps/utils/posthog/appConfiguration'
+import type { PostHogConfig } from 'posthog-js/dist/module.full.no-external'
+import { getConnectedWalletAddress } from './events'
 
-// `loaded` gets the SDK's narrower PostHogInterface, so take only what's used.
-type ConsentTarget = Pick<
-  PostHog,
-  | 'get_explicit_consent_status'
-  | 'get_property'
-  | 'opt_in_capturing'
-  | 'opt_out_capturing'
-  | 'reset'
-  | 'set_config'
-> & { readonly __loaded?: boolean }
+export {
+  applyAnalyticsConsent,
+  resetKeepingConsent,
+  setAnalyticsConsent,
+} from '@ens-apps/utils/posthog/analyticsConfiguration'
 
-// Writes an answer to PostHog's consent cookie.
-const writeConsent = (client: ConsentTarget, consent: AnalyticsConsent) => {
-  if (consent === 'granted')
-    client.opt_in_capturing({ captureEventName: false })
-  if (consent === 'denied') client.opt_out_capturing()
+const ANALYTICS_ENVIRONMENT = {
+  network: import.meta.env.VITE_ENS_NETWORK,
+  isDevelopment: import.meta.env.DEV,
+  isDebugEnabled: import.meta.env.VITE_PUBLIC_POSTHOG_DEBUG === 'true',
+  projectKey: import.meta.env.VITE_PUBLIC_POSTHOG_KEY,
 }
 
-/** Records the visitor's answer. Declining also forgets their identity. */
-export const setAnalyticsConsent = (
-  client: ConsentTarget,
-  granted: boolean,
-): void => {
-  if (!granted) client.reset()
-  writeConsent(client, granted ? 'granted' : 'denied')
-  notifyAnalyticsConsent()
-}
-
-/** Forgets the visitor's identity. A plain `reset()` deletes their answer too. */
-export const resetKeepingConsent = (client: ConsentTarget): void => {
-  if (!client.__loaded) return
-  const consent = client.get_explicit_consent_status()
-  client.reset()
-  writeConsent(client, consent)
-}
-
-/**
- * Lines PostHog up with its answer. Without consent it keeps no wallet
- * identity, and session recording and surveys stay off.
- */
-export const applyAnalyticsConsent = (client: ConsentTarget): void => {
-  const isGranted = hasAnalyticsConsent(client)
-  if (!isGranted && client.get_property('$user_state') === 'identified')
-    resetKeepingConsent(client)
-  client.set_config({
-    disable_session_recording: !isGranted || import.meta.env.DEV,
-    disable_surveys: !isGranted,
-  })
-}
-
-// Capture stays opted out until the visitor accepts. Feature flags work
-// either way.
-export const POSTHOG_CONFIG = {
-  capture_pageview: 'history_change',
-  // Turned on with consent by applyAnalyticsConsent.
-  disable_session_recording: true,
-  disable_surveys: true,
-  // Neither app uses these.
-  disable_product_tours: true,
-  disable_web_experiments: true,
-  disable_conversations: true,
-  defaults: '2025-11-30',
-  person_profiles: 'identified_only',
-  opt_out_capturing_by_default: true,
-  // The answer lives in a cookie on the parent domain (cross_subdomain_cookie
-  // is on by default), so the Explorer and the Manager share one answer.
-  opt_out_capturing_persistence_type: 'cookie',
-  consent_persistence_name: ANALYTICS_CONSENT_COOKIE,
-  loaded: (client) => {
-    // Runs before the first flag request, so a wallet identity kept without
-    // consent (such as one from before the banner) is gone before flags load.
-    applyAnalyticsConsent(client)
-    // Writing the answer again renews its cookie, which Safari drops 7 days
-    // after it was written.
-    writeConsent(client, client.get_explicit_consent_status())
-    notifyAnalyticsConsent()
-  },
-} satisfies Partial<PostHogConfig>
+export const IS_ANALYTICS_ENABLED = canCaptureAnalytics(ANALYTICS_ENVIRONMENT)
+export const POSTHOG_KEY =
+  import.meta.env.VITE_PUBLIC_POSTHOG_KEY?.trim() || undefined
+export const POSTHOG_CONFIG = getAppPostHogConfig({
+  sourceApp: 'manager',
+  environment: ANALYTICS_ENVIRONMENT,
+  getWalletAddress: () => getConnectedWalletAddress(),
+}) satisfies Partial<PostHogConfig>

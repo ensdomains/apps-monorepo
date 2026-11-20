@@ -13,6 +13,12 @@ describe('recordNameSearch', () => {
   it('tracks the selected name in PostHog', () => {
     recordNameSearch('Vitalik.eth')
 
+    expect(mocks.track).toHaveBeenCalledWith('name_search:result_select', {
+      ens_name: 'vitalik.eth',
+      source: 'header_search',
+      result_type: 'name',
+      name_length: 11,
+    })
     expect(mocks.track).toHaveBeenCalledWith('name:search_selected', {
       name: 'vitalik.eth',
       source: 'header_search',

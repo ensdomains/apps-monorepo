@@ -39,12 +39,18 @@ export const ExtendNameButton = ({
 
   const { canExtend, selectedName } = useCanExtend({ name, protocolVersion })
 
-  const { transactions, startFlow, clearIncompatibleRenewalState, openModal } =
-    useRenewalTransactions({
-      onComplete: () => {
-        setOpen(false)
-      },
-    })
+  const {
+    transactions,
+    startFlow,
+    clearIncompatibleRenewalState,
+    openModal,
+    analyticsView,
+    beginAnalyticsFlow,
+  } = useRenewalTransactions({
+    onComplete: () => {
+      setOpen(false)
+    },
+  })
 
   const activeTxState = useActiveTransactionState()
   const { isOpen: isTransactionModalOpen } = useTransactionModal()
@@ -67,6 +73,7 @@ export const ExtendNameButton = ({
             transactionManager.cancelTransaction(activeTxState.txId)
           }
           clearIncompatibleRenewalState('single')
+          beginAnalyticsFlow([selectedName], false)
           setOpen(true)
         }}
       >
@@ -79,6 +86,7 @@ export const ExtendNameButton = ({
           setOpen(false)
         }}
         selectedName={selectedName}
+        analyticsView={analyticsView}
         onExtend={(config) => {
           // `startFlow` names the attempt; it also opens the modal, since the
           // step ids it builds are scoped to that attempt.

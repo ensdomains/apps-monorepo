@@ -185,15 +185,23 @@ const authFetch: typeof fetch = async (input, init) => {
   return response
 }
 
+const getAnalyticsHeaders = (): Readonly<Record<string, string>> => {
+  try {
+    return hasAnalyticsConsent(posthog)
+      ? { 'X-PostHog-Distinct-ID': posthog.get_distinct_id() }
+      : {}
+  } catch {
+    return {}
+  }
+}
+
 export const backendClient = hc<AppRouter>(DEFAULT_BACKEND_API_URL, {
   headers: (): Record<string, string> => {
     const auth = backendAuthStore.get().context.authKey
     return {
       ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
       // Links backend requests to analytics, only for visitors who accepted.
-      ...(hasAnalyticsConsent(posthog)
-        ? { 'X-PostHog-Distinct-ID': posthog.get_distinct_id() }
-        : {}),
+      ...getAnalyticsHeaders(),
     }
   },
 

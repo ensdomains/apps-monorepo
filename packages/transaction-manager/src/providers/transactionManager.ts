@@ -11,7 +11,10 @@ import {
   saveTransaction,
 } from '../helpers/transaction-persistence'
 import { transactionMachine } from '../machines/transaction.machine'
-import { createRunTelemetryService } from '../services/run-telemetry.service'
+import {
+  createRunTelemetryService,
+  type RunBootstrapInput,
+} from '../services/run-telemetry.service'
 import type {
   FailedRunPayloadV2,
   RunTelemetryEventSubscriber,
@@ -28,6 +31,10 @@ import type {
 
 type TransactionChangeListener = (
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>,
+) => void
+type RunTelemetryStartListener = (
+  runId: string,
+  initiatingWalletAddress?: Address,
 ) => void
 
 /**
@@ -177,6 +184,7 @@ class TransactionManager {
    */
   private retireOnceSettled = new Set<string>()
   private listeners = new Set<TransactionChangeListener>()
+  private telemetryStartListeners = new Set<RunTelemetryStartListener>()
   private telemetryListeners = new Set<RunTelemetrySubscriber>()
   private telemetryEventListeners = new Set<RunTelemetryEventSubscriber>()
   private archivedListeners = new Set<TransactionArchivedListener>()
@@ -318,7 +326,7 @@ class TransactionManager {
     const { chainId, intent, request, signer, options, useSmartAccount } =
       snapshot.context
     this.completedTelemetry.delete(id)
-    this.runTelemetry.startRun({
+    this.startTelemetryRun({
       txId: id,
       chainId: chainId ?? request?.chainId,
       intent,
@@ -434,7 +442,7 @@ class TransactionManager {
       },
     })
 
-    this.runTelemetry.startRun({
+    this.startTelemetryRun({
       txId,
       chainId: resolvedChainId,
       intent,
@@ -637,6 +645,14 @@ class TransactionManager {
     }
   }
 
+  /** Subscribe before a new or resumed run starts executing. */
+  onRunTelemetryStart(listener: RunTelemetryStartListener): () => void {
+    this.telemetryStartListeners.add(listener)
+    return () => {
+      this.telemetryStartListeners.delete(listener)
+    }
+  }
+
   onFailedRunTelemetry(listener: RunTelemetrySubscriber): () => void {
     this.telemetryListeners.add(listener)
     return () => {
@@ -667,6 +683,22 @@ class TransactionManager {
         listener(transaction)
       } catch (error) {
         logger.error('Transaction archived listener crashed', error)
+      }
+    })
+  }
+
+  private startTelemetryRun(input: RunBootstrapInput): void {
+    const runId = this.runTelemetry.startRun(input)
+    const wallet =
+      input.options?.initiatingWalletAddress ??
+      (input.signer?.type === 'eoa'
+        ? input.signer.walletClient.account?.address
+        : undefined)
+    this.telemetryStartListeners.forEach((listener) => {
+      try {
+        listener(runId, wallet)
+      } catch (error) {
+        logger.error('Run telemetry start listener crashed', error)
       }
     })
   }

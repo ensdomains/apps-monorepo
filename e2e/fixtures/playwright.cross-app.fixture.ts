@@ -42,6 +42,7 @@ import {
   connectHeadless as connectManager,
   createAccounts,
   localSepolia,
+  mockManagerPostHog,
   overrideManagerFeatureFlags,
   PROFILE_FEATURE_FLAGS,
   waitForManagerFeatureFlagOverride,
@@ -107,6 +108,7 @@ export const test = base.extend<CrossAppFixtures>({
       chains: [localSepolia],
       permitted: [...PERMITTED_SIGN_KINDS],
     })
+    await mockManagerPostHog(page)
     await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
     await connectManager(page, wallet)
     await dismissBackendAuthModal(page)

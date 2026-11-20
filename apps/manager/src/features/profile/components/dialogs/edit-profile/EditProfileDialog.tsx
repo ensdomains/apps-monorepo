@@ -27,6 +27,7 @@ import { EditProfileFloatingBar } from './EditProfileFloatingBar'
 import { EditProfilePreviewActions } from './EditProfilePreviewActions'
 import { useEditProfileDialogSave } from './useEditProfileDialogSave'
 import { useEditProfilePreview } from './useEditProfilePreview'
+import { useProfileEditingView } from './useProfileEditingView'
 
 export const EditProfileDialog = ({
   name,
@@ -60,6 +61,7 @@ export const EditProfileDialog = ({
     input: { name, records },
   })
   const isActive = useSelector(dialogActor, (state) => !state.matches('closed'))
+  useProfileEditingView(dialogActor, isActive)
   const isPreviewing = useSelector(
     dialogActor,
     (state) => state.context.isPreviewing,
@@ -82,6 +84,13 @@ export const EditProfileDialog = ({
 
   const form = useAppForm({
     defaultValues: records,
+    listeners: {
+      onChange: ({ formApi }) =>
+        dialogActor.send({
+          type: 'RECORDS_CHANGED',
+          isChanged: !formApi.state.isDefaultValue,
+        }),
+    },
   })
 
   const {

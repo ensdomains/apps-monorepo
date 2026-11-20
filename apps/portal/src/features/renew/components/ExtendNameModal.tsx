@@ -11,17 +11,20 @@ import { dateToPlainDate } from '@/utils/temporal'
 import { useExtendModalStep } from '../hooks/useExtendModalStep'
 import { useNamePricing } from '../hooks/useNamePricing'
 import { useOwnsAllNames } from '../hooks/useOwnsAllNames'
+import { useRenewalFlowView } from '../hooks/useRenewalFlowView'
 import type {
   SelectedName,
   StartFlowConfig,
 } from '../hooks/useRenewalTransactions'
 import type { ExtensionSpan } from '../utils/extensionDurationPicker'
+import type { RenewalView } from '../utils/renewalAnalytics'
 import { ExtendNameConfirmation } from './ExtendNameConfirmation'
 import { ExtendNameDisclaimer } from './ExtendNameDisclaimer'
 import { ExtendNameSettings } from './ExtendNameSettings'
 
 type ExtendNameModalProps = {
   readonly open: boolean
+  readonly analyticsView?: RenewalView
   readonly onClose: () => void
   readonly selectedName: SelectedName
   readonly onExtend: (config: StartFlowConfig) => void
@@ -31,6 +34,7 @@ type ExtendNameModalStep = 'disclaimer' | 'settings' | 'confirm'
 
 export const ExtendNameModal = ({
   open,
+  analyticsView,
   onClose,
   selectedName,
   onExtend,
@@ -55,6 +59,8 @@ export const ExtendNameModal = ({
     open,
     isOwner,
   })
+
+  useRenewalFlowView(analyticsView, open, step)
 
   const stepTitle = match(step)
     .with('disclaimer', () => undefined)

@@ -1,3 +1,5 @@
+import { WagmiProvider } from 'wagmi'
+import { wagmiConfig } from '@/lib/wagmi'
 import '@testing-library/jest-dom'
 import { approveHcaFunding } from '@ens-apps/transaction-manager/helpers/hca-funding-approval'
 import { i18n } from '@lingui/core'
@@ -163,15 +165,17 @@ it.each(['consent', 'wallet', 'receipt'] as const)(
       )
     }
     const app = (label: string) => (
-      <I18nProvider i18n={i18n}>
-        <RenewalUiProvider
-          currentExpiry={1_800_000_000n}
-          label={label}
-          protocol="v2"
-        >
-          <Start />
-        </RenewalUiProvider>
-      </I18nProvider>
+      <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
+        <I18nProvider i18n={i18n}>
+          <RenewalUiProvider
+            currentExpiry={1_800_000_000n}
+            label={label}
+            protocol="v2"
+          >
+            <Start />
+          </RenewalUiProvider>
+        </I18nProvider>
+      </WagmiProvider>
     )
     const view = render(app('alice'))
     fireEvent.click(screen.getByRole('button', { name: 'Renew alice' }))

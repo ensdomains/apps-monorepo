@@ -2,9 +2,26 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
+import {
+  type AnalyticsView,
+  useAnalyticsFlowView,
+} from '@/lib/posthog/useAnalyticsFlowView'
 import { useHcaFundingPrompt } from '@/lib/smart-account'
 import type { RenewalProtocol } from '../utils/renewalProtocol'
 import { renewalUiMachine } from './renewalUi.machine'
+
+const getAnalyticsView = (
+  snapshot: RenewalUiSnapshot,
+): AnalyticsView | undefined => {
+  if (!snapshot.matches('pricing')) return undefined
+  return {
+    flow: 'renewal',
+    protocol_version: snapshot.context.protocol,
+    flow_id: snapshot.context.analytics.flow_id,
+    ens_name: snapshot.context.analytics.ens_name,
+    step: snapshot.matches({ pricing: 'duration' }) ? 'duration' : 'payment',
+  }
+}
 
 const RenewalUiContext = createContext<{
   uiActor: Actor<typeof renewalUiMachine>
@@ -41,6 +58,7 @@ export const RenewalUiProvider = ({
 
   const uiActor = useActorRef(renewalUiMachine, {
     input: {
+      analyticsName: `${label}.eth`,
       currentExpiry,
       protocol,
       approvalFallback: {
@@ -50,6 +68,7 @@ export const RenewalUiProvider = ({
       },
     },
   })
+  useAnalyticsFlowView(uiActor, getAnalyticsView)
   const previousLabel = useRef(label)
 
   useEffect(() => {
@@ -68,7 +87,7 @@ export const RenewalUiProvider = ({
     }
 
     previousLabel.current = label
-    uiActor.send({ type: 'label.changed' })
+    uiActor.send({ type: 'label.changed', analyticsName: `${label}.eth` })
     declineFunding()
   }, [declineFunding, label, uiActor])
 

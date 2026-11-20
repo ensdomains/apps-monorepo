@@ -1795,6 +1795,7 @@ export function submitRevealBatchActor(input: {
           description: `Register ${label}.eth`,
           publicClient: input.publicClient,
           timeout: 120_000,
+          initiatingWalletAddress: input.wallet,
         },
       )
 

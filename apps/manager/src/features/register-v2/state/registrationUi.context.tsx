@@ -6,6 +6,10 @@ import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
 import { HcaFundingApprovalDialog } from '@/components/HcaFundingApprovalDialog'
+import {
+  type AnalyticsView,
+  useAnalyticsFlowView,
+} from '@/lib/posthog/useAnalyticsFlowView'
 import { useHcaFundingPrompt } from '@/lib/smart-account/useHcaFundingPrompt'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
@@ -24,6 +28,22 @@ import {
   type RegistrationResumeState,
   useRegistrationResume,
 } from './useRegistrationResume'
+
+const getAnalyticsView = (
+  snapshot: RegistrationV2UiSnapshot,
+): AnalyticsView | undefined => {
+  if (
+    !snapshot.matches({ pricing: 'duration' }) &&
+    !snapshot.matches({ pricing: 'tokens' })
+  )
+    return undefined
+  return {
+    flow: 'registration',
+    flow_id: snapshot.context.analytics.flow_id,
+    ens_name: snapshot.context.analytics.ens_name,
+    step: snapshot.matches({ pricing: 'duration' }) ? 'duration' : 'payment',
+  }
+}
 
 const RegistrationV2UiContext2 = createContext<{
   uiActor: Actor<typeof registrationV2UiMachine>
@@ -60,6 +80,7 @@ export const RegistrationV2UiProvider = ({
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
     input: {
       chainId,
+      analyticsName: `${label}.eth`,
       approvalFallback: {
         confirmApproval,
         confirmApprovalRecovery,
@@ -67,6 +88,8 @@ export const RegistrationV2UiProvider = ({
       },
     },
   })
+
+  useAnalyticsFlowView(registrationV2UiActor, getAnalyticsView)
 
   useRegistrationLockSweep()
   const registrationActor = useSelector(
@@ -154,7 +177,10 @@ export const RegistrationV2UiProvider = ({
     }
 
     previousLabel.current = label
-    registrationV2UiActor.send({ type: 'label.changed' })
+    registrationV2UiActor.send({
+      type: 'label.changed',
+      analyticsName: `${label}.eth`,
+    })
   }, [label, registrationV2UiActor])
 
   return (

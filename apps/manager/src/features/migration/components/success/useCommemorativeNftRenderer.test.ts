@@ -1,12 +1,13 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { trackNftEvent } from '../../commemorative-nft/diagnostics'
+import { track } from '@/lib/posthog/events'
 import { useCommemorativeNftRenderer } from './useCommemorativeNftRenderer'
 
-vi.mock('../../commemorative-nft/diagnostics', () => ({
-  trackNftEvent: vi.fn(),
-}))
+vi.mock('@/lib/posthog/events', () => {
+  const track = vi.fn()
+  return { track, startAnalyticsOperation: () => ({ capture: track }) }
+})
 
 type RendererOptions = Parameters<typeof useCommemorativeNftRenderer>[0]
 
@@ -89,7 +90,7 @@ describe('commemorative NFT renderer readiness', () => {
     advanceTime(1)
     expect(result.current.failed).toBe(true)
     expect(onError).toHaveBeenCalledOnce()
-    expect(trackNftEvent).toHaveBeenCalledWith('nft:renderer_fallback', {
+    expect(track).toHaveBeenCalledWith('nft:renderer_fallback', {
       reason: 'renderer_timeout',
     })
 
@@ -205,7 +206,7 @@ describe('commemorative NFT renderer readiness', () => {
     sendMessage(rendererWindow, { ...readyMessage, status: 'failed' })
     expect(result.current.failed).toBe(true)
     expect(onError).toHaveBeenCalledOnce()
-    expect(trackNftEvent).toHaveBeenCalledWith('nft:renderer_fallback', {
+    expect(track).toHaveBeenCalledWith('nft:renderer_fallback', {
       reason: 'renderer_failed',
     })
     expect(vi.getTimerCount()).toBe(0)

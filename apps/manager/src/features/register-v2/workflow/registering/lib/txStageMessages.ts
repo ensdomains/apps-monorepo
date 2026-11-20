@@ -25,8 +25,16 @@ export type StageMessages = {
 export const getRegistrationStageMessages = (
   tx: RegisteringTxSnapshot,
   txState: TransactionState,
+  highestProgressStage?: RegistrationStage,
 ): StageMessages =>
-  match({ stage: tx.value, txState, l2ChainName: tx.l2FundingChainName })
+  match({
+    stage:
+      tx.value === 'reauthorizingSession'
+        ? tx.value
+        : (highestProgressStage ?? tx.value),
+    txState,
+    l2ChainName: tx.l2FundingChainName,
+  })
     .returnType<StageMessages>()
     .with(
       {

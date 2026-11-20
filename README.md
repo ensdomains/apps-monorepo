@@ -81,6 +81,10 @@ have preview URLs disabled. See each app's README for provisioning requirements.
 - Dependencies are pinned deliberately; the comments in
   [`pnpm-workspace.yaml`](pnpm-workspace.yaml) explain each constraint.
 
+## Analytics
+
+[Analytics implementation, configuration and QA](docs/analytics/README.md).
+
 ## Security
 
 Do not report vulnerabilities in public issues. See [SECURITY.md](SECURITY.md).

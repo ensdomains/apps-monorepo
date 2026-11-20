@@ -14,6 +14,7 @@ import {
 } from 'viem'
 import { assertRoleContractKind } from '@/features/roles/helpers/assertRoleContractKind'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import {
   formatSetterScope,
   type ResolverRole,
@@ -108,6 +109,7 @@ export const grantResolverRoles = async (
     id,
   } = params
 
+  const operation = startAnalyticsOperation()
   await assertRoleContractKind(resolverAddress, 'permissioned-resolver')
 
   const txId = transactionManager.startTransaction(
@@ -128,5 +130,9 @@ export const grantResolverRoles = async (
   )
 
   const result = await waitForTransaction(txId)
+  operation.capture('resolver:configuration_update', {
+    chain_id: chainId,
+    action: 'roles_grant',
+  })
   return result.hash
 }

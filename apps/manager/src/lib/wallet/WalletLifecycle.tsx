@@ -31,7 +31,11 @@ export const WalletLifecycle = () => {
       backendAuthStore.trigger.signOut()
       clearAppLocalStorage()
       track('wallet:disconnect')
-      resetKeepingConsent(posthog)
+      try {
+        resetKeepingConsent(posthog)
+      } catch (error) {
+        console.warn('[posthog] wallet reset failed', error)
+      }
     },
   })
 

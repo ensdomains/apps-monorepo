@@ -1,11 +1,28 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { boot, trackEvent, update } from '@intercom/messenger-js-sdk'
+import {
+  boot,
+  getVisitorId,
+  trackEvent,
+  update,
+} from '@intercom/messenger-js-sdk'
 import { act, render } from '@testing-library/react'
+import { createConfig, http } from '@wagmi/core'
 import posthog from 'posthog-js/dist/module.full.no-external'
+import { getAddress } from 'viem'
+import { mainnet } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useConnectionEffect } from 'wagmi'
-import { POSTHOG_CONFIG, setAnalyticsConsent } from './config'
-import { PHProvider } from './provider'
+import { useConnection, useConnectionEffect } from 'wagmi'
+import { mock } from 'wagmi/connectors'
+
+let POSTHOG_CONFIG: typeof import('./config').POSTHOG_CONFIG
+let setAnalyticsConsent: typeof import('./config').setAnalyticsConsent
+let PHProvider: typeof import('./provider').PHProvider
+
+const loadProvider = async () => {
+  vi.resetModules()
+  ;({ POSTHOG_CONFIG, setAnalyticsConsent } = await import('./config'))
+  ;({ PHProvider } = await import('./provider'))
+}
 
 vi.mock('@tanstack/react-router', () => ({ useHydrated: () => true }))
 vi.mock('@intercom/messenger-js-sdk', () => ({
@@ -14,22 +31,35 @@ vi.mock('@intercom/messenger-js-sdk', () => ({
   trackEvent: vi.fn(),
   update: vi.fn(),
 }))
-vi.mock('@posthog/react', () => ({
-  PostHogProvider: ({ children }: { children: unknown }) => children,
-}))
 // The answer PostHog keeps in its cookie.
 const consent = vi.hoisted(() => ({ stored: 'pending' }))
+const walletState = vi.hoisted(() => ({
+  identity: 'distinct-id',
+  address: undefined as `0x${string}` | undefined,
+  status: 'disconnected',
+}))
+vi.mock('@/lib/wagmi', () => ({ wagmiConfig: {} }))
+vi.mock('@wagmi/core/actions', () => ({
+  getConnection: () => ({
+    address: walletState.address,
+    status: walletState.status,
+  }),
+}))
 vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: {
     __loaded: true,
     init: vi.fn(),
-    identify: vi.fn(),
+    identify: vi.fn((address: string) => {
+      walletState.identity = address
+    }),
     register: vi.fn(),
+    setPersonProperties: vi.fn(),
     capture: vi.fn(),
     reset: vi.fn(() => {
       consent.stored = 'pending'
+      walletState.identity = 'distinct-id'
     }),
-    get_distinct_id: vi.fn(() => 'distinct-id'),
+    get_distinct_id: vi.fn(() => walletState.identity),
     get_session_replay_url: vi.fn(() => 'replay-url'),
     get_explicit_consent_status: () => consent.stored,
     get_property: vi.fn(),
@@ -43,20 +73,36 @@ vi.mock('posthog-js/dist/module.full.no-external', () => ({
     setPersonPropertiesForFlags: vi.fn(),
   },
 }))
-vi.mock('wagmi', () => ({ useConnectionEffect: vi.fn() }))
+vi.mock('wagmi', () => ({
+  useConnectionEffect: vi.fn(),
+  useConnection: vi.fn(() => ({ status: 'disconnected' })),
+}))
 vi.mock('@ens-apps/transaction-manager', () => ({
   transactionManager: {
     onFailedRunTelemetry: vi.fn(() => vi.fn()),
+    onRunTelemetryStart: vi.fn(() => vi.fn()),
     onRunTelemetryEvent: vi.fn(() => vi.fn()),
   },
 }))
 
 const INTERCOM_APP_ID = 're9q5yti'
+const [connector] = createConfig({
+  chains: [mainnet],
+  connectors: [
+    mock({ accounts: ['0x1111111111111111111111111111111111111111'] }),
+  ],
+  transports: { [mainnet.id]: http() },
+}).connectors
+if (!connector) throw new Error('Missing test connector')
+
 const WALLET = {
   address: '0x1111111111111111111111111111111111111111',
+  addresses: ['0x1111111111111111111111111111111111111111'],
+  chain: undefined,
   chainId: 1,
-  connector: { name: 'test-wallet' },
-}
+  connector,
+  isReconnected: false,
+} as const
 
 const renderProvider = () =>
   render(
@@ -66,42 +112,133 @@ const renderProvider = () =>
   )
 
 const connectWallet = () => {
+  walletState.address = WALLET.address
+  walletState.status = 'connected'
   const callbacks = vi.mocked(useConnectionEffect).mock.calls[0]?.[0]
   if (!callbacks) throw new Error('Missing connection callbacks')
-  callbacks.onConnect?.(
-    WALLET as Parameters<NonNullable<typeof callbacks.onConnect>>[0],
-  )
+  callbacks.onConnect?.(WALLET)
 }
 
 describe('PostHog provider', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     consent.stored = 'pending'
-    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'test-key')
+    walletState.identity = 'distinct-id'
+    walletState.address = undefined
+    walletState.status = 'disconnected'
+    vi.mocked(useConnection, { partial: true }).mockImplementation(() =>
+      walletState.status === 'connected'
+        ? { status: 'connected', address: walletState.address }
+        : { status: 'disconnected' },
+    )
+    vi.mocked(posthog.get_property).mockReturnValue(undefined)
+    vi.mocked(posthog.get_distinct_id).mockImplementation(
+      () => walletState.identity,
+    )
+    vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'staging-test-key')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', 'true')
+    await loadProvider()
   })
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
+  it('renders children when reading SDK consent throws', () => {
+    vi.spyOn(posthog, 'get_explicit_consent_status').mockImplementation(() => {
+      throw new Error('SDK unavailable')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    expect(renderProvider().getByText('child').textContent).toBe('child')
+  })
+
   it('initializes PostHog with the consent-gated config', () => {
     renderProvider()
     expect(posthog.init).toHaveBeenCalledWith(
-      'test-key',
+      'staging-test-key',
       expect.objectContaining(POSTHOG_CONFIG),
     )
   })
 
+  it('links the current person when the Intercom visitor becomes available after initial consent', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(getVisitorId).mockReturnValue(undefined)
+      setAnalyticsConsent(posthog, true)
+      const view = renderProvider()
+      expect(posthog.setPersonProperties).not.toHaveBeenCalled()
+      vi.mocked(getVisitorId).mockReturnValue('late-visitor')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000)
+      })
+      expect(posthog.setPersonProperties).toHaveBeenCalledExactlyOnceWith({
+        intercom_visitor_id: 'late-visitor',
+      })
+      view.unmount()
+    } finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+  })
+
   it('links Intercom to analytics only with consent, including after Accept', () => {
+    vi.mocked(getVisitorId).mockReturnValue('intercom-visitor')
     renderProvider()
+    expect(posthog.setPersonProperties).not.toHaveBeenCalled()
     expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
     expect(update).not.toHaveBeenCalled()
 
     act(() => setAnalyticsConsent(posthog, true))
     expect(update).toHaveBeenCalledWith({
       posthog_distinct_id: 'distinct-id',
-      recent_replay: 'replay-url',
     })
+    expect(posthog.setPersonProperties).toHaveBeenCalledWith({
+      intercom_visitor_id: 'intercom-visitor',
+    })
+  })
+
+  it('resets the previous wallet before identifying a direct account switch', () => {
+    vi.mocked(getVisitorId).mockReturnValue('intercom-visitor')
+    setAnalyticsConsent(posthog, true)
+    const view = renderProvider()
+    vi.mocked(posthog.get_property).mockReturnValue('identified')
+    walletState.identity = WALLET.address
+    const nextAddress = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    walletState.address = nextAddress
+    walletState.status = 'connected'
+    vi.mocked(useConnection, { partial: true }).mockReturnValue({
+      chainId: WALLET.chainId,
+      connector: WALLET.connector as NonNullable<
+        ReturnType<typeof useConnection>['connector']
+      >,
+      address: nextAddress,
+      status: 'connected',
+    })
+    vi.mocked(update).mockClear()
+    vi.mocked(posthog.setPersonProperties).mockClear()
+    vi.mocked(posthog.reset).mockClear()
+    vi.mocked(posthog.identify).mockClear()
+    view.rerender(
+      <PHProvider>
+        <div>child</div>
+      </PHProvider>,
+    )
+    expect(posthog.reset).toHaveBeenCalledOnce()
+    expect(posthog.identify).toHaveBeenCalledWith(
+      getAddress(nextAddress),
+      { address: getAddress(nextAddress) },
+      { initial_address: getAddress(nextAddress) },
+    )
+    expect(update).toHaveBeenLastCalledWith({
+      posthog_distinct_id: getAddress(nextAddress),
+    })
+    expect(posthog.setPersonProperties).toHaveBeenCalledWith({
+      intercom_visitor_id: 'intercom-visitor',
+    })
+    expect(vi.mocked(posthog.reset).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(posthog.identify).mock.invocationCallOrder[0] ?? 0,
+    )
   })
 
   it('sends nothing about the wallet without consent', () => {
@@ -125,14 +262,13 @@ describe('PostHog provider', () => {
       { initial_address: WALLET.address },
     )
     expect(posthog.capture).toHaveBeenCalledWith('wallet:connect', {
-      wallet_address: WALLET.address,
       chain_id: 1,
-      wallet_connector: 'test-wallet',
+      wallet_connector: connector.name,
     })
     expect(trackEvent).toHaveBeenCalledWith('wallet:connect', {
       wallet_address: WALLET.address,
       chain_id: 1,
-      wallet_connector: 'test-wallet',
+      wallet_connector: connector.name,
     })
   })
 
@@ -196,7 +332,9 @@ describe('PostHog provider', () => {
     expect(boot).toHaveBeenCalledWith({ app_id: INTERCOM_APP_ID })
   })
 
-  it('logs failed runs locally and tracks them for PostHog', () => {
+  it.each([true, false, 'switch'] as const)('gates run (%s)', (scenario) => {
+    const isGranted = scenario !== false
+    setAnalyticsConsent(posthog, isGranted)
     vi.stubEnv('DEV', true)
     const groupCollapsed = vi
       .spyOn(console, 'groupCollapsed')
@@ -206,24 +344,38 @@ describe('PostHog provider', () => {
       .spyOn(console, 'groupEnd')
       .mockImplementation(() => undefined)
     const unsubscribeFailed = vi.fn()
-    const unsubscribeLive = vi.fn()
+    const unsubscribeStart = vi.fn()
+    const unsubscribeCleanup = vi.fn()
     vi.mocked(transactionManager.onFailedRunTelemetry).mockReturnValueOnce(
       unsubscribeFailed,
     )
     vi.mocked(transactionManager.onRunTelemetryEvent).mockReturnValueOnce(
-      unsubscribeLive,
+      unsubscribeCleanup,
+    )
+    vi.mocked(transactionManager.onRunTelemetryStart).mockReturnValueOnce(
+      unsubscribeStart,
     )
 
     const { unmount } = renderProvider()
+    const onStart = vi.mocked(transactionManager.onRunTelemetryStart).mock
+      .calls[0]?.[0]
+    if (!onStart) throw new Error('Missing run start listener')
+    if (scenario === 'switch') {
+      walletState.address = '0x2222222222222222222222222222222222222222'
+      walletState.status = 'connected'
+      walletState.identity = walletState.address
+    }
+    onStart('run', scenario === 'switch' ? WALLET.address : undefined)
+    if (!isGranted) setAnalyticsConsent(posthog, true)
     const listener = vi.mocked(transactionManager.onFailedRunTelemetry).mock
       .calls[0]?.[0]
     expect(transactionManager.onFailedRunTelemetry).toHaveBeenCalledTimes(1)
-    expect(transactionManager.onRunTelemetryEvent).toHaveBeenCalledTimes(1)
+    expect(transactionManager.onRunTelemetryEvent).toHaveBeenCalledTimes(2)
     if (!listener) throw new Error('Missing failure telemetry listener')
     listener({
       run: { txId: 'tx', runId: 'run', status: 'error' },
-      summary: { failureStage: 'submission' },
-      truncation: { totalEvents: 3, truncated: false, droppedEvents: 0 },
+      summary: { failureStage: 'submission', attemptCount: 0 },
+      truncation: { totalEvents: 1, truncated: false, droppedEvents: 0 },
     } as Parameters<NonNullable<typeof listener>>[0])
 
     expect(groupCollapsed).toHaveBeenCalledWith(
@@ -239,20 +391,24 @@ describe('PostHog provider', () => {
       }),
     )
     expect(groupEnd).toHaveBeenCalledTimes(1)
-    expect(posthog.capture).toHaveBeenCalledWith(
-      'tm:failed_run',
-      expect.objectContaining({
-        tm_run_id: 'run',
-        tm_tx_id: 'tx',
-        tm_failure_stage: 'submission',
-        tm_event_count: 3,
-        source_app: 'manager',
-      }),
+    const captures = vi
+      .mocked(posthog.capture)
+      .mock.calls.filter(([event]) => event === 'transaction:execution_end')
+    const properties = {
+      operation_id: 'run',
+      outcome: 'failure',
+      failure_stage: 'submission',
+      attempt_count: 0,
+    }
+    expect(captures).toEqual(
+      scenario === true ? [['transaction:execution_end', properties]] : [],
     )
     expect(unsubscribeFailed).not.toHaveBeenCalled()
-    expect(unsubscribeLive).not.toHaveBeenCalled()
+    expect(unsubscribeStart).not.toHaveBeenCalled()
+    expect(unsubscribeCleanup).not.toHaveBeenCalled()
     unmount()
     expect(unsubscribeFailed).toHaveBeenCalledTimes(1)
-    expect(unsubscribeLive).toHaveBeenCalledTimes(1)
+    expect(unsubscribeStart).toHaveBeenCalledTimes(1)
+    expect(unsubscribeCleanup).toHaveBeenCalledTimes(1)
   })
 })

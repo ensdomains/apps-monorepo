@@ -8,7 +8,7 @@ import { backendClient } from '@/utils/backend-client'
 export type NameStats = {
   readonly name: string
   readonly favorites: number
-  readonly unique_searches_last_30d: number
+  readonly unique_searches_last_30d: number | null
 }
 
 export class GetNameStatsError extends TaggedError('GetNameStatsError')<{
@@ -20,7 +20,9 @@ const isNameStats = (data: unknown): data is NameStats =>
   data !== null &&
   typeof (data as Record<string, unknown>).name === 'string' &&
   typeof (data as Record<string, unknown>).favorites === 'number' &&
-  typeof (data as Record<string, unknown>).unique_searches_last_30d === 'number'
+  ((data as Record<string, unknown>).unique_searches_last_30d === null ||
+    typeof (data as Record<string, unknown>).unique_searches_last_30d ===
+      'number')
 
 export const getNameStats = ResultFn(async function* (name: string) {
   const data: unknown = yield* ResultAsync.fromPromise(
@@ -44,6 +46,15 @@ export const getNameStats = ResultFn(async function* (name: string) {
 
   return ok(data)
 })
+
+/** Unknown search demand stays absent while independently available favorites remain visible. */
+export const getNameStatsDemand = (data: NameStats | undefined) =>
+  data
+    ? {
+        favoriteCount: data.favorites,
+        searchCount30d: data.unique_searches_last_30d ?? undefined,
+      }
+    : undefined
 
 export const getNameStatsQueryOptions = (name: string) =>
   resultQueryOptions({

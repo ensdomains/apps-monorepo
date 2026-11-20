@@ -1,15 +1,18 @@
 // @vitest-environment happy-dom
+
+import { setAnalyticsConsent } from '@ens-apps/utils/posthog/analyticsConfiguration'
 import { ANALYTICS_CONSENT_COOKIE } from '@ens-apps/utils/posthog/analyticsConsent'
 import { PostHog } from 'posthog-js/dist/module.full.no-external'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  applyAnalyticsConsent,
-  POSTHOG_CONFIG,
-  resetKeepingConsent,
-  setAnalyticsConsent,
-} from './config'
 
-const WALLET = '0x1111111111111111111111111111111111111111'
+vi.mock('./events', () => ({ getConnectedWalletAddress: () => null }))
+
+let POSTHOG_CONFIG: typeof import('./config').POSTHOG_CONFIG
+
+const loadConfig = async () => {
+  vi.resetModules()
+  ;({ POSTHOG_CONFIG } = await import('./config'))
+}
 
 // A client that records its requests instead of sending them.
 const initClient = () => {
@@ -44,15 +47,12 @@ const onlyFlagRequests = (requests: Requests) =>
       request.url.includes('/flags/') || request.url.includes('/config'),
   )
 
-const flagBodies = (requests: Requests) =>
-  requests.mock.calls.flatMap(([request]) =>
-    request.url.includes('/flags/') && !Array.isArray(request.data)
-      ? [request.data]
-      : [],
-  )
-
 describe('PostHog consent', () => {
   beforeEach(async () => {
+    vi.stubEnv('VITE_ENS_NETWORK', 'sepolia')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_KEY', 'staging-test-key')
+    vi.stubEnv('VITE_PUBLIC_POSTHOG_DEBUG', 'true')
+    await loadConfig()
     await cookieStore.delete({ name: ANALYTICS_CONSENT_COOKIE, path: '/' })
     vi.useFakeTimers()
     localStorage.clear()
@@ -62,91 +62,29 @@ describe('PostHog consent', () => {
     vi.clearAllTimers()
     vi.useRealTimers()
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
-  it.each([false, true])(
-    'keeps flags working and sends no events without consent (earlier PostHog opt-in: %s)',
-    async (hasEarlierOptIn) => {
-      if (hasEarlierOptIn) localStorage.setItem('__ph_opt_in_out_test-key', '1')
-      const { client, requests } = initClient()
-
-      client.capture('wallet:connect', { wallet_address: WALLET })
-      history.pushState({}, '', '/consent-test')
-      await vi.advanceTimersByTimeAsync(3000)
-
-      expect(client.isFeatureEnabled('test-flag')).toBe(true)
-      expect(client.has_opted_out_capturing()).toBe(true)
-      // Loading must not answer for the visitor: that answer is every app's.
-      expect(client.get_explicit_consent_status()).toBe('pending')
-      const surveys = vi.fn()
-      client.getSurveys(surveys)
-      expect(surveys).toHaveBeenCalledWith([])
-      expect(onlyFlagRequests(requests)).toBe(true)
-    },
-  )
-
-  it('makes a visitor identified before the banner anonymous before flags load', async () => {
-    // The pre-banner app identified every connected wallet.
-    initClient().client.identify(WALLET)
-
+  it('wires shared consent, flags and Explorer metadata through the real SDK', async () => {
     const { client, requests } = initClient()
+    client.capture('$pageview')
     await vi.advanceTimersByTimeAsync(3000)
-
-    expect(client.get_distinct_id()).not.toBe(WALLET)
-    expect(flagBodies(requests).length).toBeGreaterThan(0)
-    expect(
-      flagBodies(requests).every((body) => body?.distinct_id !== WALLET),
-    ).toBe(true)
-  })
-
-  it('keeps the answer in the cookie the ens.domains apps share', () => {
-    setAnalyticsConsent(initClient().client, true)
-
-    expect(document.cookie).toContain(`${ANALYTICS_CONSENT_COOKIE}=1`)
-    // Another app's PostHog starts with the same answer.
-    expect(initClient().client.get_explicit_consent_status()).toBe('granted')
-  })
-
-  it('sends events after the visitor accepts, and keeps the answer through a reset', async () => {
-    const { client, requests } = initClient()
+    expect(client.isFeatureEnabled('test-flag')).toBe(true)
+    expect(client.get_explicit_consent_status()).toBe('pending')
+    expect(onlyFlagRequests(requests)).toBe(true)
 
     setAnalyticsConsent(client, true)
-    client.capture('wallet:connect', { wallet_address: WALLET })
+    const event = client.capture('wallet:connect')
+    expect(event?.properties.source_app).toBe('explorer')
+    expect(event?.properties.analytics_version).toBe(1)
     await vi.advanceTimersByTimeAsync(3000)
     expect(onlyFlagRequests(requests)).toBe(false)
 
-    // A plain reset() deletes the answer, for every app sharing the cookie.
-    resetKeepingConsent(client)
-    expect(client.get_explicit_consent_status()).toBe('granted')
-    expect(client.has_opted_out_capturing()).toBe(false)
-  })
-
-  it('stops sending events and forgets the wallet when the visitor declines', async () => {
-    const { client, requests } = initClient()
-    setAnalyticsConsent(client, true)
-    client.identify(WALLET)
-    await vi.advanceTimersByTimeAsync(3000)
-
     setAnalyticsConsent(client, false)
     requests.mockClear()
-    client.capture('wallet:connect', { wallet_address: WALLET })
+    expect(client.capture('$pageview')).toBeUndefined()
     await vi.advanceTimersByTimeAsync(3000)
-
-    expect(client.get_distinct_id()).not.toBe(WALLET)
-    expect(client.has_opted_out_capturing()).toBe(true)
-    expect(onlyFlagRequests(requests)).toBe(true)
-  })
-
-  it('forgets the wallet once another tab or app declines', () => {
-    const { client } = initClient()
-    setAnalyticsConsent(client, true)
-    client.identify(WALLET)
-
-    // Another tab or app declines: the shared cookie now says no.
-    client.opt_out_capturing()
-    applyAnalyticsConsent(client)
-
-    expect(client.get_distinct_id()).not.toBe(WALLET)
     expect(client.get_explicit_consent_status()).toBe('denied')
+    expect(onlyFlagRequests(requests)).toBe(true)
   })
 })

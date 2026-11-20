@@ -4,26 +4,21 @@ import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { TransactionReceiptNotFoundError } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
-import {
-  submitEOABatch,
-  waitForEOABatchHash,
-} from '../actors/eoa-batch-transport.actor'
+import { submitEOABatch } from '../actors/eoa-batch-transport.actor'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
+import { waitForReceiptActor } from '../actors/waitForReceipt.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
   type AtomicBatchUnsupportedError,
-  type CallsBundleTimeoutError,
   type ChainIdMismatchError,
   EthCallFallbackError,
   type SessionRefundCapExceededError,
   type SignerAddressMismatchError,
   TransactionRevertedError,
   TransactionSubmissionError,
-  TransactionTimeoutError,
   type TransactionUserRejectedError,
 } from '../errors/transaction.errors'
-import { orSafeExecution } from '../helpers/safe-execution.helpers'
 import type { Signer } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -208,80 +203,10 @@ export const transactionMachine = setup({
      */
     waitForReceipt: fromResultAsync(
       (
-        {
-          hash,
-          callsId,
-          request,
-          signer,
-          options,
-          publicClient,
-        }: {
-          hash?: Hash
-          callsId?: string
-          request?: TransactionRequest
-          signer?: Signer
-          options?: TransactionOptions
-          publicClient: PublicClient
-        },
+        input: Parameters<typeof waitForReceiptActor>[0],
         { signal },
-      ): ResultAsync<
-        TransactionReceipt,
-        | TransactionTimeoutError
-        | CallsBundleTimeoutError
-        | TransactionRevertedError
-      > => {
-        const confirmations = options?.confirmations || 1
-        const timeout = options?.timeout || 120000
-
-        const waitForHash = (txHash: Hash) =>
-          fromPromise(
-            publicClient.waitForTransactionReceipt({
-              hash: txHash,
-              confirmations,
-              timeout,
-            }),
-            (_error) => new TransactionTimeoutError(txHash, timeout),
-          )
-
-        // A Safe{Wallet} connection answers with the Safe's safeTxHash.
-        const connector = signer?.type === 'eoa' ? signer.connector : undefined
-        const account = request?.from
-
-        if (hash) {
-          return orSafeExecution({
-            publicClient,
-            connector,
-            account,
-            id: hash,
-            timeout,
-            direct: waitForHash(hash),
-            settle: waitForHash,
-            signal,
-          })
-        }
-
-        // An EIP-5792 bundle has no hash until the wallet reports it landed.
-        if (callsId && signer?.type === 'eoa') {
-          return orSafeExecution({
-            publicClient,
-            connector,
-            account,
-            id: callsId,
-            timeout,
-            direct: waitForEOABatchHash({
-              walletClient: signer.walletClient,
-              id: callsId,
-              timeout,
-            }).andThen(waitForHash),
-            settle: waitForHash,
-            signal,
-          })
-        }
-
-        return errAsync(
-          new TransactionRevertedError('No transaction hash to wait for'),
-        )
-      },
+      ): ReturnType<typeof waitForReceiptActor> =>
+        waitForReceiptActor(input, signal),
     ),
 
     /**

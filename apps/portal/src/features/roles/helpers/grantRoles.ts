@@ -1,3 +1,4 @@
+import { getAnalyticsNameProperties } from '@ens-apps/utils/posthog/nameProperties'
 /**
  * Pure async function to grant roles on an ENS V2 registry name.
  *
@@ -21,6 +22,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
+import { startAnalyticsOperation } from '@/lib/posthog/events'
 import {
   assertCalldataResourceId,
   canonicalResourceId,
@@ -120,6 +122,7 @@ export async function grantRoles(
     throw new Error('At least one role must be selected')
   }
 
+  const operation = startAnalyticsOperation()
   const intent = prepareGrantRolesTransaction(params)
 
   const txId = transactionManager.startTransaction(intent, signer, {
@@ -130,6 +133,11 @@ export async function grantRoles(
   })
 
   const result = await waitForTransaction(txId)
+  operation.capture('roles:permissions_update', {
+    ...getAnalyticsNameProperties(name),
+    chain_id: chainId,
+    action: 'grant',
+  })
 
   return {
     txId,

@@ -1,6 +1,5 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
-import { logger } from '#utils/logger.js'
 
 class PostHogNameSearchStatsError extends TaggedError(
   'POSTHOG_NAME_SEARCH_STATS_ERROR',
@@ -25,6 +24,8 @@ const normalizeCount = (value: unknown): number | null => {
   return null
 }
 
+const POSTHOG_TIMEOUT_MS = 5000
+
 const UNIQUE_SEARCHES_COLUMN = 'unique_searches_last_30d'
 
 const extractCountFromResultRow = (row: unknown, columns: unknown): unknown => {
@@ -46,20 +47,20 @@ const extractCountFromResultRow = (row: unknown, columns: unknown): unknown => {
   return undefined
 }
 
-const extractUniqueSearchCount = (payload: unknown): number => {
+const extractUniqueSearchCount = (payload: unknown): number | null => {
   if (!payload || typeof payload !== 'object') {
-    return 0
+    return null
   }
 
   const record = payload as Record<string, unknown>
   const results = record.results
 
   if (!Array.isArray(results) || results.length === 0) {
-    return 0
+    return null
   }
 
   const rawCount = extractCountFromResultRow(results[0], record.columns)
-  return normalizeCount(rawCount) ?? 0
+  return normalizeCount(rawCount)
 }
 
 // This performs no fallible operations, so it never yields — but ResultFn
@@ -94,6 +95,7 @@ const fetchUniqueSearchesLast30d = ResultFn(async function* (
   const response = yield* fromPromise(
     fetch(endpointUrl, {
       method: 'POST',
+      signal: AbortSignal.timeout(POSTHOG_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${env.POSTHOG_PERSONAL_API_KEY}`,
         'Content-Type': 'application/json',
@@ -116,22 +118,12 @@ const fetchUniqueSearchesLast30d = ResultFn(async function* (
     (cause) => new PostHogNameSearchStatsError({ cause }),
   )
 
-  return ok(extractUniqueSearchCount(payload))
+  const count = extractUniqueSearchCount(payload)
+  if (count === null)
+    return new PostHogNameSearchStatsError({
+      cause: new Error('Invalid PostHog count response'),
+    }).toErr()
+  return ok(count)
 })
 
-export const getUniqueSearchesLast30dFromPostHog = ResultFn(async function* (
-  env: CloudflareBindings,
-  name: string,
-) {
-  const result = yield* fetchUniqueSearchesLast30d(env, name).orElse(
-    (error) => {
-      logger.error('Failed to fetch unique search count from PostHog', {
-        error,
-        name,
-      })
-      return ok(0)
-    },
-  )
-
-  return ok(result)
-})
+export const getUniqueSearchesLast30dFromPostHog = fetchUniqueSearchesLast30d
