@@ -1,3 +1,4 @@
+import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { getDnsSecEnabled } from '@ens-apps/utils/dnssec'
 import {
   createFileRoute,
@@ -5,6 +6,7 @@ import {
   redirect,
   useParams,
 } from '@tanstack/react-router'
+import { AddressLikeNameNotice } from '@/components/AddressLikeNameNotice'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NonNormalizedNameWarning } from '@/components/NonNormalizedNameWarning'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -77,7 +79,14 @@ function RouteComponent() {
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
         <PageContainer>
-          {isValidName ? <Outlet /> : <NonNormalizedNameWarning name={name} />}
+          {isValidName ? (
+            <>
+              {isAddressLikeName(name) && <AddressLikeNameNotice />}
+              <Outlet />
+            </>
+          ) : (
+            <NonNormalizedNameWarning name={name} />
+          )}
         </PageContainer>
       </SidebarInset>
     </SidebarProvider>

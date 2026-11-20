@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fromPromise } from 'xstate'
@@ -284,4 +284,19 @@ describe('/register', () => {
     ).rejects.toThrow("Failed to check the wallet's resolver")
     expect(flow.actor.getSnapshot().value).toBe('idle')
   })
+
+  it.each([
+    { name: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045.eth', hasNote: true },
+    { name: 'alice.eth', hasNote: false },
+  ])(
+    'notes that $name may resolve to another address: $hasNote',
+    ({ name, hasNote }) => {
+      search.name = name
+      render(<RegisterRoute />)
+
+      expect(
+        screen.queryByText(/This name may resolve to another address/) !== null,
+      ).toBe(hasNote)
+    },
+  )
 })

@@ -2191,6 +2191,10 @@ msgstr "Not supported"
 msgid "Note: ENS Explorer is designed for developers! Keep the <0>ENS docs</0> handy as you dive in."
 msgstr "Note: ENS Explorer is designed for developers! Keep the <0>ENS docs</0> handy as you dive in."
 
+#: src/features/profile/components/view/AddressLikeNameNotice.tsx
+msgid "Note: This name may resolve to another address, confirm the final address is the intended address."
+msgstr "Note: This name may resolve to another address, confirm the final address is the intended address."
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Nothing has been lost. Contact ENS support before trying again."
 msgstr "Nothing has been lost. Contact ENS support before trying again."
@@ -3693,6 +3697,10 @@ msgstr "This name is in grace period"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
 msgstr "This name is in price cooldown"
+
+#: src/features/profile/components/view/AddressLikeNameNotice.tsx
+msgid "This name looks like a wallet address"
+msgstr "This name looks like a wallet address"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."

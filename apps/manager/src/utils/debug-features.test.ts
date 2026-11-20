@@ -1,6 +1,11 @@
 import { dirname, resolve } from 'node:path'
 import { build } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+// Env-independent and slow to load cold, so load it once outside the test timeout
+import {
+  staticTextRecords,
+  textRecords,
+} from '../features/profile/data/records'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -25,9 +30,6 @@ describe('debug profile selection', () => {
   it('keeps every supported text key reachable in the records fixture', async () => {
     vi.stubEnv('DEV', true)
     const { getDebugProfileRecords } = await import('../features/profile/MOCK')
-    const { staticTextRecords, textRecords } = await import(
-      '../features/profile/data/records'
-    )
     const keys = getDebugProfileRecords('debug-records.example')?.texts.map(
       ({ key }) => key,
     )

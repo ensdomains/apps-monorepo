@@ -2196,6 +2196,10 @@ msgstr ""
 msgid "Note: ENS Explorer is designed for developers! Keep the <0>ENS docs</0> handy as you dive in."
 msgstr ""
 
+#: src/features/profile/components/view/AddressLikeNameNotice.tsx
+msgid "Note: This name may resolve to another address, confirm the final address is the intended address."
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Nothing has been lost. Contact ENS support before trying again."
 msgstr ""
@@ -3697,6 +3701,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
+msgstr ""
+
+#: src/features/profile/components/view/AddressLikeNameNotice.tsx
+msgid "This name looks like a wallet address"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
