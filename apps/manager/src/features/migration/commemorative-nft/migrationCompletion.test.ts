@@ -5,7 +5,7 @@ import { type Address, type Hex, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 
 const mocks = vi.hoisted(() => ({
   getPublicClient: vi.fn(),
@@ -104,8 +104,8 @@ const submittedBatch = {
 beforeEach(() => {
   vi.stubGlobal('localStorage', new Storage())
   vi.resetAllMocks()
-  vi.spyOn(bigname, 'nameHistory').mockReturnValue(
-    okAsync({ data: [], meta: { as_of: {} } }),
+  vi.spyOn(indexer, 'getNameHistory').mockReturnValue(
+    okAsync({ items: [], nextCursor: null, totalCount: null }),
   )
   mocks.restoreCheckpoint.mockResolvedValue(null)
   mocks.getPublicClient.mockReturnValue(publicClient)

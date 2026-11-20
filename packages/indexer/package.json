@@ -2,10 +2,11 @@
   "name": "@ens-apps/indexer",
   "version": "1.0.0",
   "license": "MIT",
-  "description": "bigname client and shared indexer reads for ENS apps",
+  "description": "Backend-neutral indexer reads for ENS apps: bigname, Goldsky, and zigens with ENSNode",
   "type": "module",
   "private": true,
   "exports": {
+    ".": "./index.ts",
     "./bigname": "./bigname/index.ts",
     "./reads": "./reads/index.ts"
   },
@@ -17,12 +18,21 @@
   },
   "devDependencies": {
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "graphql": "^17.0.2"
   },
   "keywords": [],
   "dependencies": {
     "viem": "catalog:",
     "@ens-apps/utils": "workspace:*",
     "neverthrow": "^8.2.0"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0 || ^17.0.0"
+  },
+  "peerDependenciesMeta": {
+    "graphql": {
+      "optional": true
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { type LookupResult, toProtocol } from '@ens-apps/indexer/bigname'
+import type { NameDetail } from '@ens-apps/indexer/reads'
 import type { NameVersion, SortDir } from '../../mergedNames'
 import type { FavoriteEntry as ApiFavoriteEntry } from './getFavorites'
 
@@ -77,20 +77,19 @@ export const filterFavoritesByVersion = (
     ? favorites
     : favorites.filter(({ label }) => versions.get(label) === version)
 
+/** A favorite's indexed detail; null when the indexer has not fully read it. */
+export type FavoriteVersionRead = {
+  readonly name: string
+  readonly detail: NameDetail | null
+}
+
 export const getIndexedFavoriteVersions = (
-  results: readonly LookupResult[],
+  results: readonly FavoriteVersionRead[],
 ): ReadonlyMap<string, NameVersion> =>
   new Map(
-    results.flatMap((result) => {
-      if (
-        !('name' in result.input) ||
-        result.status !== 'ok' ||
-        result.record?.read_status !== 'ok'
-      )
-        return []
-      const protocol = toProtocol(result.record.authority)
-      return protocol ? [[result.input.name, protocol] as const] : []
-    }),
+    results.flatMap(({ name, detail }) =>
+      detail?.protocol ? [[name, detail.protocol] as const] : [],
+    ),
   )
 
 export const getFavoriteVersionFallbacks = (

@@ -1,4 +1,3 @@
-import type { AddressName } from '@ens-apps/indexer/bigname'
 import type { NameSummary } from '@ens-apps/indexer/reads'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
@@ -36,20 +35,19 @@ const summary = (overrides: Partial<NameSummary> = {}): NameSummary => ({
   ...overrides,
 })
 
-const lapsed = (overrides: Partial<AddressName> = {}): AddressName => ({
-  name: 'grace.eth',
-  display_name: 'grace.eth',
-  namespace: 'ens',
-  namehash: '0x02',
-  status: 'expired',
-  authority: 'ens_v2',
-  expires_at: String(nowSeconds - 86_400 * 3),
-  grace_ends_at: String(nowSeconds + 86_400 * 25),
-  relations: ['former_owner'],
-  is_primary: false,
-  lapsed_registration: { owner: OWNER, release_kind: 'expired' },
-  ...overrides,
-})
+const lapsed = (overrides: Partial<NameSummary> = {}): NameSummary =>
+  summary({
+    name: 'grace.eth',
+    displayName: 'grace.eth',
+    namehash: '0x02',
+    relations: [],
+    registrationStatus: 'expired',
+    expiresAt: new Date((nowSeconds - 86_400 * 3) * 1000),
+    servedExpiry: BigInt(nowSeconds - 86_400 * 3),
+    graceEndsAt: new Date((nowSeconds + 86_400 * 25) * 1000),
+    createdAt: null,
+    ...overrides,
+  })
 
 const dashboardName = (
   overrides: Partial<DashboardName> = {},
@@ -124,14 +122,6 @@ describe('toGraceName', () => {
       nameRoles: [],
       isLapsed: true,
     })
-  })
-
-  it('reads an RFC 3339 expiry', () => {
-    const expiresAt = new Date((nowSeconds - 86_400) * 1000).toISOString()
-
-    expect(toGraceName(lapsed({ expires_at: expiresAt }))?.expiryDate).toBe(
-      BigInt(nowSeconds - 86_400),
-    )
   })
 
   // Which rows are in grace is tested with the shared grace read.

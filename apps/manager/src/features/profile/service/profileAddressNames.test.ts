@@ -15,7 +15,7 @@ import {
   toProfileNamesPage,
 } from './profileAddressNames'
 
-vi.mock('@/lib/bigname', () => ({ bigname: {} }))
+vi.mock('@/lib/indexer', () => ({ indexer: {} }))
 
 const ADDRESS = '0x03Ba34f6Ea1496fa316873CF8350A3f7eaD317EF'
 

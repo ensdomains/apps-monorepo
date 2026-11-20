@@ -1,8 +1,9 @@
+import { toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { Storage } from 'happy-dom'
 import { okAsync } from 'neverthrow'
 import { type Address, namehash } from 'viem'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { makeDomain } from './_fixtures'
 import { makeConfirmedMigration } from './_fixtures/confirmedMigration'
 import {
@@ -48,7 +49,7 @@ const setup = () => {
     run: (signal?: AbortSignal) =>
       reconcileMigrationRecovery({
         ...confirmed,
-        historyClient: bigname,
+        historyClient: indexer,
         signal,
       }),
   }
@@ -56,8 +57,8 @@ const setup = () => {
 
 beforeEach(() => {
   vi.stubGlobal('localStorage', new Storage())
-  vi.spyOn(bigname, 'nameHistory').mockReturnValue(
-    okAsync({ data: [], meta: { as_of: {} } }),
+  vi.spyOn(indexer, 'getNameHistory').mockReturnValue(
+    okAsync({ items: [], nextCursor: null, totalCount: null }),
   )
 })
 afterEach(() => {
@@ -124,10 +125,10 @@ describe('reconcileMigrationRecovery', () => {
 
   it('discovers a missing hash from history and verifies it before settling the saved attempt', async () => {
     const test = setup()
-    vi.mocked(bigname.nameHistory).mockReturnValue(
+    vi.mocked(indexer.getNameHistory).mockReturnValue(
       okAsync({
-        data: [
-          {
+        items: [
+          toHistoryEvent({
             id: 'migration',
             type: 'migration',
             name: 'alice.eth',
@@ -137,9 +138,10 @@ describe('reconcileMigrationRecovery', () => {
             timestamp: '123',
             transaction_hash: test.hash,
             log_index: 0,
-          },
+          }),
         ],
-        meta: { as_of: {} },
+        nextCursor: null,
+        totalCount: null,
       }),
     )
 

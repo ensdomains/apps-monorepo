@@ -1,15 +1,15 @@
-import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
+import type { HistoryEvent } from '@ens-apps/indexer/reads'
 import type { QueryFunctionContext } from '@tanstack/react-query'
 import { ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getAddressHistory = vi.fn()
 const listAddressNames = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    addressHistory: (...args: unknown[]) =>
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getAddressHistory: (...args: unknown[]) =>
       ResultAsync.fromPromise(getAddressHistory(...args), (e) => e),
-    addressNames: (...args: unknown[]) =>
+    getNamesForAddress: (...args: unknown[]) =>
       ResultAsync.fromPromise(listAddressNames(...args), (e) => e),
   },
 }))
@@ -23,32 +23,26 @@ const {
 
 const ADDRESS = '0x00000000000000000000000000000000000000Aa'
 
-const row = (over: Partial<NameHistoryRow>): NameHistoryRow =>
+const row = (over: Partial<HistoryEvent>): HistoryEvent =>
   ({
     id: 'a'.repeat(64),
     type: 'transfer',
     name: 'held.eth',
-    namespace: 'ens',
-    registration_id: '1',
-    block_number: 100,
-    timestamp: '1781049606',
-    transaction_hash: '0xabc',
-    log_index: 2,
+    registrationId: '1',
+    blockNumber: 100,
+    timestamp: new Date(1_781_049_606_000),
+    transactionHash: '0xabc',
+    logIndex: 2,
+    contractAddress: null,
     kind: 'TokenControlTransferred',
     data: { to: '0x00000000000000000000000000000000000000aa' },
     ...over,
-  }) as NameHistoryRow
+  }) as HistoryEvent
 
-const page = <T>(data: T[], next: string | null = null) => ({
-  data,
-  page: {
-    cursor: null,
-    next_cursor: next,
-    page_size: 200,
-    total_count: data.length,
-    has_more: next !== null,
-  },
-  meta: {},
+const page = <T>(items: T[], next: string | null = null) => ({
+  items,
+  nextCursor: next,
+  totalCount: items.length,
 })
 
 const read = (pageSize = 200) => {
@@ -75,12 +69,10 @@ describe('getAddressHistoryQueryOptions', () => {
     getAddressHistory.mockResolvedValue(page([]))
     await read(5)
     expect(getAddressHistory).toHaveBeenCalledWith(
-      ADDRESS.toLowerCase(),
       {
-        relation: 'any',
-        include: ['data', 'raw'],
+        address: ADDRESS.toLowerCase(),
         order: 'desc',
-        page_size: 5,
+        pageSize: 5,
       },
       { signal: expect.any(AbortSignal) },
     )
@@ -91,14 +83,14 @@ describe('getAddressHistoryQueryOptions', () => {
     getAddressHistory.mockResolvedValue(
       page([
         row({}),
-        row({ name: 'assigned.eth', log_index: 3 }),
+        row({ name: 'assigned.eth', logIndex: 3 }),
         row({
           name: '',
           type: 'record',
-          log_index: 4,
+          logIndex: 4,
           data: { key: 'text:x' },
         }),
-        row({ name: 'held.eth', transaction_hash: null, type: 'release' }),
+        row({ name: 'held.eth', transactionHash: null, type: 'release' }),
       ]),
     )
 
@@ -141,8 +133,8 @@ describe('getAddressHistoryPagesQueryOptions', () => {
       pageParam: 'c1',
     } as unknown as QueryFunctionContext)) as { nextCursor: string | null }
     expect(getAddressHistory).toHaveBeenCalledTimes(1)
-    expect(getAddressHistory.mock.lastCall?.[1]).toMatchObject({
-      page_size: 100,
+    expect(getAddressHistory.mock.lastCall?.[0]).toMatchObject({
+      pageSize: 100,
       cursor: 'c1',
     })
     expect(result.nextCursor).toBe('next')
@@ -154,7 +146,7 @@ describe('getAddressHeldNamesQueryOptions', () => {
   it('reads every owned name past the default page limit', async () => {
     listAddressNames.mockReset()
     listAddressNames.mockImplementation(
-      async (_address, { cursor }: { cursor?: string }) => {
+      async ({ cursor }: { cursor?: string }) => {
         const offset = Number(cursor ?? 0)
         return page(
           Array.from({ length: 200 }, (_, i) => ({
@@ -173,8 +165,11 @@ describe('getAddressHeldNamesQueryOptions', () => {
     } as unknown as QueryFunctionContext)) as ReadonlySet<string>
     expect(held.size).toBe(1_000)
     expect(listAddressNames).toHaveBeenCalledWith(
-      ADDRESS,
-      expect.objectContaining({ relation: ['owner'], page_size: 200 }),
+      expect.objectContaining({
+        address: ADDRESS,
+        relations: ['owner'],
+        pageSize: 200,
+      }),
       expect.anything(),
     )
   })
@@ -183,7 +178,7 @@ describe('getAddressHeldNamesQueryOptions', () => {
 describe('countWholeTransactions', () => {
   const tx = (hash: string, count: number) =>
     Array.from({ length: count }, () =>
-      row({ transaction_hash: hash as `0x${string}` }),
+      row({ transactionHash: hash as `0x${string}` }),
     )
   const rows = [...tx('0xa', 2), ...tx('0xb', 3), ...tx('0xc', 2)]
 

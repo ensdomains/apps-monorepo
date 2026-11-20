@@ -1,9 +1,5 @@
-import {
-  type EventRow,
-  type NameHistoryRow,
-  toDate,
-  toUnixSeconds,
-} from '@ens-apps/indexer/bigname'
+import { toDate } from '@ens-apps/indexer/bigname'
+import type { HistoryEvent } from '@ens-apps/indexer/reads'
 import { isObject } from '@/utils/isObject'
 import type { HistoryTableEvent } from './groupEventsByTransactionId'
 import { formatHistoryAmount } from './historyPayment'
@@ -41,7 +37,7 @@ const flattenField = (key: string, value: unknown, data: object): unknown =>
  * `grant_scope` would lose and the row, having no name, has no other trace of.
  */
 export const flattenHistoryData = (
-  data: NameHistoryRow['data'] | EventRow['data'],
+  data: HistoryEvent['data'] | undefined,
 ): Record<string, unknown> => {
   if (!data) return {}
   const registry =
@@ -61,11 +57,11 @@ export const flattenHistoryData = (
  * `{txHash}-{logIndex}`: how the events table finds an event's log in the
  * transaction receipt (see `parseEventLogIndex`).
  */
-export const historyEventLogId = (row: NameHistoryRow | EventRow): string =>
-  `${row.transaction_hash ?? ''}-${String(row.log_index ?? '')}`
+export const historyEventLogId = (row: HistoryEvent): string =>
+  `${row.transactionHash ?? ''}-${String(row.logIndex ?? '')}`
 
 /**
- * bigname history rows in the shape the events table groups by transaction
+ * Indexer history rows in the shape the events table groups by transaction
  * (`groupEventsByTransactionId`). `id` is `{txHash}-{logIndex}`, which is how
  * the table finds the event's log in the receipt; `type` is the raw storage
  * kind when the read asked for `include=raw`; the `data` payload rides along as
@@ -74,19 +70,20 @@ export const historyEventLogId = (row: NameHistoryRow | EventRow): string =>
  * lapse) has nothing to group under and is left out.
  */
 export const historyEventsToTableEvents = (
-  rows: readonly NameHistoryRow[],
+  rows: readonly HistoryEvent[],
 ): (HistoryTableEvent & Record<string, unknown>)[] =>
   mergeRegistrationTwins(rows).flatMap((row) => {
-    const timestamp = toUnixSeconds(row.timestamp)
-    if (!row.transaction_hash || row.block_number === null) return []
+    if (!row.transactionHash || row.blockNumber === null) return []
     return [
       {
         ...flattenHistoryData(row.data),
         id: historyEventLogId(row),
-        transactionID: row.transaction_hash,
-        blockNumber: row.block_number,
+        transactionID: row.transactionHash,
+        blockNumber: row.blockNumber,
         type: row.kind ?? row.type,
-        ...(timestamp !== null && { timestamp: BigInt(timestamp) }),
+        ...(row.timestamp !== null && {
+          timestamp: BigInt(Math.floor(row.timestamp.getTime() / 1000)),
+        }),
       },
     ]
   })

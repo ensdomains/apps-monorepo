@@ -1,15 +1,14 @@
 import {
-  type BignameError,
-  isStale,
-  retryStale,
-  secondsToTimestamp,
-} from '@ens-apps/indexer/bigname'
-import type { NameDetail } from '@ens-apps/indexer/reads'
+  type IndexerReadError,
+  type NameDetail,
+  retryStaleRead,
+} from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Hash } from 'viem'
-import { bigname } from '@/lib/bigname'
+import { requireIndexed } from '@/features/history/requireIndexed'
+import { indexer } from '@/lib/indexer'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
 import { getNameDetailQueryOptions } from './useNameDetail'
 
@@ -18,7 +17,7 @@ type GetRegistrationDataParameters = { readonly name: string }
 const toSeconds = (date: Date | null | undefined): number | null =>
   date ? Math.floor(date.getTime() / 1000) : null
 
-// An expiry bigname cannot serve as a date, such as a name that never
+// An expiry the indexer cannot serve as a date, such as a name that never
 // expires, comes back as null.
 const toRegistrationData = (detail: NameDetail | null) => ({
   createdAt: toSeconds(detail?.createdAt),
@@ -36,7 +35,7 @@ export const getRegistrationDataQueryOptions = (
 })
 
 class GetRegistrationTxError extends TaggedError('GetRegistrationTxError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 type GetRegistrationTxParameters = {
@@ -53,23 +52,23 @@ const readRegistrationTx = (
   { name, registeredAt }: GetRegistrationTxParameters,
   signal: AbortSignal,
 ) =>
-  retryStale(
+  retryStaleRead(
     (requestSignal) =>
-      bigname.nameHistory(
-        normalizeOrLower(name),
-        {
-          namespace: 'ens',
-          type: ['registration'],
-          order: 'asc',
-          from_timestamp: secondsToTimestamp(registeredAt),
-          page_size: 1,
-        },
-        { signal: requestSignal },
-      ),
-    isStale,
+      indexer
+        .getNameHistory(
+          {
+            name: normalizeOrLower(name),
+            types: ['registration'],
+            order: 'asc',
+            from: new Date(registeredAt * 1000),
+            pageSize: 1,
+          },
+          { signal: requestSignal },
+        )
+        .andThen(requireIndexed(name)),
     { signal },
   )
-    .map(({ data }): Hash | null => data[0]?.transaction_hash ?? null)
+    .map(({ items }): Hash | null => items[0]?.transactionHash ?? null)
     .mapErr((cause) => new GetRegistrationTxError({ cause }))
 
 /**

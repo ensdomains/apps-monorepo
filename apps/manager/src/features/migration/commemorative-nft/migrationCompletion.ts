@@ -3,7 +3,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { getPublicClient, type Config as WagmiConfig } from '@wagmi/core'
 import { type Address, isAddress, type PublicClient, zeroAddress } from 'viem'
 import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { abortablePublicClient } from '../service/abortablePublicClient'
 import { classifyNames } from '../service/classifyNames'
 import { getMigratedNamesCount } from '../service/getMigratedNamesCount'
@@ -113,7 +113,7 @@ const checkMigrationCompletion = async (
   const reconciled = await reconcileMigrationRecovery({
     scope,
     publicClient: publicClient as PublicClient,
-    historyClient: bigname,
+    historyClient: indexer,
     signal: params.signal,
     journal: loadMigrationBatchJournal(scope),
   })

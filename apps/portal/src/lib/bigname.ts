@@ -16,6 +16,7 @@ const url = envConfig.endpoints.bignameApi
 
 // Null on a network with no bigname deployed: its reads fail here rather than
 // reach another network's indexer.
+/** Only for the ENSv1 migration reads into `@ens-apps/migration`; everything else reads through `@/lib/indexer`. */
 export const bigname = createBignameClient(url ?? '', {
   fetch: (input, init) =>
     url

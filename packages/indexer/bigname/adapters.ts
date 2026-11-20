@@ -6,7 +6,7 @@ import type {
 } from '../reads/common.types'
 import { IndexerReadError } from '../reads/errors'
 import type { BignameError } from './errors'
-import type { Authority, EnsV1Facts, Relation, Timestamp } from './types'
+import type { Authority, EnsV1Facts, Page, Relation, Timestamp } from './types'
 
 const UNIX_SECONDS = /^-?\d+$/
 // An explicit zone is required; without one `Date.parse` reads local time.
@@ -104,10 +104,14 @@ export const toRelations = (
 
 export const toReadError = (error: BignameError): IndexerReadError => {
   const kind =
-    error.code === 'stale'
-      ? 'stale'
-      : error.code === 'invalid_input' || error.code === 'unsupported'
+    error.code === 'stale' || error.code === 'unsupported'
+      ? error.code
+      : error.code === 'invalid_input'
         ? 'rejected'
         : 'unavailable'
   return new IndexerReadError({ kind, message: error.message, cause: error })
 }
+
+/** Where the next page starts; bigname may serve a cursor on its last page. */
+export const toNextCursor = (page: Page | undefined): string | null =>
+  page?.has_more ? page.next_cursor : null

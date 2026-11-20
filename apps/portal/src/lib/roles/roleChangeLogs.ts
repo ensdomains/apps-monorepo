@@ -1,21 +1,19 @@
+import type { Power } from '@ens-apps/indexer/bigname'
 import {
-  type BignameError,
-  type EventRow,
-  MAX_PAGE_SIZE,
-  type Power,
-  readAllCollectionPages,
-  toExactSeconds,
-} from '@ens-apps/indexer/bigname'
+  type HistoryEvent,
+  type IndexerReadError,
+  readAllItems,
+} from '@ens-apps/indexer/reads'
 import { logger } from '@ens-apps/utils/logger'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { encodeRoleBitmap } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
-import { err, errAsync, fromPromise, ok, okAsync } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, getAddress, type Hex, isAddressEqual } from 'viem'
 import { type GetLogsErrorType, getLogs } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { previousPowers } from '@/lib/roles/permissionPowers'
 import { isRegistryRole } from '@/lib/roles/permissions'
@@ -57,6 +55,8 @@ type RoleChangeLog = {
 /** Rows the indexed read takes before handing over to the node. */
 export const INDEXED_ROLE_EVENTS_MAX_ROWS = 2000
 
+const INDEXED_ROLE_EVENTS_PAGE_SIZE = 200
+
 /**
  * How long the indexed read may take, across every page, before the node
  * answers instead. A stalled connection that never rejects would otherwise
@@ -69,27 +69,27 @@ class IndexedRoleChangeLogsError extends TaggedError(
 )<{
   /** Why the node has to answer instead. */
   reason: 'failed' | 'timeout' | 'truncated' | 'unindexed'
-  cause: BignameError | Error | undefined
+  cause: IndexerReadError | Error | undefined
 }> {}
 
-type PermissionRow = Extract<EventRow, { type: 'permission' }>
+type PermissionRow = Extract<HistoryEvent, { type: 'permission' }>
 
 const isRegistryRoleChange =
   (registryAddress: Address) =>
-  (row: EventRow): row is PermissionRow =>
+  (row: HistoryEvent): row is PermissionRow =>
     row.type === 'permission' &&
-    !!row.data?.address &&
+    !!row.data.address &&
     row.data.grant_scope?.kind === 'registry' &&
-    !!row.contract_address &&
-    isAddressEqual(row.contract_address, registryAddress)
+    !!row.contractAddress &&
+    isAddressEqual(row.contractAddress, registryAddress)
 
 /**
- * The rows as `EACRolesChanged` logs, oldest first. bigname states each
+ * The rows as `EACRolesChanged` logs, oldest first. The indexer states each
  * change as named powers; they are encoded back into role bitmaps, and the
  * set before a change is its stated diff, or else the account's previous row.
  */
 const toRoleChangeLogs = (
-  rows: readonly EventRow[],
+  rows: readonly HistoryEvent[],
   registryAddress: Address,
   resource: bigint,
 ): RoleChangeLog[] => {
@@ -98,18 +98,20 @@ const toRoleChangeLogs = (
     encodeRoleBitmap(registryPowersToRoles(powers).filter(isRegistryRole))
   const lastSeen = new Map<Address, readonly Power[]>()
   return rows.filter(isRegistryRoleChange(registryAddress)).flatMap((row) => {
-    const data = row.data ?? {}
+    const { data } = row
     const account = getAddress(data.address ?? '')
     const powers = data.powers ?? []
     const before = previousPowers(data, lastSeen.get(account))
     lastSeen.set(account, powers)
-    const timestamp = toExactSeconds(row.timestamp)
-    if (!row.transaction_hash || row.block_number === null || !timestamp)
+    const timestamp = row.timestamp
+      ? BigInt(Math.floor(row.timestamp.getTime() / 1000))
+      : null
+    if (!row.transactionHash || row.blockNumber === null || !timestamp)
       return []
     return [
       {
-        blockNumber: BigInt(row.block_number),
-        transactionHash: row.transaction_hash,
+        blockNumber: BigInt(row.blockNumber),
+        transactionHash: row.transactionHash,
         timestamp,
         args: {
           resource,
@@ -126,29 +128,24 @@ const readRegistrationRoleRows = ResultFn(async function* (
   name: string,
   signal: AbortSignal,
 ) {
-  const toError = (cause: BignameError) =>
+  const toError = (cause: IndexerReadError) =>
     new IndexedRoleChangeLogsError({ reason: 'failed', cause })
-  const registration = yield* bigname
-    .name(normalizeOrLower(name), { namespace: 'ens' }, { signal })
-    .map(({ data }) => data.registration_id)
-    .orElse((error) =>
-      error.code === 'not_found'
-        ? okAsync(undefined)
-        : errAsync(toError(error)),
-    )
+  const registration = yield* indexer
+    .getNameDetail({ name: normalizeOrLower(name) }, { signal })
+    .map((detail) => detail?.registrationId)
+    .mapErr(toError)
   if (!registration)
     return err(
       new IndexedRoleChangeLogsError({ reason: 'unindexed', cause: undefined }),
     )
-  const rows = yield* readAllCollectionPages<EventRow>(
+  const rows = yield* readAllItems(
     (cursor, pageSignal) =>
-      bigname.events(
+      indexer.getEvents(
         {
-          registration_id: registration,
-          type: ['permission'],
-          include: ['data', 'raw'],
+          registrationId: registration,
+          types: ['permission'],
           order: 'asc',
-          page_size: MAX_PAGE_SIZE,
+          pageSize: INDEXED_ROLE_EVENTS_PAGE_SIZE,
           ...(cursor && { cursor }),
         },
         { signal: pageSignal },
@@ -164,7 +161,7 @@ const readRegistrationRoleRows = ResultFn(async function* (
 })
 
 /**
- * The indexed history for one name's current registration, from bigname.
+ * The indexed history for one name's current registration, from the indexer.
  * Anchored on the registration, as the node read is on the versioned
  * resource: a previous owner's grants belong to an earlier registration.
  * Errs, with the reason, when the node has to answer instead.
@@ -248,7 +245,7 @@ export const getNodeRoleChangeLogs = ResultFn(async function* ({
 /**
  * `EACRolesChanged` logs for one resource on one registry.
  *
- * Read from bigname first: the node path is a single `getLogs` over every
+ * Read from the indexer first: the node path is a single `getLogs` over every
  * block since `ROLES_FROM_BLOCK`, which drpc answers in 7 to 20 seconds, and
  * because the transport batches JSON-RPC, every other read in the same batch
  * waits on it (WEB-1540). The node remains the fallback for an indexer outage

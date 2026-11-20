@@ -1,4 +1,4 @@
-import type { BignameClient } from '@ens-apps/indexer/bigname'
+import type { IndexerClient } from '@ens-apps/indexer/reads'
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions, skipToken } from '@tanstack/react-query'
@@ -20,7 +20,7 @@ import { hasCompletedMigrationRecovery } from './migrationRecoveryProgress'
 type RecoveryParams = {
   readonly scope: MigrationBatchJournalScope
   readonly publicClient: PublicClient
-  readonly historyClient: Pick<BignameClient, 'nameHistory'>
+  readonly historyClient: Pick<IndexerClient, 'getNameHistory'>
   readonly signal?: AbortSignal
   readonly journal?: ReturnType<typeof loadMigrationBatchJournal>
 }
@@ -63,18 +63,20 @@ const getCandidateHashes = async (
   const operation = attempt.operations[0]
   if (!operation) return []
   return params.historyClient
-    .nameHistory(
-      operation.name,
+    .getNameHistory(
       {
-        type: operation.action === 'migrate' ? ['migration'] : ['registration'],
-        page_size: 10,
+        name: operation.name,
+        types:
+          operation.action === 'migrate' ? ['migration'] : ['registration'],
+        pageSize: 10,
       },
       { signal: params.signal },
     )
     .match(
-      ({ data }) =>
-        data.flatMap(({ transaction_hash }) =>
-          transaction_hash ? [transaction_hash] : [],
+      // An unindexed name has no history yet, as when the read fails.
+      (page) =>
+        (page?.items ?? []).flatMap(({ transactionHash }) =>
+          transactionHash ? [transactionHash] : [],
         ),
       () => [],
     )

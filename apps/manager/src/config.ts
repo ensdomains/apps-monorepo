@@ -1,4 +1,9 @@
-import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
+import {
+  buildConfig,
+  type EnsNetwork,
+  isEnsNetwork,
+  resolveIndexer,
+} from '@ens-apps/config'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { drpcRpcUrl } from './drpc'
 import { MANAGER_ENDPOINTS } from './endpoints'
@@ -68,3 +73,9 @@ export const l2Sources = getL2Sources(
   envConfig.network,
   parseL2RpcOverrides(import.meta.env?.VITE_L2_RPC_URLS),
 )
+
+export const indexerSelection = resolveIndexer({
+  network: envConfig.network,
+  backend: import.meta.env?.VITE_INDEXER,
+  bignameApi: envConfig.endpoints.bignameApi,
+})

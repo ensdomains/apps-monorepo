@@ -1,21 +1,24 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
-import { parseRecordKey, type RecordInventory } from '@ens-apps/indexer/bigname'
+import { parseRecordKey } from '@ens-apps/indexer/bigname'
+import type {
+  IndexerReadError,
+  RecordInventory,
+  RecordKeys,
+} from '@ens-apps/indexer/reads'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { coinNameToTypeMap } from '@ensdomains/address-encoder'
 import { getRecordKeys as getResolverRecordKeys } from '@ensdomains/ensjs/public/v2'
-import { errAsync, fromPromise, ok, okAsync } from 'neverthrow'
+import { fromPromise, ok, okAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
-import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLegacyRegistryResolver } from '@/utils/ens/getLegacyRegistryResolver'
 import { getRecords } from './useRecords'
 
 class GetProfileError extends TaggedError('GetProfileError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 class GetLegacyResolverError extends TaggedError('GetLegacyResolverError')<{
@@ -29,7 +32,7 @@ type GetProfileParameters = {
 const DEFAULT_COINS = [
   // EVM
   coinNameToTypeMap.eth,
-  // ENSIP-19 default address, so a fresh write shows before bigname lists it
+  // ENSIP-19 default address, so a fresh write shows before the indexer lists it
   coinNameToTypeMap.default,
   coinNameToTypeMap.arb1,
   coinNameToTypeMap.op,
@@ -50,12 +53,12 @@ const DEFAULT_TEXTS = [
   'avatar',
 ]
 
-const NO_KEYS: Pick<RecordInventory, 'known_keys' | 'unsupported_keys'> = {
-  known_keys: [],
-  unsupported_keys: [],
+const NO_KEYS: Pick<RecordInventory, 'knownKeys' | 'unsupportedKeys'> = {
+  knownKeys: [],
+  unsupportedKeys: [],
 }
 
-/** The text keys and coin types in bigname's `text:`/`addr:` record keys. */
+/** The text keys and coin types in the indexer's `text:`/`addr:` record keys. */
 export const parseRecordKeys = (keys: readonly string[]) => {
   const parsed = keys.flatMap((key) => parseRecordKey(key) ?? [])
   return {
@@ -71,30 +74,27 @@ export const parseRecordKeys = (keys: readonly string[]) => {
 
 const unique = <T>(values: readonly T[]): T[] => Array.from(new Set(values))
 
-// bigname lists the keys a resolver has set, across both eras; the values are
-// read on-chain. A key it cannot serve is still read, and a name it has not
+const parseInventoryKeys = ({ inventory }: RecordKeys) =>
+  parseRecordKeys([
+    ...(inventory ?? NO_KEYS).knownKeys,
+    ...(inventory ?? NO_KEYS).unsupportedKeys,
+  ])
+
+// The indexer lists the keys a resolver has set, across both eras; the values
+// are read on-chain. A key it cannot serve is still read, and a name it has not
 // indexed reads only the defaults.
 const getRecordKeys = (name: string) =>
-  bigname
-    .nameRecords(name, { namespace: 'ens', include: ['inventory'] })
-    .map(({ data }) => ({
-      ...parseRecordKeys([
-        ...(data.inventory ?? NO_KEYS).known_keys,
-        ...(data.inventory ?? NO_KEYS).unsupported_keys,
-      ]),
-      indexedResolver: (data.resolver?.address ?? null) as Address | null,
-    }))
-    .orElse((error) =>
-      error.code === 'not_found'
-        ? okAsync({
-            ...parseRecordKeys([]),
-            indexedResolver: undefined,
-          })
-        : errAsync(new GetProfileError({ cause: error })),
+  indexer
+    .getRecordKeys({ name })
+    .map((keys) =>
+      keys
+        ? { ...parseInventoryKeys(keys), indexedResolver: keys.resolver }
+        : { ...parseRecordKeys([]), indexedResolver: undefined },
     )
+    .mapErr((cause) => new GetProfileError({ cause }))
 
 /**
- * Whether the resolver that answered is one bigname does not attribute to the
+ * Whether the resolver that answered is one the indexer does not attribute to the
  * name, so its keys must come from the resolver itself. An ENSv1 subname left
  * behind by an upgraded parent resolves through the parent's resolver.
  */
@@ -102,7 +102,7 @@ export const isUnindexedResolver = ({
   indexedResolver,
   answeringResolver,
 }: {
-  /** `undefined` when bigname has not indexed the name at all. */
+  /** `undefined` when the indexer has not indexed the name at all. */
   readonly indexedResolver: Address | null | undefined
   readonly answeringResolver: Address | undefined
 }): boolean =>
@@ -114,7 +114,7 @@ export const isUnindexedResolver = ({
 
 const NO_RECORD_KEYS = parseRecordKeys([])
 
-/** The keys read from the resolver's own logs, for when bigname can't answer. */
+/** The keys read from the resolver's own logs, for when the indexer can't answer. */
 const getRecordKeysOnChain = (name: string, resolver: Address) =>
   safeGetClient()
     .asyncAndThen((client) =>
@@ -131,7 +131,7 @@ const getRecordKeysOnChain = (name: string, resolver: Address) =>
     )
     .orElse(() => okAsync(NO_RECORD_KEYS))
 
-/** Keys a wildcard resolver (e.g. an upgraded parent's) holds for the name; bigname serves them per resolver. */
+/** Keys a wildcard resolver (e.g. an upgraded parent's) holds for the name; the indexer serves them per resolver. */
 const getWildcardRecordKeys = ({
   name,
   indexedResolver,
@@ -143,17 +143,12 @@ const getWildcardRecordKeys = ({
 }) =>
   answeringResolver &&
   isUnindexedResolver({ indexedResolver, answeringResolver })
-    ? bigname
-        .resolverRecords(envConfig.chain.id, answeringResolver.toLowerCase(), {
-          name,
-          values: false,
-          include: ['inventory'],
-        })
-        .map(({ data }) =>
-          parseRecordKeys([
-            ...(data.inventory ?? NO_KEYS).known_keys,
-            ...(data.inventory ?? NO_KEYS).unsupported_keys,
-          ]),
+    ? indexer
+        .getRecordKeys({ name, resolver: answeringResolver })
+        .andThen((keys) =>
+          keys
+            ? okAsync(parseInventoryKeys(keys))
+            : getRecordKeysOnChain(name, answeringResolver),
         )
         .orElse(() => getRecordKeysOnChain(name, answeringResolver))
     : okAsync(NO_RECORD_KEYS)

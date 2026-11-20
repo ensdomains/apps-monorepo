@@ -1,4 +1,5 @@
-import { ok, ResultAsync } from 'neverthrow'
+import { createBignameIndexer } from '@ens-apps/indexer'
+import { ok } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ens-apps/utils/sleep', () => ({
@@ -6,10 +7,15 @@ vi.mock('@ens-apps/utils/sleep', () => ({
 }))
 
 const getStatus = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    status: () => ResultAsync.fromPromise(getStatus(), (e) => e),
-  },
+vi.mock('@/lib/indexer', () => ({
+  indexer: createBignameIndexer({
+    baseUrl: 'https://bigname.test',
+    chainId: 11155111,
+    fetch: async () =>
+      new Response(JSON.stringify(await getStatus()), {
+        headers: { 'content-type': 'application/json' },
+      }),
+  }),
 }))
 
 const getBlockNumber = vi.fn()

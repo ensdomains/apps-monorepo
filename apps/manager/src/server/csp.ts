@@ -9,8 +9,8 @@
  * temporarily disabled while PostHog is retained only for feature flags.
  */
 
-import { originFromEnvUrl } from '@ens-apps/config'
-import { envConfig, l2Sources } from '@/config'
+import { indexerOrigins, originFromEnvUrl } from '@ens-apps/config'
+import { envConfig, indexerSelection, l2Sources } from '@/config'
 
 import { getCommemorativeNftConfig } from '@/features/migration/commemorative-nft/config'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
@@ -54,10 +54,8 @@ const DEFAULT_CONNECT_HOSTS = [
     .flatMap(({ rpcUrls }) => rpcUrls)
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexer, resolved in `@/config`.
-  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
-    (origin): origin is string => origin !== null,
-  ),
+  // The indexer, resolved in `@/config`, and bigname, which the ENSv1 migration reads use whatever the indexer.
+  ...indexerOrigins(indexerSelection, envConfig.endpoints.bignameApi),
   // ENS-owned hosts: backend API (VITE_API_URL /
   // sepolia.app-api.ens.domains). The wildcard families cover per-deployment
   // and per-environment hosts.

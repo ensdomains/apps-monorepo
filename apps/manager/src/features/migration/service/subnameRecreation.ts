@@ -1,4 +1,4 @@
-import { type BignameClient, readAllEnvelopes } from '@ens-apps/indexer/bigname'
+import { type IndexerClient, readAllItems } from '@ens-apps/indexer/reads'
 import {
   type SubnameMigrationImpact,
   unknownLabelhashOf,
@@ -27,7 +27,7 @@ import {
 } from 'viem'
 import { normalize } from 'viem/ens'
 import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer as defaultIndexer } from '@/lib/indexer'
 import { V1_CONTRACTS } from '../contracts/addresses'
 import {
   type ClassifiedName,
@@ -244,19 +244,17 @@ export const applySubnameRecreation = (params: {
 
 /** Indexer data supplies preimages only; RPC establishes every child identity. */
 const readLabelHints = async (
-  indexer: BignameClient,
+  indexer: Pick<IndexerClient, 'getSubnames'>,
   rootName: string,
   signal?: AbortSignal,
 ): Promise<readonly string[]> => {
-  const result = await readAllEnvelopes(
+  const result = await readAllItems(
     (cursor, requestSignal) =>
-      indexer.subnames(
-        rootName,
+      indexer.getSubnames(
         {
-          namespace: 'ens',
-          include_expired: 'true',
-          page_size: 200,
-          sort: 'name',
+          name: rootName,
+          includeExpired: true,
+          pageSize: 200,
           ...(cursor !== undefined && { cursor }),
         },
         { signal: requestSignal },
@@ -269,7 +267,7 @@ const readLabelHints = async (
       rootName,
       'an exact child label could not be resolved. Please refresh and try again.',
     )
-  return result.value.flatMap(({ data }) => data.map(({ name }) => name))
+  return result.value.map(({ name }) => name)
 }
 
 type SubnameSource = {
@@ -549,7 +547,7 @@ export const discoverSubnameRecreation = async (params: {
   readonly owner: Address
   readonly publicClient: PublicClient
   readonly verificationClient?: PublicClient
-  readonly indexer?: BignameClient
+  readonly indexer?: Pick<IndexerClient, 'getSubnames'>
   readonly inventory?: RpcSubnameInventory
   readonly signal?: AbortSignal
   readonly onNamesChecked?: (names: readonly string[]) => void | Promise<void>
@@ -650,7 +648,7 @@ export const discoverSubnameRecreation = async (params: {
       )
     const hints = children.some(({ name }) => name === null)
       ? await readLabelHints(
-          params.indexer ?? bigname,
+          params.indexer ?? defaultIndexer,
           root.domain.name,
           signal,
         )

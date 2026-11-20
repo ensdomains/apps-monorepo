@@ -1,12 +1,12 @@
-import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
+import type { HistoryEvent } from '@ens-apps/indexer/reads'
 import type { QueryFunctionContext } from '@tanstack/react-query'
 import { okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const listEvents = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    events: (...args: unknown[]) =>
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getEvents: (...args: unknown[]) =>
       ResultAsync.fromPromise(listEvents(...args), (e) => e),
   },
 }))
@@ -17,33 +17,27 @@ vi.mock('@/features/history/assignedResolvers', () => ({
 
 const { getRecentActivityQueryOptions } = await import('./useRecentActivity')
 
-const row = (over: Partial<NameHistoryRow>): NameHistoryRow =>
+const row = (over: Partial<HistoryEvent>): HistoryEvent =>
   ({
     id: 'a'.repeat(64),
     type: 'record',
     name: 'alice.eth',
-    namespace: 'ens',
-    registration_id: null,
-    block_number: 100,
-    timestamp: '1781049606',
-    transaction_hash: '0xabc',
-    log_index: 1,
-    contract_address: '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63',
+    registrationId: null,
+    blockNumber: 100,
+    timestamp: new Date(1_781_049_606_000),
+    transactionHash: '0xabc',
+    logIndex: 1,
+    contractAddress: '0x231b0ee14048e9dccd1d247744d114a4eb5e8e63',
+    kind: null,
     data: {},
     ...over,
-  }) as NameHistoryRow
+  }) as HistoryEvent
 
-const fetchPage = async (rows: NameHistoryRow[]) => {
+const fetchPage = async (rows: HistoryEvent[]) => {
   listEvents.mockResolvedValue({
-    data: rows,
-    page: {
-      cursor: null,
-      next_cursor: 'next',
-      page_size: 15,
-      total_count: null,
-      has_more: true,
-    },
-    meta: {},
+    items: rows,
+    nextCursor: 'next',
+    totalCount: null,
   })
   const { queryFn } = getRecentActivityQueryOptions()
   return (queryFn as (context: unknown) => Promise<unknown>)({
@@ -58,8 +52,7 @@ describe('getRecentActivityQueryOptions', () => {
     const page = await fetchPage([])
     expect(listEvents).toHaveBeenCalledWith({
       order: 'desc',
-      page_size: 15,
-      include: ['data', 'raw'],
+      pageSize: 15,
       cursor: undefined,
     })
     expect(page).toEqual({ events: [], endCursor: 'next', hasNextPage: true })
@@ -73,7 +66,8 @@ describe('getRecentActivityQueryOptions', () => {
         data: { registrant: '0x1111111111111111111111111111111111111111' },
       }),
       row({ type: 'record', data: { key: 'text:url', value: 'x' } }),
-      row({ type: 'renewal', data: undefined }),
+      // The indexer serves a row bigname sent without a payload with `{}`.
+      row({ type: 'renewal', data: {} }),
     ])) as { events: { type: string; kind?: string; data: unknown }[] }
 
     expect(
@@ -85,14 +79,14 @@ describe('getRecentActivityQueryOptions', () => {
         { registrant: '0x1111111111111111111111111111111111111111' },
       ],
       ['record', undefined, { key: 'text:url', value: 'x' }],
-      ['renewal', undefined, undefined],
+      ['renewal', undefined, {}],
     ])
   })
 
   it('keeps a row with no name, and drops one with no transaction', async () => {
     const page = (await fetchPage([
       row({ id: 'unattributed', name: '' }),
-      row({ id: 'lapse', type: 'release', transaction_hash: null }),
+      row({ id: 'lapse', type: 'release', transactionHash: null }),
     ])) as { events: { name: string | null }[] }
 
     expect(page.events).toHaveLength(1)
@@ -114,7 +108,7 @@ describe('getRecentActivityQueryOptions', () => {
       row({
         id: 'direct',
         type: 'record',
-        transaction_hash: '0xdef',
+        transactionHash: '0xdef',
         data: { key: 'name' },
       }),
     ])) as { events: { type: string }[] }
@@ -131,7 +125,7 @@ describe('getRecentActivityQueryOptions', () => {
       row({
         id: 'linked',
         type: 'registration',
-        registration_id: 'r1',
+        registrationId: 'r1',
         data: { action_id, action_role: 'linked' },
       }),
       row({
@@ -156,5 +150,50 @@ describe('getRecentActivityQueryOptions', () => {
       'authority',
     ])
     expect(page.events[0]?.data?.action_role).toBe('registered')
+  })
+
+  it('reads past pages of only hidden rows to the first with a row to show', async () => {
+    const lapse = row({ id: 'lapse', type: 'release', transactionHash: null })
+    listEvents
+      .mockResolvedValueOnce({
+        items: [lapse],
+        nextCursor: 'p2',
+        totalCount: null,
+      })
+      .mockResolvedValueOnce({
+        items: [lapse],
+        nextCursor: 'p3',
+        totalCount: null,
+      })
+      .mockResolvedValueOnce({
+        items: [row({})],
+        nextCursor: 'p4',
+        totalCount: null,
+      })
+    const { queryFn } = getRecentActivityQueryOptions()
+
+    const page = (await (queryFn as (context: unknown) => Promise<unknown>)({
+      pageParam: undefined,
+    } as unknown as QueryFunctionContext)) as {
+      events: unknown[]
+      endCursor: string | null
+    }
+
+    expect(page.events).toHaveLength(1)
+    expect(page.endCursor).toBe('p4')
+    expect(listEvents.mock.calls.map(([query]) => query.cursor)).toEqual([
+      undefined,
+      'p2',
+      'p3',
+    ])
+  })
+
+  it('stops after five more pages of only hidden rows, leaving the rest to Load more', async () => {
+    const page = (await fetchPage([
+      row({ id: 'lapse', type: 'release', transactionHash: null }),
+    ])) as { events: unknown[]; hasNextPage: boolean }
+
+    expect(page).toMatchObject({ events: [], hasNextPage: true })
+    expect(listEvents).toHaveBeenCalledTimes(6)
   })
 })

@@ -1,7 +1,8 @@
-import { BignameError, type EventRow } from '@ens-apps/indexer/bigname'
+import { createBignameIndexer } from '@ens-apps/indexer'
+import type { EventRow } from '@ens-apps/indexer/bigname'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { eacRolesChangedEventSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
-import { ok, ResultAsync } from 'neverthrow'
+import { ok } from 'neverthrow'
 import { type Address, getAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ROLES_FROM_BLOCK } from '@/lib/roles/rolesFromBlock'
@@ -13,11 +14,18 @@ const ROOT_RESOURCE_HEX = `0x${'0'.repeat(64)}`
 const listEvents = vi.fn()
 const mockGetLogs = vi.fn()
 const mockGetBlockTimestamps = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    events: (...args: unknown[]) =>
-      ResultAsync.fromPromise(listEvents(...args), (e) => e),
-  },
+vi.mock('@/lib/indexer', () => ({
+  indexer: createBignameIndexer({
+    baseUrl: 'https://bigname.test',
+    chainId: 11155111,
+    fetch: async (input) => {
+      const { status = 200, body } = await listEvents(new URL(String(input)))
+      return new Response(JSON.stringify(body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      })
+    },
+  }),
 }))
 vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
@@ -36,15 +44,22 @@ const ROOT_REGISTRY = getAddress(
 const ROOT_ACCOUNT = getAddress(mockEventRootPermissionChanged.data.address)
 
 const page = (data: EventRow[]) => ({
-  data,
-  page: {
-    cursor: null,
-    next_cursor: null,
-    page_size: 200,
-    total_count: null,
-    has_more: false,
+  body: {
+    data,
+    page: {
+      cursor: null,
+      next_cursor: null,
+      page_size: 200,
+      total_count: null,
+      has_more: false,
+    },
+    meta: {},
   },
-  meta: {},
+})
+
+const apiError = (status: number, code: string) => ({
+  status,
+  body: { error: { code, message: code, details: {} } },
 })
 
 const runRoot = () =>
@@ -53,7 +68,7 @@ const runRoot = () =>
     account: ROOT_ACCOUNT,
   })
 
-describe('getRegistryRoleHistoryForAccount where bigname serves root role changes', () => {
+describe('getRegistryRoleHistoryForAccount where the indexer serves root role changes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetLogs.mockResolvedValue([])
@@ -65,17 +80,16 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
     await runRoot()
 
     expect(listEvents).toHaveBeenCalledTimes(1)
-    expect(listEvents).toHaveBeenCalledWith(
-      {
-        contract_address: ROOT_REGISTRY.toLowerCase(),
-        address: ROOT_ACCOUNT.toLowerCase(),
-        kind: ['RootPermissionChanged'],
-        include: ['data', 'raw'],
-        order: 'desc',
-        page_size: 200,
-      },
-      expect.anything(),
-    )
+    const [url] = listEvents.mock.calls[0] as [URL]
+    expect(url.pathname).toBe('/v1/events')
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      contract_address: ROOT_REGISTRY.toLowerCase(),
+      address: ROOT_ACCOUNT.toLowerCase(),
+      kind: 'RootPermissionChanged',
+      include: 'data,raw',
+      order: 'desc',
+      page_size: '200',
+    })
   })
 
   it('reads the before and after sets and the date from the row, with no node read', async () => {
@@ -145,9 +159,7 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
   ] as const)(
     'falls back to the node when bigname answers %i',
     async (status, code) => {
-      listEvents.mockRejectedValue(
-        new BignameError({ status, code, message: code }),
-      )
+      listEvents.mockResolvedValue(apiError(status, code))
 
       const result = await runRoot()
 
@@ -165,9 +177,7 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
   )
 
   it('converts the node logs into dated history entries', async () => {
-    listEvents.mockRejectedValue(
-      new BignameError({ status: 503, code: 'overloaded', message: 'down' }),
-    )
+    listEvents.mockResolvedValue(apiError(503, 'overloaded'))
     const transactionHash = `0x${'b'.repeat(64)}`
     mockGetLogs.mockResolvedValue([
       {
@@ -200,9 +210,7 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
   })
 
   it('keeps the can_name bits ensjs does not decode', async () => {
-    listEvents.mockRejectedValue(
-      new BignameError({ status: 503, code: 'overloaded', message: 'down' }),
-    )
+    listEvents.mockResolvedValue(apiError(503, 'overloaded'))
     mockGetLogs.mockResolvedValue([
       {
         args: {
@@ -227,9 +235,7 @@ describe('getRegistryRoleHistoryForAccount where bigname serves root role change
   })
 
   it('does not start a node read for a cancelled query', async () => {
-    listEvents.mockRejectedValue(
-      new BignameError({ status: 409, code: 'stale', message: 'stale' }),
-    )
+    listEvents.mockResolvedValue(apiError(409, 'stale'))
     const controller = new AbortController()
     controller.abort()
 

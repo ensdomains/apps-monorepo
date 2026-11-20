@@ -1,12 +1,12 @@
-import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
+import type { HistoryEvent } from '@ens-apps/indexer'
 import { ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getNameHistory = vi.fn()
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    nameHistory: (...args: unknown[]) =>
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNameHistory: (...args: unknown[]) =>
       ResultAsync.fromPromise(getNameHistory(...args), (e) => e),
   },
 }))
@@ -28,18 +28,13 @@ const ETH_REGISTRY = ensChain.contracts.ensRegistry?.address.toLowerCase()
 const V2_REGISTRY: Address = '0x541c00000000000000000000000000000000976f'
 
 const rows = (contracts: (string | null | undefined)[], hasMore = false) => ({
-  data: contracts.map((contract_address) => ({
+  items: contracts.map((contract) => ({
     type: 'subregistry',
-    contract_address,
+    contractAddress: contract ?? null,
+    data: {},
   })),
-  page: {
-    cursor: null,
-    next_cursor: hasMore ? 'next' : null,
-    page_size: 50,
-    total_count: contracts.length,
-    has_more: hasMore,
-  },
-  meta: {},
+  nextCursor: hasMore ? 'next' : null,
+  totalCount: contracts.length,
 })
 
 const linkCount = async () =>
@@ -48,17 +43,17 @@ const linkCount = async () =>
 const link = (
   subregistry?: Address,
   registrationId: string | null = null,
-): NameHistoryRow => ({
+): HistoryEvent => ({
   id: 'a'.repeat(64),
   type: 'subregistry',
   name: 'test.eth',
-  namespace: 'ens',
-  registration_id: registrationId,
-  block_number: 1,
-  timestamp: '1',
-  transaction_hash: null,
-  log_index: null,
-  contract_address: '0x2222222222222222222222222222222222222222',
+  registrationId,
+  blockNumber: 1,
+  timestamp: new Date(1000),
+  transactionHash: null,
+  logIndex: null,
+  contractAddress: '0x2222222222222222222222222222222222222222',
+  kind: null,
   data: subregistry
     ? { subregistry: { chain_id: 1, address: subregistry } }
     : {},
@@ -75,7 +70,7 @@ describe('getSubregistryHistory', () => {
   it("checks a restore against the name's current registration", async () => {
     getNameHistory.mockResolvedValue({
       ...rows([]),
-      data: [link(undefined, 'a'), link(V2_REGISTRY, 'a')],
+      items: [link(undefined, 'a'), link(V2_REGISTRY, 'a')],
     })
     getNameDetail.mockResolvedValue({ registrationId: 'a' })
 
@@ -101,12 +96,19 @@ describe('getSubregistryHistory', () => {
       previousRegistry: undefined,
       isRestorable: false,
     })
-    expect(getNameHistory).toHaveBeenCalledWith('test.eth', {
-      namespace: 'ens',
-      type: ['subregistry'],
-      include: ['data'],
-      page_size: 50,
+    expect(getNameHistory).toHaveBeenCalledWith({
+      name: 'test.eth',
+      types: ['subregistry'],
+      pageSize: 50,
     })
+  })
+
+  // An unindexed name must not read as never-configured, the verdict that offers the write.
+  it('answers unknown when the indexer has not indexed the name', async () => {
+    getNameHistory.mockResolvedValue(null)
+    expect(
+      (await getSubregistryHistory({ name: 'test.eth' }))._unsafeUnwrap(),
+    ).toBeNull()
   })
 
   it('counts ENSv2 links but not ENSv1 NewOwner rows', async () => {

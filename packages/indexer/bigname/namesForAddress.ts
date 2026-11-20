@@ -7,6 +7,7 @@ import {
   toDate,
   toExactSeconds,
   toExpiresAt,
+  toNextCursor,
   toProtocol,
   toReadError,
   toRelations,
@@ -51,6 +52,7 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
     : query.relations?.length
       ? query.relations
       : 'any',
+  coin_type: query.resolvesTo ? query.coinType : undefined,
   authority: query.protocol && AUTHORITIES[query.protocol],
   is_migrated: query.migratedOnly ? 'true' : undefined,
   parent: query.parent,
@@ -58,6 +60,7 @@ const toQuery = (query: NamesForAddressQuery): AddressNamesQuery => ({
   match: query.contains === undefined ? undefined : 'contains',
   sort: query.sort && SORT_FIELDS[query.sort],
   order: query.order,
+  dedupe: query.distinctBy,
   include: toInclude(query),
   page_size: query.pageSize,
   cursor: query.cursor,
@@ -102,6 +105,11 @@ const toNameSummary = (row: AddressName, address: string): NameSummary => ({
   ...(row.role_summary !== undefined && {
     heldPowers: toHeldPowers(row, address),
   }),
+  ...((row.resolutions ?? row.resolution) !== undefined && {
+    resolvedCoinTypes: (
+      row.resolutions ?? (row.resolution ? [row.resolution] : [])
+    ).map(({ coin_type }) => coin_type),
+  }),
 })
 
 export const readNamesForAddress =
@@ -111,7 +119,7 @@ export const readNamesForAddress =
       .addressNames(query.address, toQuery(query), options)
       .map(({ data, page }) => ({
         items: data.map((row) => toNameSummary(row, query.address)),
-        nextCursor: page?.next_cursor ?? null,
+        nextCursor: toNextCursor(page),
         totalCount: page?.total_count ?? null,
       }))
       .mapErr(toReadError)

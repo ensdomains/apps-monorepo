@@ -1,4 +1,5 @@
-import { BignameError } from '@ens-apps/indexer/bigname'
+import { IndexerReadError } from '@ens-apps/indexer'
+import { toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { registryRoles } from '@ensdomains/ensjs/utils/v2'
 import { errAsync, ok, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
@@ -20,10 +21,10 @@ vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok({ chain: { id: 11155111 }, getLogs: mockGetLogs }),
 }))
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: {
-    name: (...args: unknown[]) => mockName(...args),
-    events: (...args: unknown[]) => mockEvents(...args),
+vi.mock('@/lib/indexer', () => ({
+  indexer: {
+    getNameDetail: (...args: unknown[]) => mockName(...args),
+    getEvents: (...args: unknown[]) => mockEvents(...args),
   },
 }))
 
@@ -70,22 +71,26 @@ describe('getRoleHistory', () => {
     mockGetResource.mockResolvedValue(RESOURCE)
     mockGetBlockTimestamps.mockReset()
     mockGetBlockTimestamps.mockReturnValue(okAsync(new Map<bigint, bigint>()))
-    // Most cases pin the node path; bigname is the first source now.
+    // Most cases pin the node path; the indexer is the first source now.
     mockEvents.mockReset()
     mockName.mockReset()
     mockName.mockReturnValue(
-      errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
+      errAsync(
+        new IndexerReadError({
+          kind: 'unavailable',
+          message: 'down',
+          cause: undefined,
+        }),
+      ),
     )
   })
 
   it('reads indexed history with its own timestamps, no node calls', async () => {
-    mockName.mockReturnValue(
-      okAsync({ data: { registration_id: 'registration-1' }, meta: {} }),
-    )
+    mockName.mockReturnValue(okAsync({ registrationId: 'registration-1' }))
     mockEvents.mockReturnValue(
       okAsync({
-        data: [
-          {
+        items: [
+          toHistoryEvent({
             id: 'row-10',
             type: 'permission',
             name: 'test.chakri.eth',
@@ -101,16 +106,10 @@ describe('getRoleHistory', () => {
               grant_scope: { kind: 'registry', detail: {} },
               powers: ['renew'],
             },
-          },
+          }),
         ],
-        page: {
-          cursor: null,
-          next_cursor: null,
-          page_size: 1,
-          total_count: null,
-          has_more: false,
-        },
-        meta: {},
+        nextCursor: null,
+        totalCount: null,
       }),
     )
 

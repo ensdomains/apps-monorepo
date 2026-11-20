@@ -1,4 +1,4 @@
-import type { EventDataByType } from '@ens-apps/indexer/bigname'
+import { type EventDataByType, toHistoryEvent } from '@ens-apps/indexer/bigname'
 import type { Hex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
@@ -334,7 +334,9 @@ describe('summarizeEvents', () => {
       log_index: 43,
       data: { ...registered.data, action_role: 'linked' },
     } as const
-    const [action] = summarizeEvents(toTimelineEvents([linked, registered]))
+    const [action] = summarizeEvents(
+      toTimelineEvents([linked, registered].map(toHistoryEvent)),
+    )
 
     expect(action.label).toBe('registered')
     expect(action.events.map(({ id }) => id)).toEqual([registered.id])
@@ -343,7 +345,7 @@ describe('summarizeEvents', () => {
 
   it('renders a root role change in a registry feed, which has no name to lead with', () => {
     const [action] = summarizeEvents(
-      toTimelineEvents([mockEventRootPermissionChanged]),
+      toTimelineEvents([mockEventRootPermissionChanged].map(toHistoryEvent)),
       { includeSubjectName: true },
     )
     expect(action.label).toBe('revoked root roles')
@@ -357,10 +359,12 @@ describe('summarizeEvents', () => {
   })
 
   it('leaves rows without a charge as served', () => {
-    const rows = toTimelineEvents([
-      mockHistoryRegistration,
-      { ...mockHistoryRegistration, id: 'f'.repeat(64) },
-    ])
+    const rows = toTimelineEvents(
+      [
+        mockHistoryRegistration,
+        { ...mockHistoryRegistration, id: 'f'.repeat(64) },
+      ].map(toHistoryEvent),
+    )
     const [action] = summarizeEvents(rows)
     expect(action.events).toEqual(rows)
     expect(action.events[0]).toBe(rows[0])

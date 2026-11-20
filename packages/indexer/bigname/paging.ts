@@ -1,5 +1,6 @@
 import type { ResultAsync } from 'neverthrow'
 import { type PagingStop, readAllPages } from '../shared/paging'
+import { toNextCursor } from './adapters'
 import { BignameError, isStale } from './errors'
 import type { Envelope } from './types'
 
@@ -21,7 +22,7 @@ export const readAllCollectionPages = <Row>(
     readPage: (cursor, signal) =>
       read(cursor, signal).map(({ data, page }) => ({
         rows: data,
-        nextCursor: page?.next_cursor ?? null,
+        nextCursor: toNextCursor(page),
       })),
     isStaleError: isStale,
     toStopError: toBignameStopError,
@@ -41,7 +42,7 @@ export const readAllEnvelopes = <Row>(
     readPage: (cursor, signal) =>
       read(cursor, signal).map((envelope) => ({
         rows: [envelope],
-        nextCursor: envelope.page?.next_cursor ?? null,
+        nextCursor: toNextCursor(envelope.page),
       })),
     isStaleError: isStale,
     toStopError: toBignameStopError,

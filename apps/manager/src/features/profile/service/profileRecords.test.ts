@@ -1,4 +1,4 @@
-import { BignameError } from '@ens-apps/indexer/bigname'
+import { IndexerReadError } from '@ens-apps/indexer/reads'
 import { encodeContentHash } from '@ensdomains/ensjs/utils'
 import {
   publicResolverAbiSnippet,
@@ -25,7 +25,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   client: {},
   resolveNameData: vi.fn(),
-  nameRecords: vi.fn(),
+  getRecordKeys: vi.fn(),
   call: vi.fn(),
   resolveNameRegistry: vi.fn(),
   readNameResolver: vi.fn(),
@@ -34,8 +34,8 @@ const mocks = vi.hoisted(() => ({
   isExtendedResolver: false,
 }))
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: { nameRecords: mocks.nameRecords },
+vi.mock('@/lib/indexer', () => ({
+  indexer: { getRecordKeys: mocks.getRecordKeys },
 }))
 vi.mock('@ensdomains/ensjs/public', () => ({
   resolveNameData: mocks.resolveNameData,
@@ -78,7 +78,15 @@ import { getProfileRecords } from './profileRecords'
 const resolverAddress = '0x2222222222222222222222222222222222222222'
 const ethAddress = '0x1111111111111111111111111111111111111111'
 const knownKeys = (keys: readonly string[]) =>
-  okAsync({ data: { inventory: { known_keys: keys } } })
+  okAsync({
+    resolver: null,
+    inventory: {
+      knownKeys: keys,
+      unsetKeys: [],
+      unsupportedKeys: [],
+      abiContentTypes: [],
+    },
+  })
 const bytesResult = (value: Hex) =>
   encodeAbiParameters([{ type: 'bytes' }], [value])
 const recordAbi = [
@@ -169,7 +177,7 @@ const requestedTextKeys = () =>
 describe('profile records', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.nameRecords.mockReturnValue(knownKeys([]))
+    mocks.getRecordKeys.mockReturnValue(knownKeys([]))
     mocks.resolveNameData.mockResolvedValue(profileResolution())
     mocks.resolveNameRegistry.mockRejectedValue(
       new NameRegistryNotFoundError('missing.eth'),
@@ -262,7 +270,7 @@ describe('profile records', () => {
           { name: 'Blog', url: 'https://blog.example.com' },
         ]),
       }
-      mocks.nameRecords.mockReturnValue(knownKeys(indexedKeys))
+      mocks.getRecordKeys.mockReturnValue(knownKeys(indexedKeys))
       mocks.resolveNameData.mockResolvedValue(
         profileResolution([], { links: linksRecord.value }),
       )
@@ -350,7 +358,7 @@ describe('profile records', () => {
   })
 
   it('reads every indexed text key and supported coin type', async () => {
-    mocks.nameRecords.mockReturnValue(
+    mocks.getRecordKeys.mockReturnValue(
       knownKeys([
         'text:com.github',
         'addr:2147483658',
@@ -362,10 +370,7 @@ describe('profile records', () => {
 
     await getProfileRecords('keys.eth')
 
-    expect(mocks.nameRecords).toHaveBeenCalledWith('keys.eth', {
-      namespace: 'ens',
-      include: ['inventory'],
-    })
+    expect(mocks.getRecordKeys).toHaveBeenCalledWith({ name: 'keys.eth' })
     expect(requestedTextKeys()).toEqual([
       'avatar',
       'theme',
@@ -377,16 +382,15 @@ describe('profile records', () => {
     ).toHaveLength(4)
   })
 
-  it('reads the main keys for a name bigname has not indexed', async () => {
-    mocks.nameRecords.mockReturnValue(
-      errAsync(
-        new BignameError({
-          code: 'not_found',
-          status: 404,
-          message: 'missing',
-        }),
-      ),
-    )
+  it.each([
+    ['has not indexed', () => okAsync(null)],
+    [
+      'cannot be read for',
+      () =>
+        errAsync(new IndexerReadError({ kind: 'unavailable', cause: null })),
+    ],
+  ])('reads the main keys for a name the indexer %s', async (_, read) => {
+    mocks.getRecordKeys.mockReturnValue(read())
     mocks.resolveNameData.mockResolvedValue(null)
 
     const result = await getProfileRecords('unindexed.eth')

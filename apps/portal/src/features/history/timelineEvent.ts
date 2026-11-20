@@ -1,11 +1,11 @@
-import {
-  type EventDataByType,
-  type EventRow,
-  type EventType,
-  type NameHistoryRow,
-  toUnixSeconds,
-} from '@ens-apps/indexer/bigname'
+import type {
+  HistoryEvent,
+  HistoryEventData,
+  HistoryEventType,
+} from '@ens-apps/indexer/reads'
 import type { Address, Hex } from 'viem'
+
+export type EventType = HistoryEventType
 
 /**
  * bigname's closed history vocabulary, in its canonical order. Every history
@@ -29,8 +29,6 @@ export const HISTORY_EVENT_TYPES = [
   'token',
   'contract',
 ] as const satisfies readonly EventType[]
-
-export type { EventType }
 
 type TimelineEventBase = {
   /** bigname's opaque row identity: unique per row, stable across pages. */
@@ -63,7 +61,7 @@ export type TimelineEvent = {
   readonly [TType in EventType]: TimelineEventBase & {
     readonly type: TType
     /** Absent when bigname serves the row without a payload. */
-    readonly data?: EventDataByType[TType]
+    readonly data?: HistoryEventData[TType]
   }
 }[EventType]
 
@@ -73,7 +71,7 @@ export type TimelineEventOfType<TType extends EventType> = Extract<
 >
 
 /**
- * A bigname history row as the timeline renders it: unix-second timestamp,
+ * An indexer history row as the timeline renders it: unix-second timestamp,
  * camel-cased fields. A row with no chain position has
  * nowhere to sit on a timeline and is dropped. Name history rows always carry
  * `name`; contract-feed rows (`/v1/events`) can omit it.
@@ -82,29 +80,26 @@ export type TimelineEventOfType<TType extends EventType> = Extract<
  * every dispatcher over it falls back to a generic rendering rather than
  * dropping or crashing on a type bigname adds later.
  */
-const toTimelineEvent = (
-  row: NameHistoryRow | EventRow,
-): TimelineEvent | undefined => {
-  const timestamp = toUnixSeconds(row.timestamp)
-  if (row.block_number === null || timestamp === null) return undefined
+const toTimelineEvent = (row: HistoryEvent): TimelineEvent | undefined => {
+  if (row.blockNumber === null || row.timestamp === null) return undefined
   return {
     id: row.id,
     type: row.type,
     ...(row.kind && { kind: row.kind }),
     name: row.name ?? '',
-    ...('subject' in row && row.subject && { subject: row.subject }),
-    registrationId: row.registration_id,
-    transactionHash: row.transaction_hash,
-    blockNumber: row.block_number,
-    logIndex: row.log_index,
-    timestamp,
-    ...(row.contract_address && { contractAddress: row.contract_address }),
-    ...(row.data && { data: row.data }),
+    ...(row.subject && { subject: row.subject }),
+    registrationId: row.registrationId,
+    transactionHash: row.transactionHash,
+    blockNumber: row.blockNumber,
+    logIndex: row.logIndex,
+    timestamp: Math.floor(row.timestamp.getTime() / 1000),
+    ...(row.contractAddress && { contractAddress: row.contractAddress }),
+    data: row.data,
   } as TimelineEvent
 }
 
 export const toTimelineEvents = (
-  rows: readonly (NameHistoryRow | EventRow)[],
+  rows: readonly HistoryEvent[],
 ): TimelineEvent[] => rows.flatMap((row) => toTimelineEvent(row) ?? [])
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set(HISTORY_EVENT_TYPES)

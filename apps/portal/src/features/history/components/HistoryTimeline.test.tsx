@@ -1,4 +1,4 @@
-import { BignameError } from '@ens-apps/indexer/bigname'
+import { IndexerReadError } from '@ens-apps/indexer/reads'
 import { render as baseRender, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
@@ -223,9 +223,10 @@ describe('HistoryTimelineView', () => {
         model={model({
           actions: [],
           sourcesError: new GetTimelineEventPageError({
-            cause: new BignameError({
-              code: 'overloaded',
-              message: 'bigname down',
+            cause: new IndexerReadError({
+              kind: 'unavailable',
+              message: 'indexer down',
+              cause: undefined,
             }),
           }),
         })}
@@ -251,9 +252,10 @@ describe('HistoryTimelineView', () => {
       <HistoryTimelineView
         model={model({
           sourcesError: new GetTimelineEventPageError({
-            cause: new BignameError({
-              code: 'overloaded',
-              message: 'bigname down',
+            cause: new IndexerReadError({
+              kind: 'unavailable',
+              message: 'indexer down',
+              cause: undefined,
             }),
           }),
           totalCount: 9,

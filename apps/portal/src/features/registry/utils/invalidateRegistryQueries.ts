@@ -9,7 +9,7 @@ import { getRegistryOccupantsQueryKey } from '../hooks/useRegistryOccupants'
 import { getRegistryRoleHistoryForAccountQueryKey } from '../hooks/useRegistryRoleHistoryForAccount'
 import { getRegistryRootRoleCountsQueryKey } from '../queries/getRegistryRootRoleCounts'
 
-/** Root role reads, from BigName and on-chain. */
+/** Root role reads, from the indexer and on-chain. */
 const ROOT_ROLE_KEYS: ReadonlySet<unknown> = new Set([
   // Holders table on /registry/$address/roles.
   getRegistryRootRoleHoldersQueryKey.key,

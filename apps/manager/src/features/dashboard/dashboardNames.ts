@@ -1,4 +1,3 @@
-import { type AddressName, toExactSeconds } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ProtocolVersion } from '@ens-apps/indexer/reads'
 import type { Address, Hex } from 'viem'
 import { isNormalizedName } from '@/features/register-v2/utils/name-parser'
@@ -72,20 +71,20 @@ export const isHeldName = (name: DashboardName): boolean =>
   name.nameRoles.includes('owner') || name.isLapsed
 
 /**
- * A row `readGraceNames` kept: an ENSv2 `.eth` name the address held until it
- * expired, still renewable. It holds no current role, so it carries none.
+ * A name `getGraceNames` returned: an ENSv2 `.eth` name the address held until
+ * it expired, still renewable. It holds no current role, so it carries none.
  */
-export const toGraceName = (row: AddressName): DashboardName | null => {
-  const expiryDate = toExactSeconds(row.expires_at)
-  if (expiryDate === null || !isNormalizedName(row.name)) return null
+export const toGraceName = (name: NameSummary): DashboardName | null => {
+  const expiryDate = name.servedExpiry
+  if (expiryDate === null || !isNormalizedName(name.name)) return null
   return {
-    key: row.namehash,
-    name: row.name,
+    key: name.namehash,
+    name: name.name,
     protocol: 'v2',
     expiryDate,
     servedExpiry: expiryDate,
-    graceEndsAt: toExactSeconds(row.grace_ends_at),
-    createdAt: toExactSeconds(row.created_at),
+    graceEndsAt: toSeconds(name.graceEndsAt),
+    createdAt: toSeconds(name.createdAt),
     nameRoles: [],
     isLapsed: true,
   }

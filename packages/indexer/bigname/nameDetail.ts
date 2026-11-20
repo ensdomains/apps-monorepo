@@ -11,7 +11,31 @@ import {
 import type { BignameClient } from './client'
 import type { NameRecord } from './types'
 
-const toNameDetail = (record: NameRecord): NameDetail => ({
+/** The fields a name record and a lookup record share. */
+type DetailRecord = Pick<
+  NameRecord,
+  | 'name'
+  | 'display_name'
+  | 'namehash'
+  | 'read_status'
+  | 'authority'
+  | 'owner'
+  | 'manager'
+  | 'registrant'
+  | 'resolver'
+  | 'status'
+  | 'ens_v1'
+  | 'expires_at'
+  | 'grace_ends_at'
+  | 'registered_at'
+  | 'registration_id'
+  | 'created_at'
+  | 'migrated_at'
+  | 'unresolvable_reason'
+  | 'records'
+>
+
+export const toNameDetail = (record: DetailRecord): NameDetail => ({
   name: record.name,
   displayName: record.display_name,
   namehash: record.namehash,
@@ -29,6 +53,12 @@ const toNameDetail = (record: NameRecord): NameDetail => ({
   createdAt: toDate(record.created_at),
   migratedAt: toDate(record.migrated_at),
   unresolvableReason: record.unresolvable_reason ?? null,
+  // Seen address coin types, minus the cleared ones.
+  addressCoinTypes: record.records
+    ? record.records.seen_addresses.filter(
+        (coinType) => record.records?.addresses[coinType] !== null,
+      )
+    : null,
 })
 
 // A 404, or a 200 whose read_status is not_found, means the name is not indexed:

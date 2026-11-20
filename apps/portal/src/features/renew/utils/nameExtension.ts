@@ -31,7 +31,7 @@ export type NameStatusInput = {
 }
 
 /**
- * bigname's `status` decides whether a name lapsed, so a wrapped ENSv1 subname
+ * The indexer's `status` decides whether a name lapsed, so a wrapped ENSv1 subname
  * it still serves as active is not shown past its wrapper expiry.
  */
 export const getNameStatus = (

@@ -1,24 +1,26 @@
-import type { AddressName } from '@ens-apps/indexer/bigname'
+import type { NameSummary } from '@ens-apps/indexer/reads'
 import { describe, expect, it } from 'vitest'
 import { isLapsedName } from './lapsedNames'
 
-const ADDRESS = '0x1111111111111111111111111111111111111111'
-const OTHER = '0x2222222222222222222222222222222222222222'
-const NOW = 1_800_000_000n
-const DAY = 86_400n
+const NOW = new Date(1_800_000_000_000)
+const DAY_MS = 86_400_000
 
-const lapsed = (overrides: Partial<AddressName> = {}): AddressName => ({
+const daysFromNow = (days: number) => new Date(NOW.getTime() + days * DAY_MS)
+
+const lapsed = (overrides: Partial<NameSummary> = {}): NameSummary => ({
   name: 'lapsed.eth',
-  display_name: 'lapsed.eth',
-  namespace: 'ens',
+  displayName: 'lapsed.eth',
   namehash: '0x01',
-  status: 'released',
-  authority: 'ens_v2',
-  expires_at: String(NOW - 29n * DAY),
-  grace_ends_at: String(NOW - DAY),
-  relations: ['former_owner'],
-  is_primary: false,
-  lapsed_registration: { owner: ADDRESS, release_kind: 'expired' },
+  protocol: 'v2',
+  relations: [],
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'released',
+  expiresAt: daysFromNow(-29),
+  servedExpiry: null,
+  graceEndsAt: daysFromNow(-1),
+  registeredAt: null,
+  createdAt: null,
   ...overrides,
 })
 
@@ -28,48 +30,51 @@ describe('isLapsedName', () => {
     [
       'an ENSv2 name in grace',
       lapsed({
-        status: 'expired',
-        expires_at: String(NOW - DAY),
-        grace_ends_at: String(NOW + 27n * DAY),
+        registrationStatus: 'expired',
+        expiresAt: daysFromNow(-1),
+        graceEndsAt: daysFromNow(27),
       }),
       true,
     ],
     [
       'an ENSv2 name 30 days after expiry',
-      lapsed({
-        expires_at: String(NOW - 30n * DAY),
-        grace_ends_at: String(NOW - 2n * DAY),
-      }),
+      lapsed({ expiresAt: daysFromNow(-30), graceEndsAt: daysFromNow(-2) }),
       false,
     ],
-    // The top-level expiry is the ENSv2 reservation, 62 days after the lease;
-    // the list counts from the lease.
+    // A reserved ENSv1 name counts from its lease, not its reservation 62 days later.
     [
-      'a reserved ENSv1 name 91 days after its lease expiry',
+      'a reserved ENSv1 name 10 days after its lease',
       lapsed({
-        authority: 'ens_v1',
-        ens_v1: { expires_at: String(NOW - 91n * DAY) },
+        protocol: 'v1',
+        expiresAt: daysFromNow(-10),
+        servedExpiry: BigInt(Math.floor(daysFromNow(52).getTime() / 1000)),
+      }),
+      true,
+    ],
+    [
+      'a reserved ENSv1 name 91 days after its lease',
+      lapsed({
+        protocol: 'v1',
+        expiresAt: daysFromNow(-91),
+        servedExpiry: BigInt(Math.floor(daysFromNow(-29).getTime() / 1000)),
       }),
       false,
     ],
     [
       'a name registered again by someone else',
       lapsed({
-        status: 'active',
-        owner: OTHER,
-        expires_at: String(NOW + 300n * DAY),
-        grace_ends_at: String(NOW + 328n * DAY),
+        registrationStatus: 'active',
+        expiresAt: daysFromNow(300),
+        graceEndsAt: daysFromNow(328),
       }),
       false,
     ],
     [
-      'a name another address let expire',
-      lapsed({
-        lapsed_registration: { owner: OTHER, release_kind: 'expired' },
-      }),
+      'a name whose label the indexer has no text for',
+      lapsed({ name: `[${'0'.repeat(64)}].eth` }),
       false,
     ],
-  ])('%s', (_, row, expected) => {
-    expect(isLapsedName(row, ADDRESS, NOW)).toBe(expected)
+  ])('%s', (_, summary, expected) => {
+    expect(isLapsedName(summary, NOW)).toBe(expected)
   })
 })

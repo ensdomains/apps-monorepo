@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { truncateName } from '@/utils/formatting/truncateName'
 import { getRecentActivityQueryOptions } from '../hooks/useRecentActivity'
+import { collapseRepeatedActivity } from '../utils/collapseRepeatedActivity'
 import {
   formatActivityEvent,
   formatRelativeTime,
@@ -25,7 +26,10 @@ export const RecentActivityTable = () => {
     isFetchingNextPage,
     isFetchNextPageError,
   } = useInfiniteQuery(getRecentActivityQueryOptions())
-  const events = data?.pages.flatMap((page) => page.events) ?? []
+  // Across pages: one transaction's repeats can straddle a page boundary.
+  const events = collapseRepeatedActivity(
+    data?.pages.flatMap((page) => page.events) ?? [],
+  )
 
   return (
     <div className="flex flex-col w-full">

@@ -1,4 +1,4 @@
-import type { EventDataByType } from '@ens-apps/indexer/bigname'
+import { type EventDataByType, toHistoryEvent } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import {
   mockHistoryPermissionToken,
@@ -159,10 +159,11 @@ describe('historyTokenId', () => {
 
 describe('historyTokenId', () => {
   it('reads the token an ENSv2 registry row serves', () => {
-    const [registration, transfer] = toTimelineEvents([
-      mockHistoryRegistrationPayment,
-      mockHistoryTransferOperator,
-    ])
+    const [registration, transfer] = toTimelineEvents(
+      [mockHistoryRegistrationPayment, mockHistoryTransferOperator].map(
+        toHistoryEvent,
+      ),
+    )
     expect(historyTokenId(registration)).toEqual({
       contract: 'Registry',
       tokenId: mockHistoryRegistrationPayment.data.token_id,
@@ -195,12 +196,16 @@ describe('historyTokenId', () => {
   })
 
   it('still names no token on a permission row, which lists its own', () => {
-    const [permission] = toTimelineEvents([mockHistoryPermissionToken])
+    const [permission] = toTimelineEvents(
+      [mockHistoryPermissionToken].map(toHistoryEvent),
+    )
     expect(historyTokenId(permission)).toBeUndefined()
   })
 
   it('has none for an ENSv2 registration that serves no token', () => {
-    const [registration] = toTimelineEvents([mockHistoryRegistration])
+    const [registration] = toTimelineEvents(
+      [mockHistoryRegistration].map(toHistoryEvent),
+    )
     expect(historyTokenId(registration)).toBeUndefined()
   })
 })

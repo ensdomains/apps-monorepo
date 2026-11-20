@@ -1,22 +1,21 @@
 import {
-  type AddressName,
-  type BignameError,
-  isStale,
-  type LookupRecord,
-  retryStale,
-} from '@ens-apps/indexer/bigname'
+  type IndexerReadError,
+  type NameDetail,
+  type NameSummary,
+  retryStaleRead,
+} from '@ens-apps/indexer/reads'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultInfiniteQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { err, ok } from 'neverthrow'
 import type { Address } from 'viem'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import type { ForwardName } from '../ForwardNamesTable/columns'
 
 class GetResolvedNamesForAddressError extends TaggedError(
   'GetResolvedNamesForAddressError',
 )<{
-  cause: BignameError | Error
+  cause: IndexerReadError | Error
 }> {}
 
 type GetResolvedNamesForAddressParameters = { readonly address: Address }
@@ -43,18 +42,11 @@ const FIRST_PAGE: ResolvedNamesPageParam = { coinType: 'evm' }
 // The networks a name has an address for, cleared ones excluded, with the
 // ones that matched this address always among them.
 const coinTypesOf = (
-  row: AddressName,
-  record: LookupRecord | undefined,
+  summary: NameSummary,
+  detail: NameDetail | null | undefined,
 ): string[] => {
-  const groups = record?.records
-  const set = (groups?.seen_addresses ?? []).filter(
-    (coinType) => groups?.addresses[coinType] !== null,
-  )
-  const matched = [
-    ...(row.resolutions ?? []),
-    ...(row.resolution ? [row.resolution] : []),
-  ].map(({ coin_type }) => String(coin_type))
-  return Array.from(new Set([...matched, ...set]))
+  const matched = (summary.resolvedCoinTypes ?? []).map(String)
+  return Array.from(new Set([...matched, ...(detail?.addressCoinTypes ?? [])]))
 }
 
 const readPage = (
@@ -62,29 +54,27 @@ const readPage = (
   { cursor, coinType }: ResolvedNamesPageParam,
   signal: AbortSignal | undefined,
 ) =>
-  retryStale(
+  retryStaleRead(
     (requestSignal) =>
-      bigname.addressNames(
-        address,
+      indexer.getNamesForAddress(
         {
-          namespace: 'ens',
-          relation: 'resolves_to',
-          coin_type: coinType,
+          address,
+          resolvesTo: true,
+          coinType,
           sort: 'name',
           order: 'asc',
-          page_size: RESOLVED_NAMES_PAGE_SIZE,
+          pageSize: RESOLVED_NAMES_PAGE_SIZE,
           ...(cursor && { cursor }),
         },
         { signal: requestSignal },
       ),
-    isStale,
     { signal },
   )
 
 /**
  * One page of the names whose address record on any EVM network, or the
  * default EVM record, holds this address, with the networks each has an
- * address for. bigname matches the stored record value.
+ * address for. The indexer matches the stored record value.
  *
  * An `evm` read answers 422 when one name on the page stores the address
  * under more than 100 coin types. The list then falls back to Ethereum
@@ -99,43 +89,35 @@ export const getResolvedNamesPage = ResultFn(async function* (
   const listed = await readPage(address, param, signal)
   const isFallback =
     listed.isErr() &&
-    listed.error.code === 'unsupported' &&
+    listed.error.kind === 'unsupported' &&
     param.coinType === 'evm' &&
     param.cursor === undefined
   const coinType: ResolvedCoinType = isFallback ? 60 : param.coinType
-  const { data: rows, page } = yield* (
+  const { items: rows, nextCursor } = yield* (
     isFallback ? readPage(address, { coinType }, signal) : listed
   ).mapErr((cause) => new GetResolvedNamesForAddressError({ cause }))
 
-  const next: ResolvedNamesPageParam | null =
-    page?.has_more && page.next_cursor
-      ? { cursor: page.next_cursor, coinType }
-      : null
+  const next: ResolvedNamesPageParam | null = nextCursor
+    ? { cursor: nextCursor, coinType }
+    : null
   const isEthereumOnly = coinType === 60
   if (rows.length === 0)
     return ok<ResolvedNamesPage>({ names: [], next, isEthereumOnly })
 
-  const { data: details } = yield* bigname
-    .lookup(
-      {
-        namespace: 'ens',
-        profile: 'detail',
-        inputs: rows.map(({ name }) => ({ name })),
-      },
-      { signal },
-    )
+  const details = yield* indexer
+    .getNames({ names: rows.map(({ name }) => name) }, { signal })
     .mapErr((cause) => new GetResolvedNamesForAddressError({ cause }))
   if (details.length !== rows.length)
     return err(
       new GetResolvedNamesForAddressError({
-        cause: new Error('bigname answered a different number of names'),
+        cause: new Error('the indexer answered a different number of names'),
       }),
     )
 
   return ok<ResolvedNamesPage>({
     names: rows.map((row, index) => ({
       name: row.name,
-      coinTypes: coinTypesOf(row, details[index]?.record),
+      coinTypes: coinTypesOf(row, details[index]),
     })),
     next,
     isEthereumOnly,

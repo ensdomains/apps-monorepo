@@ -3,7 +3,7 @@ import type { Address, Hex } from 'viem'
 /** Roles at this resource apply to every name in the registry. */
 export const ROOT_RESOURCE = 0n
 
-/** A root-resource or name-token permission change from BigName. */
+/** A root-resource or name-token permission change from the indexer. */
 export type RoleHistoryEntry = {
   readonly account: Address
   /** EAC resource as hex; set for root-resource changes only. */

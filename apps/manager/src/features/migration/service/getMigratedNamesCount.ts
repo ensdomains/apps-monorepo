@@ -1,18 +1,18 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
-import { isStale, retryStale } from '@ens-apps/indexer/bigname'
+import type { IndexerReadError } from '@ens-apps/indexer/reads'
+import { retryStaleRead } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import type { Address } from 'viem'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 
 class GetMigratedNamesCountError extends TaggedError(
   'GetMigratedNamesCountError',
 )<{
-  /** Absent when bigname answered but gave no exact count. */
-  cause: BignameError | undefined
+  /** Absent when the indexer answered but gave no exact count. */
+  cause: IndexerReadError | undefined
 }> {}
 
 /**
@@ -20,24 +20,26 @@ class GetMigratedNamesCountError extends TaggedError(
  * A name registered natively on ENSv2 does not count.
  */
 export const getMigratedNamesCount = (address: Address) =>
-  retryStale(
-    () =>
-      bigname.addressNames(address.toLowerCase(), {
-        relation: ['owner'],
-        is_migrated: 'true',
-        dedupe: 'name',
-        include: ['total_count'],
-        page_size: 1,
-      }),
-    isStale,
+  retryStaleRead((signal) =>
+    indexer.getNamesForAddress(
+      {
+        address: address.toLowerCase() as Address,
+        relations: ['owner'],
+        migratedOnly: true,
+        distinctBy: 'name',
+        includeTotal: true,
+        pageSize: 1,
+      },
+      { signal },
+    ),
   )
     .mapErr((error) => new GetMigratedNamesCountError({ cause: error }))
-    .andThen(({ data, page }) => {
-      if (page?.total_count != null) return okAsync(page.total_count)
-      if (!page?.has_more) return okAsync(data.length)
+    .andThen(({ items, nextCursor, totalCount }) => {
+      if (totalCount !== null) return okAsync(totalCount)
+      if (nextCursor === null) return okAsync(items.length)
       return errAsync(
         new GetMigratedNamesCountError({
-          message: 'bigname gave no exact count of upgraded names',
+          message: 'the indexer gave no exact count of upgraded names',
           cause: undefined,
         }),
       )

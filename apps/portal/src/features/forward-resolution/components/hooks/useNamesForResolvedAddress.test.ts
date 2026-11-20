@@ -1,109 +1,111 @@
 import {
-  type AddressName,
-  BignameError,
-  type LookupRecord,
-} from '@ens-apps/indexer/bigname'
+  IndexerReadError,
+  type NameDetail,
+  type NameSummary,
+} from '@ens-apps/indexer/reads'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { getResolvedNamesPage } from './useNamesForResolvedAddress'
 
-vi.mock('@/lib/bigname', () => ({
-  bigname: { addressNames: vi.fn(), lookup: vi.fn() },
+vi.mock('@/lib/indexer', () => ({
+  indexer: { getNamesForAddress: vi.fn(), getNames: vi.fn() },
 }))
 
 const ADDRESS = '0x996695a9072094d29f93aebd4229e3d5fb6bf231'
 
-const row = (name: string, coinTypes: readonly number[]): AddressName => ({
+const row = (name: string, coinTypes: readonly number[]): NameSummary => ({
   name,
-  display_name: name,
-  namespace: 'ens',
+  displayName: name,
   namehash: '0x01',
-  status: 'active',
-  relations: ['resolves_to'],
-  is_primary: false,
-  resolutions: coinTypes.map((coin_type) => ({
-    coin_type,
-    record_key: `addr:${coin_type}`,
-  })),
+  protocol: 'v2',
+  relations: [],
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'active',
+  expiresAt: null,
+  servedExpiry: null,
+  graceEndsAt: null,
+  registeredAt: null,
+  createdAt: null,
+  resolvedCoinTypes: coinTypes,
 })
 
+// The coin types with an address record, cleared ones already left out.
 const detail = (
   name: string,
-  addresses: Readonly<Record<string, string | null>>,
-): LookupRecord => ({
+  addressCoinTypes: readonly string[] | null,
+): NameDetail => ({
   name,
-  display_name: name,
-  namespace: 'ens',
+  displayName: name,
   namehash: '0x01',
-  read_status: 'ok',
-  records: {
-    seen_addresses: Object.keys(addresses),
-    addresses,
-    seen_texts: [],
-    texts: {},
-    abis: {},
-    seen_singletons: [],
-  },
+  protocol: 'v2',
+  isSupported: true,
+  owner: null,
+  manager: null,
+  registrant: null,
+  resolver: null,
+  registrationStatus: 'active',
+  expiresAt: null,
+  graceEndsAt: null,
+  registeredAt: null,
+  registrationId: null,
+  createdAt: null,
+  migratedAt: null,
+  unresolvableReason: null,
+  addressCoinTypes,
 })
 
-const listed = (rows: readonly AddressName[], next: string | null = null) =>
-  vi.mocked(bigname.addressNames).mockReturnValue(
-    okAsync({
-      data: rows,
-      page: {
-        cursor: null,
-        next_cursor: next,
-        page_size: 100,
-        total_count: null,
-        has_more: next !== null,
-      },
-      meta: { as_of: {} },
+const pageOf = (rows: readonly NameSummary[], next: string | null = null) =>
+  okAsync({ items: rows, nextCursor: next, totalCount: null })
+
+const listed = (rows: readonly NameSummary[], next: string | null = null) =>
+  vi.mocked(indexer.getNamesForAddress).mockReturnValue(pageOf(rows, next))
+
+const tooMany = () =>
+  errAsync(
+    new IndexerReadError({
+      kind: 'unsupported',
+      message: 'too many',
+      cause: null,
     }),
   )
 
 const readFirst = () =>
   getResolvedNamesPage({ address: ADDRESS }, { coinType: 'evm' })
 
-const detailed = (records: readonly LookupRecord[]) =>
-  vi.mocked(bigname.lookup).mockReturnValue(
-    okAsync({
-      data: records.map((record) => ({
-        input: { name: record.name },
-        kind: 'name' as const,
-        status: 'ok' as const,
-        record,
-      })),
-      meta: { as_of: {} },
-    }),
-  )
+const detailed = (details: readonly (NameDetail | null)[]) =>
+  vi.mocked(indexer.getNames).mockReturnValue(okAsync(details))
 
 beforeEach(() => vi.clearAllMocks())
 
 describe('getResolvedNamesForAddress', () => {
-  it('asks bigname for the names whose EVM address records hold the address', async () => {
+  it('asks the indexer for the names whose EVM address records hold the address', async () => {
     listed([row('juveniles.eth', [60])])
-    detailed([detail('juveniles.eth', { '60': ADDRESS })])
+    detailed([detail('juveniles.eth', ['60'])])
 
     await readFirst()
 
-    expect(bigname.addressNames).toHaveBeenCalledWith(
-      ADDRESS,
+    expect(indexer.getNamesForAddress).toHaveBeenCalledWith(
       {
-        namespace: 'ens',
-        relation: 'resolves_to',
-        coin_type: 'evm',
+        address: ADDRESS,
+        resolvesTo: true,
+        coinType: 'evm',
         sort: 'name',
         order: 'asc',
-        page_size: 100,
+        pageSize: 100,
       },
+      { signal: undefined },
+    )
+    expect(indexer.getNames).toHaveBeenCalledWith(
+      { names: ['juveniles.eth'] },
       { signal: undefined },
     )
   })
 
   it('reads one page and hands back the cursor to the next', async () => {
     listed([row('a.eth', [60])], 'next')
-    detailed([detail('a.eth', { '60': ADDRESS })])
+    detailed([detail('a.eth', ['60'])])
 
     const page = (await readFirst())._unsafeUnwrap()
 
@@ -113,14 +115,7 @@ describe('getResolvedNamesForAddress', () => {
 
   it('lists each name with the networks it has an address for, cleared ones excluded', async () => {
     listed([row('juveniles.eth', [2147483658])])
-    detailed([
-      detail('juveniles.eth', {
-        '60': '0xabc',
-        '0': 'bc1q',
-        '2147483658': ADDRESS,
-        '501': null,
-      }),
-    ])
+    detailed([detail('juveniles.eth', ['60', '0', '2147483658'])])
 
     const { names } = (await readFirst())._unsafeUnwrap()
 
@@ -129,38 +124,22 @@ describe('getResolvedNamesForAddress', () => {
   })
 
   it('falls back to Ethereum records when a name matched too many networks', async () => {
-    vi.mocked(bigname.addressNames)
-      .mockReturnValueOnce(
-        errAsync(
-          new BignameError({ code: 'unsupported', message: 'too many' }),
-        ),
-      )
-      .mockReturnValueOnce(
-        okAsync({
-          data: [
-            {
-              ...row('a.eth', []),
-              resolution: { coin_type: 60, record_key: 'addr:60' },
-            },
-          ],
-          meta: { as_of: {} },
-        }),
-      )
-    detailed([detail('a.eth', { '60': ADDRESS })])
+    vi.mocked(indexer.getNamesForAddress)
+      .mockReturnValueOnce(tooMany())
+      .mockReturnValueOnce(pageOf([row('a.eth', [60])]))
+    detailed([detail('a.eth', ['60'])])
 
     const page = (await readFirst())._unsafeUnwrap()
 
-    expect(vi.mocked(bigname.addressNames).mock.calls[1]?.[1]).toMatchObject({
-      coin_type: 60,
-    })
+    expect(
+      vi.mocked(indexer.getNamesForAddress).mock.calls[1]?.[0],
+    ).toMatchObject({ coinType: 60 })
     expect(page.isEthereumOnly).toBe(true)
     expect(page.names[0]?.coinTypes).toEqual(['60'])
   })
 
   it('fails a later page that matched too many networks', async () => {
-    vi.mocked(bigname.addressNames).mockReturnValue(
-      errAsync(new BignameError({ code: 'unsupported', message: 'too many' })),
-    )
+    vi.mocked(indexer.getNamesForAddress).mockReturnValue(tooMany())
 
     const result = await getResolvedNamesPage(
       { address: ADDRESS },
@@ -170,7 +149,7 @@ describe('getResolvedNamesForAddress', () => {
     expect(result._unsafeUnwrapErr()._tag).toBe(
       'GetResolvedNamesForAddressError',
     )
-    expect(bigname.addressNames).toHaveBeenCalledOnce()
+    expect(indexer.getNamesForAddress).toHaveBeenCalledOnce()
   })
 
   it('is empty without a lookup when no name points at the address', async () => {
@@ -179,6 +158,26 @@ describe('getResolvedNamesForAddress', () => {
     const { names } = (await readFirst())._unsafeUnwrap()
 
     expect(names).toEqual([])
-    expect(bigname.lookup).not.toHaveBeenCalled()
+    expect(indexer.getNames).not.toHaveBeenCalled()
+  })
+
+  it('lists only the matched networks for a name the indexer could not read', async () => {
+    listed([row('a.eth', [60])])
+    detailed([null])
+
+    const { names } = (await readFirst())._unsafeUnwrap()
+
+    expect(names[0]?.coinTypes).toEqual(['60'])
+  })
+
+  it('fails when the lookup answers a different number of names', async () => {
+    listed([row('a.eth', [60]), row('b.eth', [60])])
+    detailed([detail('a.eth', ['60'])])
+
+    const result = await readFirst()
+
+    expect(result._unsafeUnwrapErr()._tag).toBe(
+      'GetResolvedNamesForAddressError',
+    )
   })
 })

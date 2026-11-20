@@ -1,9 +1,7 @@
 import type {
   AddressName,
   AddressNamesResponse,
-  BignameClient,
 } from '@ens-apps/indexer/bigname'
-import { BignameError } from '@ens-apps/indexer/bigname'
 import {
   IndexerReadError,
   type NameSummary,
@@ -14,7 +12,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { mergeDashboardChunks } from '../../dashboardNames'
 import { getDashboardNameVisibility } from '../../dashboardNameVisibility'
 import {
@@ -26,7 +24,29 @@ import {
   readDashboardChunks,
 } from './getDashboardNames'
 
-vi.mock('@/lib/bigname', () => ({ bigname: { addressNames: vi.fn() } }))
+const fetchMock = vi.hoisted(() => vi.fn<typeof fetch>())
+
+vi.mock('@/lib/indexer', async () => {
+  const { createBignameIndexer } = await import('@ens-apps/indexer')
+  return {
+    indexer: createBignameIndexer({
+      baseUrl: 'https://bigname.test',
+      chainId: 11155111,
+      fetch: (input, init) => fetchMock(input, init),
+    }),
+  }
+})
+
+const respond = (body: unknown, status = 200) =>
+  fetchMock.mockImplementation(
+    async () =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      }),
+  )
+
+beforeEach(() => fetchMock.mockReset())
 
 const EOA = '0x0000000000000000000000000000000000000abc'
 const SMART_ACCOUNT = '0x0000000000000000000000000000000000000def'
@@ -303,22 +323,20 @@ describe('readDashboardChunks', () => {
 
 describe('getDashboardNamesInfiniteQueryOptions', () => {
   it("does not reuse another editor wallet's cached visibility result", async () => {
-    vi.mocked(bigname.addressNames).mockReturnValue(
-      okAsync(
-        graceResponse([
-          {
-            name: 'managed.eth',
-            display_name: 'managed.eth',
-            namespace: 'ens',
-            namehash: '0x01',
-            status: 'active',
-            authority: 'ens_v2',
-            expires_at: '1800000000',
-            relations: ['role_holder'],
-            is_primary: false,
-          },
-        ]),
-      ),
+    respond(
+      graceResponse([
+        {
+          name: 'managed.eth',
+          display_name: 'managed.eth',
+          namespace: 'ens',
+          namehash: '0x01',
+          status: 'active',
+          authority: 'ens_v2',
+          expires_at: '1800000000',
+          relations: ['role_holder'],
+          is_primary: false,
+        },
+      ]),
     )
     const client = new QueryClient({
       defaultOptions: { queries: { staleTime: Infinity, retry: false } },
@@ -362,41 +380,43 @@ describe('getDashboardNamesInfiniteQueryOptions', () => {
 
 describe('getDashboardGraceNames', () => {
   it('reads ENSv2 names in grace from the former-owner read', async () => {
-    const addressNames = vi.fn<BignameClient['addressNames']>(() =>
-      okAsync(graceResponse([graceRow])),
-    )
+    respond(graceResponse([graceRow]))
 
-    const signal = new AbortController().signal
-    const result = await getDashboardGraceNames(addressNames, [EOA], {
+    const controller = new AbortController()
+    const result = await getDashboardGraceNames(indexer.getGraceNames, [EOA], {
       now: NOW,
-      signal,
+      signal: controller.signal,
     })
 
-    expect(addressNames).toHaveBeenCalledWith(
-      EOA,
-      {
-        namespace: 'ens',
-        relation: 'former_owner',
-        parent: 'eth',
-        sort: 'expires_at',
-        order: 'asc',
-        expires_after: String(nowSeconds - 28 * 86_400),
-        expires_before: String(nowSeconds + 1),
-        page_size: 200,
-      },
-      { signal },
-    )
+    const [input, init] = fetchMock.mock.calls[0] ?? []
+    const url = new URL(String(input))
+    expect(url.pathname).toBe(`/v1/addresses/${EOA}/names`)
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      namespace: 'ens',
+      relation: 'former_owner',
+      parent: 'eth',
+      sort: 'expires_at',
+      order: 'asc',
+      expires_after: String(nowSeconds - 28 * 86_400),
+      expires_before: String(nowSeconds + 1),
+      page_size: '200',
+    })
+    controller.abort()
+    expect(init?.signal?.aborted).toBe(true)
     expect(result._unsafeUnwrap()).toEqual([
       expect.objectContaining({ name: 'lapsed.eth', nameRoles: [] }),
     ])
   })
 
   it('fails when the grace read fails', async () => {
-    const result = await getDashboardGraceNames(
-      () => errAsync(new BignameError({ code: 'overloaded', message: 'down' })),
-      [EOA],
-      { now: NOW },
+    respond(
+      { error: { code: 'overloaded', message: 'down', details: {} } },
+      503,
     )
+
+    const result = await getDashboardGraceNames(indexer.getGraceNames, [EOA], {
+      now: NOW,
+    })
 
     expect(result._unsafeUnwrapErr()._tag).toBe('GetDashboardNamesError')
   })
@@ -419,18 +439,16 @@ describe('getRenewableDashboardNames', () => {
           : page([summary('alice.eth', '0x01')], 'next'),
       ),
     )
-    const addressNames = vi.fn<BignameClient['addressNames']>(() =>
-      okAsync(
-        graceResponse([
-          { ...graceRow, name: 'alapsed.eth', display_name: 'alapsed.eth' },
-          graceRow,
-        ]),
-      ),
+    respond(
+      graceResponse([
+        { ...graceRow, name: 'alapsed.eth', display_name: 'alapsed.eth' },
+        graceRow,
+      ]),
     )
 
     const result = await getRenewableDashboardNames(
       readNames,
-      addressNames,
+      indexer.getGraceNames,
       [EOA],
       'al',
     )

@@ -29,16 +29,16 @@ interface NameEventsHistoryProps {
 }
 
 /**
- * The old ENSv1 subgraph's event categories as bigname history filters: the
+ * The old ENSv1 subgraph's event categories as indexer history filters: the
  * name's own surface, its registration lifecycle, or its resolver activity.
  */
 const CATEGORY_FILTERS: Record<
   Category,
-  Pick<GetNameHistoryParameters, 'scope' | 'type'>
+  Pick<GetNameHistoryParameters, 'scope' | 'types'>
 > = {
   domain: { scope: 'name' },
   registration: { scope: 'registration' },
-  resolver: { type: ['record', 'resolver'] },
+  resolver: { types: ['record', 'resolver'] },
 }
 
 const NameEventsHistoryTable = ({
@@ -50,7 +50,7 @@ const NameEventsHistoryTable = ({
   data: HistoryTableEvent[]
   category: Category
 }) => {
-  // bigname dates every row, so each transaction carries its own timestamp.
+  // The indexer dates every row, so each transaction carries its own timestamp.
   const groupedData = groupEventsByTransactionId(history, category)
 
   // A sender that cannot be read falls back to the event's own `from`.
@@ -90,7 +90,7 @@ export const NameEventsHistory = ({
     ...getNameHistoryQueryOptions({
       name,
       ...CATEGORY_FILTERS[category],
-      page_size: NAME_HISTORY_PAGE_SIZE,
+      pageSize: NAME_HISTORY_PAGE_SIZE,
     }),
     enabled: !hasEvents,
   })

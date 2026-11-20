@@ -1,4 +1,9 @@
-import { buildConfig, type EnsNetwork, isEnsNetwork } from '@ens-apps/config'
+import {
+  buildConfig,
+  type EnsNetwork,
+  isEnsNetwork,
+  resolveIndexer,
+} from '@ens-apps/config'
 import { PORTAL_ENDPOINTS } from './endpoints'
 
 /**
@@ -57,3 +62,9 @@ export const envConfig = buildConfig({
 })
 
 export const { chain, rpcUrls } = envConfig
+
+export const indexerSelection = resolveIndexer({
+  network: envConfig.network,
+  backend: import.meta.env?.VITE_INDEXER,
+  bignameApi: envConfig.endpoints.bignameApi,
+})

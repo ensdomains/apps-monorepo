@@ -24,6 +24,21 @@ export type NetworkEndpoints = {
   readonly bignameApi: string | null
 }
 
+export const INDEXER_BACKENDS = ['bigname', 'goldsky', 'zigens'] as const
+
+/** Which indexer the apps read names from. */
+export type IndexerBackend = (typeof INDEXER_BACKENDS)[number]
+
+/** Indexer deployments besides bigname, which `endpoints.bignameApi` holds. */
+export type IndexerEndpoints = {
+  /** Goldsky's ENS API, bigname's routes under `/v2`. */
+  readonly goldskyApi: string | null
+  /** zigens GraphQL, read for ENSv2 names. */
+  readonly zigensGraphql: string | null
+  /** ENSNode's subgraph-compatible GraphQL, read for ENSv1 names. */
+  readonly ensNodeSubgraph: string | null
+}
+
 export type NetworkProfile = {
   readonly chainId: SupportedL1ChainId
   readonly isTestnet: boolean
@@ -39,6 +54,11 @@ export type NetworkProfile = {
    */
   readonly rpcFallbacks: readonly string[]
   readonly endpoints: NetworkEndpoints
+  /** The default indexer and the other deployments `VITE_INDEXER` can pick. */
+  readonly indexer: Readonly<{
+    backend: IndexerBackend
+    endpoints: IndexerEndpoints
+  }>
 }
 
 /**
@@ -55,6 +75,15 @@ export const NETWORKS = {
     endpoints: {
       bignameApi: 'https://api.bigname.sh',
     },
+    indexer: {
+      backend: 'bigname',
+      endpoints: {
+        goldskyApi: 'https://ens-api.goldsky.com',
+        zigensGraphql: 'https://mainnet-graphql.ens.dev',
+        ensNodeSubgraph:
+          'https://ensnode-api-production.up.railway.app/subgraph',
+      },
+    },
   },
   sepolia: {
     chainId: supportedL1Chains.sepolia,
@@ -68,6 +97,15 @@ export const NETWORKS = {
     ],
     endpoints: {
       bignameApi: 'https://sepolia.api.bigname.sh',
+    },
+    indexer: {
+      backend: 'bigname',
+      endpoints: {
+        // Goldsky indexes mainnet and Base only.
+        goldskyApi: null,
+        zigensGraphql: 'https://graphql.ens.dev',
+        ensNodeSubgraph: 'https://ensnode-api-sepolia.up.railway.app/subgraph',
+      },
     },
   },
 } as const satisfies Record<EnsNetwork, NetworkProfile>

@@ -46,6 +46,10 @@ development the Worker is not run, so meta tags and OG images are served by
 the "Upgrade to v2" banner, and the mock wallet and time-travel switches for
 automated testing, which must never reach a production deploy.
 
+`VITE_INDEXER` picks the indexer a build reads: `bigname` (the default),
+`goldsky` (mainnet only) or `zigens` (zigens for ENSv2, ENSNode for ENSv1).
+The ENSv1 migration reads always use bigname.
+
 ## Environments
 
 `pnpm dev` / `pnpm build` use Sepolia; `pnpm dev:mainnet` / `pnpm build:mainnet`

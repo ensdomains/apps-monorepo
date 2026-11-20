@@ -47,7 +47,7 @@ const getResolverSetterGrantsQueryKey = createQueryKey<
   GetResolverSetterGrantsParameters
 >('get-resolver-setter-grants')
 
-/** The setter scopes `account` is granted on `resolverAddress`, per bigname. */
+/** The setter scopes `account` is granted on `resolverAddress`, per the indexer. */
 export const getResolverSetterGrantsQueryOptions = (
   params: GetResolverSetterGrantsParameters,
 ) =>

@@ -1,32 +1,35 @@
-import type { AddressName } from '@ens-apps/indexer/bigname'
-import { BignameError } from '@ens-apps/indexer/bigname'
+import { IndexerReadError, type NameSummary } from '@ens-apps/indexer/reads'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import {
   getAddressRoleCountsQueryOptions,
   withAddressRoles,
   withRoleCounts,
 } from './useAddressRoleCounts'
 
-vi.mock('@/lib/bigname', () => ({ bigname: { addressNames: vi.fn() } }))
+vi.mock('@/lib/indexer', () => ({
+  indexer: { getNamesForAddress: vi.fn() },
+}))
 
 const ADDRESS = '0x1111111111111111111111111111111111111111'
-const SCOPE = { kind: 'registry', detail: {} } as const
 
-const row = (name: string, powers: readonly string[]): AddressName => ({
+const row = (name: string, heldPowers: readonly string[]): NameSummary => ({
   name,
-  display_name: name,
-  namespace: 'ens',
+  displayName: name,
   namehash: '0x01',
-  status: 'active',
-  authority: 'ens_v2',
+  protocol: 'v2',
   relations: ['owner'],
-  is_primary: false,
-  role_summary: [
-    { address: ADDRESS, grants: [{ grant_scope: SCOPE, powers }] },
-  ],
+  isPrimary: false,
+  isMigrated: false,
+  registrationStatus: 'active',
+  expiresAt: null,
+  servedExpiry: null,
+  graceEndsAt: null,
+  registeredAt: null,
+  createdAt: null,
+  heldPowers,
 })
 
 const roleCounts = async () => {
@@ -43,9 +46,9 @@ beforeEach(() => vi.clearAllMocks())
 
 describe('getAddressRoleCountsQueryOptions', () => {
   it('counts the registry roles the powers stand for, can_name included', async () => {
-    vi.mocked(bigname.addressNames).mockReturnValue(
+    vi.mocked(indexer.getNamesForAddress).mockReturnValue(
       okAsync({
-        data: [
+        items: [
           row('alice.eth', [
             'set_resolver',
             'admin_set_resolver',
@@ -53,28 +56,30 @@ describe('getAddressRoleCountsQueryOptions', () => {
             'admin_can_name',
           ]),
         ],
-        page: {
-          cursor: null,
-          next_cursor: null,
-          page_size: 50,
-          total_count: null,
-          has_more: false,
-        },
-        meta: { as_of: {} },
+        nextCursor: null,
+        totalCount: null,
       }),
     )
 
     expect(await roleCounts()).toEqual(new Map([['alice.eth', 4]]))
-    expect(vi.mocked(bigname.addressNames).mock.calls[0]?.[1]).toMatchObject({
-      authority: ['ens_v2'],
-      include: ['role_summary'],
-      page_size: 50,
+    expect(
+      vi.mocked(indexer.getNamesForAddress).mock.calls[0]?.[0],
+    ).toMatchObject({
+      protocol: 'v2',
+      includeRoles: true,
+      pageSize: 50,
     })
   })
 
   it('fails on its own, leaving the names list to render without counts', async () => {
-    vi.mocked(bigname.addressNames).mockReturnValue(
-      errAsync(new BignameError({ code: 'request_timeout', message: 'slow' })),
+    vi.mocked(indexer.getNamesForAddress).mockReturnValue(
+      errAsync(
+        new IndexerReadError({
+          kind: 'unavailable',
+          message: 'slow',
+          cause: undefined,
+        }),
+      ),
     )
 
     await expect(roleCounts()).rejects.toMatchObject({

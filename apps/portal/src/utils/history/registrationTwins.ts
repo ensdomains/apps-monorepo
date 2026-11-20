@@ -1,12 +1,15 @@
-import type { EventDataByType, EventType } from '@ens-apps/indexer/bigname'
+import type {
+  HistoryEventData,
+  HistoryEventType,
+} from '@ens-apps/indexer/reads'
 
 /** A history row, its `data` typed by its friendly type. */
 type HistoryRow = {
-  readonly [TType in EventType]: {
+  readonly [TType in HistoryEventType]: {
     readonly type: TType
-    readonly data?: EventDataByType[TType] | null
+    readonly data?: HistoryEventData[TType] | null
   }
-}[EventType]
+}[HistoryEventType]
 
 const registrationData = (row: HistoryRow) =>
   row.type === 'registration' ? (row.data ?? undefined) : undefined
@@ -30,7 +33,7 @@ const withFallback = (primary: object, fallback: object) => ({
  * One row per registration action. bigname repeats a registration's grant as a
  * `linked` row beside the `registered` one, under the same `action_id`; the
  * `registered` row stays and takes what it lacks from its twin (the
- * `registration_id`, a charge only the twin carries). A `linked` row whose
+ * `registrationId`, a charge only the twin carries). A `linked` row whose
  * twin is not loaded stays as it is.
  */
 export const mergeRegistrationTwins = <TRow extends HistoryRow>(

@@ -1,4 +1,3 @@
-import { type AddressName, toDate } from '@ens-apps/indexer/bigname'
 import type {
   NameRegistrationStatus,
   NameRelation,
@@ -45,7 +44,7 @@ const HIDDEN_STATUSES: readonly NameSummary['registrationStatus'][] = [
   'unregistered',
 ]
 
-/** A name from bigname's current relations, or null for one the pages hide. */
+/** A name from the indexer's current relations, or null for one the pages hide. */
 export const toAddressNameItem = (
   summary: NameSummary,
 ): AddressNameItem | null =>
@@ -64,14 +63,18 @@ export const toAddressNameItem = (
       }
 
 /** A name the address held until it expired, in grace or price cooldown. */
-export const toLapsedItem = (row: AddressName): AddressNameItem => ({
-  name: row.name,
-  // A subregistry can mint an expiry a Date cannot hold; it reads as none.
-  expiryDate: toValidDate(toDate(row.expires_at)),
-  graceEndDate: toValidDate(toDate(row.grace_ends_at)),
-  status: row.status,
+export const toLapsedItem = (summary: NameSummary): AddressNameItem => ({
+  name: summary.name,
+  // The served expiry: a reserved ENSv1 name shows its reservation. A Date that cannot hold it reads as none.
+  expiryDate: toValidDate(
+    summary.servedExpiry === null
+      ? summary.expiresAt
+      : new Date(Number(summary.servedExpiry) * 1000),
+  ),
+  graceEndDate: toValidDate(summary.graceEndsAt),
+  status: summary.registrationStatus,
   relations: ['former_owner'],
-  protocolVersion: row.authority === 'ens_v2' ? 'ENSv2' : 'ENSv1',
+  protocolVersion: summary.protocol === 'v2' ? 'ENSv2' : 'ENSv1',
 })
 
 /**

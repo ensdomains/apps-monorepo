@@ -1,6 +1,11 @@
 import { okAsync } from 'neverthrow'
 import { describe, expect, it, vi } from 'vitest'
-import { isInV2Grace, readGraceNames, V2_GRACE_SECONDS } from './grace'
+import {
+  isInV2Grace,
+  isLapsedName,
+  readGraceNames,
+  V2_GRACE_SECONDS,
+} from './grace'
 import type { AddressName } from './types'
 
 const OWNER = '0x1111111111111111111111111111111111111111'
@@ -133,5 +138,62 @@ describe('readGraceNames', () => {
       expires_after: String(NOW - V2_GRACE_SECONDS),
       expires_before: String(NOW + 1n),
     })
+  })
+})
+
+describe('isLapsedName', () => {
+  const SINCE = NOW - 30n * 86_400n
+  const LEASE = NOW - 20n * 86_400n
+
+  it.each([
+    { case: 'an expired name its address held', row: lapsed(), kept: true },
+    { case: 'a released one', row: lapsed({ status: 'released' }), kept: true },
+    {
+      case: 'one another address held',
+      row: lapsed({
+        lapsed_registration: {
+          owner: '0x2222222222222222222222222222222222222222',
+          release_kind: 'expired',
+        },
+      }),
+      kept: false,
+    },
+    {
+      case: 'one burned rather than lapsed',
+      row: lapsed({
+        lapsed_registration: { owner: OWNER, release_kind: 'burned' },
+      }),
+      kept: false,
+    },
+    {
+      case: 'one registered again',
+      row: lapsed({ status: 'active' }),
+      kept: false,
+    },
+    {
+      case: 'one that expired before the window',
+      row: lapsed({ expires_at: String(SINCE) }),
+      kept: false,
+    },
+    {
+      case: 'a reserved ENSv1 name, counted from its lease',
+      row: lapsed({
+        authority: 'ens_v1',
+        expires_at: String(LEASE + 62n * 86_400n),
+        ens_v1: { expires_at: String(LEASE) },
+      }),
+      kept: true,
+    },
+    {
+      case: 'a reserved ENSv1 name whose lease ended before the window',
+      row: lapsed({
+        authority: 'ens_v1',
+        expires_at: String(NOW - 86_400n),
+        ens_v1: { expires_at: String(NOW - 91n * 86_400n) },
+      }),
+      kept: false,
+    },
+  ])('keeps $case: $kept', ({ row, kept }) => {
+    expect(isLapsedName(row, OWNER, SINCE, NOW)).toBe(kept)
   })
 })

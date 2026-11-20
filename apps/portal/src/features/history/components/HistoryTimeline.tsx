@@ -1,4 +1,4 @@
-import type { EventKind } from '@ens-apps/indexer/bigname'
+import type { HistoryEventKind as EventKind } from '@ens-apps/indexer/reads'
 import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'

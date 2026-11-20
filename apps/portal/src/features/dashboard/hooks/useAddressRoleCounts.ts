@@ -1,10 +1,9 @@
-import { readNamesForAddress } from '@ens-apps/indexer/bigname'
 import { type IndexerReadError, readAllNames } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address } from 'viem'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import {
   type RegistryRole,
   registryPowersToRoles,
@@ -18,11 +17,9 @@ class GetAddressRoleCountsError extends TaggedError(
 
 type GetAddressRoleCountsParameters = { readonly address: Address }
 
-// Role summaries cost bigname far more than the names alone; small pages keep
-// each request inside the client's timeout for wallets with many names.
+// Role summaries cost the indexer far more than the names alone; small pages
+// keep each request inside the client's timeout for wallets with many names.
 const ROLE_PAGE_SIZE = 50
-
-const readNames = readNamesForAddress(bigname)
 
 /**
  * The ENSv2 roles the address holds on each of its names, by name. Read apart
@@ -33,7 +30,7 @@ const getAddressRoles = (
   signal: AbortSignal,
 ) =>
   readAllNames(
-    readNames,
+    indexer.getNamesForAddress,
     { address, protocol: 'v2', includeRoles: true },
     { pageSize: ROLE_PAGE_SIZE, signal },
   )

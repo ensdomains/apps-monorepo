@@ -12,6 +12,8 @@ interface ImportMetaEnv {
   readonly VITE_ENS_NETWORK?: string
   readonly VITE_RPC_URL?: string
   readonly VITE_BIGNAME_API_URL?: string
+  /** Indexer backend: bigname (default), goldsky or zigens. */
+  readonly VITE_INDEXER?: string
   readonly VITE_TIME_TRAVEL?: string
   readonly VITE_TIME_TRAVEL_RPC?: string
   readonly VITE_DQA?: string

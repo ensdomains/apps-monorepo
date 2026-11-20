@@ -76,6 +76,16 @@ vi.mock('@/lib/bigname', async () => {
     }),
   }
 })
+vi.mock('@/lib/indexer', async () => {
+  const { createBignameIndexer } = await import('@ens-apps/indexer')
+  return {
+    indexer: createBignameIndexer({
+      baseUrl: 'https://bigname.example',
+      chainId: 11155111,
+      fetch: (...args) => mocks.fetch(...args),
+    }),
+  }
+})
 vi.mock('@/lib/wagmi', async () => {
   const { createPublicClient, custom } = await import('viem')
   const { envConfig } = await import('@/config')

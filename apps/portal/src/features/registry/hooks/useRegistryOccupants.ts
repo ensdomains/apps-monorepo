@@ -1,17 +1,15 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
+import { type IndexerReadError, retryStaleRead } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { okAsync, type ResultAsync } from 'neverthrow'
 import type { Address } from 'viem'
-import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
-import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
+import { indexer } from '@/lib/indexer'
 
 class GetRegistryOccupantsError extends TaggedError(
   'GetRegistryOccupantsError',
 )<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 type GetRegistryOccupantsParameters = {
@@ -35,19 +33,14 @@ export type RegistryOccupants = {
   readonly thirdPartyCount: number
 }
 
-/** A one-row page read for its `total_count`; null when bigname cannot count it. */
+/** A one-row page read for its `totalCount`; null when the indexer cannot count it. */
 const countLabels = (
   address: Address,
-  filter: { readonly exclude_owner?: string },
+  filter: { readonly excludeOwner?: Address },
 ) =>
-  nullOnNotFound((signal) =>
-    bigname.registryLabels(
-      envConfig.chain.id,
-      address.toLowerCase(),
-      { ...filter, page_size: 1 },
-      { signal },
-    ),
-  ).map((page) => page?.page?.total_count ?? null)
+  retryStaleRead((signal) =>
+    indexer.getRegistryLabels({ address, ...filter, pageSize: 1 }, { signal }),
+  ).map((page) => page?.totalCount ?? null)
 
 /**
  * A complete first page gives both counts in one read. When the registry is
@@ -56,38 +49,35 @@ const countLabels = (
  *
  * Always read a fresh page here rather than reusing the registry-list cache:
  * an old empty page must not let a destructive detach bypass its guard.
- * Counts bigname declines to give, or a registry it has not indexed yet,
+ * Counts the indexer declines to give, or a registry it has not indexed yet,
  * remain unknown to the caller.
  */
 const getRegistryOccupants = ({
   address,
   account,
 }: GetRegistryOccupantsParameters) =>
-  nullOnNotFound((signal) =>
-    bigname.registryLabels(
-      envConfig.chain.id,
-      address.toLowerCase(),
-      { page_size: 200 },
-      { signal },
-    ),
+  retryStaleRead((signal) =>
+    indexer.getRegistryLabels({ address, pageSize: 200 }, { signal }),
   )
-    .andThen((page): ResultAsync<RegistryOccupants | null, BignameError> => {
-      const count = page?.page?.total_count ?? null
-      if (!page || count === null) return okAsync(null)
-      if (!page.page?.has_more && page.data.length === count) {
-        return okAsync({
-          count,
-          thirdPartyCount: page.data.filter(
-            (label) => label.owner?.toLowerCase() !== account.toLowerCase(),
-          ).length,
-        })
-      }
-      return countLabels(address, {
-        exclude_owner: account.toLowerCase(),
-      }).map((thirdPartyCount) =>
-        thirdPartyCount === null ? null : { count, thirdPartyCount },
-      )
-    })
+    .andThen(
+      (page): ResultAsync<RegistryOccupants | null, IndexerReadError> => {
+        const count = page?.totalCount ?? null
+        if (!page || count === null) return okAsync(null)
+        if (page.nextCursor === null && page.items.length === count) {
+          return okAsync({
+            count,
+            thirdPartyCount: page.items.filter(
+              (label) => label.owner?.toLowerCase() !== account.toLowerCase(),
+            ).length,
+          })
+        }
+        return countLabels(address, {
+          excludeOwner: account.toLowerCase() as Address,
+        }).map((thirdPartyCount) =>
+          thirdPartyCount === null ? null : { count, thirdPartyCount },
+        )
+      },
+    )
     .mapErr((cause) => new GetRegistryOccupantsError({ cause }))
 
 export const getRegistryOccupantsQueryKey = createQueryKey<

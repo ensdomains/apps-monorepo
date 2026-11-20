@@ -1,7 +1,6 @@
 import { sleep } from '@ens-apps/utils/sleep'
 import { getBlockNumber } from 'viem/actions'
-import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 /**
@@ -45,24 +44,22 @@ const readHeadBlock = async (): Promise<bigint | undefined> => {
   return getBlockNumber(client.value).catch(() => undefined)
 }
 
-/** bigname's indexed block for the app chain, or `undefined` if it can't say. */
+/** The indexer's indexed block for the app chain, or `undefined` if it can't say. */
 const readIndexedBlock = async (): Promise<bigint | undefined> => {
-  const status = await bigname.status()
-  const indexed = status.isOk()
-    ? status.value.data.chains[String(envConfig.chain.id)]?.indexed_block
-    : undefined
-  return indexed == null ? undefined : BigInt(indexed)
+  const status = await indexer.getSyncStatus()
+  const indexed = status.isOk() ? status.value.indexedBlock : null
+  return indexed === null ? undefined : BigInt(indexed)
 }
 
 /**
- * Refresh indexed reads after a blockchain transaction, once bigname has
+ * Refresh indexed reads after a blockchain transaction, once the indexer has
  * indexed the transaction's block.
  *
- * Polls `GET /v1/status` until the app chain's `indexed_block` reaches the
- * chain head at call time, then invalidates once. The write is mined by then,
+ * Polls the indexer's sync status until the app chain's indexed block reaches
+ * the chain head at call time, then invalidates once. The write is mined by then,
  * so the head is at or past its block. The wait is bounded: after
  * `maxAttempts` checks or `maxWait` (or when the target block can't be read) it invalidates
- * anyway, so the screen shows whatever bigname has.
+ * anyway, so the screen shows whatever the indexer has.
  *
  * @example
  * ```ts

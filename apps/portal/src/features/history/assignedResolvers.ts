@@ -1,15 +1,17 @@
 import {
-  type BignameError,
-  type EventRow,
-  MAX_PAGE_SIZE,
-  type NameHistoryRow,
-  readAllCollectionPages,
-} from '@ens-apps/indexer/bigname'
+  type HistoryEvent,
+  type IndexerReadError,
+  readAllItems,
+} from '@ens-apps/indexer/reads'
 import { okAsync, ResultAsync } from 'neverthrow'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 import { normalizeOrLower } from '@/utils/ens/normalizeOrLower'
+import { requireIndexed } from './requireIndexed'
 
-type HistoryRow = EventRow | NameHistoryRow
+type HistoryRow = HistoryEvent
+
+/** The indexer's largest history page. */
+const MAX_PAGE_SIZE = 200
 
 /** A row's place on chain; a state-derived row with no log sorts first in its block. */
 type Position = readonly [block: number, logIndex: number]
@@ -24,7 +26,7 @@ type Assignment = Readonly<{
 export type ResolverTimeline = ReadonlyMap<string, readonly Assignment[]>
 
 const positionOf = (row: HistoryRow): Position | null =>
-  row.block_number === null ? null : [row.block_number, row.log_index ?? -1]
+  row.blockNumber === null ? null : [row.blockNumber, row.logIndex ?? -1]
 
 const isAtOrBefore = (a: Position, b: Position) =>
   a[0] < b[0] || (a[0] === b[0] && a[1] <= b[1])
@@ -50,7 +52,7 @@ export const toResolverTimeline = (
   for (const row of rows) {
     const assignment = toAssignment(row)
     if (!assignment) continue
-    const source = row.contract_address?.toLowerCase() ?? 'state'
+    const source = row.contractAddress?.toLowerCase() ?? 'state'
     timeline.set(source, [...(timeline.get(source) ?? []), assignment])
   }
   for (const assignments of timeline.values())
@@ -61,7 +63,7 @@ export const toResolverTimeline = (
 /**
  * Whether a record write landed on a resolver some registry pointed the name
  * at when it was written. Any contract can emit a record event for any node,
- * and bigname attributes it to the name, so a write is kept only from an
+ * and the indexer attributes it to the name, so a write is kept only from an
  * assigned resolver. A row it cannot place is dropped.
  */
 export const isAssignedRecord = (
@@ -71,7 +73,7 @@ export const isAssignedRecord = (
   if (row.type !== 'record') return true
   const position = positionOf(row)
   const resolver = (
-    row.data?.resolver?.address ?? row.contract_address
+    row.data?.resolver?.address ?? row.contractAddress
   )?.toLowerCase()
   if (!position || !resolver) return false
   return [...timeline.values()].some((assignments) => {
@@ -84,20 +86,20 @@ export const isAssignedRecord = (
 
 /** Every resolver pointer change of one name, oldest first. */
 const readResolverTimeline = (name: string, signal?: AbortSignal) =>
-  readAllCollectionPages<NameHistoryRow>(
+  readAllItems(
     (cursor, pageSignal) =>
-      bigname.nameHistory(
-        normalizeOrLower(name),
-        {
-          namespace: 'ens',
-          type: ['resolver', 'registration'],
-          include: ['data'],
-          order: 'asc',
-          page_size: MAX_PAGE_SIZE,
-          ...(cursor && { cursor }),
-        },
-        { signal: pageSignal },
-      ),
+      indexer
+        .getNameHistory(
+          {
+            name: normalizeOrLower(name),
+            types: ['resolver', 'registration'],
+            order: 'asc',
+            pageSize: MAX_PAGE_SIZE,
+            ...(cursor && { cursor }),
+          },
+          { signal: pageSignal },
+        )
+        .andThen(requireIndexed(name)),
     { signal },
   ).map(toResolverTimeline)
 
@@ -108,7 +110,7 @@ const readResolverTimeline = (name: string, signal?: AbortSignal) =>
 export const dropUnassignedRecords = <Row extends HistoryRow>(
   rows: readonly Row[],
   signal?: AbortSignal,
-): ResultAsync<Row[], BignameError> => {
+): ResultAsync<Row[], IndexerReadError> => {
   const names = [
     ...new Set(
       rows.flatMap((row) =>

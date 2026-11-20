@@ -50,3 +50,29 @@ export const readAllNames = (
     toStopError: toReadStopError,
     signal,
   })
+
+/** Any read, sent again while the backend answers stale. */
+export const retryStaleRead = <T>(
+  read: (signal?: AbortSignal) => ResultAsync<T, IndexerReadError>,
+  options: ReadOptions = {},
+): ResultAsync<T, IndexerReadError> => retryStale(read, isStaleRead, options)
+
+/** Every item of a paged read; with `limit`, stops once more than that many are read. */
+export const readAllItems = <Item>(
+  readPage: (
+    cursor: string | undefined,
+    signal?: AbortSignal,
+  ) => ResultAsync<Page<Item>, IndexerReadError>,
+  { limit, signal }: Readonly<{ limit?: number; signal?: AbortSignal }> = {},
+): ResultAsync<readonly Item[], IndexerReadError> =>
+  readAllPages({
+    readPage: (cursor, signal) =>
+      readPage(cursor, signal).map(({ items, nextCursor }) => ({
+        rows: items,
+        nextCursor,
+      })),
+    isStaleError: isStaleRead,
+    toStopError: toReadStopError,
+    limit,
+    signal,
+  })

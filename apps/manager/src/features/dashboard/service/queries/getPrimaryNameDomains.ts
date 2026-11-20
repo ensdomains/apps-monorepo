@@ -1,4 +1,3 @@
-import { readNamesForAddress } from '@ens-apps/indexer/bigname'
 import type { NameSummary, ReadNamesForAddress } from '@ens-apps/indexer/reads'
 import { readAllNames } from '@ens-apps/indexer/reads'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
@@ -9,7 +8,7 @@ import {
   hasEncodedLabelhash,
   isNormalizedName,
 } from '@/features/register-v2/utils/name-parser'
-import { bigname } from '@/lib/bigname'
+import { indexer } from '@/lib/indexer'
 
 /** An owned name the primary-name dialog can offer. */
 export type PrimaryNameDomain = {
@@ -83,7 +82,7 @@ export const ownedPrimaryNamesQuery = (address: Address | undefined) =>
     }),
     queryFn: address
       ? ({ signal }) =>
-          getOwnedPrimaryNames(readNamesForAddress(bigname), address, signal)
+          getOwnedPrimaryNames(indexer.getNamesForAddress, address, signal)
       : skipToken,
   })
 
@@ -95,7 +94,7 @@ export const resolvingPrimaryNamesQuery = (ownerAddress: Address | undefined) =>
     queryFn: ownerAddress
       ? ({ signal }) =>
           getResolvingPrimaryNames(
-            readNamesForAddress(bigname),
+            indexer.getNamesForAddress,
             ownerAddress,
             signal,
           )

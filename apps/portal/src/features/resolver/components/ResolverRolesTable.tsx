@@ -100,7 +100,7 @@ export const ResolverRolesTable = ({
     () => buildResourceLabels(namedResources ?? []),
     [namedResources],
   )
-  // A grant whose scope bigname does not identify is listed on its own below.
+  // A grant whose scope the indexer does not identify is listed on its own below.
   const data = useMemo(
     () =>
       groupRolesByAccount(

@@ -1,4 +1,5 @@
-import type { NameHistoryRow } from '@ens-apps/indexer/bigname'
+import { toHistoryEvent } from '@ens-apps/indexer/bigname'
+import type { HistoryEvent } from '@ens-apps/indexer/reads'
 import { describe, expect, it } from 'vitest'
 import {
   mockAddressHistoryRecordWithoutName,
@@ -13,17 +14,17 @@ import {
   historyEventsToTableEvents,
 } from './historyEventsToTableEvents'
 
-const row = (over: Partial<NameHistoryRow>): NameHistoryRow =>
+const row = (over: Partial<HistoryEvent>): HistoryEvent =>
   ({
     id: 'a'.repeat(64),
     type: 'registration',
     name: 'alice.eth',
-    namespace: 'ens',
-    registration_id: '1',
-    block_number: 100,
-    timestamp: '1781049606',
-    transaction_hash: '0xabc',
-    log_index: 3,
+    registrationId: '1',
+    blockNumber: 100,
+    timestamp: new Date(1_781_049_606_000),
+    transactionHash: '0xabc',
+    logIndex: 3,
+    contractAddress: null,
     kind: 'RegistrationGranted',
     data: {
       owner: '0x1111111111111111111111111111111111111111',
@@ -33,7 +34,7 @@ const row = (over: Partial<NameHistoryRow>): NameHistoryRow =>
       },
     },
     ...over,
-  }) as NameHistoryRow
+  }) as HistoryEvent
 
 describe('historyEventsToTableEvents', () => {
   it('keys a row by its log and carries its payload as flat fields', () => {
@@ -54,7 +55,7 @@ describe('historyEventsToTableEvents', () => {
     const [event] = historyEventsToTableEvents([
       row({
         type: 'permission',
-        kind: undefined,
+        kind: null,
         data: { powers: ['set_addr', 'set_text'] },
       }),
     ])
@@ -66,7 +67,7 @@ describe('historyEventsToTableEvents', () => {
 
   it('leaves out a row with no transaction', () => {
     expect(
-      historyEventsToTableEvents([row({ transaction_hash: null })]),
+      historyEventsToTableEvents([row({ transactionHash: null })]),
     ).toEqual([])
   })
 })
@@ -124,8 +125,10 @@ describe('historyEventsToTableEvents', () => {
       id: 'b'.repeat(64),
       log_index: 43,
       data: { ...registered.data, action_role: 'linked' },
-    } as const satisfies NameHistoryRow
-    const events = historyEventsToTableEvents([registered, linked])
+    } as const satisfies Parameters<typeof toHistoryEvent>[0]
+    const events = historyEventsToTableEvents(
+      [registered, linked].map(toHistoryEvent),
+    )
     expect(events).toHaveLength(1)
     expect(events[0]).toHaveProperty(
       'payment_token',

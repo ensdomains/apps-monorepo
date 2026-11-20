@@ -1,4 +1,4 @@
-import { BignameError } from '@ens-apps/indexer/bigname'
+import { IndexerReadError, type IndexerReadErrorKind } from '@ens-apps/indexer'
 import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,15 +13,15 @@ import {
   toLinks,
 } from './useResolverOverview'
 
-const bigname = vi.hoisted(() => ({
-  resolver: vi.fn(),
-  resolverLinks: vi.fn(),
-  resolverRoles: vi.fn(),
-  events: vi.fn(),
+const indexer = vi.hoisted(() => ({
+  getResolver: vi.fn(),
+  getResolverLinks: vi.fn(),
+  getResolverRoles: vi.fn(),
+  getEvents: vi.fn(),
 }))
-vi.mock('@/lib/bigname', () => ({ bigname }))
+vi.mock('@/lib/indexer', () => ({ indexer }))
 
-// One entry per bigname `/links` row: the current name -> record_id mapping
+// One entry per indexer links row: the current name -> record_id mapping
 // built from `Linked` events.
 const entry = (...names: { name: string; recordId: string }[]) =>
   names.map((n) => ({
@@ -134,91 +134,68 @@ const HOLDER = '0x8e8d000000000000000000000000000000003216'
 const REGISTRY = '0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e'
 
 const page = <T>(
-  data: readonly T[],
+  items: readonly T[],
   {
     next = null,
-    total = data.length,
-    completeness,
+    total = items.length,
+    completeness = 'full',
   }: {
     readonly next?: string | null
     readonly total?: number | null
     readonly completeness?: 'full' | 'partial' | 'unsupported'
   } = {},
-) =>
-  okAsync({
-    data,
-    page: {
-      cursor: null,
-      next_cursor: next,
-      page_size: 200,
-      total_count: total,
-      has_more: next !== null,
-    },
-    meta: { as_of: {}, ...(completeness && { completeness }) },
-  })
+) => okAsync({ items, nextCursor: next, totalCount: total, completeness })
 
 const overview = (
   names: readonly string[],
   {
     next = null,
     total = null,
-    mirror,
+    mirrorRegistry = null,
   }: {
     readonly next?: string | null
     readonly total?: number | null
-    readonly mirror?: {
-      readonly kind: string
-      readonly registry: { readonly chain_id: number; readonly address: string }
-    }
+    readonly mirrorRegistry?: string | null
   } = {},
 ) =>
   okAsync({
-    data: {
-      chain_id: 11155111,
-      address: RESOLVER,
-      ...(mirror && { mirror }),
-      bound_names: {
-        data: names.map((name) => ({
-          name,
-          display_name: name,
-          namespace: 'ens',
-          namehash: `0x${name.length.toString(16).padStart(64, '0')}`,
-          owner: HOLDER,
-          status: 'ok',
-        })),
-        page: {
-          cursor: null,
-          next_cursor: next,
-          page_size: 200,
-          total_count: total,
-          has_more: next !== null,
-        },
-      },
+    address: RESOLVER,
+    mirrorRegistry,
+    boundNames: {
+      items: names.map((name) => ({
+        name,
+        namehash: `0x${name.length.toString(16).padStart(64, '0')}`,
+        owner: HOLDER,
+      })),
+      nextCursor: next,
+      totalCount: total,
     },
-    meta: { as_of: {} },
   })
 
 const link = (name: string, recordId: string) => ({
-  record_id: recordId,
+  recordId,
   namehash: `0x${name.length.toString(16).padStart(64, '0')}`,
-  default: false,
+  isDefault: false,
   name,
-  display_name: name,
-  link_event: { block_number: 1 },
 })
 
 const role = (overrides: Record<string, unknown> = {}) => ({
-  address: HOLDER,
-  registration_id: 'registration-1',
+  account: HOLDER,
+  registrationId: 'registration-1',
   powers: ['set_addr', 'set_text'],
-  eac_resource: '0',
-  grant_event: {
-    block_number: 11833373,
-    timestamp: '1790999568',
-    transaction_hash: '0xabc',
+  eacResource: '0',
+  recordResource: null,
+  name: null,
+  grantedAt: {
+    blockNumber: 11833373,
+    timestamp: new Date(1790999568 * 1000),
+    transactionHash: '0xabc',
   },
   ...overrides,
 })
+
+const readError = (kind: IndexerReadErrorKind) =>
+  errAsync(new IndexerReadError({ kind, message: kind, cause: undefined }))
 
 const readOverview = () =>
   new QueryClient().fetchQuery(
@@ -228,28 +205,26 @@ const readOverview = () =>
 describe('getResolverOverviewQueryOptions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    bigname.resolver.mockReturnValue(overview(['juveniles.eth']))
-    bigname.resolverLinks.mockReturnValue(page([]))
-    bigname.resolverRoles.mockReturnValue(page([]))
-    bigname.events.mockReturnValue(page([], { total: 3 }))
+    indexer.getResolver.mockReturnValue(overview(['juveniles.eth']))
+    indexer.getResolverLinks.mockReturnValue(page([]))
+    indexer.getResolverRoles.mockReturnValue(page([]))
+    indexer.getEvents.mockReturnValue(page([], { total: 3 }))
   })
 
   it('reads the overview, links, roles and events of the resolver on the app chain', async () => {
-    bigname.resolverLinks.mockReturnValue(
+    indexer.getResolverLinks.mockReturnValue(
       page([link('a.eth', '1'), link('b.eth', '1'), link('solo.eth', '2')]),
     )
-    bigname.resolverRoles.mockReturnValue(page([role()]))
+    indexer.getResolverRoles.mockReturnValue(page([role()]))
 
     const result = await readOverview()
 
-    expect(bigname.resolver).toHaveBeenCalledWith(
-      11155111,
-      RESOLVER,
-      { page_size: 100 },
+    expect(indexer.getResolver).toHaveBeenCalledWith(
+      { address: RESOLVER, pageSize: 100 },
       { signal: expect.any(AbortSignal) },
     )
-    expect(bigname.events).toHaveBeenCalledWith(
-      expect.objectContaining({ resolver: `11155111:${RESOLVER}` }),
+    expect(indexer.getEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ resolver: RESOLVER }),
       { signal: expect.any(AbortSignal) },
     )
     expect(result).toMatchObject({
@@ -269,11 +244,11 @@ describe('getResolverOverviewQueryOptions', () => {
     })
   })
 
-  it('takes a grant’s scope from bigname’s EAC resource, and leaves it unknown when bigname does not say', async () => {
-    bigname.resolverRoles.mockReturnValue(
+  it('takes a grant’s scope from the indexer’s EAC resource, and leaves it unknown when the indexer does not say', async () => {
+    indexer.getResolverRoles.mockReturnValue(
       page([
-        role({ eac_resource: '42' }),
-        role({ eac_resource: undefined, powers: ['admin_set_addr'] }),
+        role({ eacResource: '42' }),
+        role({ eacResource: null, powers: ['admin_set_addr'] }),
       ]),
     )
 
@@ -283,14 +258,14 @@ describe('getResolverOverviewQueryOptions', () => {
   })
 
   it('keeps the weakest coverage any page stated, and never reports an unsupported count', async () => {
-    bigname.resolverLinks.mockReturnValue(
+    indexer.getResolverLinks.mockReturnValue(
       page([], { total: null, completeness: 'unsupported' }),
     )
-    bigname.resolverRoles
+    indexer.getResolverRoles
       .mockReturnValueOnce(
         page([role()], { next: 'more', completeness: 'partial' }),
       )
-      .mockReturnValueOnce(page([role({ address: '0x1' })]))
+      .mockReturnValueOnce(page([role({ account: '0x1' })]))
 
     const result = await readOverview()
 
@@ -300,16 +275,14 @@ describe('getResolverOverviewQueryOptions', () => {
       rolesStatus: 'partial',
       roleHolderCount: 2,
     })
-    expect(bigname.resolverRoles).toHaveBeenLastCalledWith(
-      11155111,
-      RESOLVER,
-      expect.objectContaining({ cursor: 'more' }),
+    expect(indexer.getResolverRoles).toHaveBeenLastCalledWith(
+      expect.objectContaining({ address: RESOLVER, cursor: 'more' }),
       { signal: expect.any(AbortSignal) },
     )
   })
 
-  it('counts the first page as a lower bound when bigname gives no total', async () => {
-    bigname.resolver.mockReturnValue(
+  it('counts the first page as a lower bound when the indexer gives no total', async () => {
+    indexer.getResolver.mockReturnValue(
       overview(['a.eth', 'b.eth'], { next: 'more' }),
     )
 
@@ -320,13 +293,8 @@ describe('getResolverOverviewQueryOptions', () => {
   })
 
   it('names the ENSv1 registry a mirror resolver answers through', async () => {
-    bigname.resolver.mockReturnValue(
-      overview(['reverse'], {
-        mirror: {
-          kind: 'ensv1_registry',
-          registry: { chain_id: 11155111, address: REGISTRY },
-        },
-      }),
+    indexer.getResolver.mockReturnValue(
+      overview(['reverse'], { mirrorRegistry: REGISTRY }),
     )
 
     expect(await readOverview()).toMatchObject({
@@ -335,19 +303,20 @@ describe('getResolverOverviewQueryOptions', () => {
     })
   })
 
-  it('answers null for a resolver bigname does not know', async () => {
-    bigname.resolver.mockReturnValue(
-      errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
-    )
+  it('answers null for a resolver the indexer does not know', async () => {
+    indexer.getResolver.mockReturnValue(okAsync(null))
     expect(await readOverview()).toBeNull()
   })
 
-  it('renders without a node count when bigname cannot serve the bound names', async () => {
-    bigname.resolver.mockReturnValue(
-      errAsync(
-        new BignameError({ code: 'request_timeout', message: 'too slow' }),
-      ),
-    )
+  it('answers null for an unknown resolver even when its collections fail', async () => {
+    indexer.getResolver.mockReturnValue(okAsync(null))
+    indexer.getResolverLinks.mockReturnValue(readError('unavailable'))
+    indexer.getResolverRoles.mockReturnValue(readError('unavailable'))
+    expect(await readOverview()).toBeNull()
+  })
+
+  it('renders without a node count when the indexer cannot serve the bound names', async () => {
+    indexer.getResolver.mockReturnValue(readError('unavailable'))
     expect(await readOverview()).toMatchObject({
       nodeCount: null,
       nodeCountIsLowerBound: false,
@@ -356,15 +325,16 @@ describe('getResolverOverviewQueryOptions', () => {
   })
 
   it('skips events with no transaction', async () => {
-    const event = (id: string, transaction_hash: string | null) => ({
+    const event = (id: string, transactionHash: string | null) => ({
       id,
       type: 'resolver',
-      block_number: 1,
-      timestamp: '1790999568',
-      transaction_hash,
-      data: null,
+      kind: null,
+      blockNumber: 1,
+      timestamp: new Date(1790999568 * 1000),
+      transactionHash,
+      data: {},
     })
-    bigname.events.mockReturnValue(
+    indexer.getEvents.mockReturnValue(
       page([event('derived', null), event('emitted', '0xabc')]),
     )
     const { events } = (await readOverview()) ?? {}
@@ -375,29 +345,26 @@ describe('getResolverOverviewQueryOptions', () => {
     const event = (id: string) => ({
       id,
       type: 'resolver',
-      block_number: 1,
-      timestamp: '1790999568',
-      transaction_hash: '0xabc',
-      data: null,
+      kind: null,
+      blockNumber: 1,
+      timestamp: new Date(1790999568 * 1000),
+      transactionHash: '0xabc',
+      data: {},
     })
-    bigname.events.mockReturnValue(page([event('a')], { next: 'more' }))
+    indexer.getEvents.mockReturnValue(page([event('a')], { next: 'more' }))
     expect(await readOverview()).toMatchObject({ eventsHasMore: true })
 
-    bigname.events.mockReturnValue(page([event('a')]))
+    indexer.getEvents.mockReturnValue(page([event('a')]))
     expect(await readOverview()).toMatchObject({ eventsHasMore: false })
   })
 
-  it('renders without recent events when bigname cannot serve them', async () => {
-    bigname.events.mockReturnValue(
-      errAsync(new BignameError({ code: 'internal_error', message: 'boom' })),
-    )
+  it('renders without recent events when the indexer cannot serve them', async () => {
+    indexer.getEvents.mockReturnValue(readError('unavailable'))
     expect(await readOverview()).toMatchObject({ events: null, nodeCount: 1 })
   })
 
   it('fails when another read fails', async () => {
-    bigname.resolverRoles.mockReturnValue(
-      errAsync(new BignameError({ code: 'overloaded', message: 'busy' })),
-    )
+    indexer.getResolverRoles.mockReturnValue(readError('unavailable'))
     await expect(readOverview()).rejects.toMatchObject({
       _tag: 'GetResolverOverviewError',
     })
@@ -413,23 +380,23 @@ describe('getResolverNodesQueryOptions', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('reads one page of bound names, with the cursor to the next', async () => {
-    bigname.resolver.mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
+    indexer.getResolver.mockReturnValueOnce(
+      overview(['a.eth'], { next: 'more' }),
+    )
 
     const { pages } = await readNodes()
 
     expect(pages).toHaveLength(1)
     expect(pages[0]?.nodes.map(({ name }) => name)).toEqual(['a.eth'])
     expect(pages[0]?.nextCursor).toBe('more')
-    expect(bigname.resolver).toHaveBeenCalledWith(
-      11155111,
-      RESOLVER,
-      { page_size: 100 },
+    expect(indexer.getResolver).toHaveBeenCalledWith(
+      { address: RESOLVER, pageSize: 100 },
       { signal: expect.any(AbortSignal) },
     )
   })
 
   it('passes the cursor when reading the next page', async () => {
-    bigname.resolver
+    indexer.getResolver
       .mockReturnValueOnce(overview(['a.eth'], { next: 'more' }))
       .mockReturnValueOnce(overview(['b.eth']))
 
@@ -438,18 +405,14 @@ describe('getResolverNodesQueryOptions', () => {
       pages: 2,
     })
 
-    expect(bigname.resolver).toHaveBeenLastCalledWith(
-      11155111,
-      RESOLVER,
-      { page_size: 100, cursor: 'more' },
+    expect(indexer.getResolver).toHaveBeenLastCalledWith(
+      { address: RESOLVER, pageSize: 100, cursor: 'more' },
       { signal: expect.any(AbortSignal) },
     )
   })
 
-  it('lists no nodes for a resolver bigname does not know', async () => {
-    bigname.resolver.mockReturnValue(
-      errAsync(new BignameError({ code: 'not_found', message: 'gone' })),
-    )
+  it('lists no nodes for a resolver the indexer does not know', async () => {
+    indexer.getResolver.mockReturnValue(okAsync(null))
 
     expect((await readNodes()).pages[0]?.nodes).toEqual([])
   })

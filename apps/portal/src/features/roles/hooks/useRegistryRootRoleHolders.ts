@@ -2,7 +2,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { Address } from 'viem'
 import {
-  getBignameRootRoleHolders,
+  getIndexedRootRoleHolders,
   type RegistryRootRoles,
 } from '@/lib/roles/rootRoleReads'
 
@@ -15,8 +15,8 @@ type GetRegistryRootRoleHoldersParameters = {
   readonly registryAddress: Address
 }
 
-/** Current registry root roles from BigName. */
-export const getRegistryRootRoles = getBignameRootRoleHolders
+/** Current registry root roles from the indexer. */
+export const getRegistryRootRoles = getIndexedRootRoleHolders
 
 export const getRegistryRootRoleHoldersQueryKey = createQueryKey<
   'get-registry-root-role-holders',

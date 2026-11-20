@@ -1,15 +1,12 @@
-import type { BignameError } from '@ens-apps/indexer/bigname'
-import { toUnixSeconds } from '@ens-apps/indexer/bigname'
+import { type IndexerReadError, retryStaleRead } from '@ens-apps/indexer/reads'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type Address, type Hash, zeroHash } from 'viem'
-import { envConfig } from '@/config'
-import { bigname } from '@/lib/bigname'
-import { nullOnNotFound } from '@/utils/bigname/nullOnNotFound'
+import { indexer } from '@/lib/indexer'
 
 class GetRegistryInfoError extends TaggedError('GetRegistryInfoError')<{
-  cause: BignameError
+  cause: IndexerReadError
 }> {}
 
 type GetRegistryInfoParameters = {
@@ -22,17 +19,17 @@ export type RegistryInfo = {
   name: string
   namehash: string
   createdBlock: number
-  /** Unix seconds; 0 when bigname has no creation position. */
+  /** Unix seconds; 0 when the indexer has no creation position. */
   createdAt: number
   /**
    * The transaction that created (or first linked) the registry. Null for a
    * registry the deployment declares rather than observes, such as the root.
    */
   createdTransactionHash: Hash | null
-  /** Undefined when bigname does not count them. */
+  /** Undefined when the indexer does not count them. */
   labelCount: number | undefined
   referencedBy: { name: string | null }[]
-  /** True when bigname has more referencing names than the first page lists. */
+  /** True when the indexer has more referencing names than the first page lists. */
   readonly referencedByHasMore: boolean
 }
 
@@ -40,32 +37,28 @@ const getRegistryInfo = (
   { address }: GetRegistryInfoParameters,
   signal?: AbortSignal,
 ) =>
-  nullOnNotFound(
+  retryStaleRead(
     (requestSignal) =>
-      bigname.registry(
-        envConfig.chain.id,
-        address.toLowerCase(),
-        { include: ['counts'] },
-        { signal: requestSignal },
-      ),
+      indexer.getRegistry({ address }, { signal: requestSignal }),
     { signal },
   )
     .mapErr((cause) => new GetRegistryInfoError({ cause }))
-    .map((response): RegistryInfo | null => {
-      // null = bigname has no record for this address (not a registry, or not
-      // yet indexed). Distinct from a registry with zero labels/roles.
-      if (!response) return null
-      const registry = response.data
+    .map((registry): RegistryInfo | null => {
+      // null = the indexer has no record for this address (not a registry, or
+      // not yet indexed). Distinct from a registry with zero labels/roles.
+      if (!registry) return null
       return {
         address,
         name: registry.name?.name ?? '',
         namehash: registry.name?.namehash ?? zeroHash,
-        createdBlock: registry.created_block_number ?? 0,
-        createdAt: toUnixSeconds(registry.created_at) ?? 0,
-        createdTransactionHash: registry.created_transaction_hash,
-        labelCount: registry.counts.labels ?? undefined,
-        referencedBy: registry.referenced_by.data.map(({ name }) => ({ name })),
-        referencedByHasMore: registry.referenced_by.page.has_more,
+        createdBlock: registry.createdBlock,
+        createdAt: registry.createdAt
+          ? Math.floor(registry.createdAt.getTime() / 1000)
+          : 0,
+        createdTransactionHash: registry.createdTransactionHash,
+        labelCount: registry.labelCount ?? undefined,
+        referencedBy: registry.referencedBy.items.map(({ name }) => ({ name })),
+        referencedByHasMore: registry.referencedBy.nextCursor !== null,
       }
     })
 

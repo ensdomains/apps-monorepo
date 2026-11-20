@@ -12,6 +12,7 @@ export const withTimeout = (init: RequestInit | undefined): RequestInit => ({
   ]),
 })
 
+/** Raw bigname, only for the ENSv1 migration reads that need its lookup records; everything else reads `@/lib/indexer`. */
 export const bigname = createBignameClient(envConfig.endpoints.bignameApi, {
   fetch: (input, init) => fetch(input, withTimeout(init)),
 })

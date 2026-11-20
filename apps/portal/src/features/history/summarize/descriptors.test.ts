@@ -1,4 +1,8 @@
-import type { EventDataByType, MigrationPath } from '@ens-apps/indexer/bigname'
+import {
+  type EventDataByType,
+  type MigrationPath,
+  toHistoryEvent,
+} from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import {
   mockEventRootPermissionChanged,
@@ -413,7 +417,9 @@ describe('root role changes', () => {
   ]
 
   it('a root revoke names the registry instead of the name it lacks', () => {
-    const [row] = toTimelineEvents([mockEventRootPermissionChanged])
+    const [row] = toTimelineEvents(
+      [mockEventRootPermissionChanged].map(toHistoryEvent),
+    )
     expect(row.name).toBe('')
     expect(describeEvent(row)).toEqual({
       icon: 'revoke',
@@ -490,7 +496,9 @@ describe('root role changes', () => {
   })
 
   it('a role change on a registry token keeps its wording', () => {
-    const [row] = toTimelineEvents([mockHistoryRootPermission])
+    const [row] = toTimelineEvents(
+      [mockHistoryRootPermission].map(toHistoryEvent),
+    )
     const result = describeEvent(row)
     expect(result).toMatchObject({ icon: 'revoke', label: 'revoked roles' })
     expect(result?.slots).toHaveLength(3)

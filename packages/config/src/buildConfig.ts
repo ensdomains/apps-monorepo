@@ -97,7 +97,7 @@ const isEndpointUrl = (value: string): boolean => {
   }
 }
 
-const requireUrl = (value: string, field: string): string => {
+export const requireUrl = (value: string, field: string): string => {
   const url = value.trim()
   if (!url || !isEndpointUrl(url)) {
     throw new NetworkConfigError(

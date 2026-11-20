@@ -19,8 +19,8 @@
  * for feature flags.
  */
 
-import { originFromEnvUrl } from '@ens-apps/config'
-import { envConfig } from '@/config'
+import { indexerOrigins, originFromEnvUrl } from '@ens-apps/config'
+import { envConfig, indexerSelection } from '@/config'
 import {
   CUSTOM_RPC_CANDIDATE_COOKIE,
   CUSTOM_RPC_COOKIE,
@@ -62,10 +62,8 @@ const DEFAULT_CONNECT_HOSTS = [
   ...envConfig.rpcUrls
     .map(originFromEnvUrl)
     .filter((origin): origin is string => origin !== null),
-  // The indexer, resolved in `@/config`.
-  ...[originFromEnvUrl(envConfig.endpoints.bignameApi)].filter(
-    (origin): origin is string => origin !== null,
-  ),
+  // The indexer, resolved in `@/config`, and bigname, which the ENSv1 migration reads use whatever the indexer.
+  ...indexerOrigins(indexerSelection, envConfig.endpoints.bignameApi),
   // ENS-owned hosts: the fund/faucet API (sepolia.app-api.ens.domains,
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env ENS
   // hosts don't silently break a flow.

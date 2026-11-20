@@ -1,4 +1,4 @@
-import type { EventKind } from '@ens-apps/indexer/bigname'
+import type { HistoryEventKind as EventKind } from '@ens-apps/indexer/reads'
 import {
   resultInfiniteQueryOptions,
   resultQueryOptions,
