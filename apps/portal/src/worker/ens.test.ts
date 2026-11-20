@@ -180,7 +180,7 @@ describe('resolveAvatarDataUri (worker)', () => {
   })
 
   it('passes inline data: URIs through without fetching', async () => {
-    const inline = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='
+    const inline = 'data:image/png;base64,AQIDBA=='
 
     const result = await resolveAvatarDataUri(client, inline)
 
@@ -188,11 +188,19 @@ describe('resolveAvatarDataUri (worker)', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it('inlines a raw on-chain SVG without fetching', async () => {
+  it('returns null for a raw on-chain SVG without fetching', async () => {
     const result = await resolveAvatarDataUri(client, '<svg></svg>')
 
-    expect(result).toBe(`data:image/svg+xml;base64,${btoa('<svg></svg>')}`)
+    expect(result).toBeNull()
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns null for an inline data: URI past the byte cap', async () => {
+    const inline = `data:image/png;base64,${'A'.repeat(Math.ceil((5 * 1024 * 1024 + 3) / 3) * 4)}`
+
+    const result = await resolveAvatarDataUri(client, inline)
+
+    expect(result).toBeNull()
   })
 
   it('rejects inline data: URIs with a non-image MIME type without fetching', async () => {
@@ -221,16 +229,31 @@ describe('resolveAvatarDataUri (worker)', () => {
   it('accepts an image Content-Type that carries parameters', async () => {
     fetchSpy.mockResolvedValueOnce(
       streamingResponse(new Uint8Array([1]), {
+        contentType: 'image/png; charset=binary',
+      }),
+    )
+
+    const result = await resolveAvatarDataUri(
+      client,
+      'https://cdn.example/cat.png',
+    )
+
+    expect(result).toBe(`data:image/png;base64,${btoa('\x01')}`)
+  })
+
+  it('returns null for a fetched SVG, whatever the URL says', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      streamingResponse(new TextEncoder().encode('<svg></svg>'), {
         contentType: 'image/svg+xml; charset=utf-8',
       }),
     )
 
     const result = await resolveAvatarDataUri(
       client,
-      'https://cdn.example/cat.svg',
+      'https://cdn.example/cat.png',
     )
 
-    expect(result).toBe(`data:image/svg+xml;base64,${btoa('\x01')}`)
+    expect(result).toBeNull()
   })
 
   it('rejects upstream responses that omit Content-Type entirely', async () => {
@@ -387,7 +410,7 @@ describe('resolveAvatarDataUri (worker)', () => {
       expect(fetchSpy).not.toHaveBeenCalled()
     })
 
-    it('leaves an inline SVG untouched', async () => {
+    it('returns null for an inline SVG without calling the binding', async () => {
       const { images, input } = stubImages(new Uint8Array([9]))
       const inline = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='
 
@@ -398,7 +421,7 @@ describe('resolveAvatarDataUri (worker)', () => {
         images,
       )
 
-      expect(result).toBe(inline)
+      expect(result).toBeNull()
       expect(input).not.toHaveBeenCalled()
     })
 
