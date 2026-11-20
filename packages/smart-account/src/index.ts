@@ -22,6 +22,8 @@
 export {
   AccountInitError,
   AccountVerificationError,
+  AmbiguousProxyDeploymentError,
+  DecodeProxyDeployedError,
   SessionEnableError,
   SessionRestoreError,
   SessionRevokeError,
@@ -164,6 +166,9 @@ export type { BaseStoredSession } from './types'
 export {
   type ComputeVerifiableProxyAddressParams,
   computeVerifiableProxyAddress,
+  type FindDeployedProxyAddressParams,
+  findDeployedProxyAddress,
+  type ProxyDeployedLogLike,
 } from './verifiable-factory'
 export {
   computeWrapperRegistryAddress,

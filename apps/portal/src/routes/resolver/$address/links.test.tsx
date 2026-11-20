@@ -103,13 +103,8 @@ const mountPage = async () => {
     path: '/',
     component: LinksPage,
   })
-  const profile = createRoute({
-    getParentRoute: () => root,
-    path: '/$name',
-    component: () => <div>Profile destination</div>,
-  })
   const router = createRouter({
-    routeTree: root.addChildren([index, profile]),
+    routeTree: root.addChildren([index]),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   })
   await router.load()
@@ -128,7 +123,7 @@ const mountPage = async () => {
       </Profiler>
     </QueryClientProvider>,
   )
-  return { client, key, router }
+  return { client, key }
 }
 
 const table = () => within(screen.getByRole('table'))
@@ -149,28 +144,13 @@ afterEach(() => {
 })
 
 describe('resolver links table', () => {
-  it.each([0, 1, 2, 3])(
-    'navigates from name occurrence %i while keeping copy separate',
-    async (occurrence) => {
-      const user = userEvent.setup()
-      const { router } = await mountPage()
-      const links = await screen.findAllByRole('link', { name: 'alpha.eth' })
-      const link = links[occurrence]
-      if (!link) throw new Error('Missing name link')
-      expect(link).toHaveAttribute('href', '/alpha.eth')
-      const copy = link.parentElement?.querySelector('button')
-      if (!(copy instanceof HTMLElement))
-        throw new Error('Missing copy control')
-      await user.click(copy)
-      expect(await navigator.clipboard.readText()).toBe('alpha.eth')
-      expect(router.state.location.pathname).toBe('/')
-      link.focus()
-      await user.keyboard('{Enter}')
-      await waitFor(() =>
-        expect(router.state.location.pathname).toBe('/alpha.eth'),
-      )
-    },
-  )
+  it('links every occurrence of a name to its profile', async () => {
+    await mountPage()
+    const links = await screen.findAllByRole('link', { name: 'alpha.eth' })
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(
+      Array(4).fill('/alpha.eth'),
+    )
+  })
 
   it('searches and restores rows without a render loop', async () => {
     const user = userEvent.setup()

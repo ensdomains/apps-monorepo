@@ -75,7 +75,9 @@ export const WalletMenu = ({
           <span
             className={cn(
               'font-medium text-base group-data-[collapsible=icon]:hidden',
-              isPill && 'truncate font-semi-mono text-p font-medium',
+              isPill
+                ? 'truncate font-semi-mono text-p font-medium'
+                : 'text-p break-all text-left leading-tight',
             )}
           >
             {displayName}

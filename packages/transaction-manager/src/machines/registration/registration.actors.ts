@@ -8,6 +8,7 @@ import { requireChainId, requireEnsChain } from '@ens-apps/config'
 import {
   computeResolverSalt,
   computeVerifiableProxyAddress,
+  findDeployedProxyAddress,
   getDestinationContracts,
 } from '@ens-apps/smart-account'
 import { normalizeReferrer } from '@ens-apps/utils/referrer'
@@ -36,18 +37,10 @@ import {
   okAsync,
   ResultAsync,
 } from 'neverthrow'
-import type {
-  Address,
-  Hash,
-  Hex,
-  MulticallErrorType,
-  PublicClient,
-  TransactionReceipt,
-} from 'viem'
+import type { Address, Hash, Hex, MulticallErrorType, PublicClient } from 'viem'
 import {
   bytesToHex,
   type Chain,
-  decodeEventLog,
   decodeFunctionResult,
   encodeFunctionData,
   erc20Abi,
@@ -127,27 +120,6 @@ function getResolverInitCalldata(ownerAddress: Address): Hex {
       [],
     ],
   })
-}
-
-function parseProxyDeployedAddress(
-  receipt: TransactionReceipt,
-): Address | undefined {
-  for (const log of receipt.logs) {
-    try {
-      const decoded = decodeEventLog({
-        abi: VERIFIABLE_FACTORY_ABI,
-        data: log.data,
-        topics: log.topics,
-      })
-
-      if (decoded.eventName === 'ProxyDeployed') {
-        return decoded.args.proxyAddress as Address
-      }
-    } catch {
-      // Ignore non-matching logs
-    }
-  }
-  return undefined
 }
 
 /**
@@ -668,22 +640,27 @@ export function readEthAddressActor(input: {
  */
 export function resolveResolverDeploymentActor(input: {
   txId: string
+  readonly chainId: number
 }): ResultAsync<{ resolverAddress: Address }, Error> {
   return fromPromise(
-    (async () => {
-      const receipt = await waitForTransactionReceiptById(input.txId)
-      const resolverAddress = parseProxyDeployedAddress(receipt)
-
-      if (!resolverAddress) {
-        throw new Error(
-          'ProxyDeployed event not found in resolver deployment receipt',
-        )
-      }
-
-      return { resolverAddress }
-    })(),
+    waitForTransactionReceiptById(input.txId),
     (error) => error as Error,
   )
+    .andThen((receipt) =>
+      findDeployedProxyAddress({
+        logs: receipt.logs,
+        factory: getDestinationContracts(input.chainId).verifiableFactory,
+      }),
+    )
+    .andThen((resolverAddress) =>
+      resolverAddress
+        ? okAsync({ resolverAddress })
+        : errAsync(
+            new Error(
+              'ProxyDeployed event not found in resolver deployment receipt',
+            ),
+          ),
+    )
 }
 
 /**
