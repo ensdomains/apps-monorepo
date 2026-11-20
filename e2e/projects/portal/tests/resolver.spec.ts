@@ -18,6 +18,10 @@ import { isRealBigname } from '../../../helpers/bigname-sync.js'
 import { waitForIndexedName } from '../../../helpers/indexer-sync.js'
 import { ETH_REGISTRY } from '../../../helpers/role-assertions.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
+import {
+  factoryDeployment,
+  wrapFactoryReceipts,
+} from '../../../helpers/wrapped-receipt.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 
@@ -256,5 +260,64 @@ test.describe('Portal resolver', () => {
       page.getByRole('button', { name: /^Link name$/ }),
       'and must not be able to submit',
     ).toBeDisabled()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB-2200 — a deployed resolver is read only from the factory's own log
+//
+// The bug: after "Deploy new permissioned resolver", the portal took the new
+// resolver's address from the first `ProxyDeployed` log anywhere in the
+// receipt. A transaction carried by another contract (a relayed Safe
+// execution, say) can hold a `ProxyDeployed` from that contract first, and the
+// name was then pointed at whatever address it announced.
+//
+// The fix: `findDeployedProxyAddress` keeps only logs emitted by the
+// `VerifiableFactory` the deploy was sent to.
+//
+// The unit tests decode hand-built logs. This runs the real deploy and
+// `setResolver` on the fork with the decoy added to the receipt the page reads
+// (helpers/wrapped-receipt.ts), and checks the resolver the registry records
+// against the factory's event in the untouched receipt.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Portal resolver — deployed address comes from the factory (WEB-2200)', () => {
+  test.describe.configure({ timeout: 300_000 })
+
+  test('attaches the resolver the factory deployed, not one another contract announced first', {
+    tag: ['@smoke'],
+  }, async ({ portalPage: page, wallet, makeName }) => {
+    await connectWithHeadlessWallet(page, wallet)
+    const name = await makeName({
+      label: `web2200-res-${Date.now().toString(36)}`,
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    const { decoy, wrapped } = await wrapFactoryReceipts(page)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/change-resolver`)
+    await page
+      .getByRole('switch', { name: /Deploy new permissioned resolver/ })
+      .click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await driveTransactionsToSuccess(page, wallet, [
+      'tx-deploy-permissioned-resolver',
+      CHANGE_RESOLVER_TX,
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/resolver$`), {
+      timeout: 30_000,
+    })
+
+    // The page read the deploy's receipt with the decoy in front.
+    const deployment = await factoryDeployment(wrapped)
+    expect(
+      await publicClient.getCode({ address: deployment.proxy }),
+      'the factory deployed a contract',
+    ).toMatch(/^0x[0-9a-f]{2,}/i)
+
+    const attached = await readResolver(label)
+    // The bug: the name points at the address the other contract announced.
+    expect(attached, 'the resolver must not be the decoy').not.toBe(decoy)
+    expect(attached).toBe(deployment.proxy)
   })
 })
