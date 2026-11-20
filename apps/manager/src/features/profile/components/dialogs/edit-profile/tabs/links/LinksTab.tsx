@@ -11,6 +11,8 @@ import {
 } from '@/features/profile/utils/urlInputPrefix'
 import { cn } from '@/lib/utils'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
+import { LockedRecordsNotice } from '../../LockedRecordsNotice'
+import { useIsRecordTypeLocked } from '../../LockedRecordTypes.context'
 import {
   getLinkValidationIssues,
   type LinkValidationField,
@@ -86,6 +88,8 @@ export const LinksTab = ({
 }: LinksTabProps) => {
   const { _ } = useLingui()
   const { isSaving } = useEditProfileDialogStatus()
+  const isTextLocked = useIsRecordTypeLocked('text')
+  const isDisabled = isSaving || isTextLocked
   const nextRowKeyRef = useRef(0)
   const createRowKey = useCallback(() => {
     const rowKey = `link-row-${nextRowKeyRef.current}`
@@ -195,6 +199,7 @@ export const LinksTab = ({
 
   return (
     <div className="flex flex-col gap-4 pb-4">
+      <LockedRecordsNotice type="text" />
       <div className="flex flex-col gap-1.5">
         <p className="font-bold font-sans text-[#525252] text-[16px] leading-[0.96] tracking-[-0.32px]">
           Links
@@ -240,7 +245,7 @@ export const LinksTab = ({
                       'absolute inset-0 h-5 w-full min-w-0 bg-transparent p-0 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] outline-none placeholder:text-ens-quartz-400 disabled:opacity-50',
                       nameError && 'text-destructive',
                     )}
-                    disabled={isSaving}
+                    disabled={isDisabled}
                     onBlur={() => trimRowValue(row, 'name')}
                     onChange={(event) =>
                       updateRow(row, { name: event.target.value })
@@ -255,7 +260,7 @@ export const LinksTab = ({
                 <button
                   aria-label={`Edit link ${row.index + 1} title`}
                   className="flex size-5 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
-                  disabled={isSaving}
+                  disabled={isDisabled}
                   onClick={() => titleInputRefs.current[rowKey]?.focus()}
                   type="button"
                 >
@@ -272,7 +277,7 @@ export const LinksTab = ({
                     urlError &&
                       'border-destructive focus-visible:border-destructive',
                   )}
-                  disabled={isSaving}
+                  disabled={isDisabled}
                   onBlur={() => setRowUrl(row, getUrlInputBlurValue)}
                   onChange={(event) =>
                     updateRow(row, {
@@ -287,7 +292,7 @@ export const LinksTab = ({
                 <button
                   aria-label={`Remove link ${row.index + 1}`}
                   className="absolute top-1/2 right-3 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
-                  disabled={isSaving}
+                  disabled={isDisabled}
                   onClick={() =>
                     row.isDraft
                       ? removeDraftRow(row.key)
@@ -312,7 +317,7 @@ export const LinksTab = ({
         {canAddLink && (
           <button
             className="flex h-6 min-w-0 items-center gap-2.75 rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50 md:min-w-75"
-            disabled={isSaving}
+            disabled={isDisabled}
             onClick={() =>
               setDraftRows((current) =>
                 values.links.length + current.length < MAX_PROFILE_LINKS
