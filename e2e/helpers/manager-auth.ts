@@ -118,10 +118,7 @@ export async function connectWithHeadlessWallet(
  * smart account initialises. Idempotent: returns silently if it never shows
  * (sessions already enabled or feature flag off).
  *
- * The modal is a Radix `Dialog`, so its overlay slot is `dialog-overlay` —
- * NOT `alert-dialog-overlay`, which belongs to the BackendAuth dialog. We
- * wait for that exact overlay to disappear so the test doesn't race forward
- * while the session dialog is still closing (and still blocking the page).
+ * Wait for the `dialog-overlay` to disappear before interacting with the page.
  */
 export async function clickThroughEnableSessions(page: Page): Promise<void> {
   const enableBtn = page.getByRole('button', { name: /enable sessions/i })
@@ -155,10 +152,7 @@ export function getBackendAuthDialog(page: Page): Locator {
  *     introduces external flakiness).
  *   - The modal blocks pointer events on the rest of the page; until
  *     it closes, no test can interact with anything else.
- *   - The modal appears AFTER `smartAccount.isAccountReady`, which on a
- *     fresh fork can take 30-60 s (Rhinestone SCA deploy + HCA
- *     registration + session enable). The helper therefore needs a
- *     generous wait window.
+ *   - The integrated sign-in step appears before account preparation finishes; this helper still waits for preparation before skipping.
  *
  * Tests that want to exercise the SIWE flow itself should call
  * `signInBackendAuthModal` instead.
@@ -182,12 +176,19 @@ export async function dismissBackendAuthModal(
     return
   }
 
+  // Preserve the old readiness guarantee even when sign-in appears during account preparation.
+  await expect(
+    dialog.getByRole('button', {
+      name: 'Preparing your account…',
+      exact: true,
+    }),
+  ).toBeHidden({ timeout })
   console.log('[manager-auth] BackendAuthModal visible — typing SKIP')
   await page.keyboard.type('skip', { delay: 50 })
 
-  // Wait for the dialog overlay to disappear so subsequent navigations
-  // are clean and pointer-events on the page are restored.
-  const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+  // Wait for the shared wallet dialog and its overlay to close.
+  await dialog.waitFor({ state: 'hidden', timeout: 10_000 })
+  const overlay = page.locator('[data-slot="dialog-overlay"]')
   await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {
     // Best-effort: if the overlay lingers, downstream interactions
     // will hit retry logic via Playwright's auto-waiting anyway.
@@ -243,7 +244,7 @@ export async function signInBackendAuthModal(
     )
   })
 
-  const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
+  const overlay = page.locator('[data-slot="dialog-overlay"]')
   await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
 }
 

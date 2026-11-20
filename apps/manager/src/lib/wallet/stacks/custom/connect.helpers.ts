@@ -1,3 +1,4 @@
+import { logger } from '@ens-apps/utils/logger'
 import type { Connector } from 'wagmi'
 
 // Connector ids for the two non-injected connectors configured in
@@ -121,3 +122,39 @@ export const normalizeConnectError = (error: unknown): string =>
   isConnectionCancelled(error)
     ? 'Connection cancelled'
     : 'Unable to connect wallet'
+
+export type ConnectionOutcome =
+  | { readonly status: 'connected' }
+  | { readonly status: 'cancelled'; readonly message: string }
+  | { readonly status: 'failed'; readonly message: string }
+
+// Keep raw connection failures observable while returning only fixed copy to the UI.
+export const connectWallet = async <TChainId extends number>(
+  connector: Connector,
+  chains: AppChains<TChainId>,
+  actions: ConnectActions<TChainId>,
+): Promise<ConnectionOutcome> => {
+  try {
+    await connectOnSupportedChain(connector, chains, {
+      ...actions,
+      onChainSwitchFailed: (error) =>
+        logger.error('[wallet] connected, but chain switch failed', error),
+    })
+    return { status: 'connected' }
+  } catch (error) {
+    const isCancelled = isConnectionCancelled(error)
+    logger.error('[wallet] connect failed', {
+      usesOwnModal: connector.id === WALLETCONNECT_ID,
+      classifiedAsCancelled: isCancelled,
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : String(error),
+      code: (error as { code?: unknown })?.code,
+      cause: (error as { cause?: unknown })?.cause,
+      error,
+    })
+    return {
+      status: isCancelled ? 'cancelled' : 'failed',
+      message: normalizeConnectError(error),
+    }
+  }
+}

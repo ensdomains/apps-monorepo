@@ -2,7 +2,6 @@ import { WagmiProvider } from 'wagmi'
 import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { wagmiConfig } from '@/lib/wagmi'
 import { MockWalletAutoConnect } from '../MockWalletAutoConnect'
-import { ConnectModalProvider } from './custom/ConnectModalProvider'
 
 // Custom wagmi wallet stack: injected wallets arrive via
 // EIP-6963 discovery, WalletConnect is the only explicit connector, and the
@@ -15,6 +14,6 @@ export const CustomWalletStack = ({
 }) => (
   <WagmiProvider config={wagmiConfig}>
     {isMockWalletEnabled && <MockWalletAutoConnect />}
-    <ConnectModalProvider>{children}</ConnectModalProvider>
+    {children}
   </WagmiProvider>
 )
