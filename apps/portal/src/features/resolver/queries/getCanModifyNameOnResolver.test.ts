@@ -23,8 +23,8 @@ const client = vi.hoisted(() => {
       method,
       params,
     }: {
-      method: string
-      params: unknown[]
+      readonly method: string
+      readonly params: readonly unknown[]
     }) => {
       if (method === 'eth_call') return ethCall(params[0])
       throw new Error(`unexpected ${method}`)

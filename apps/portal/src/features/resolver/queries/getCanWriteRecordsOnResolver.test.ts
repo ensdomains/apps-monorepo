@@ -15,7 +15,9 @@ const RESOLVER = '0x8fade66b79cc9f707ab26799354482eb93a5b7dd' as Address
 const ACCOUNT = '0x1111111111111111111111111111111111111111' as Address
 
 const ethCall =
-  vi.fn<(request: { from?: Address; to: Address }) => Promise<Hex>>()
+  vi.fn<
+    (request: { readonly from?: Address; readonly to: Address }) => Promise<Hex>
+  >()
 const gateway = vi.fn(async (): Promise<Hex> => {
   throw new Error('gateway.test is unreachable')
 })
