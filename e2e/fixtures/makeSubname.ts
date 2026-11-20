@@ -39,7 +39,7 @@ import { ETH_REGISTRY, type Role } from '../helpers/role-assertions.js'
 
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
-const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
+const USER_REGISTRY_FACTORY = ensjsSepolia.ensUserRegistryFactory.address
 const USER_REGISTRY_IMPL = ensjsSepolia.ensUserRegistryImpl.address
 
 /**
@@ -136,7 +136,7 @@ export async function attachSubregistry(
   const deployHash = await deploySubregistry(
     client as never,
     {
-      factoryAddress: VERIFIABLE_FACTORY,
+      factoryAddress: USER_REGISTRY_FACTORY,
       implAddress: USER_REGISTRY_IMPL,
       salt: BigInt(
         keccak256(

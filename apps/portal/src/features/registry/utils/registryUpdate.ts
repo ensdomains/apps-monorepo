@@ -1,0 +1,184 @@
+import {
+  chunkWalletBundle,
+  type RegistryRepairCall,
+  type RegistryRepairPlan,
+} from '@ens-apps/migration'
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
+import type { Result } from 'neverthrow'
+import { match, P } from 'ts-pattern'
+import {
+  type Address,
+  encodeAbiParameters,
+  isAddressEqual,
+  keccak256,
+  stringToHex,
+} from 'viem'
+import {
+  toEoaBatchIntent,
+  toEoaCustomIntent,
+} from '@/features/transaction-manager/helpers/intents'
+import { isEncodedLabelhash } from '@/utils/token/isNormalized'
+import { isPendingUpgradeImplementation } from './pendingUpgradeRegistry'
+
+const REGISTRY_UPDATE_SALT_DOMAIN = keccak256(
+  stringToHex('ENSExplorerRegistryUpdate:v1'),
+)
+
+/** The CREATE2 salt for an attempt at replacing `registry`, so a stopped upgrade finds the same address again. */
+export const computeRegistryUpdateSalt = (
+  registry: Address,
+  attempt: bigint,
+): bigint =>
+  BigInt(
+    keccak256(
+      encodeAbiParameters(
+        [{ type: 'bytes32' }, { type: 'address' }, { type: 'uint256' }],
+        [REGISTRY_UPDATE_SALT_DOMAIN, registry, attempt],
+      ),
+    ),
+  )
+
+/** A stopped upgrade that can't be resumed starts over at a new address; this bounds how many times. */
+export const MAX_UPGRADE_ATTEMPTS = 16n
+
+/** A copy the original has drifted from can't be finished, so the upgrade starts a fresh one. */
+export const shouldStartFreshCopy = (
+  resumed: Result<unknown, { readonly _tag: string }>,
+): boolean =>
+  resumed.isErr() &&
+  resumed.error._tag === 'RegistryRepairPlanError' &&
+  'reason' in resumed.error &&
+  resumed.error.reason === 'replacement-diverged'
+
+export type RegistryUpdateStep = {
+  readonly kind: 'copy' | 'finish'
+  readonly calls: readonly RegistryRepairCall[]
+}
+
+/** One wallet confirmation per step: bundles the wallet accepts when it batches atomically, one call each otherwise. */
+export const getRegistryUpdateSteps = ({
+  plan,
+  canBatchAtomically,
+}: {
+  readonly plan: Pick<RegistryRepairPlan, 'copyCalls' | 'finalCalls'>
+  readonly canBatchAtomically: boolean
+}): readonly RegistryUpdateStep[] => {
+  const group = (calls: readonly RegistryRepairCall[]) =>
+    canBatchAtomically ? chunkWalletBundle(calls) : calls.map((call) => [call])
+  return [
+    ...group(plan.copyCalls).map((calls) => ({ kind: 'copy' as const, calls })),
+    ...group(plan.finalCalls).map((calls) => ({
+      kind: 'finish' as const,
+      calls,
+    })),
+  ]
+}
+
+/** What the update leaves behind, shown on its first step so the user sees it before signing. */
+export const getRegistryUpdateDetails = ({
+  plan,
+  expiredLabels,
+}: {
+  readonly plan: Pick<RegistryRepairPlan, 'unmovedChildren'>
+  readonly expiredLabels: readonly string[]
+}): readonly { readonly label: string; readonly value: string }[] => [
+  ...(expiredLabels.length > 0
+    ? [{ label: 'Expired, not copied', value: expiredLabels.join(', ') }]
+    : []),
+  ...(plan.unmovedChildren.length > 0
+    ? [
+        {
+          label: 'Subname registries left on the old parent',
+          value: plan.unmovedChildren.map((child) => child.label).join(', '),
+        },
+      ]
+    : []),
+]
+
+export type RegistryUpdateBlocker =
+  | 'outdated-implementation'
+  | 'registry-replaced'
+  | 'unknown-label'
+  | 'cannot-switch'
+
+export class RegistryUpdateBlockedError extends TaggedError(
+  'RegistryUpdateBlockedError',
+)<{
+  readonly reason: RegistryUpdateBlocker | 'too-many-attempts'
+}> {}
+
+/** Why an update may not run now, or null when it can. */
+export const getRegistryUpdateBlocker = (params: {
+  readonly chainId: number
+  /** The implementation the replacement would be deployed from. */
+  readonly implementation: Address
+  readonly registry: Address
+  /** What the parent name points at right now. */
+  readonly currentSubregistry: Address
+  readonly label: string
+  /** The account holds `ROLE_SET_SUBREGISTRY` on the name, which the final switch needs. */
+  readonly canSwitch: boolean
+}): RegistryUpdateBlocker | null =>
+  match(params)
+    .returnType<RegistryUpdateBlocker | null>()
+    // Never copy onto an implementation that would itself need updating.
+    .when(isPendingUpgradeImplementation, () => 'outdated-implementation')
+    // Someone pointed the name elsewhere; switching it back would drop their registry.
+    .when(
+      ({ currentSubregistry, registry }) =>
+        !isAddressEqual(currentSubregistry, registry),
+      () => 'registry-replaced',
+    )
+    // `setParent` needs the label's text, which an encoded label doesn't give.
+    .when(
+      ({ label }) => isEncodedLabelhash(label),
+      () => 'unknown-label',
+    )
+    .with({ canSwitch: false }, () => 'cannot-switch')
+    .otherwise(() => null)
+
+export type RegistryUpdateFailure =
+  | 'missing-roles'
+  | 'registry-replaced'
+  | 'unknown-label'
+  | 'unavailable'
+  | 'read-failed'
+
+/** Why planning an upgrade failed, in the terms the card explains to the user. */
+export const getRegistryUpdateFailure = (
+  error: unknown,
+): RegistryUpdateFailure =>
+  match(error)
+    .with(
+      { _tag: 'RegistryUpdateBlockedError', reason: P.select() },
+      (reason) =>
+        match(reason)
+          .with('registry-replaced', () => 'registry-replaced' as const)
+          .with('unknown-label', () => 'unknown-label' as const)
+          .with('cannot-switch', () => 'missing-roles' as const)
+          .otherwise(() => 'unavailable' as const),
+    )
+    .with({ _tag: 'RegistryRepairPlanError', reason: P.select() }, (reason) =>
+      reason === 'replacement-diverged'
+        ? ('unavailable' as const)
+        : ('missing-roles' as const),
+    )
+    .otherwise(() => 'read-failed' as const)
+
+/** The wallet request for one step: a single call, or an atomic bundle of them. */
+export const toStepIntent = ({
+  from,
+  step,
+  chainId,
+}: {
+  readonly from: Address
+  readonly step: RegistryUpdateStep
+  readonly chainId: number
+}): CustomTransactionIntent => {
+  const intents = step.calls.map((call) =>
+    toEoaCustomIntent({ from, to: call.to, data: call.data, chainId }),
+  )
+  const [only] = intents
+  return intents.length === 1 && only ? only : toEoaBatchIntent(intents)
+}

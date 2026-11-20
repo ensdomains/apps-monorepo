@@ -31,6 +31,21 @@ export {
   runEligibilityChecks,
 } from './service/preflightChecks'
 export {
+  RegistryRepairReadError,
+  readChildRegistries,
+  readRegistryRepairState,
+} from './service/readRegistryRepairState'
+export {
+  planRegistryRepair,
+  type RegistryRepairPlan,
+  RegistryRepairPlanError,
+} from './service/registryRepair'
+export { compareRegistryRepair } from './service/registryRepairCompare'
+export type {
+  RegistryRepairCall,
+  RegistryRepairState,
+} from './service/registryRepairState'
+export {
   getSubnameMigrationImpact,
   MAX_UNRECOVERABLE_SUBNAMES,
   readSubnameMigrationImpact,
@@ -46,3 +61,7 @@ export {
   toParentFuses,
   toV1Domain,
 } from './service/v1Domain'
+export {
+  chunkWalletBundle,
+  MAX_WALLET_BUNDLE_CALLS,
+} from './service/walletBundle'

@@ -35,6 +35,8 @@ export const V2_CONTRACTS = {
   RootRegistry: destination.rootRegistry,
   VerifiableFactory: destination.verifiableFactory,
   VerifiableFactoryProxyLogic: destination.verifiableFactoryProxyLogic,
+  UserRegistryFactory: destination.userRegistryFactory,
+  UserRegistryFactoryProxyLogic: destination.userRegistryFactoryProxyLogic,
   PermissionedResolverImpl: destination.permissionedResolverImpl,
   UnlockedMigrationController: destination.unlockedMigrationController,
   LockedMigrationController: destination.lockedMigrationController,

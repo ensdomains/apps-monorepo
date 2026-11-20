@@ -43,6 +43,7 @@ const mocks = vi.hoisted(() => ({
   assertLockedResolverReplacementRecordSafety: vi.fn(),
   verifyMigrationRecoveryTransaction: vi.fn(),
   restoreMigrationCompletionCheckpoint: vi.fn(),
+  readCurrentParentRegistries: vi.fn(),
 }))
 
 vi.mock('./buildMigrationPlan', async (importOriginal) => ({
@@ -101,6 +102,11 @@ vi.mock('./migrationCompletionCheckpoint', async (importOriginal) => ({
   verifyMigrationRecoveryTransaction: mocks.verifyMigrationRecoveryTransaction,
   restoreMigrationCompletionCheckpoint:
     mocks.restoreMigrationCompletionCheckpoint,
+}))
+
+vi.mock('./currentParentRegistries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./currentParentRegistries')>()),
+  readCurrentParentRegistries: mocks.readCurrentParentRegistries,
 }))
 
 vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
@@ -710,6 +716,7 @@ beforeEach(() => {
     },
   )
   mocks.verifyMigrationRecoveryTransaction.mockResolvedValue('success')
+  mocks.readCurrentParentRegistries.mockResolvedValue(new Map())
   mocks.restoreMigrationCompletionCheckpoint.mockResolvedValue(null)
   mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
     status: 'complete',
@@ -1433,6 +1440,12 @@ describe('executeMigration HCA orchestration', () => {
       mocks.verifyMigrationRecoveryTransaction.mockResolvedValue(
         status === 'reverted' ? 'reverted' : 'success',
       )
+      const currentParentRegistries = new Map([
+        ['example.eth', '0x00000000000000000000000000000000000000c1' as const],
+      ])
+      mocks.readCurrentParentRegistries.mockResolvedValue(
+        currentParentRegistries,
+      )
       const plan: MigrationPlan = {
         ...bulkPlan(),
         classified: [],
@@ -1476,6 +1489,7 @@ describe('executeMigration HCA orchestration', () => {
         expect.objectContaining({
           transactionHash: submissionHash,
           migrationHelper: recordedHelper,
+          currentParentRegistries,
         }),
       )
       const updated = loadMigrationBatchJournal({
@@ -3813,6 +3827,32 @@ describe('durable migration completion handoff', () => {
     expect(loadSubmittedAtomicMigrationBatches(scope)).toHaveLength(0)
     expect(mocks.startTransaction).not.toHaveBeenCalled()
   })
+})
+
+it("reads the current registry of a completed copy's parent before discarding its journal entry", async () => {
+  const scope = { chainId: 11155111, owner: OWNER, hca: HCA }
+  const completed = { name: 'foo.example.eth', action: 'copy' as const }
+  persistSubmittedAtomicMigrationBatch(scope, {
+    intentId: 'older-copy',
+    hash: hashFor(9),
+    names: [completed.name],
+    operations: [completed],
+  })
+  mocks.readCurrentParentRegistries.mockRejectedValue(new Error('stop'))
+
+  await expect(
+    runExecute({
+      plan: {
+        ...planFor([]),
+        registryContext: [classifiedFor('alice')],
+        priorCompletedOperations: [completed],
+      },
+      reconcileBeforeSubmit: true,
+    }),
+  ).rejects.toBeDefined()
+  expect(mocks.readCurrentParentRegistries).toHaveBeenCalledWith(
+    expect.objectContaining({ parentNames: ['example.eth'] }),
+  )
 })
 
 it.each([false, true])(

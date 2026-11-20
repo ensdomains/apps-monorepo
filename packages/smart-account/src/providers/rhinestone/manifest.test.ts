@@ -55,7 +55,10 @@ describe('remediated Sepolia destination manifest', () => {
       unlockedMigrationController: '0x2a35B94DF22cc7354570be2284655E2CDC0e64A2',
       lockedMigrationController: '0x6029a063d69b09D23c52a754a90E4FE43aDac3A8',
       publicResolverSet: '0x5B2bd5208dac31905106d8e5a4973Ae1Cd7414F2',
-      userRegistryImpl: '0x9BD8a88719068D09ecee662f36C0E3856708366a',
+      userRegistryImpl: '0x0822d199699f0a9D378617817a1439663234a126',
+      userRegistryFactory: '0xDa70306C98E97eCe36F997a21368e53298572991',
+      userRegistryFactoryProxyLogic:
+        '0xC41576B4B809B99CF0fF2e5B41b4F147cd9b6BDd',
       wrapperRegistryImpl: '0xBe768b63E5fBBFBB0Ae97E9064E0002dF8001880',
       publicResolverV2: '0xdC4a563d00F5c3012b699794eB9e13A561Be386F',
       defaultReverseRegistrarHcaAdapter:
@@ -95,7 +98,10 @@ describe('mainnet destination manifest', () => {
       unlockedMigrationController: '0xaB821Ca676CF2e0790Fa273526a165CFa86aEB64',
       lockedMigrationController: '0x3ceA18620883a69ED349B23328A3B6302598e51A',
       publicResolverSet: '0xfFCedA021CBDF20f1a66ebbef32E49d208cAbf62',
-      userRegistryImpl: '0xC927bCaA77cd7bE283518760896Be0CF3Cfbe08d',
+      userRegistryImpl: '0x3269b830b61b3186Dc6d2f57Cab118E2FBC3E2df',
+      userRegistryFactory: '0x6B9BCAAd92b05ED24D3e01950048B73E8633053F',
+      userRegistryFactoryProxyLogic:
+        '0x573a82d5EB7C88d041056168678bF328fe3520c0',
       wrapperRegistryImpl: '0xe86A4ef4d7A210aAA1d6A9594fC7Add7cD2Cf888',
       publicResolverV2: '0x66f9F566fF2f26309C1Bd9134388478A801dA3e1',
       defaultReverseRegistrarHcaAdapter:

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Address } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
+import type { UpgradeGate } from '@/features/registry/utils/pendingUpgradeRegistry'
 import { createTestWrapper } from '@/test-utils/providers'
 import type { TransferControls } from '../hooks/useTransferName'
 import type {
@@ -444,7 +445,10 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
     unrevocable: [],
   }
 
-  const renderWithRoles = (revocations: TransferRoleRevocations) => {
+  const renderWithRoles = (
+    revocations: TransferRoleRevocations,
+    roleGate: UpgradeGate = 'open',
+  ) => {
     const startTransfer = vi.fn()
     render(
       <SendNameForm
@@ -453,6 +457,7 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
         parentWarning={null}
         registryDetachImpact={EMPTY_REGISTRY}
         roleRevocations={revocations}
+        roleGate={roleGate}
         transfer={controls({ startTransfer })}
       />,
       { wrapper: createTestWrapper() },
@@ -516,6 +521,41 @@ describe('SendNameForm — third-party role grants (immunefi #89627)', () => {
     expect(
       screen.queryByText(/will lose the permissions/i),
     ).not.toBeInTheDocument()
+  })
+
+  it('leaves the grants in place on a registry that must be upgraded first', async () => {
+    const startTransfer = renderWithRoles(ONE_DELEGATE, 'needs-upgrade')
+    const user = await enterRecipient()
+
+    expect(
+      await screen.findByText(
+        /must be upgraded before permissions can change/i,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('switch', { name: /revoke everyone else/i }),
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /transfer name/i }))
+
+    expect(startTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({ revokeRoles: false }),
+        roleGrants: [],
+        hasRemainingRoleHolders: true,
+      }),
+    )
+  })
+
+  it("waits while it isn't known whether the registry must be upgraded", async () => {
+    renderWithRoles(ONE_DELEGATE, 'checking')
+    await enterRecipient()
+    // The options show once the recipient resolves, which alone would enable the button.
+    await screen.findAllByRole('switch')
+
+    expect(
+      screen.getByRole('button', { name: /transfer name/i }),
+    ).toBeDisabled()
   })
 
   it('warns, and sends no grants, when the sender turns it off', async () => {

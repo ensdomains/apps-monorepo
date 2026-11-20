@@ -25,6 +25,7 @@ import {
 import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
 import { ReconfigureRegistryForm } from './ReconfigureRegistryForm'
 import { RegistryPanel } from './RegistryPanel'
+import { RegistryUpdateNotice } from './RegistryUpdateNotice'
 import { RestorePreviousRegistry } from './RestorePreviousRegistry'
 import { UnconfiguredRegistry } from './UnconfiguredRegistry'
 import { UntrustedRegistryBadge } from './UntrustedRegistryWarning'
@@ -325,7 +326,9 @@ const RegistrySummaryDetails = ({
       </dl>
       {isReconfiguring ? (
         <ReconfigureRegistryForm name={name} onClose={onCloseReconfigure} />
-      ) : null}
+      ) : (
+        <RegistryUpdateNotice name={name} isInTree />
+      )}
     </Fragment>
   )
 }

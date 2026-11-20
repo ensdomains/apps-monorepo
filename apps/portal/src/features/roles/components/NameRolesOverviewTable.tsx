@@ -11,7 +11,15 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Button } from '@/components/ui/button'
+import { RegistryRolesLockedNotice } from '@/features/registry/components/v2/RegistryRolesLockedNotice'
+import { RegistryUpdateNotice } from '@/features/registry/components/v2/RegistryUpdateNotice'
+import { getIsRegistryPendingUpgradeQueryOptions } from '@/features/registry/queries/getIsRegistryPendingUpgrade'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
+import {
+  getRoleEditing,
+  getUpgradeGate,
+  settledData,
+} from '@/features/registry/utils/pendingUpgradeRegistry'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { useCallerAdminRoles } from '@/features/roles/hooks/useCallerAdminRoles'
@@ -21,6 +29,7 @@ import { getVersionedResourceQueryOptions } from '@/features/roles/hooks/useVers
 import { rootNameAuthority } from '@/features/roles/utils/rootNameAuthority'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { canCallerSetManagerRole, permissions } from '@/lib/roles/permissions'
+import { getParentName } from '@/utils/ens/tldHelpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const V2NameRoles = ({
@@ -194,6 +203,8 @@ export const NameRolesOverviewTable = ({
   registryAddress: Address
 }) => {
   const [addUserOpen, setAddUserOpen] = useState(false)
+  // These roles live in the parent's registry, so the upgrade is the parent's.
+  const parentName = getParentName(name)
 
   const { address } = useConnection()
 
@@ -210,13 +221,21 @@ export const NameRolesOverviewTable = ({
     account: address,
   })
 
-  // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
-  const canManageRoles = callerAdminRoles.size > 0
-  const canAddUser = permissions.some((permission) =>
-    canCallerSetManagerRole(permission.key, callerAdminRoles, {
-      is2LD: name.split('.').length === 2,
-    }),
+  const pendingUpgrade = useQuery(
+    getIsRegistryPendingUpgradeQueryOptions({ registryAddress }),
   )
+  // Any `_ADMIN` can revoke its role, so it opens the editor; Add user needs a grantable one.
+  const { canEdit: canManageRoles, showUpgradeNote } = getRoleEditing({
+    isAdmin: callerAdminRoles.size > 0,
+    gate: getUpgradeGate(settledData(pendingUpgrade)),
+  })
+  const canAddUser =
+    canManageRoles &&
+    permissions.some((permission) =>
+      canCallerSetManagerRole(permission.key, callerAdminRoles, {
+        is2LD: name.split('.').length === 2,
+      }),
+    )
 
   return (
     <Fragment>
@@ -234,6 +253,15 @@ export const NameRolesOverviewTable = ({
           {truncateAddress(registryAddress)}
         </EntityBadge>
       </div>
+      {parentName ? (
+        <RegistryUpdateNotice
+          name={parentName}
+          pageRegistry={registryAddress}
+          fallback={showUpgradeNote && <RegistryRolesLockedNotice />}
+        />
+      ) : (
+        showUpgradeNote && <RegistryRolesLockedNotice />
+      )}
       <V2NameRoles
         name={name}
         registryAddress={registryAddress}

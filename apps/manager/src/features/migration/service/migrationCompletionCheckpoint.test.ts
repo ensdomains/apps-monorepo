@@ -59,8 +59,13 @@ const transaction = () => ({
 const getReceipt = vi.fn()
 const getTransaction = vi.fn()
 const readContract = vi.fn()
+const HELPER = '0x0000000000000000000000000000000000000004' as Address
+const UPGRADED = '0x0000000000000000000000000000000000000005' as Address
 const publicClient = {
-  chain: { id: sepolia.id },
+  chain: {
+    id: sepolia.id,
+    contracts: { ensUniversalHelper: { address: HELPER } },
+  },
   getTransactionReceipt: getReceipt,
   getTransaction,
   readContract,
@@ -94,6 +99,7 @@ beforeEach(() => {
           : contracts.userRegistryImpl,
       )
     if (functionName === 'getSubregistry') return Promise.resolve(registry)
+    if (functionName === 'findRegistries') return Promise.resolve([registry])
     return Promise.resolve(owner)
   })
 })
@@ -461,6 +467,38 @@ it('does not let a forged prior migrate hint suppress a fresh verified copy chec
     storage,
   })
   expect(JSON.parse(storage.getItem(key) ?? '{}').operation).toEqual(copy)
+})
+
+it('restores a copied-name proof into the registry its parent was upgraded to', async () => {
+  const copy = { name: 'child.alice.eth', action: 'copy' as const }
+  persistMigrationCompletionCheckpoint({
+    scope,
+    transactionHash: hash,
+    operations: [copy],
+    storage,
+  })
+  const original = readContract.getMockImplementation()
+  readContract.mockImplementation((args) => {
+    if (args.functionName === 'getSubregistry') return Promise.resolve(UPGRADED)
+    if (args.functionName === 'findRegistries')
+      return Promise.resolve([UPGRADED])
+    return original?.(args)
+  })
+  getTransaction.mockResolvedValue({
+    ...transaction(),
+    input: outer(
+      buildRegisterCopiedSubnameCall({
+        registry: UPGRADED,
+        label: 'child',
+        owner,
+        childRegistry: zeroAddress,
+        resolver: other,
+        expiry: 12345n,
+      }),
+    ),
+  })
+
+  await expect(restore()).resolves.toEqual(copy)
 })
 
 it('rejects a copied-name proof through an arbitrary canonical registry', async () => {

@@ -40,7 +40,7 @@ const SUCCESS_LABEL_DURATION_MS = 5000
 
 const factoryAddress = getChainContractAddress({
   chain: ensChain,
-  contract: 'ensVerifiableFactory',
+  contract: 'ensUserRegistryFactory',
 })
 
 const implAddress = getChainContractAddress({

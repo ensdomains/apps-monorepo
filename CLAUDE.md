@@ -232,3 +232,17 @@ changing the shape of a call in the commit/reveal batch.
 **When to Consult**: Before any change to registration or renewal pricing, the payment
 sheet, `PaymentAction`, the fallback choice, the ETH swap, or the registration or renewal UI machine. A change to a
 listed rule is a product change: name the rule and the test it changes in the PR body.
+
+### Registry upgrade (portal)
+**Location**: `apps/portal/src/features/registry/` and `packages/migration/src/service/registryRepair*`
+**Documentation**: `apps/portal/src/features/registry/BEHAVIOUR.md`
+
+**Key Concepts**:
+- Which UserRegistry implementations need an upgrade, and what that pauses (subname creation, role edits)
+- Who sees the upgrade card (Case A), who doesn't yet (Case B), and the subname owner notice (Case C)
+- The upgrade copies the registry into a new one and switches the name last; who becomes an admin of the copy
+- Stopping and resuming: the copy's address comes from the old registry and an attempt number
+
+**When to Consult**: Before any change to the pending-upgrade list, the upgrade card or notice, the
+registry repair planner, the upgrade machine, or the gates on subname creation and roles. A change to a
+listed rule is a product change: name the rule and the test it changes in the PR body.

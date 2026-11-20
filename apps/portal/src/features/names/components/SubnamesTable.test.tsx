@@ -260,7 +260,7 @@ describe('SubnamesTable', () => {
         subnames={[]}
         name="test.eth"
         canCreateSubname
-        isCreationPaused={false}
+        creationGate="open"
       />,
     )
 
@@ -291,6 +291,25 @@ describe('SubnamesTable', () => {
       )
     },
   )
+
+  it('explains that an older registry must be upgraded before creating subnames', async () => {
+    render(
+      <SubnamesTable
+        subnames={[]}
+        name="test.eth"
+        canCreateSubname
+        creationGate="needs-upgrade"
+      />,
+    )
+
+    await userEvent
+      .setup()
+      .hover(screen.getByRole('button', { name: 'Create subname' }))
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'This registry must be upgraded before new subnames can be created.',
+    )
+  })
 
   it('does not render create button when canCreateSubname is false', () => {
     render(

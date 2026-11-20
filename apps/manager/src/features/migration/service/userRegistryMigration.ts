@@ -50,8 +50,8 @@ export const computeUserRegistryAddress = (params: {
   readonly parentName: string
 }): Address =>
   computeVerifiableProxyAddress({
-    factory: V2_CONTRACTS.VerifiableFactory,
-    proxyLogic: V2_CONTRACTS.VerifiableFactoryProxyLogic,
+    factory: V2_CONTRACTS.UserRegistryFactory,
+    proxyLogic: V2_CONTRACTS.UserRegistryFactoryProxyLogic,
     deployer: params.hca,
     salt: computeUserRegistrySalt(params.parentName),
   })
@@ -61,7 +61,7 @@ const buildDeployUserRegistryCall = (params: {
   readonly hca: Address
   readonly parentName: string
 }): Call => ({
-  to: V2_CONTRACTS.VerifiableFactory,
+  to: V2_CONTRACTS.UserRegistryFactory,
   value: 0n,
   data: encodeFunctionData({
     abi: verifiableFactoryDeployProxySnippet,

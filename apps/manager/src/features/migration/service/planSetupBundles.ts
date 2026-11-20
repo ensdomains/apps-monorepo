@@ -1,5 +1,5 @@
+import { chunkWalletBundle } from '@ens-apps/migration'
 import { match } from 'ts-pattern'
-import { chunkWalletBundle } from './batchMigrate.constants'
 import type { MigrationApproval } from './migrationApprovals'
 
 export type SetupStep =

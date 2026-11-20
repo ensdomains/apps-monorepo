@@ -1,5 +1,5 @@
+import { chunkWalletBundle } from '@ens-apps/migration'
 import type { Address } from 'viem'
-import { chunkWalletBundle } from './batchMigrate.constants'
 import {
   type AtomicMigrationBatch,
   walletReplayNames,

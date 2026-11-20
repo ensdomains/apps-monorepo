@@ -35,6 +35,7 @@ import {
   FUSES,
   hasFuse,
 } from './classifyNames'
+import { parentUserRegistryFor } from './currentParentRegistries'
 import {
   computeExpectedWrapperRegistry,
   type DirectMigrationRoute,
@@ -58,7 +59,6 @@ import {
 import {
   buildRegisterCopiedSubnameCall,
   buildUserRegistrySetupCalls,
-  computeUserRegistryAddress,
   computeUserRegistrySalt,
 } from './userRegistryMigration'
 
@@ -433,6 +433,8 @@ export type BuildAtomicMigrationBatchesParams = {
   readonly classified: readonly ClassifiedName[]
   /** Full selected tree retained while execution removes completed nodes. */
   readonly registryContext?: readonly ClassifiedName[]
+  /** Completed parents whose name now points at a certified replacement registry. */
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly directMigrationExpiries?: ReadonlyMap<string, bigint>
   readonly profiles: ReadonlyMap<Hex, Profile>
@@ -551,16 +553,23 @@ const orderPlannedNamesParentFirst = (
 const buildUserRegistryAddresses = (params: {
   readonly hca: Address
   readonly registryContext: readonly ClassifiedName[]
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
 }): ReadonlyMap<string, Address> => {
   const parentNames = new Set(
     params.registryContext.flatMap((name) =>
       name.action === 'copy' && name.parentName ? [name.parentName] : [],
     ),
   )
+  const currentParentRegistries =
+    params.currentParentRegistries ?? new Map<string, Address>()
   return new Map(
     [...parentNames].map((parentName) => [
       parentName,
-      computeUserRegistryAddress({ hca: params.hca, parentName }),
+      parentUserRegistryFor({
+        hca: params.hca,
+        parentName,
+        currentParentRegistries,
+      }),
     ]),
   )
 }
@@ -882,7 +891,7 @@ const buildUserRegistryFragment = (params: {
         type: 'user-registry-implementation',
         name,
         registry: params.childRegistry,
-        factory: contracts.verifiableFactory,
+        factory: contracts.userRegistryFactory,
         expectedImplementation: contracts.userRegistryImpl,
         deployer: params.hca,
         salt: computeUserRegistrySalt(name),
@@ -1292,6 +1301,7 @@ const buildNameExecutions = (params: {
   readonly wallet: Address
   readonly classified: readonly ClassifiedName[]
   readonly registryContext: readonly ClassifiedName[]
+  readonly currentParentRegistries?: ReadonlyMap<string, Address>
   readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly resolver: Address
@@ -1311,6 +1321,7 @@ const buildNameExecutions = (params: {
   const userRegistries = buildUserRegistryAddresses({
     hca: params.hca,
     registryContext: params.registryContext,
+    currentParentRegistries: params.currentParentRegistries,
   })
   const firstResolverNameIndex = ordered.findIndex(
     (name) =>
@@ -1628,6 +1639,7 @@ export const buildAtomicMigrationBatches = async (
     wallet: params.wallet,
     classified: params.classified,
     registryContext: params.registryContext ?? params.classified,
+    currentParentRegistries: params.currentParentRegistries,
     directRoutes: params.directRoutes,
     profiles: params.profiles,
     resolver,
