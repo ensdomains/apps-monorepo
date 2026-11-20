@@ -173,8 +173,8 @@ const rehearse = async (row: Row) => {
 
   const salt = computeRegistryUpdateSalt(row.registry, 0n)
   const replacement = computeVerifiableProxyAddress({
-    factory: contracts.verifiableFactory,
-    proxyLogic: contracts.verifiableFactoryProxyLogic,
+    factory: contracts.userRegistryFactory,
+    proxyLogic: contracts.userRegistryFactoryProxyLogic,
     deployer: controller,
     salt,
   })
@@ -193,7 +193,7 @@ const rehearse = async (row: Row) => {
         existing,
         children,
         account: controller,
-        factory: contracts.verifiableFactory,
+        factory: contracts.userRegistryFactory,
         implementation,
         salt,
         replacement,

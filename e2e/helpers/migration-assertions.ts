@@ -48,6 +48,8 @@ const V2_VERIFIABLE_FACTORY = ensL1Contracts[supportedL1Chains.sepolia]
   .ensVerifiableFactory.address as Address
 const V2_USER_REGISTRY_IMPL = ensL1Contracts[supportedL1Chains.sepolia]
   .ensUserRegistryImpl.address as Address
+const V2_USER_REGISTRY_FACTORY = ensL1Contracts[supportedL1Chains.sepolia]
+  .ensUserRegistryFactory.address as Address
 
 const ETH_REGISTRY_ABI = parseAbi([
   // PermissionedRegistry read functions
@@ -362,7 +364,7 @@ export async function assertUserRegistryAttached(
   ).not.toBe(zeroAddress)
 
   const implementation = await publicClient.readContract({
-    address: V2_VERIFIABLE_FACTORY,
+    address: V2_USER_REGISTRY_FACTORY,
     abi: FACTORY_ABI,
     functionName: 'verifyContract',
     args: [registry],

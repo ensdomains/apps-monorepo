@@ -30,6 +30,7 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   ensEthRegistrar: 'ETHRegistrar',
   ensEthRenewerV1: 'ETHRenewerV1',
   ensUserRegistryImpl: 'UserRegistry',
+  ensUserRegistryFactory: 'VerifiableFactory',
   ensStandardRentPriceOracle: 'StandardRentPriceOracle',
   ensHcaFactory: 'HCAFactory',
   ensLockedMigrationController: 'LockedMigrationController',

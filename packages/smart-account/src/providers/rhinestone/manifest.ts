@@ -52,6 +52,10 @@ export interface DestinationContracts {
   /** Block where this VerifiableFactory was deployed; used as the log-scan floor. */
   readonly verifiableFactoryDeployBlock: bigint
   readonly permissionedResolverImpl: Address
+  /** VerifiableFactory for UserRegistry proxies; HCAs and resolvers stay on `verifiableFactory`. */
+  readonly userRegistryFactory: Address
+  /** The `proxyLogic` of `userRegistryFactory`, hashed into every registry proxy address. */
+  readonly userRegistryFactoryProxyLogic: Address
   readonly ethRegistrar: Address
   readonly ethRegistry: Address
   readonly rootRegistry: Address
@@ -89,6 +93,7 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     lockedMigrationController:
       ensjsSepolia.ensLockedMigrationController.address,
     userRegistryImpl: ensjsSepolia.ensUserRegistryImpl.address,
+    userRegistryFactory: ensjsSepolia.ensUserRegistryFactory.address,
     defaultReverseRegistrarHcaAdapter:
       ensjsSepolia.ensDefaultReverseRegistrarAdapter.address,
     reverseRegistrarHcaAdapter: ensjsSepolia.ensReverseRegistrarAdapter.address,
@@ -114,6 +119,8 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
     verifiableFactoryProxyLogic: '0xC41576B4B809B99CF0fF2e5B41b4F147cd9b6BDd',
     verifiableFactoryDeployBlock: 11_820_318n,
+    // Sepolia registries still deploy through `ensVerifiableFactory`.
+    userRegistryFactoryProxyLogic: '0xC41576B4B809B99CF0fF2e5B41b4F147cd9b6BDd',
     rootRegistry: '0xB458D6a3a77919449d03e7A6903C26827c1eC43f',
     publicResolverSet: '0x5B2bd5208dac31905106d8e5a4973Ae1Cd7414F2',
     wrapperRegistryImpl: '0xBe768b63E5fBBFBB0Ae97E9064E0002dF8001880',
@@ -138,6 +145,7 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // Matches WRAPPER_REGISTRY_IMPL() on the current locked controller.
     wrapperRegistryImpl: '0xe86A4ef4d7A210aAA1d6A9594fC7Add7cD2Cf888',
     userRegistryImpl: ensjsMainnet.ensUserRegistryImpl.address,
+    userRegistryFactory: ensjsMainnet.ensUserRegistryFactory.address,
     defaultReverseRegistrarHcaAdapter:
       ensjsMainnet.ensDefaultReverseRegistrarAdapter.address,
     reverseRegistrarHcaAdapter: ensjsMainnet.ensReverseRegistrarAdapter.address,
@@ -161,6 +169,8 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // write, so proxies exist in between. This is the fromBlock for the
     // proxy scan; the namespace block would be too late.
     verifiableFactoryDeployBlock: 26_105_299n,
+    // `proxyLogic()` of `ensUserRegistryFactory` (0x6B9B…053F).
+    userRegistryFactoryProxyLogic: '0x573a82d5EB7C88d041056168678bF328fe3520c0',
     rootRegistry: '0x2553c09bE6447BeFfdB86FA622ad41fB8f77A91e',
     publicResolverSet: '0xfFCedA021CBDF20f1a66ebbef32E49d208cAbf62',
     publicResolverV2: '0x66f9F566fF2f26309C1Bd9134388478A801dA3e1',

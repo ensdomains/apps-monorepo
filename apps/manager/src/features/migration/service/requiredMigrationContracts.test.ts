@@ -155,7 +155,8 @@ describe('getRequiredMigrationContracts', () => {
         'MigrationHelper',
         'UnlockedMigrationController',
         'UserRegistryImpl',
-        'VerifiableFactoryProxyLogic',
+        'UserRegistryFactory',
+        'UserRegistryFactoryProxyLogic',
       ]),
     )
     expect(new Set(contracts).size).toBe(contracts.length)

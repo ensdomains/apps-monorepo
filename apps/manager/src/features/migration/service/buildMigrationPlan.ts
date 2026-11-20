@@ -604,6 +604,8 @@ export const buildMigrationPlan = async (params: {
       publicClient,
       contracts: [
         'UserRegistryImpl',
+        'UserRegistryFactory',
+        'UserRegistryFactoryProxyLogic',
         'VerifiableFactoryProxyLogic',
         'PermissionedResolverImpl',
       ],
@@ -1134,7 +1136,7 @@ export const buildMigrationRecoveryPlan = async (params: {
   const currentParentRegistries = await readCurrentParentRegistries({
     publicClient,
     contracts: {
-      verifiableFactory: V2_CONTRACTS.VerifiableFactory,
+      userRegistryFactory: V2_CONTRACTS.UserRegistryFactory,
       userRegistryImpl: V2_CONTRACTS.UserRegistryImpl,
     },
     hca: hcaAddress,

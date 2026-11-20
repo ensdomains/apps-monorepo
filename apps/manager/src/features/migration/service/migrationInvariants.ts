@@ -41,6 +41,8 @@ export type RequiredMigrationContractName =
   | 'RootRegistry'
   | 'VerifiableFactory'
   | 'VerifiableFactoryProxyLogic'
+  | 'UserRegistryFactory'
+  | 'UserRegistryFactoryProxyLogic'
   | 'PermissionedResolverImpl'
   | 'UserRegistryImpl'
   | 'UnlockedMigrationController'
@@ -153,7 +155,7 @@ const nameContracts = (
   if (name.action === 'copy' || registryParents.has(name.domain.name))
     contracts.push('UserRegistryImpl')
   if (registryParents.has(name.domain.name))
-    contracts.push('VerifiableFactoryProxyLogic')
+    contracts.push('UserRegistryFactory', 'UserRegistryFactoryProxyLogic')
   if (name.resolverStrategy === 'to-owned-permres') {
     contracts.push('PermissionedResolverImpl')
     if (

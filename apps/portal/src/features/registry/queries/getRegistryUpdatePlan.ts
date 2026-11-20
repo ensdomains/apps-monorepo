@@ -118,8 +118,8 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
     return {
       salt,
       address: computeVerifiableProxyAddress({
-        factory: contracts.verifiableFactory,
-        proxyLogic: contracts.verifiableFactoryProxyLogic,
+        factory: contracts.userRegistryFactory,
+        proxyLogic: contracts.userRegistryFactoryProxyLogic,
         deployer: account,
         salt,
       }),
@@ -176,7 +176,7 @@ const getRegistryUpdatePlan = ResultFn(async function* ({
           existing,
           children,
           account,
-          factory: contracts.verifiableFactory,
+          factory: contracts.userRegistryFactory,
           implementation: contracts.userRegistryImpl,
           salt: replacement.salt,
           replacement: replacement.address,

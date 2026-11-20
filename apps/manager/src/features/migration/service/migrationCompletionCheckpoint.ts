@@ -382,7 +382,7 @@ const verifyCheckpoint = async (params: {
       owner: scope.owner,
       ethRegistry: contracts.ethRegistry,
       hca: scope.hca,
-      factory: contracts.verifiableFactory,
+      factory: contracts.userRegistryFactory,
       userRegistryImplementation: contracts.userRegistryImpl,
       helper: params.migrationHelper ?? contracts.migrationHelper,
       executions,

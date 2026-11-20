@@ -891,7 +891,7 @@ const buildUserRegistryFragment = (params: {
         type: 'user-registry-implementation',
         name,
         registry: params.childRegistry,
-        factory: contracts.verifiableFactory,
+        factory: contracts.userRegistryFactory,
         expectedImplementation: contracts.userRegistryImpl,
         deployer: params.hca,
         salt: computeUserRegistrySalt(name),

@@ -715,7 +715,7 @@ const assertExistingRegistry = async (params: {
   const [implementation, hcaRoles, walletRoles, parent, attached] =
     await Promise.all([
       publicClient.readContract({
-        address: V2_CONTRACTS.VerifiableFactory,
+        address: V2_CONTRACTS.UserRegistryFactory,
         abi: factoryReadAbi,
         functionName: 'verifyContract',
         args: [planned.registry],

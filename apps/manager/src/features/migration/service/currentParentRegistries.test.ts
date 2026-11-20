@@ -154,7 +154,7 @@ describe('readCurrentParentRegistries', () => {
         },
       } as Pick<PublicClient, 'readContract' | 'chain'>,
       contracts: {
-        verifiableFactory: '0x00000000000000000000000000000000000000f1',
+        userRegistryFactory: '0x00000000000000000000000000000000000000f1',
         userRegistryImpl: V2_CONTRACTS.UserRegistryImpl,
       },
       hca: HCA,
@@ -204,7 +204,7 @@ describe('readCurrentParentRegistries', () => {
         'readContract' | 'chain'
       >,
       contracts: {
-        verifiableFactory: '0x00000000000000000000000000000000000000f1',
+        userRegistryFactory: '0x00000000000000000000000000000000000000f1',
         userRegistryImpl: V2_CONTRACTS.UserRegistryImpl,
       },
       hca: HCA,

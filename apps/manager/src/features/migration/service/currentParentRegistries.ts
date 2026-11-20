@@ -23,7 +23,7 @@ import { computeUserRegistryAddress } from './userRegistryMigration'
 
 type ParentRegistryContracts = Pick<
   DestinationContracts,
-  'verifiableFactory' | 'userRegistryImpl'
+  'userRegistryFactory' | 'userRegistryImpl'
 >
 
 /** Copy parents already on chain before this run; none when nothing is left to plan. */
@@ -191,7 +191,7 @@ export const readCurrentParentRegistries = async (params: {
         withRequestDeadline(
           () =>
             params.publicClient.readContract({
-              address: params.contracts.verifiableFactory,
+              address: params.contracts.userRegistryFactory,
               abi: verifiableFactoryVerifyContractSnippet,
               functionName: 'verifyContract',
               args: [registry],
