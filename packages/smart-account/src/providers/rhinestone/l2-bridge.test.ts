@@ -522,7 +522,7 @@ const fakeAccount = () => {
 const asAccount = (account: object) => account as unknown as RhinestoneAccount
 
 describe('quoteL2Bridge', () => {
-  it('asks for an unsponsored payment to the recipient, running its calls', async () => {
+  it('asks for an unsponsored Across payment to the recipient, running its calls', async () => {
     const { account } = fakeAccount()
     const result = await quoteL2Bridge(asAccount(account), route, () => NOW)
     expect(result.isOk()).toBe(true)
@@ -534,6 +534,7 @@ describe('quoteL2Bridge', () => {
       recipient: HCA_CONFIG,
       calls: [COMMIT],
       sponsored: { gas: false, bridging: false, swaps: false },
+      settlementLayers: ['ACROSS'],
     })
   })
 })

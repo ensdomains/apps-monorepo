@@ -156,6 +156,8 @@ export const quoteL2Bridge = ResultFn(async function* (
       recipient: route.recipient.config,
       calls: [...route.calls],
       sponsored: { gas: false, bridging: false, swaps: false },
+      // Only an Across route passes `validateL2BridgeQuote`, so ask for one.
+      settlementLayers: ['ACROSS'],
     }),
     (cause) =>
       new L2BridgeUnavailableError({
