@@ -1,5 +1,10 @@
+import type { NameSummary } from '@ens-apps/indexer/reads'
 import { describe, expect, it } from 'vitest'
-import { byShownExpiry, isShownExpiryInRange } from './addressNames'
+import {
+  byShownExpiry,
+  isShownExpiryInRange,
+  toAddressNameItem,
+} from './addressNames'
 
 describe('isShownExpiryInRange', () => {
   const range = {
@@ -47,5 +52,31 @@ describe('byShownExpiry', () => {
       'later',
       'never',
     ])
+  })
+})
+
+describe('toAddressNameItem', () => {
+  const summary = (isWrapped: boolean): NameSummary => ({
+    name: 'alice.eth',
+    displayName: 'alice.eth',
+    namehash: '0xabc',
+    protocol: 'v1',
+    relations: ['owner', 'manager'],
+    isPrimary: false,
+    isMigrated: false,
+    isWrapped,
+    registrationStatus: 'active',
+    expiresAt: null,
+    servedExpiry: null,
+    graceEndsAt: null,
+    registeredAt: null,
+    createdAt: null,
+  })
+
+  it.each([
+    ['only the owner role on a wrapped name', true, ['owner']],
+    ['both roles on an unwrapped name', false, ['owner', 'manager']],
+  ])('lists %s', (_, isWrapped, relations) => {
+    expect(toAddressNameItem(summary(isWrapped))?.relations).toEqual(relations)
   })
 })

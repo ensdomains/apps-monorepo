@@ -10,6 +10,7 @@ const summary = (overrides: Partial<NameSummary> = {}): NameSummary => ({
   relations: ['role_holder'],
   isPrimary: false,
   isMigrated: true,
+  isWrapped: false,
   registrationStatus: 'active',
   expiresAt: null,
   servedExpiry: null,

@@ -180,6 +180,7 @@ describe('mergedRowMetadata', () => {
       relations: ['owner'],
       isPrimary: false,
       isMigrated: false,
+      isWrapped: false,
       registrationStatus: 'expired',
       expiresAt,
       servedExpiry: null,

@@ -33,6 +33,7 @@ const owned = (name: string): NameSummary => ({
   relations: ['owner'],
   isPrimary: false,
   isMigrated: false,
+  isWrapped: false,
   registrationStatus: 'active',
   expiresAt: null,
   servedExpiry: null,
