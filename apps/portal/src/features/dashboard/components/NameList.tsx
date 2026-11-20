@@ -34,6 +34,8 @@ const NameCell = ({ name }: { name: string }) => (
   </EntityBadge>
 )
 
+const tableClassName = 'hidden md:block [&_th:nth-child(2)]:w-1/2'
+
 const columns: ColumnDef<column>[] = [
   {
     accessorKey: 'name',
@@ -45,7 +47,7 @@ const columns: ColumnDef<column>[] = [
   },
   {
     id: 'expiryDate',
-    header: 'Expiry',
+    header: 'Expiration',
     cell: ({ row }) => <NameExpiry {...row.original} />,
   },
   {
@@ -105,6 +107,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
             name={name.name}
             expiryDate={name.expiryDate}
             parentExpiryDate={name.parentExpiryDate}
+            parentExpiryName={name.parentExpiryName}
             graceEndDate={name.graceEndDate}
             status={name.status}
             relations={name.relations}
@@ -113,13 +116,14 @@ export const NameList = ({ address, limit }: NameListProps) => {
             recordCount={name.recordCount}
             subdomainCount={name.subdomainCount}
             showCheckbox={false}
+            expiryLabel="Expiration"
           />
         ))}
       </div>
 
       {/* Desktop view - Table layout */}
       {data.length > 0 && (
-        <div className="hidden md:block">
+        <div className={tableClassName}>
           <DataTable data={data} columns={columns} />
         </div>
       )}
@@ -140,6 +144,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 name={name.name}
                 expiryDate={name.expiryDate}
                 parentExpiryDate={name.parentExpiryDate}
+                parentExpiryName={name.parentExpiryName}
                 graceEndDate={name.graceEndDate}
                 status={name.status}
                 relations={name.relations}
@@ -148,10 +153,11 @@ export const NameList = ({ address, limit }: NameListProps) => {
                 recordCount={name.recordCount}
                 subdomainCount={name.subdomainCount}
                 showCheckbox={false}
+                expiryLabel="Expiration"
               />
             ))}
           </div>
-          <div className="hidden md:block">
+          <div className={tableClassName}>
             <DataTable data={assigned} columns={columns} />
           </div>
         </section>

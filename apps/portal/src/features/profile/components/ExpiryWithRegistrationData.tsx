@@ -1,12 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
+import { match } from 'ts-pattern'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { ExpiresWith } from '@/features/names/components/NameExpiry'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { formatUnixDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import {
+  ethAncestorsOf,
+  getResolvingExpiry,
+  type ResolvingExpiry,
+} from '@/utils/names/addressNames'
 import type { ProtocolVersion } from '@/utils/types'
+import { useFirstToExpire } from '../hooks/useFirstToExpire'
 import { useGraceStatus } from '../hooks/useGraceStatus'
 import {
   getRegistrationDataQueryOptions,
@@ -59,13 +68,33 @@ const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
   </InfoRow>
 )
 
-const ExpiresRow = ({ expiry }: { expiry: number }) => (
-  <InfoRow icon={ClockIcon} label="Expires">
-    <span className="font-semi-mono">
-      <Timestamp timestamp={expiry} />
-    </span>
-  </InfoRow>
-)
+/** "Expires": the name's own expiry, or the first name above it to expire, named. */
+const ExpiresRow = ({ resolving }: { readonly resolving: ResolvingExpiry }) =>
+  match(resolving)
+    .with({ type: 'own' }, ({ date }) => (
+      <InfoRow icon={ClockIcon} label="Expires">
+        <span className="font-semi-mono">
+          <Timestamp timestamp={Math.floor(date.getTime() / 1000)} />
+        </span>
+      </InfoRow>
+    ))
+    .with({ type: 'parent' }, ({ date, name }) => (
+      <InfoRow icon={ClockIcon} label="Expires">
+        <span className="flex flex-wrap items-center gap-x-1.5">
+          <span className="font-semi-mono whitespace-nowrap">
+            {formatUnixDateTimeLocal(Math.floor(date.getTime() / 1000))}
+          </span>{' '}
+          <ExpiresWith name={name} />
+        </span>
+      </InfoRow>
+    ))
+    .with({ type: 'unread' }, () => (
+      <InfoRow icon={ClockIcon} label="Expires">
+        Expires with parent
+      </InfoRow>
+    ))
+    .with({ type: 'none' }, () => null)
+    .exhaustive()
 
 interface ExpiryWithRegistrationDataProps {
   name: string
@@ -86,6 +115,13 @@ export const ExpiryWithRegistrationData = ({
   const { data, error, isLoading } = useQuery(
     getRegistrationDataQueryOptions({ name }),
   )
+  const expiryDate = data?.expiry ? new Date(data.expiry * 1000) : null
+  // An ENSv1 subname keeps resolving past its parent's lease, so only ENSv2 reads the names above.
+  const ancestors =
+    protocolVersion === 'ENSv2'
+      ? ethAncestorsOf({ name, expiryDate, protocolVersion })
+      : []
+  const ancestorExpiry = useFirstToExpire(ancestors)
 
   if (error)
     return (
@@ -101,14 +137,25 @@ export const ExpiryWithRegistrationData = ({
   if (!data) return null
 
   const graceEndDate = grace.isInGrace ? grace.graceEndDate : undefined
-  const showsExpiry =
-    data.expiry !== null && (protocolVersion === 'ENSv1' || !graceEndDate)
+  const showsExpiry = protocolVersion === 'ENSv1' || !graceEndDate
+  const resolving = getResolvingExpiry({
+    expiryDate,
+    ...(ancestors.length > 0 && {
+      parentExpiryDate: ancestorExpiry.firstToExpire?.date ?? null,
+      parentExpiryName: ancestorExpiry.firstToExpire?.name,
+    }),
+  })
 
   return (
     <>
-      {showsExpiry && data.expiry !== null && (
-        <ExpiresRow expiry={data.expiry} />
-      )}
+      {showsExpiry &&
+        (ancestorExpiry.isLoading ? (
+          <InfoRow icon={ClockIcon} label="Expires">
+            <span className="text-base text-muted-foreground">Loading</span>
+          </InfoRow>
+        ) : (
+          <ExpiresRow resolving={resolving} />
+        ))}
       {data.registeredAt !== null && (
         <RegisteredRow name={name} registeredAt={data.registeredAt} />
       )}

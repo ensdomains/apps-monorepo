@@ -1,7 +1,9 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
 import {
@@ -11,19 +13,67 @@ import {
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { SortButton } from '@/components/table/SortButton'
-import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
-import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
+import {
+  ExpiresWith,
+  formatExpiry,
+} from '@/features/names/components/NameExpiry'
+import { useFirstToExpire } from '@/features/profile/hooks/useFirstToExpire'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import {
+  type AddressNameItem,
+  getNamesAbove,
+  getResolvingExpiry,
+  getShownExpiry,
+} from '@/utils/names/addressNames'
+import { getRegistryInfoQueryOptions } from '../../hooks/useRegistry'
 import {
   getRegistryLabelsQueryOptions,
   REGISTRY_LABELS_PAGE_SIZE,
   type RegistryLabelRow,
 } from '../../hooks/useRegistryLabels'
 
-// Figma: three narrow columns, the labelhash takes the rest and wraps.
+// Figma: the labelhash is shortened so the expiry takes the rest.
 const LABEL_COLUMN_WIDTH = 140
-const EXPIRY_COLUMN_WIDTH = 170
+const LABELHASH_COLUMN_WIDTH = 160
 
-const columns: ColumnDef<RegistryLabelRow>[] = [
+/** The first name above the registry to expire; `loading` until the registry's name and those dates are read. */
+type ParentExpiry =
+  | { readonly status: 'loading' }
+  | ({ readonly status: 'ready' } & Pick<
+      AddressNameItem,
+      'parentExpiryDate' | 'parentExpiryName'
+    >)
+
+type LabelRow = RegistryLabelRow & { readonly parentExpiry: ParentExpiry }
+
+const toResolvingInput = ({
+  expiryDate,
+  parentExpiry,
+}: Pick<LabelRow, 'expiryDate' | 'parentExpiry'>) => ({
+  ...(parentExpiry.status === 'ready' && parentExpiry),
+  expiryDate: expiryDate === null ? null : new Date(Number(expiryDate) * 1000),
+})
+
+/** A label's expiry, or the first name above it to expire, named. */
+const LabelExpiry = (row: LabelRow) => (
+  <span className="flex flex-wrap items-center gap-x-1.5 text-muted-foreground">
+    {row.parentExpiry.status === 'loading'
+      ? 'Loading'
+      : match(getResolvingExpiry(toResolvingInput(row)))
+          .with({ type: 'own' }, ({ date }) => formatExpiry(date))
+          .with({ type: 'parent' }, ({ date, name }) => (
+            <>
+              <span className="whitespace-nowrap">{formatExpiry(date)}</span>{' '}
+              <ExpiresWith name={name} />
+            </>
+          ))
+          .with({ type: 'unread' }, () => 'Expires with parent')
+          .with({ type: 'none' }, () => 'Never')
+          .exhaustive()}
+  </span>
+)
+
+const columns: ColumnDef<LabelRow>[] = [
   {
     id: 'label',
     meta: { width: LABEL_COLUMN_WIDTH },
@@ -49,27 +99,20 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     },
   },
   {
-    accessorKey: 'expiryDate',
-    meta: { width: EXPIRY_COLUMN_WIDTH },
+    id: 'expiryDate',
+    // Sorts by the date shown; one that never expires goes last.
+    accessorFn: (row) =>
+      getShownExpiry(toResolvingInput(row))?.getTime() ??
+      Number.POSITIVE_INFINITY,
     header: ({ column }) => (
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
       >
-        Expires in
+        Expiration
       </SortButton>
     ),
-    cell: ({ row }) => {
-      const { expiryDate } = row.original
-      if (!expiryDate) {
-        return <span className="text-muted-foreground">Never</span>
-      }
-      return (
-        <span className="text-muted-foreground">
-          {formatExpiryDuration(unixSecondsToPlainDateUtc(Number(expiryDate)))}
-        </span>
-      )
-    },
+    cell: ({ row }) => <LabelExpiry {...row.original} />,
   },
   {
     accessorKey: 'roleHoldersCount',
@@ -89,13 +132,22 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
   },
   {
     accessorKey: 'labelhash',
+    meta: { width: LABELHASH_COLUMN_WIDTH },
     enableSorting: false,
     header: 'Labelhash',
-    cell: ({ row }) => (
-      <span className="break-all font-mono text-muted-foreground">
-        {row.original.labelhash}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const { labelhash } = row.original
+      return labelhash ? (
+        <EntityBadge
+          variant="default"
+          type="content"
+          copyValue={labelhash}
+          compact
+        >
+          {truncateAddress(labelhash, 6, 4)}
+        </EntityBadge>
+      ) : null
+    },
   },
 ]
 
@@ -110,6 +162,27 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   } = useInfiniteQuery(getRegistryLabelsQueryOptions({ address }))
 
   const labels = data?.pages.flatMap((page) => page.labels) ?? []
+  // Every label here lapses with the registry's own name and the names above it.
+  const registryQuery = useQuery(getRegistryInfoQueryOptions({ address }))
+  const namesAbove = registryQuery.data?.name.endsWith('.eth')
+    ? getNamesAbove(registryQuery.data.name)
+    : []
+  const ancestorExpiry = useFirstToExpire(namesAbove)
+  const parentExpiry = match({
+    isRegistryLoading: registryQuery.isLoading,
+    isAncestorLoading: ancestorExpiry.isLoading,
+    namesAbove,
+  })
+    .returnType<ParentExpiry>()
+    .with({ isRegistryLoading: true }, { isAncestorLoading: true }, () => ({
+      status: 'loading',
+    }))
+    .with({ namesAbove: [] }, () => ({ status: 'ready' }))
+    .otherwise(() => ({
+      status: 'ready',
+      parentExpiryDate: ancestorExpiry.firstToExpire?.date ?? null,
+      parentExpiryName: ancestorExpiry.firstToExpire?.name,
+    }))
 
   const loader = useListLoader({
     initialCount: REGISTRY_LABELS_PAGE_SIZE,
@@ -142,7 +215,15 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
 
   return (
     <>
-      <DataTable columns={columns} data={labels.slice(0, loader.shown)} />
+      {/* Room for the expiry beside the fixed columns, so a narrow screen scrolls instead of overlapping them. */}
+      <div className="[&_table]:min-w-170">
+        <DataTable
+          columns={columns}
+          data={labels
+            .slice(0, loader.shown)
+            .map((label) => ({ ...label, parentExpiry }))}
+        />
+      </div>
       <ListLoader {...loader} />
     </>
   )

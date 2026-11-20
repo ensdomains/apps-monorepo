@@ -11,6 +11,7 @@ export interface NameMobileCardProps {
   name: string | null
   expiryDate?: Date | null
   readonly parentExpiryDate?: Date | null
+  readonly parentExpiryName?: string
   graceEndDate: Date | null
   status: NameRegistrationStatus
   relations?: readonly AddressNameRelation[]
@@ -22,12 +23,15 @@ export interface NameMobileCardProps {
   isSelected?: boolean
   onSelectChange?: (selected: boolean) => void
   showCheckbox?: boolean
+  /** The expiry heading; the dashboard calls it "Expiration". */
+  readonly expiryLabel?: string
 }
 
 export const NameMobileCard = ({
   name,
   expiryDate,
   parentExpiryDate,
+  parentExpiryName,
   graceEndDate,
   status,
   relations = [],
@@ -37,6 +41,7 @@ export const NameMobileCard = ({
   isSelected = false,
   onSelectChange,
   showCheckbox = true,
+  expiryLabel = 'Expiry',
 }: NameMobileCardProps) => {
   const hasRoles = relations.length > 0
   const showRecordsSubnames =
@@ -67,11 +72,14 @@ export const NameMobileCard = ({
       </div>
 
       {/* Expiry section */}
-      <div className="text-base font-medium text-muted-foreground">Expiry</div>
+      <div className="text-base font-medium text-muted-foreground">
+        {expiryLabel}
+      </div>
       <div className="text-base">
         <NameExpiry
           expiryDate={expiryDate}
           parentExpiryDate={parentExpiryDate}
+          parentExpiryName={parentExpiryName}
           graceEndDate={graceEndDate}
           status={status}
         />

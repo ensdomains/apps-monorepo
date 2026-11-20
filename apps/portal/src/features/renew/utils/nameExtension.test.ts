@@ -250,6 +250,28 @@ describe('getNameStatus', () => {
     ).toBe('expires-with-parent')
   })
 
+  it.each([
+    [
+      'expires with its parent when the parent expires first',
+      -30,
+      'expires-with-parent',
+    ],
+    [
+      'keeps its own status when its own expiry comes first',
+      -120,
+      'registered',
+    ],
+  ])('a subname with its own expiry %s', (_, parentDays, expected) => {
+    expect(
+      getNameStatus({
+        expiryDate: daysAgo(-90),
+        parentExpiryDate: daysAgo(parentDays),
+        graceEndDate: null,
+        status: 'active',
+      }),
+    ).toBe(expected)
+  })
+
   it("expires with its parent when the parent's date is unknown", () => {
     expect(
       getNameStatus({

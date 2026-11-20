@@ -7,9 +7,10 @@ import {
 } from '@tanstack/react-router'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { okAsync } from 'neverthrow'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Address, maxUint64 } from 'viem'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestQueryClient } from '@/test-utils/providers'
 
 const navigate = vi.fn()
@@ -99,22 +100,35 @@ vi.mock('@/features/roles/hooks/useNameRolesForAccount', () => ({
   }),
 }))
 
+vi.mock('@/features/registry/helpers/prepareCreateSubnameSubmit', () => ({
+  prepareCreateSubnameSubmit: ({ target }: { target: object }) =>
+    okAsync({ ...target, resolverAddress: OTHER }),
+}))
+
+/** Whether the creation transaction has gone through. */
+let isCreated = false
+const createSubname = vi.hoisted(() => vi.fn())
 vi.mock('@/features/registry/hooks/useCreateSubname', () => ({
   useCreateSubname: () => ({
-    createSubname: vi.fn(),
+    createSubname,
     isPending: false,
-    isSuccess: false,
+    isSuccess: isCreated,
   }),
 }))
 vi.mock('@/features/transaction-manager/components/TransactionModal', () => ({
   TransactionModal: ({
     transactions,
   }: {
-    transactions: { onDone: () => void }[]
+    transactions: { onStart: () => void; onDone: () => void }[]
   }) => (
-    <button type="button" onClick={() => transactions[0].onDone()}>
-      Complete creation
-    </button>
+    <>
+      <button type="button" onClick={() => transactions[0].onStart()}>
+        Start creation
+      </button>
+      <button type="button" onClick={() => transactions[0].onDone()}>
+        Complete creation
+      </button>
+    </>
   ),
 }))
 vi.mock('@/features/transaction-manager/hooks/useTransactionModal', () => ({
@@ -130,12 +144,17 @@ const CreateSubnameRoute = (
   Route as unknown as { component: () => React.ReactElement }
 ).component
 
-const renderRoute = () =>
-  render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <CreateSubnameRoute />
-    </QueryClientProvider>,
-  )
+const renderRoute = () => {
+  const queryClient = createTestQueryClient()
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <CreateSubnameRoute />
+      </QueryClientProvider>,
+    ),
+  }
+}
 
 const v1 = (overrides: Record<string, unknown> = {}) => {
   protocolVersion = 'ENSv1'
@@ -156,6 +175,8 @@ beforeEach(() => {
   labelLookupCalls.mockReset()
   rootRoles = []
   rootRoleReads.mockReset()
+  isCreated = false
+  createSubname.mockReset()
 })
 
 it.each([
@@ -361,6 +382,70 @@ describe('create subname under a V2 parent', () => {
       await screen.findByText('sub.parent.eth is already registered.'),
     ).toBeInTheDocument()
     expect(submit()).toBeDisabled()
+  })
+
+  describe('expiry', () => {
+    const NOW = new Date('2027-01-15T12:00:00Z')
+    const NOW_SECONDS = BigInt(NOW.getTime() / 1000)
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(NOW)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it.each([
+      ['no expiry of its own when left unticked', false, maxUint64],
+      [
+        'the date a year out when Set expiration is ticked',
+        true,
+        NOW_SECONDS + 365n * 86_400n,
+      ],
+    ])('sends %s', async (_, isTicked, expires) => {
+      rootRoles = ['ROLE_REGISTRAR']
+      labelLookup = 'available'
+      renderRoute()
+      await typeLabel()
+      await waitFor(() => expect(submit()).toBeEnabled())
+      if (isTicked) {
+        await userEvent.click(
+          screen.getByRole('checkbox', { name: /Set expiration/ }),
+        )
+      }
+
+      await userEvent.click(submit())
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Start creation' }),
+      )
+
+      expect(createSubname).toHaveBeenCalledWith(
+        expect.objectContaining({ expires }),
+      )
+    })
+  })
+
+  it('doesn’t call the subname it just created taken', async () => {
+    rootRoles = ['ROLE_REGISTRAR']
+    labelLookup = 'available'
+    const { queryClient } = renderRoute()
+    await typeLabel()
+    await waitFor(() => expect(submit()).toBeEnabled())
+
+    isCreated = true
+    labelLookup = 'registered'
+    await queryClient.invalidateQueries()
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Transaction Complete' }),
+      ).toBeDisabled(),
+    )
+    expect(
+      screen.queryByText('sub.parent.eth is already registered.'),
+    ).toBeNull()
   })
 })
 
