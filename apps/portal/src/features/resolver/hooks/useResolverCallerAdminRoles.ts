@@ -7,7 +7,6 @@ import { fromPromise, ok } from 'neverthrow'
 import { useMemo } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { readContract } from 'viem/actions'
-import { getAction } from 'viem/utils'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { isAdminRole } from '@/lib/roles/permissions'
 import {
@@ -34,11 +33,11 @@ const getResolverRolesForAccount = ResultFn(async function* ({
   resource,
   account,
 }: GetResolverRolesForAccountParameters) {
-  const client = yield* safeGetClient()
-  const readContractAction = getAction(client, readContract, 'readContract')
+  // The account goes to a resolver taken from the URL, so no gateway lookup is followed.
+  const client = { ...(yield* safeGetClient()), ccipRead: false as const }
 
   const raw = yield* fromPromise(
-    readContractAction({
+    readContract(client, {
       address,
       abi: permissionedResolverRolesSnippet,
       functionName: 'roles',

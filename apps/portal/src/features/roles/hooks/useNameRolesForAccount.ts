@@ -6,7 +6,6 @@ import { permissionedRegistryRolesSnippet } from '@ensdomains/ensjs-abi/v2/permi
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
-import { getAction } from 'viem/utils'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -47,7 +46,8 @@ const isByResource = (
 const getNameRolesForAccount = ResultFn(async function* (
   params: GetNameRolesForAccountParameters,
 ) {
-  const client = yield* safeGetClient()
+  // The account goes to a contract any name owner can choose, so no gateway lookup is followed.
+  const client = { ...(yield* safeGetClient()), ccipRead: false as const }
 
   // ensjs' action only takes a label, so the id path reads the same contract
   // function directly, with the resource supplied rather than re-derived.
@@ -56,10 +56,8 @@ const getNameRolesForAccount = ResultFn(async function* (
     const { registryAddress, resource, account } = params
     if (resource === null) return ok({ decoded: [], raw: 0n })
 
-    const readContractAction = getAction(client, readContract, 'readContract')
-
     const raw = yield* fromPromise(
-      readContractAction({
+      readContract(client, {
         address: registryAddress,
         abi: permissionedRegistryRolesSnippet,
         functionName: 'roles',

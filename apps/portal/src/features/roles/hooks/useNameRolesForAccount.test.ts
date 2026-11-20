@@ -4,6 +4,7 @@ import { ok } from 'neverthrow'
 import {
   type Address,
   decodeFunctionData,
+  encodeAbiParameters,
   type Hex,
   keccak256,
   labelhash,
@@ -18,17 +19,18 @@ import {
   requireResourceIdForName,
   resourceIdFromChainValue,
 } from '@/lib/resource/resourceId'
+import {
+  createEthCallClient,
+  type EthCallRequest,
+  offchainLookupRevert,
+  unreachableGateway,
+} from '@/test-utils/ethCallClient'
 
-const readContract = vi.fn()
-vi.mock('viem/actions', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('viem/actions')>()
-  return { ...actual, readContract: vi.fn() }
-})
-vi.mock('viem/utils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('viem/utils')>()
-  return { ...actual, getAction: () => readContract }
-})
-vi.mock('@/lib/wagmi/helpers', () => ({ safeGetClient: () => ok({}) }))
+const ethCall = vi.fn<(request: EthCallRequest) => Promise<Hex>>()
+const gateway = unreachableGateway()
+vi.mock('@/lib/wagmi/helpers', () => ({
+  safeGetClient: () => ok(createEthCallClient(ethCall, gateway)),
+}))
 
 const { getNameRolesForAccountQueryOptions } = await import(
   './useNameRolesForAccount'
@@ -45,16 +47,29 @@ const walletClient = {
 const VAULT_LABELHASH = labelhash('vault')
 const ENCODED_LABEL = `[${VAULT_LABELHASH.slice(2)}]`
 
+/** The registry function and arguments the last permission read sent. */
+const lastRead = () => {
+  const request = ethCall.mock.calls.at(-1)?.[0]
+  if (!request) throw new Error('expected a permission read')
+  return {
+    to: request.to,
+    ...decodeFunctionData({
+      abi: permissionedRegistryRolesSnippet,
+      data: request.data,
+    }),
+  }
+}
+
 /** The id the permission read was asked about. */
 const gateResource = async (resource: ResourceId): Promise<bigint> => {
-  readContract.mockResolvedValue(0n)
+  ethCall.mockResolvedValue(encodeAbiParameters([{ type: 'uint256' }], [0n]))
   const options = getNameRolesForAccountQueryOptions({
     registryAddress: REGISTRY,
     resource,
     account: ACCOUNT,
   })
   await options.queryFn?.({} as never)
-  return readContract.mock.calls.at(-1)?.[0].args[0] as bigint
+  return lastRead().args[0]
 }
 
 /** The id the grant calldata was built for. */
@@ -77,7 +92,8 @@ const writeResource = (name: string, resource: ResourceId): bigint => {
 }
 
 beforeEach(() => {
-  readContract.mockReset()
+  ethCall.mockReset()
+  gateway.mockClear()
 })
 
 describe('the role gate and the role write address the same name', () => {
@@ -129,16 +145,38 @@ describe('the role gate and the role write address the same name', () => {
     const result = await options.queryFn?.({} as never)
 
     expect(result).toEqual({ decoded: [], raw: 0n })
-    expect(readContract).not.toHaveBeenCalled()
+    expect(ethCall).not.toHaveBeenCalled()
   })
 
   it('reads the registry roles function, not a label-keyed one', async () => {
     await gateResource(requireResourceIdForName('vault.eth'))
 
-    expect(readContract.mock.calls.at(-1)?.[0]).toMatchObject({
-      address: REGISTRY,
-      abi: permissionedRegistryRolesSnippet,
-      functionName: 'roles',
-    })
+    expect(lastRead()).toMatchObject({ to: REGISTRY, functionName: 'roles' })
   })
+})
+
+describe('getNameRolesForAccount', () => {
+  it.each([
+    {
+      case: 'resource',
+      params: {
+        registryAddress: REGISTRY,
+        account: ACCOUNT,
+        resource: requireResourceIdForName('vault.eth'),
+      },
+    },
+    {
+      case: 'label',
+      params: { registryAddress: REGISTRY, account: ACCOUNT, label: 'vault' },
+    },
+  ])(
+    'fails without a gateway request when the registry answers a $case read with OffchainLookup',
+    async ({ params }) => {
+      ethCall.mockRejectedValue(offchainLookupRevert(REGISTRY))
+      const options = getNameRolesForAccountQueryOptions(params)
+
+      await expect(options.queryFn?.({} as never)).rejects.toThrow()
+      expect(gateway).not.toHaveBeenCalled()
+    },
+  )
 })

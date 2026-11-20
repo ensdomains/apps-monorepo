@@ -14,7 +14,6 @@ import { eacHasRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessContr
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { readContract } from 'viem/actions'
-import { getAction } from 'viem/utils'
 import type { ResourceId } from '@/lib/resource/resourceId'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -82,7 +81,8 @@ const isRegistryResourceQuery = (
   'registryAddress' in params && 'resource' in params
 
 const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
-  const client = yield* safeGetClient()
+  // The account goes to a contract any name owner can choose, so no gateway lookup is followed.
+  const client = { ...(yield* safeGetClient()), ccipRead: false as const }
 
   // ensjs' registry mode only takes a label, so the id path reads the
   // EnhancedAccessControl check directly. Same contract call ensjs would make,
@@ -91,10 +91,8 @@ const getHasRoles = ResultFn(async function* (params: GetHasRolesParameters) {
     const { registryAddress, resource, roles, account } = params
     if (resource === null) return ok(false)
 
-    const readContractAction = getAction(client, readContract, 'readContract')
-
     const result = yield* fromPromise(
-      readContractAction({
+      readContract(client, {
         address: registryAddress,
         abi: eacHasRolesSnippet,
         functionName: 'hasRoles',
