@@ -5,6 +5,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageContainer } from '@/components/PageContainer'
 import { RegistrySidebar } from '@/components/RegistrySidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { RegistryWarningBanner } from '@/features/registry/components/v2/RegistryWarningBanner'
 
 export const Route = createFileRoute('/registry/$address')({
   component: RouteComponent,
@@ -17,13 +18,15 @@ export const Route = createFileRoute('/registry/$address')({
 })
 
 function RouteComponent() {
-  const { address } = Route.useParams()
+  const { address: addressParam } = Route.useParams()
+  const address = checksumAddress(addressParam as Address)
   return (
     <SidebarProvider>
-      <RegistrySidebar address={checksumAddress(address as Address)} />
+      <RegistrySidebar address={address} />
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
         <PageContainer>
+          <RegistryWarningBanner address={address} />
           <Outlet />
         </PageContainer>
       </SidebarInset>

@@ -23,7 +23,6 @@ import {
 } from '@/features/history/countRecentEvents'
 import { InfoRow } from '@/features/profile/components/InfoRow'
 import { getRegistryHistoryQueryOptions } from '@/features/registry/components/v2/RegistryHistory'
-import { UntrustedRegistryAlert } from '@/features/registry/components/v2/UntrustedRegistryWarning'
 import { describeRegistryContract } from '@/features/registry/describeRegistryContract'
 import { getIsUntrustedRegistryQueryOptions } from '@/features/registry/hooks/useIsUntrustedRegistry'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -95,11 +94,6 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeading className="font-serif">Registry contract</PageHeading>
-
-      <UntrustedRegistryAlert address={address}>
-        If a name of yours uses it, keep the roles that let you change that
-        name's registry, so you can move it to a new one.
-      </UntrustedRegistryAlert>
 
       <div className="flex flex-col">
         <InfoRow label="Type">
