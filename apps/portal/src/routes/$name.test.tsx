@@ -86,3 +86,34 @@ describe('name layout — invalid names', () => {
     ).toBeNull()
   })
 })
+
+describe('name layout — address-like names', () => {
+  const VITALIK = '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'
+
+  afterEach(() => {
+    routeName = 'alice.eth'
+  })
+
+  // Registered or free, a subname or a 2LD: the pages stay open under the note.
+  it.each([`${VITALIK}.eth`, `${VITALIK}.base.eth`])(
+    'notes above the pages of %s that it may resolve to another address',
+    (name) => {
+      routeName = name
+
+      renderLayout()
+
+      expect(
+        screen.getByText(/This name may resolve to another address/),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('outlet')).toBeInTheDocument()
+    },
+  )
+
+  it('adds no note to an ordinary name', () => {
+    renderLayout()
+
+    expect(
+      screen.queryByText(/This name may resolve to another address/),
+    ).toBeNull()
+  })
+})

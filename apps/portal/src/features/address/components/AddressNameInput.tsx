@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
+import { ADDRESS_LIKE_NAME_NOTE } from '@/components/AddressLikeNameNotice'
 import { Input } from '@/components/ui/input'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { AddressResolution } from '../hooks/useAddressResolution'
@@ -37,7 +38,7 @@ export const AddressNameInput = ({
   placeholder = 'ENS name or address',
   ...inputProps
 }: AddressNameInputProps) => {
-  const { status, address, isRawAddress, isInvalid } = resolution
+  const { status, address, isRawAddress, isAddressLike, isInvalid } = resolution
 
   return (
     <>
@@ -85,6 +86,11 @@ export const AddressNameInput = ({
         // No message before the user has typed anything.
         .with('empty', () => null)
         .exhaustive()}
+      {isAddressLike && (
+        <p className="text-p mt-1.5 text-warning-text">
+          {ADDRESS_LIKE_NAME_NOTE}
+        </p>
+      )}
     </>
   )
 }
