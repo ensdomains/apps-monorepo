@@ -77,7 +77,7 @@ export const getRecordId = (record: NameRecord | EditableRecord): string => {
  * // ]
  */
 export function mergeRecordsWithChanges(
-  originalRecords: NameRecord[],
+  originalRecords: readonly NameRecord[],
   newRecords: EditableRecord[],
   editedValues: Map<string, string>,
   deletedIds: Set<string>,

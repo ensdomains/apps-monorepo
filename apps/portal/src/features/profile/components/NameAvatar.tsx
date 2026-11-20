@@ -1,6 +1,7 @@
 import { type CSSProperties, useState } from 'react'
 import { useEnsAvatar } from 'wagmi'
 import { LogoSVG } from '@/assets/logo'
+import { useVersionedRecordImage } from '@/features/records/helpers/recordImageCache'
 import { cn } from '@/lib/utils'
 
 export const NameAvatar = ({
@@ -24,6 +25,7 @@ export const NameAvatar = ({
       enabled: name.endsWith('.eth'),
     },
   })
+  const avatarSrc = useVersionedRecordImage(avatar)
   // The src that failed to load; a new avatar URL gets its own attempt.
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
 
@@ -45,11 +47,11 @@ export const NameAvatar = ({
     )
   }
 
-  if (error === null && avatar && avatar !== failedSrc)
+  if (error === null && avatarSrc && avatarSrc !== failedSrc)
     return (
       <img
-        src={avatar}
-        onError={() => setFailedSrc(avatar)}
+        src={avatarSrc}
+        onError={() => setFailedSrc(avatarSrc)}
         alt="avatar"
         style={sizeStyle}
         className={cn(

@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useReducer } from 'react'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import type { RecordImageKind } from '@/features/records/helpers/recordImageCrop'
+import {
+  getRecordImageKind,
+  type PreparedRecordImage,
+} from '@/features/records/helpers/recordImageUpload'
+import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import {
   createNewRecord,
   type EditableRecord,
@@ -7,6 +13,12 @@ import {
   mergeRecordsWithChanges,
   type RecordType,
 } from '@/utils/records/editRecordUtils'
+
+type StagedRecordImage = {
+  readonly recordId: string
+  readonly upload: PreparedRecordImage
+  readonly status: 'pending' | 'uploaded'
+}
 
 // ============================================================================
 // State Types
@@ -19,6 +31,7 @@ export type EditRecordsState = {
   editedValues: Map<string, string>
   /** Set of record IDs marked for deletion */
   deletedIds: Set<string>
+  readonly stagedImages?: readonly StagedRecordImage[]
 }
 
 // ============================================================================
@@ -32,8 +45,19 @@ export type EditRecordsAction =
       type: 'UPDATE_RECORD'
       record: EditableRecord
       newValue: string
-      originalRecords: NameRecord[]
+      readonly originalRecords: readonly NameRecord[]
     }
+  | {
+      readonly type: 'STAGE_IMAGE'
+      readonly upload: PreparedRecordImage
+      readonly originalRecords: readonly NameRecord[]
+      readonly newRecord: EditableRecord
+    }
+  | {
+      readonly type: 'MARK_IMAGE_UPLOADED'
+      readonly upload: PreparedRecordImage
+    }
+  | { readonly type: 'KEEP_HOSTED_IMAGE'; readonly kind: RecordImageKind }
   | { type: 'DISCARD_ALL' }
 
 // ============================================================================
@@ -44,6 +68,80 @@ export const initialEditRecordsState: EditRecordsState = {
   newRecords: [],
   editedValues: new Map(),
   deletedIds: new Set(),
+}
+
+const getSavedImageId = (key: RecordImageKind) =>
+  getRecordId({ type: 'text', key, value: '' })
+
+const hasImageRecordDraft = (
+  state: EditRecordsState,
+  kind: RecordImageKind,
+) => {
+  const id = getSavedImageId(kind)
+  return (
+    state.editedValues.has(id) ||
+    state.deletedIds.has(id) ||
+    state.newRecords.some((record) => getRecordImageKind(record) === kind)
+  )
+}
+
+const stageRecordImage = (
+  state: EditRecordsState,
+  {
+    upload,
+    originalRecords,
+    newRecord,
+  }: Extract<EditRecordsAction, { type: 'STAGE_IMAGE' }>,
+): EditRecordsState => {
+  const matchesKind = (record: NameRecord) =>
+    record.type === 'text' && record.key === upload.kind
+  // A new row wins over edits in the transaction encoder, even if it was added manually.
+  const draft = state.newRecords.findLast(matchesKind)
+  const saved = originalRecords.find(matchesKind)
+  const recordId = getRecordId(draft ?? saved ?? newRecord)
+  const existing = draft ? { ...draft, isNew: true } : saved
+  const updated = existing
+    ? editRecordsReducer(state, {
+        type: 'UPDATE_RECORD',
+        record: existing,
+        newValue: upload.imageUrl,
+        originalRecords,
+      })
+    : { ...state, newRecords: [...state.newRecords, newRecord] }
+
+  return {
+    ...updated,
+    deletedIds: new Set(
+      [...updated.deletedIds].filter((id) => id !== recordId),
+    ),
+    stagedImages: [
+      ...(state.stagedImages ?? []).filter(
+        (image) => image.upload.kind !== upload.kind,
+      ),
+      { recordId, upload, status: 'pending' },
+    ],
+  }
+}
+
+export const getPendingRecordImages = (
+  state: EditRecordsState,
+  originalRecords: readonly NameRecord[],
+) => {
+  if (!state.stagedImages?.length) return []
+
+  const { texts = [] } = transformPendingChangesToSetRecords(
+    originalRecords,
+    state,
+  )
+  return state.stagedImages
+    .filter(
+      ({ status, upload }) =>
+        status === 'pending' &&
+        texts.some(
+          ({ key, value }) => key === upload.kind && value === upload.imageUrl,
+        ),
+    )
+    .map(({ upload }) => upload)
 }
 
 // ============================================================================
@@ -67,13 +165,53 @@ export function editRecordsReducer(
       }
     }
 
+    case 'STAGE_IMAGE':
+      return stageRecordImage(state, action)
+
+    case 'MARK_IMAGE_UPLOADED': {
+      return {
+        ...state,
+        stagedImages: state.stagedImages?.map((image) =>
+          image.upload === action.upload
+            ? { ...image, status: 'uploaded' }
+            : image,
+        ),
+      }
+    }
+
+    case 'KEEP_HOSTED_IMAGE': {
+      const { kind } = action
+      if (!hasImageRecordDraft(state, kind)) return state
+      const id = getSavedImageId(kind)
+      const editedValues = new Map(state.editedValues)
+      editedValues.delete(id)
+      return {
+        ...state,
+        editedValues,
+        deletedIds: new Set(
+          [...state.deletedIds].filter((deleted) => deleted !== id),
+        ),
+        newRecords: state.newRecords.filter(
+          (record) => getRecordImageKind(record) !== kind,
+        ),
+        stagedImages: state.stagedImages?.filter(
+          (image) => image.upload.kind !== kind,
+        ),
+      }
+    }
+
     case 'DELETE_RECORD': {
       const id = getRecordId(action.record)
+
+      const stagedImages = state.stagedImages?.filter(
+        (image) => image.recordId !== id,
+      )
 
       // If it's a new record, remove it from newRecords
       if (action.record.isNew) {
         return {
           ...state,
+          stagedImages,
           newRecords: state.newRecords.filter((r) => getRecordId(r) !== id),
         }
       }
@@ -84,6 +222,7 @@ export function editRecordsReducer(
 
       return {
         ...state,
+        stagedImages,
         editedValues: nextEditedValues,
         deletedIds: new Set(state.deletedIds).add(id),
       }
@@ -141,7 +280,7 @@ export function editRecordsReducer(
 // Custom Hook
 // ============================================================================
 
-export function useEditRecordsState(originalRecords: NameRecord[]) {
+export function useEditRecordsState(originalRecords: readonly NameRecord[]) {
   const [state, dispatch] = useReducer(
     editRecordsReducer,
     initialEditRecordsState,
@@ -185,6 +324,19 @@ export function useEditRecordsState(originalRecords: NameRecord[]) {
     dispatch({ type: 'DISCARD_ALL' })
   }
 
+  const stageImage = (upload: PreparedRecordImage) => {
+    dispatch({
+      type: 'STAGE_IMAGE',
+      upload,
+      originalRecords,
+      newRecord: createNewRecord('text', upload.kind, upload.imageUrl),
+    })
+  }
+
+  const markImageUploaded = (upload: PreparedRecordImage) => {
+    dispatch({ type: 'MARK_IMAGE_UPLOADED', upload })
+  }
+
   // Data for save operation
   const pendingChanges = useMemo(
     () => ({
@@ -201,11 +353,18 @@ export function useEditRecordsState(originalRecords: NameRecord[]) {
     changesCount,
     updatesCount,
     pendingChanges,
+    pendingImages: getPendingRecordImages(state, originalRecords),
 
     // Actions
     addRecord,
     deleteRecord,
     updateRecord,
     discardAll,
+    stageImage,
+    markImageUploaded,
+    hasImageRecordDraft: (kind: RecordImageKind) =>
+      hasImageRecordDraft(state, kind),
+    keepHostedImage: (kind: RecordImageKind) =>
+      dispatch({ type: 'KEEP_HOSTED_IMAGE', kind }),
   }
 }

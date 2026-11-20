@@ -1,11 +1,10 @@
-import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { useAccount, useConnection, useWalletClient } from 'wagmi'
+import { useAccount, useConnection } from 'wagmi'
 import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -24,27 +23,25 @@ import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
-import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
-import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
+import { RecordImageUploadDialog } from '@/features/records/components/RecordImageUploadDialog'
+import { getRecordImageKind } from '@/features/records/helpers/recordImageUpload'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
-import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { useRecordImageEditor } from '@/features/records/hooks/useRecordImageEditor'
+import { useSaveRecordsFlow } from '@/features/records/hooks/useSaveRecordsFlow'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
-import { ensChain } from '@/lib/wagmi'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { queryClient } from '@/utils/queryClient'
 import {
   canEditType,
+  type EditableRecord,
   type EditableTypes,
-  hasDisallowedChanges,
   type RecordType,
 } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
-import { validateRecords } from '@/utils/records/validateRecord'
 
 export const Route = createFileRoute('/$name/edit-records')({
   component: EditRecordsPage,
@@ -66,11 +63,9 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
 /** Record types that don't require a key input (single-value records) */
 const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
 
-const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
-
 function EditRecordsPage() {
   const { name } = Route.useParams()
-  const { address: connectedAddress } = useConnection()
+  const { address: connectedAddress, connector } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
   const profileQuery = useQuery(getProfileQueryOptions({ name }))
@@ -213,7 +208,16 @@ function EditRecordsPage() {
 
   return (
     <EditRecordsContent
+      key={JSON.stringify([
+        name,
+        resolverAddress,
+        connectedAddress.toLowerCase(),
+        connector?.uid,
+      ])}
+      address={connectedAddress}
+      connectorUid={connector?.uid}
       name={name}
+      owner={ownerQuery.data.owner}
       records={profileQuery.data.records}
       resolverAddress={resolverAddress}
       editableTypes={editableTypes}
@@ -222,15 +226,21 @@ function EditRecordsPage() {
 }
 
 const EditRecordsContent = ({
+  address,
+  connectorUid,
   name,
+  owner,
   records: rawRecords,
   resolverAddress,
   editableTypes,
 }: {
-  name: string
-  records: GetRecordsReturnType
-  resolverAddress: Address
-  editableTypes: EditableTypes
+  readonly address: Address
+  readonly connectorUid: string | undefined
+  readonly name: string
+  readonly owner: Address
+  readonly records: GetRecordsReturnType
+  readonly resolverAddress: Address
+  readonly editableTypes: EditableTypes
 }) => {
   const navigate = useNavigate()
   const { isConnected } = useAccount()
@@ -266,116 +276,56 @@ const EditRecordsContent = ({
     changesCount,
     updatesCount,
     pendingChanges,
+    pendingImages,
+    stageImage,
+    markImageUploaded,
+    hasImageRecordDraft,
+    keepHostedImage,
     addRecord,
     deleteRecord,
     updateRecord,
     discardAll,
   } = useEditRecordsState(originalRecords)
 
-  const {
-    isOpen: isTransactionModalOpen,
-    closeModal: closeTransactionModal,
-    clearTransaction,
-  } = useTransactionModal()
-
-  const { data: walletClient } = useWalletClient()
-
-  // Names the attempt the modal is showing. Without this the step id is a fixed
-  // string, so an attempt abandoned while its transaction was still in flight
-  // leaves a settled actor under that id: the next attempt's modal reads it as
-  // Done, the button becomes "Done", and the save is never sent. The modal only
-  // clears on error, and a route change only closes it, so that actor can
-  // outlive the attempt that made it.
-  const attempt = useFlowAttempt()
-  const saveRecordsTxId = scopeTransactionId(
-    SAVE_RECORDS_TRANSACTION_ID,
-    attempt.scope,
-  )
-
-  // Validate records whenever they change
-  const validationErrors = useMemo(() => validateRecords(records), [records])
-  const hasValidationErrors = validationErrors.length > 0
-  const isSaveBlocked = hasDisallowedChanges(records, editableTypes)
-
-  // Navigate to records page after sync completes.
-  // This avoids the issue where deleted records reappear if we clear local state
-  // before the indexer has caught up.
-  const handleSyncComplete = useCallback(() => {
-    navigate({ to: '/$name/records', params: { name } })
-  }, [navigate, name])
-
-  // Save records hook
-  const {
-    saveRecords,
-    isWriting,
-    isConfirming,
-    isSyncing,
-    error: saveError,
-    reset: resetSaveError,
-    isWrongChain,
-    isSwitchingChain,
-    switchToRequiredNetwork,
-  } = useSaveRecords({
-    onSyncComplete: handleSyncComplete,
+  const { isOpen: isTransactionModalOpen } = useTransactionModal()
+  const imageEditor = useRecordImageEditor({
+    address,
+    connectorUid,
+    name,
+    owner,
+    originalRecords,
+    editableTypes,
+    isTransactionModalOpen,
+    stageImage,
+    keepHostedImage,
   })
+  const {
+    isEditorLocked,
+    operation,
+    imageDialog,
+    closeImageDialog,
+    handleConfirmImage,
+    getImageChoice,
+    openImageDialog,
+    canUploadImage,
+    onUploadImage,
+  } = imageEditor
 
-  const handleStartSaveRecordsTransaction = () => {
-    saveRecords({
+  const { validationErrors, saveControls, transactions, dismissReview } =
+    useSaveRecordsFlow({
+      address,
       name,
       resolverAddress,
-      originalRecords,
-      pendingChanges,
-      id: saveRecordsTxId,
+      draft: { originalRecords, pendingChanges },
+      records,
+      editableTypes,
+      changesCount,
+      pendingImages,
+      imageEditor,
+      markImageUploaded,
+      onSyncComplete: () =>
+        navigate({ to: '/$name/records', params: { name } }),
     })
-  }
-
-  // Pre-start gas estimate for the save. Unlike other flows the encode is async
-  // (ensjs resolves the resolver pattern on chain), so we build the intent in a
-  // query and hand the resolved value to the modal via `prepareIntent`. Runs
-  // only while the modal is open and there are changes; keyed on the pending
-  // edits so it re-estimates as they change, and on the same params the submit
-  // path uses so the estimate matches what's sent.
-  const saveRecordsIntentQuery = useQuery({
-    queryKey: [
-      'save-records-intent',
-      name,
-      resolverAddress,
-      walletClient?.account?.address,
-      transformPendingChangesToSetRecords(originalRecords, pendingChanges),
-    ],
-    enabled:
-      isTransactionModalOpen &&
-      changesCount > 0 &&
-      Boolean(walletClient?.account && walletClient?.chain),
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnWindowFocus: false,
-    retry: 2,
-    queryFn: () => {
-      if (!walletClient) throw new Error('Wallet not connected')
-      return prepareSaveRecordsTransaction({
-        name,
-        resolverAddress,
-        originalRecords,
-        pendingChanges,
-        walletClient,
-        chainId: ensChain.id,
-      })
-    },
-  })
-
-  const handleOpenSaveRecordsFlow = () => {
-    if (isSaveBlocked) return
-
-    if (isWrongChain) {
-      switchToRequiredNetwork()
-      return
-    }
-
-    const signer = walletClient?.account?.address
-    if (!signer) return
-
-    attempt.start(signer)
-  }
 
   // Compute counts for each tab (excluding deleted records)
   const tabCounts = useMemo(() => {
@@ -412,8 +362,11 @@ const EditRecordsContent = ({
   const requiresKey =
     selectedType !== '' && !KEYLESS_RECORD_TYPES.includes(selectedType)
 
+  const addImageKind = getRecordImageKind({ type: selectedType, key: keyInput })
+  const addImageChoice = getImageChoice(addImageKind)
+
   const handleAddRecord = () => {
-    if (!selectedType) return
+    if (operation.current || !selectedType) return
     if (requiresKey && !keyInput) return
 
     addRecord(selectedType, keyInput, valueInput)
@@ -423,6 +376,13 @@ const EditRecordsContent = ({
     setKeyInput('')
     setValueInput('')
   }
+
+  const handleUpdateRecord = useCallback(
+    (record: EditableRecord, value: string) => {
+      if (!operation.current) updateRecord(record, value)
+    },
+    [operation, updateRecord],
+  )
 
   return (
     <div className="flex flex-col min-h-full">
@@ -438,8 +398,10 @@ const EditRecordsContent = ({
           Edit records
         </PageHeading>
 
-        {/* Add Record Form */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div
+          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap"
+          inert={isEditorLocked}
+        >
           {/* Type Select */}
           <div className="flex flex-col gap-1 min-w-[140px]">
             <label
@@ -548,11 +510,16 @@ const EditRecordsContent = ({
             />
           </div>
 
-          {/* Add Button */}
-          <div className="flex flex-col gap-1 justify-end">
-            <span className="text-small text-transparent select-none">
-              Action
-            </span>
+          <div className="flex shrink-0 items-end gap-2 sm:ml-auto">
+            {addImageChoice && (
+              <Button
+                variant="outline"
+                onClick={() => openImageDialog(addImageChoice.kind)}
+                className="whitespace-nowrap"
+              >
+                Upload image
+              </Button>
+            )}
             <Button
               variant="default"
               onClick={handleAddRecord}
@@ -567,7 +534,10 @@ const EditRecordsContent = ({
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 bg-background border rounded-sm mx-6 my-4">
+      <div
+        className="flex-1 bg-background border rounded-sm mx-6 my-4"
+        inert={isEditorLocked}
+      >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto">
             <TabsList className="w-full justify-start border-b rounded-none px-4 py-0 h-auto bg-transparent">
@@ -620,8 +590,12 @@ const EditRecordsContent = ({
               records={filteredRecords}
               globalFilter={globalFilter}
               editableTypes={editableTypes}
-              onDeleteRecord={deleteRecord}
-              onUpdateRecord={updateRecord}
+              onDeleteRecord={(record) => {
+                if (!operation.current) deleteRecord(record)
+              }}
+              onUpdateRecord={handleUpdateRecord}
+              onUploadImage={onUploadImage}
+              canUploadImage={canUploadImage}
               validationErrors={validationErrors}
             />
           </TabsContent>
@@ -632,38 +606,22 @@ const EditRecordsContent = ({
       <PendingChangesBar
         updatesCount={updatesCount}
         changesCount={changesCount}
-        onSave={handleOpenSaveRecordsFlow}
-        onDiscard={discardAll}
-        onDismissError={resetSaveError}
-        isSaving={isWriting || isConfirming}
-        isSyncing={isSyncing}
-        isSwitchingChain={isSwitchingChain}
-        isWrongChain={isWrongChain}
+        {...saveControls}
+        onDiscard={() => {
+          if (!operation.current && !isTransactionModalOpen) discardAll()
+        }}
         isConnected={isConnected}
-        errorMessage={saveError?.message}
-        hasValidationErrors={hasValidationErrors}
-        hasDisallowedChanges={isSaveBlocked}
       />
-      <TransactionModal
-        transactions={[
-          {
-            id: saveRecordsTxId,
-            title: 'Save records',
-            transactionName: 'Set resolver records',
-            intent: {
-              prepare: () => saveRecordsIntentQuery.data,
-              isPending: saveRecordsIntentQuery.isLoading,
-              isError: saveRecordsIntentQuery.isError,
-            },
-            onStart: handleStartSaveRecordsTransaction,
-            onDone: () => {
-              closeTransactionModal()
-              clearTransaction()
-              attempt.end()
-            },
-          },
-        ]}
-      />
+      {imageDialog && (
+        <RecordImageUploadDialog
+          kind={imageDialog.kind}
+          mode={imageDialog.mode}
+          hasConflictingDraft={hasImageRecordDraft(imageDialog.kind)}
+          onConfirm={handleConfirmImage}
+          onClose={closeImageDialog}
+        />
+      )}
+      <TransactionModal onDismiss={dismissReview} transactions={transactions} />
     </div>
   )
 }
