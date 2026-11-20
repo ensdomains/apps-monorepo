@@ -87,8 +87,8 @@ const getGraceNames = (
     .map((rows) => rows.flatMap((row) => toGraceName(row) ?? []))
     .mapErr((error) => new GetDashboardNamesError({ cause: error }))
 
-export const DASHBOARD_PAGE_SIZE = 5
-// Rows per read: a page of the dashboard is five, so this covers several pages.
+export const DASHBOARD_PAGE_SIZE = 25
+// Rows per read: this covers two dashboard pages.
 export const DASHBOARD_CHUNK_SIZE = 50
 
 const SORTS: Readonly<Record<SortField, NamesForAddressQuery['sort']>> = {

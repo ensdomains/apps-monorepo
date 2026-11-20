@@ -23,6 +23,7 @@ import { removeFavoriteMutationOptions } from '../service/mutations/removeFavori
 import { getRenewableDashboardNamesQueryOptions } from '../service/queries/getDashboardNames'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { useDashboardAddresses, useDashboardNames } from '../useDashboardNames'
+import { useDashboardPageNavigation } from '../useDashboardPage'
 import {
   FavoritesList,
   type FavoritesSort,
@@ -58,6 +59,7 @@ const reverseSortDir = (dir: SortDir): SortDir =>
 
 export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
   const { t } = useLingui()
+  const setDashboardPage = useDashboardPageNavigation()
   const [filter, setFilter] = useState<FilterKey>('owned')
   const [version, setVersion] = useState<NameVersion | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -278,6 +280,7 @@ export const NamesTable = ({ primaryLabel }: NamesTableProps) => {
           <FilterChips
             chips={chips}
             onChange={(next) => {
+              void setDashboardPage(1, true)
               setFilter(next)
               setSearchQuery('')
             }}

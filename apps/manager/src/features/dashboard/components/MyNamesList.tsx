@@ -20,6 +20,11 @@ import { getV1NameStatus } from '../dashboardMigrationEligibility'
 import { type DashboardName, isHeldName } from '../dashboardNames'
 import { useDashboardMigrationEligibility } from '../useDashboardMigrationEligibility'
 import { DASHBOARD_PAGE_SIZE, useDashboardNames } from '../useDashboardNames'
+import {
+  useDashboardPage,
+  useDashboardPageNavigation,
+  useResetDashboardPage,
+} from '../useDashboardPage'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
@@ -209,7 +214,8 @@ export const MyNamesList = ({
   onToggleSelect = noopToggleSelect,
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
-  const [page, setPage] = useState(1)
+  const page = useDashboardPage()
+  const setPage = useDashboardPageNavigation()
   const [isChooserOpen, setIsChooserOpen] = useState(false)
   const primaryNameTriggerRef = useRef<HTMLButtonElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -230,7 +236,6 @@ export const MyNamesList = ({
     isPagePending,
     isError: isNamesError,
     isGraceError,
-    loadPage,
     addresses,
   } = useDashboardNames({
     sortField,
@@ -241,14 +246,9 @@ export const MyNamesList = ({
   })
 
   const filterKey = `${addresses.join(',')}:${searchQuery}:${version ?? 'all'}:${sort}`
-  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
-  if (filterKey !== prevFilterKey) {
-    setPrevFilterKey(filterKey)
-    setPage(1)
-  }
+  useResetDashboardPage(filterKey, page)
   const onPageChange = (next: number) => {
-    setPage(next)
-    void loadPage(next)
+    void setPage(next)
   }
 
   const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_PAGE_SIZE))

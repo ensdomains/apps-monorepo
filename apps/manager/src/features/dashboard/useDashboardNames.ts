@@ -1,4 +1,6 @@
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
+  queryOptions,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
@@ -66,9 +68,30 @@ type Options = {
   readonly sortDir?: SortDir
   readonly search?: string
   readonly version?: NameVersion | null
-  /** One-based. */
+  /** One-based. Omit for callers that only need counts from the initial read. */
   readonly page?: number
 }
+
+const getDashboardPageReadQueryOptions = ({
+  namesKey,
+  chunkCount,
+  shouldRead,
+  fetchNextPage,
+}: {
+  readonly namesKey: readonly unknown[]
+  readonly chunkCount: number
+  readonly shouldRead: boolean
+  readonly fetchNextPage: () => Promise<unknown>
+}) =>
+  queryOptions({
+    queryKey: qk('dashboard', 'read_next_chunk', { namesKey, chunkCount }),
+    queryFn: async () => {
+      await fetchNextPage()
+      return null
+    },
+    enabled: shouldRead,
+    gcTime: 0,
+  })
 
 /** One page of the dashboard; more of each address's names are read only when a page needs them. */
 export const useDashboardNames = ({
@@ -76,7 +99,7 @@ export const useDashboardNames = ({
   sortDir = 'asc',
   search = '',
   version = null,
-  page = 1,
+  page,
 }: Options = {}) => {
   const addresses = useDashboardAddresses()
   const { address } = useConnection()
@@ -84,18 +107,19 @@ export const useDashboardNames = ({
   const recordEditorAddress = smartAccount?.ownerAddress ?? address
   const queryClient = useQueryClient()
   const hasAddresses = addresses.length > 0
+  const namesOptions = getDashboardNamesInfiniteQueryOptions(
+    {
+      addresses,
+      sortField,
+      sortDir,
+      search: search.trim(),
+      version,
+      recordEditorAddress,
+    },
+    queryClient,
+  )
   const query = useInfiniteQuery({
-    ...getDashboardNamesInfiniteQueryOptions(
-      {
-        addresses,
-        sortField,
-        sortDir,
-        search: search.trim(),
-        version,
-        recordEditorAddress,
-      },
-      queryClient,
-    ),
+    ...namesOptions,
     refetchInterval: ({ state }) =>
       isAwaitingMigratedNames(
         state.data?.pages.flat() ?? [],
@@ -127,30 +151,21 @@ export const useDashboardNames = ({
 
   const { names: pageNames, needed } = toDashboardPage(
     merged,
-    page,
+    page ?? 1,
     DASHBOARD_PAGE_SIZE,
   )
   const needsMore =
     merged.names.length < needed && query.hasNextPage && !query.isError
 
-  const isShortOf = (target: number, data: typeof query.data) => {
-    const loaded = mergePages(data?.pages, graceNames, sortField, sortDir)
-    return (
-      loaded.names.length <
-      toDashboardPage(loaded, target, DASHBOARD_PAGE_SIZE).needed
-    )
-  }
-  /** Reads on until a page is filled; called when moving to that page. */
-  const loadPage = async (target: number) => {
-    let result: Pick<typeof query, 'data' | 'hasNextPage' | 'isError'> = query
-    while (
-      result.hasNextPage &&
-      !result.isError &&
-      isShortOf(target, result.data)
-    ) {
-      result = await query.fetchNextPage({ cancelRefetch: false })
-    }
-  }
+  // Reassess the current page after each read, including after URL navigation.
+  useQuery(
+    getDashboardPageReadQueryOptions({
+      namesKey: namesOptions.queryKey,
+      chunkCount: query.data?.pages.length ?? 0,
+      shouldRead: page !== undefined && needsMore && !query.isFetching,
+      fetchNextPage: () => query.fetchNextPage({ cancelRefetch: false }),
+    }),
+  )
 
   return {
     addresses,
@@ -160,7 +175,6 @@ export const useDashboardNames = ({
     isComplete: merged.isComplete,
     isPending: hasAddresses && query.isPending,
     isPagePending: needsMore,
-    loadPage,
     isError: query.isError,
     isGraceError: grace.isError,
   }

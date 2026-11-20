@@ -3,10 +3,12 @@ import { Suspense } from 'react'
 import { useConnection } from 'wagmi'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
+import { getDashboardSearch } from '@/features/dashboard/pagination'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/dashboard')({
+  validateSearch: getDashboardSearch,
   component: RouteComponent,
 })
 

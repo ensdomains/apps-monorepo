@@ -1,9 +1,49 @@
-import { fireEvent, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { createContext, type ReactNode, useContext } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from '@/utils/test-utils'
+import { render as renderWithProviders } from '@/utils/test-utils'
 import type { DashboardName } from '../dashboardNames'
+import { getDashboardSearch } from '../pagination'
 import { MyNamesList } from './MyNamesList'
+
+const TestSurface = createContext<ReactNode>(null)
+const DashboardSurface = () => useContext(TestSurface)
+
+const makeRouter = (initialPath = '/dashboard') => {
+  const root = createRootRoute()
+  const dashboard = createRoute({
+    getParentRoute: () => root,
+    path: '/dashboard',
+    validateSearch: getDashboardSearch,
+    component: DashboardSurface,
+  })
+  return createRouter({
+    routeTree: root.addChildren([dashboard]),
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+  })
+}
+
+let router: ReturnType<typeof makeRouter>
+
+const render = (ui: ReactNode) => {
+  const wrap = (surface: ReactNode) => (
+    <TestSurface.Provider value={surface}>
+      <RouterProvider router={router} />
+    </TestSurface.Provider>
+  )
+  const result = renderWithProviders(wrap(ui))
+  return {
+    ...result,
+    rerender: (surface: ReactNode) => result.rerender(wrap(surface)),
+  }
+}
 
 const dashboardNamesMock = vi.hoisted(() => ({
   useDashboardNames: vi.fn(),
@@ -96,7 +136,6 @@ const mockNames = (
     hasAddresses: true,
     isPending: false,
     isPagePending: false,
-    loadPage: vi.fn(),
     isError: state.isError ?? false,
     isGraceError: state.isGraceError ?? false,
   })
@@ -115,7 +154,9 @@ const renderList = (
   )
 
 describe('MyNamesList', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    router = makeRouter()
+    await router.load()
     vi.clearAllMocks()
     eligibilityMock.useDashboardMigrationEligibility.mockReturnValue({
       eligibleKeys: new Set(),
@@ -159,8 +200,7 @@ describe('MyNamesList', () => {
     })
   })
 
-  it('reads the page it moves to', () => {
-    const loadPage = vi.fn()
+  it('reads the page it moves to and keeps navigation in browser history', async () => {
     dashboardNamesMock.useDashboardNames.mockReturnValue({
       pageNames: [],
       total: 12,
@@ -168,7 +208,6 @@ describe('MyNamesList', () => {
       hasAddresses: true,
       isPending: false,
       isPagePending: false,
-      loadPage,
       isError: false,
       isGraceError: false,
     })
@@ -176,20 +215,44 @@ describe('MyNamesList', () => {
     renderList()
     fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }))
 
-    expect(loadPage).toHaveBeenCalledWith(2)
-    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 2 }),
+    await waitFor(() =>
+      expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 }),
+      ),
+    )
+    expect(router.history.location.search).toBe('?page=2')
+
+    await act(async () => router.history.back())
+    await waitFor(() =>
+      expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1 }),
+      ),
+    )
+    await act(async () => router.history.forward())
+    await waitFor(() =>
+      expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 }),
+      ),
     )
   })
 
-  it('goes back to the first page when the connected accounts change', () => {
+  it('uses the page from a direct dashboard link', async () => {
+    router = makeRouter('/dashboard?page=3')
+    await router.load()
+    renderList()
+
+    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 3 }),
+    )
+  })
+
+  it('goes back to the first page when the connected accounts change', async () => {
     const state = {
       pageNames: [],
       total: 12,
       hasAddresses: true,
       isPending: false,
       isPagePending: false,
-      loadPage: vi.fn(),
       isError: false,
       isGraceError: false,
     }
@@ -200,8 +263,10 @@ describe('MyNamesList', () => {
 
     const { rerender } = renderList()
     fireEvent.click(screen.getByRole('button', { name: 'Go to page 2' }))
-    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 2 }),
+    await waitFor(() =>
+      expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 2 }),
+      ),
     )
 
     dashboardNamesMock.useDashboardNames.mockReturnValue({
@@ -217,9 +282,12 @@ describe('MyNamesList', () => {
       />,
     )
 
-    expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 1 }),
+    await waitFor(() =>
+      expect(dashboardNamesMock.useDashboardNames).toHaveBeenLastCalledWith(
+        expect.objectContaining({ page: 1 }),
+      ),
     )
+    expect(router.history.location.search).toBe('')
   })
 
   it('offers only the primary row action and keeps its chooser open when the primary row changes', () => {
@@ -265,7 +333,6 @@ describe('MyNamesList', () => {
       hasAddresses: true,
       isPending: false,
       isPagePending: true,
-      loadPage: vi.fn(),
       isError: false,
       isGraceError: false,
     })

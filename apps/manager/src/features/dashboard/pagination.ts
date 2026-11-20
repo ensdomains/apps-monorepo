@@ -1,5 +1,17 @@
 export type PageWindowItem = number | 'ellipsis'
 
+export const getDashboardSearch = (
+  search: Readonly<Record<string, unknown>>,
+): { readonly page?: number } => {
+  const { page } = search
+  return {
+    page:
+      typeof page === 'number' && Number.isSafeInteger(page) && page > 1
+        ? page
+        : undefined,
+  }
+}
+
 export const getPageWindow = (
   current: number,
   total: number,

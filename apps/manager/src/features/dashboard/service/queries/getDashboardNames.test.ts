@@ -98,6 +98,32 @@ const graceResponse = (
 })
 
 describe('readDashboardChunks', () => {
+  it('fills a 25-name dashboard page when the first read lists only 20 names', async () => {
+    const names = Array.from({ length: 25 }, (_, index) =>
+      summary(`name${index}.eth`, `0x${index.toString(16)}`),
+    )
+    const readNames = vi.fn<ReadNamesForAddress>(({ cursor }) =>
+      okAsync(
+        cursor === undefined
+          ? page(names.slice(0, 20), 'next', 55)
+          : page(names.slice(20), 'more'),
+      ),
+    )
+
+    const result = await readDashboardChunks(
+      readNames,
+      { ...QUERY, addresses: [EOA] },
+      {},
+    )
+    const chunks = result._unsafeUnwrap()
+
+    expect(chunks[0]?.names.map(({ name }) => name)).toEqual(
+      names.map(({ name }) => name),
+    )
+    expect(chunks[0]?.nextCursor).toBe('more')
+    expect(readNames).toHaveBeenCalledTimes(2)
+  })
+
   it('reads the first chunk of every address in the requested order, with totals, until it lists a page', async () => {
     const readNames = vi.fn<ReadNamesForAddress>(({ address, cursor }) =>
       okAsync(
