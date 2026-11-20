@@ -14,6 +14,7 @@
 
 import {
   findGasRefundViolations,
+  type L2BridgeQuote,
   L2BridgeUnconfirmedError,
   l2BridgeMaxFee,
   quoteL2Bridge,
@@ -178,6 +179,20 @@ function submitL2FundedIntent(
     const wallet = yield* source
       .getAccount()
       .mapErr(notSent('reach the wallet'))
+    // The fee cap bounds the quote alone; this holds it to what checkout showed.
+    const heldToCheckout = (quoted: L2BridgeQuote) =>
+      displayedCharge !== undefined &&
+      quoted.amountIn > withBudgetDrift(displayedCharge)
+        ? err(
+            notSent('quote the payment')(
+              new Error(
+                `the payment now costs ${formatUnits(quoted.amountIn, 6)} USDC, ` +
+                  `but ${formatUnits(displayedCharge, 6)} USDC was shown at ` +
+                  'checkout. Please start the registration again.',
+              ),
+            ),
+          )
+        : ok(quoted)
     const quotePayment = () =>
       quoteL2Bridge(wallet, {
         owner: wallet.getAddress(),
@@ -188,7 +203,9 @@ function submitL2FundedIntent(
         amountOut,
         recipient: { address: hca.getAddress(), config: hca.config },
         calls: request.rhinestoneParams.calls,
-      }).mapErr(notSent('quote the payment'))
+      })
+        .mapErr(notSent('quote the payment'))
+        .andThen(heldToCheckout)
     const firstQuote = yield* quotePayment()
     // An approval can outlast a two-minute quote, so quote again after it.
     const quote = firstQuote.needsOnchainApproval
@@ -197,21 +214,6 @@ function submitL2FundedIntent(
           notSent('approve USDC for Permit2'),
         ).andThen(quotePayment)
       : firstQuote
-    // The fee cap bounds the quote alone; this holds it to what checkout showed.
-    if (
-      displayedCharge !== undefined &&
-      quote.amountIn > withBudgetDrift(displayedCharge)
-    ) {
-      return err(
-        notSent('quote the payment')(
-          new Error(
-            `the payment now costs ${formatUnits(quote.amountIn, 6)} USDC, ` +
-              `but ${formatUnits(displayedCharge, 6)} USDC was shown at ` +
-              'checkout. Please start the registration again.',
-          ),
-        ),
-      )
-    }
     const intent = yield* submitL2Bridge(wallet, quote).mapErr((error) => {
       if (error instanceof L2BridgeUnconfirmedError) {
         // It may still fill, so the caller must settle it before paying again.

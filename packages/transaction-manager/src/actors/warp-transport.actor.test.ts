@@ -720,6 +720,19 @@ describe('submitWarpTransaction — paid from an L2', () => {
     expect(submitL2Bridge).not.toHaveBeenCalled()
   })
 
+  it('refuses a charge above what checkout showed, before approving', async () => {
+    const { source, request, signer } = setup()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(UNAPPROVED_QUOTE))
+
+    const result = await submitWarpTransaction({
+      request,
+      signer: { ...signer, l2DisplayedCharge: 4_000_000n },
+    })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+    expect(source.ensureAllowance).not.toHaveBeenCalled()
+  })
+
   it('signs a charge within drift of what checkout showed', async () => {
     const { request, signer } = setup()
 
