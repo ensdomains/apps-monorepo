@@ -1,3 +1,4 @@
+import { isOgAvatarContentType, isOgAvatarDataUri } from '@ens-apps/og/avatar'
 import {
   SECONDS_PER_DAY,
   V2_GRACE_PERIOD_DAYS,
@@ -22,6 +23,9 @@ export interface EnsData {
 
 /** Cap the avatar payload to avoid memory-exhaustion / amplification abuse. */
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
+
+/** Longest inline avatar URI we embed: {@link AVATAR_MAX_BYTES} once base64-encoded. */
+const INLINE_AVATAR_MAX_CHARS = Math.ceil(AVATAR_MAX_BYTES / 3) * 4
 
 /**
  * Cap the attacker-controlled description at the source: the meta block escapes
@@ -64,9 +68,9 @@ const BASE64_DATA_URI_RE = /^data:([^;,]+);base64,(.*)$/s
 /**
  * Downscale an on-chain `data:` avatar.
  *
- * These skip {@link safeFetch} entirely, so they also skip its byte cap: the
- * pixel cap from {@link downscaleAvatar} is the only bound on how much bitmap
- * an NFT contract can push into the renderer.
+ * These skip {@link safeFetch} entirely, so the caller applies
+ * {@link INLINE_AVATAR_MAX_CHARS} and the pixel cap from {@link downscaleAvatar}
+ * bounds how much bitmap an NFT contract can push into the renderer.
  */
 async function inlineAvatarDataUri(
   uri: string,
@@ -106,17 +110,18 @@ export async function resolveAvatarDataUri(
   try {
     const resolved = await resolveAvatarRecord(client, avatarRecord, selfHost)
 
-    // On-chain avatars (data:/base64 SVGs etc.) are already inline — pass them
+    // On-chain avatars (data:/base64 bitmaps etc.) are already inline — pass them
     // through without re-fetching (fetching a huge data: URI is itself abusable).
-    // Still enforce the image/* requirement on the embedded MIME type.
+    // Still enforce the card's accepted MIME types on the embedded one.
     if (resolved.kind === 'inline') {
-      return resolved.uri.startsWith('data:image/')
+      return resolved.uri.length <= INLINE_AVATAR_MAX_CHARS &&
+        isOgAvatarDataUri(resolved.uri)
         ? inlineAvatarDataUri(resolved.uri, images)
         : null
     }
 
     const result = await safeFetch(resolved.url, {
-      accept: (contentType) => contentType.startsWith('image/'),
+      accept: isOgAvatarContentType,
       maxBytes: AVATAR_MAX_BYTES,
       selfHost,
     })

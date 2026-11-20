@@ -107,6 +107,18 @@ describe('fetchNameOgCard avatar cap', () => {
     expect(state.pulled).toBe(0)
   })
 
+  it('drops an SVG avatar without reading the body', async () => {
+    const { state, stream } = chunkedBody(4 * 1024)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(stream, { headers: { 'content-type': 'image/svg+xml' } }),
+    )
+
+    const card = await fetchNameOgCard('test.eth')
+
+    expect(card.avatar).toBeNull()
+    expect(state.pulled).toBe(0)
+  })
+
   it('still returns a themed card when the avatar fetch fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('upstream down'))
     mockGetRecords.mockResolvedValue({

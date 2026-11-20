@@ -1,3 +1,4 @@
+import { isOgAvatarContentType } from '@ens-apps/og/avatar'
 import { getRecords } from '@ensdomains/ensjs/public'
 import { concatBytes } from 'viem/utils'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
@@ -80,7 +81,7 @@ async function fetchAvatarDataUri(name: string): Promise<string | null> {
     if (!response.ok) return null
 
     const contentType = response.headers.get('content-type') ?? ''
-    if (!contentType.startsWith('image/')) return null
+    if (!isOgAvatarContentType(contentType)) return null
 
     // Cheap fast path: an honest oversized response is rejected without opening
     // the stream. A missing or lying header just falls through to readCapped.
