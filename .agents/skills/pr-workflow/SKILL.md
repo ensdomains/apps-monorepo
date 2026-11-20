@@ -1,17 +1,17 @@
 ---
 name: pr-workflow
-description: How to open a pull request in this monorepo, including Linear app scope, branch name, tests, and the PR body. Use when opening a PR, writing a PR body, working from a Linear ticket, or changing runtime behaviour.
+description: How to open a pull request in this monorepo, including Linear app scope, tests, review, and the PR body. Use when opening a PR, writing a PR body, working from a Linear ticket, or changing runtime behaviour.
 ---
 
 ## Which app
 
-This repo has multiple apps under `apps/`. When the task comes from a Linear ticket, the project name contains the app folder (for example "manager app v4 beta" means `apps/manager/`).
+Map product names before searching for code:
 
-Only modify files in that app unless the change genuinely needs shared code (`packages/`).
+- Manager → `apps/manager/`
+- Explorer or Portal → `apps/portal/`
+- API Worker → `workers/api-worker/`
 
-## Branch
-
-When the work starts from a Linear ticket, name the branch `linear/<ticket-id>`. Never rebase, reset, or rebuild the branch onto a different base to satisfy a hook. If a hook flags files you did not touch, say so and continue.
+Only modify files in that area unless the change genuinely needs shared code (`packages/`). If a cited file or service is absent after one repo search, do not guess a similarly named feature. Report that the ticket belongs to another repository and name it only when you can verify the owner.
 
 ## Tests
 
@@ -59,9 +59,10 @@ Also check:
 
 - Decisions live in pure functions. No `Result` unwrapped by throwing (`Promise.reject(result.error)` at a promise boundary, or `yield*` inside `ResultFn`, is the boundary).
 - viem first: `formatUnits` / `parseUnits`, viem's `*ErrorType` as the cause of a viem failure, `bigint` until the value is displayed.
-- Added lines have no `any`, no `!`, no `as unknown as`, no `biome-ignore`, no `@ts-expect-error`. Each new comment is one line.
-- `npx biome lint` on the changed files raises no complexity warning above what that function had on `main`.
-- Run `main`'s copy of every test you edited against your code. Each failure is an intended behaviour change.
+- Added lines have no `any`, no `!`, no `as unknown as`, no `biome-ignore`, no `@ts-expect-error`. Existing test casts and suppressions are not precedent; use a typed builder, `satisfies`, or the real fixture shape. Each new comment is one line.
+- Run `pnpm exec biome check <changed files>` before committing. Fix formatting first.
+- Run `pnpm exec biome lint <changed files>`. Only if it reports complexity in a pre-existing function, compare that function with the session base (the starting commit/merge-base selected when the session began); never hard-code `main`, and do not extract a base copy when there is no warning.
+- Run the session base's copy (the starting commit/merge-base selected when the session began) of every test you edited against your code. Each failure is an intended behaviour change; never hard-code `main`.
 - This repo is public: no wording in commits, branches, or the PR that reads as a vulnerability.
 
 ## Creating or editing a Linear ticket

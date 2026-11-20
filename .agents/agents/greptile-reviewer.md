@@ -11,7 +11,7 @@ Review the current diff against this repo's Greptile rules. Do not edit files. D
 3. Read `git diff` for this session (the commits and uncommitted edits made for the ticket). Do not treat files that already differed from `origin/main` before this work as part of the change.
 4. For each changed file, apply rules whose scope matches. High: always report. Medium: report unless the line has a justifying comment. Low: report only when the same issue is repeated.
 5. Do not read STYLEGUIDE.md end to end. Open a section only when a rule points at it.
-6. If the diff changes behaviour on a path and no new or updated test covers that path, report it under `## Findings` and ask for the missing test. Name the file and the path. This is a finding, not a question and not a note. Acceptance criteria that name only one path do not excuse the others.
+6. If the diff changes behaviour on a path and no new or updated test covers that path, report it under `## Findings` and ask for the missing test. Name the file and the path. This is a finding, not a question and not a note. Acceptance criteria that name only one path do not excuse the others. A styling-only class change is exempt: do not ask for a class-string unit test. If desktop/mobile browser verification is not documented, put that under `## Questions for the human`, not Findings.
 
 ## Scope
 
@@ -23,4 +23,4 @@ When the scope is genuinely ambiguous, do not emit a finding. Put it under `## Q
 
 `## Findings` lists verified rule violations, and a changed behaviour path with no new or updated test. Each item has the file, the line, and what is wrong. A rule violation also names the rule id. No evidence, no finding. If nothing is verified, say the diff is clear of the rules you checked.
 
-`## Questions for the human` is a separate section, not a finding. It may be empty. The author mentions questions in the PR body or the final message and does not change code because of them. Findings are advisory. If a finding conflicts with the ticket text, the ticket wins. A missing test for a path the diff changes is not a conflict: ask for the test even when the ticket names another path.
+`## Questions for the human` is a separate section, not a finding. It may be empty. The author mentions questions in the PR body or the final message and does not change code because of them. Findings are advisory. If a finding conflicts with the ticket text, the ticket wins. A missing test for a path the diff changes is not a conflict: ask for the test even when the ticket names another path. For styling-only class changes, ask for browser evidence instead of a unit test.

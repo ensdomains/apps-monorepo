@@ -2,6 +2,12 @@
 
 pnpm monorepo: apps in `apps/`, shared code in `packages/` (used by every app), workers in `workers/`.
 
+## Start a ticket
+- Read skill `pr-workflow` before locating code or creating a branch.
+- If already on a ticket branch, keep it; if on `main` or detached, create `linear/<ticket-id>` before the first edit.
+- Product map: Manager → `apps/manager`, Explorer/Portal → `apps/portal`, API Worker → `workers/api-worker`.
+- If the cited file or service is absent after one repo search, do not guess a similar feature. Report that the ticket belongs elsewhere and name the likely repository if you can verify it.
+
 ## Commands (run from the app or package directory)
 - Typecheck: `(cd apps/<app> && pnpm typecheck)` in the app you changed or the app CI reported. The repo root has no `typecheck` script. Never run `pnpm typecheck` there, and do not probe the root first when re-checking CI. Never `npx tsc`, `pnpx tsc`, `pnpm exec tsc`, or `node_modules/.bin/tsc`.
 - Tests: `pnpm exec vitest run --maxWorkers=4 <paths>`. Only the files your change affects; never the full suite.
@@ -15,23 +21,24 @@ pnpm monorepo: apps in `apps/`, shared code in `packages/` (used by every app), 
 - Touching logic tangled with IO: extract only the part you change. Don't restructure in a fix or feature PR.
 
 ## Must
-No `any` (use `unknown`), no `!`, no mutation, `bigint` for on-chain values, no `Result` mixed with try/catch or unwrapped by throwing, no `useEffect` for fetching or chaining transactions, no viem clients in components.
+In new or changed code: no `any` (use `unknown`), no `!`, no mutation, `bigint` for on-chain values, no `Result` mixed with try/catch or unwrapped by throwing, no `useEffect` for fetching or chaining transactions, no viem clients in components. Existing violations are not precedent; do not clean up untouched lines in the same PR.
 
 ## Regressions
 - Existing tests are the spec. If one fails, fix the code. Add a case; do not replace or delete an existing one. Change an assertion only when the task changes that behaviour, and list it inside the PR's `## Regression check`.
 - Any runtime behaviour change must add or update focused tests next to the code and run `pnpm exec vitest run --maxWorkers=4 <paths>` before committing. Read skill `writing-tests` before writing those tests. Do this even when the ticket never mentions tests.
+- Styling-only class changes are the exception: do not add a class-string test. Run existing focused tests and verify the screen instead. Interaction, accessibility or conditional-rendering changes still need a test.
 - Never get green by skipping, loosening or deleting tests, raising timeouts, or adding `biome-ignore`, `@ts-expect-error`, `as unknown as` or `!`.
 - A bug fix starts with a test that fails on the unfixed code.
 - Before changing an export, default, query key, error shape or global CSS, `git grep -n <name>` every caller. Add an option instead of changing a default.
 - Read `git blame` before removing a guard, fallback or odd branch. Keep invariant comments or explain in the PR.
 - Keep the diff to the task: no drive-by refactors, renames, moves or reformatting. Report other bugs instead of fixing them.
-- For UI changes, check the screen in the running app at desktop and mobile width. Green tests don't prove a working screen.
+- For UI changes, check the screen in the running app at desktop and mobile width. Use the root README for local ports and network setup (dev defaults to Sepolia). Keep screenshots outside the repo, for example under `/tmp`.
 - Never rebase, reset, or rebuild the branch onto a different base to satisfy a hook. If a hook flags files you did not touch, say so and continue.
 
 ## More context, load when relevant
 - Style rules: `STYLEGUIDE.md` (long; open only the section you need). Logic and hooks: Core Principles, Business Logic Extraction. Growing module: Managing Growing Complexity. Components: React Patterns, Component Composition. Errors: Error Handling with neverthrow. Queries: Data Fetching with TanStack Query. Transactions: State Management, Web3 & Blockchain Patterns. Styling: Styling with Tailwind CSS, Accessibility. Tests: Testing Strategy.
 - Writing or editing tests: skill `writing-tests`.
-- Opening a PR or working from a Linear ticket: skill `pr-workflow` (branch name, app scope, PR body sections).
+- Opening a PR or working from a Linear ticket: skill `pr-workflow` (app scope, tests, PR body sections).
 - `packages/transaction-manager/`: read its `AGENTS.md` first. Codex and pi do not load that nested file when the session started here.
 - Registration intent fails simulation: skill `debug-hca-intent`.
 - Registration or renewal pricing: `apps/manager/src/features/register-v2/workflow/pricing/BEHAVIOUR.md` and `apps/manager/src/features/renew/workflow/pricing/BEHAVIOUR.md`.

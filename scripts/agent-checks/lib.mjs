@@ -492,6 +492,39 @@ export function pathsInDiff(diff) {
   return parseDiff(diff).map((file) => file.path)
 }
 
+/**
+ * TSX files whose changed lines only alter a className expression.
+ * Styling still needs browser verification, but not a class-string unit test.
+ * @param {string} diff
+ * @returns {readonly string[]}
+ */
+export function stylingOnlyPaths(diff) {
+  return parseDiff(diff)
+    .filter((file) => file.path.endsWith('.tsx') && isStylingOnlyChange(file))
+    .map((file) => file.path)
+}
+
+/**
+ * @param {{ added: { text: string }[], removed: string[] }} file
+ */
+function isStylingOnlyChange(file) {
+  const changed = [
+    ...file.added.map((line) => line.text),
+    ...file.removed,
+  ]
+  if (changed.length === 0 || !changed.some((line) => line.includes('className'))) {
+    return false
+  }
+  return changed.every((line) => {
+    const text = line.trim()
+    if (!text) return true
+    if (text.includes('className=')) return true
+    if (/^["'`].*["'`],?$/.test(text)) return true
+    if (/^[A-Za-z_$][\w.$]*,?$/.test(text)) return true
+    return /^[)}\],;]+$/.test(text)
+  })
+}
+
 const REGRESSION_LABELS = ['Callers checked:', 'Tests:', 'Behaviour verified:']
 
 const REGRESSION_SECTION_REASON =
@@ -547,8 +580,13 @@ export function reviewBranch(input, options = {}) {
   if (ids.size === 0) return { decision: 'allow', reason: '' }
   const branch = input.branch.toLowerCase()
   const expected = [...ids].map((id) => `linear/${id.toLowerCase()}`)
-  if (expected.includes(branch)) return { decision: 'allow', reason: '' }
-  const reason = `Branch \`${input.branch}\` does not match ${expected.map((name) => `\`${name}\``).join(' or ')}.`
+  const matchesTicketBranch = [...ids].some((id) => {
+    const ticket = id.toLowerCase()
+    if (branch === `linear/${ticket}`) return true
+    return new RegExp(`(?:^|/)${ticket}(?:-|$)`).test(branch)
+  })
+  if (matchesTicketBranch) return { decision: 'allow', reason: '' }
+  const reason = `Branch \`${input.branch}\` is not a ticket branch for ${[...ids].join(' or ')}. Use ${expected.map((name) => `\`${name}\``).join(' or ')}, or keep Linear's existing \`<prefix>/${[...ids][0]?.toLowerCase()}-...\` branch.`
   return { decision: options.strict ? 'block' : 'feedback', reason }
 }
 
@@ -746,9 +784,11 @@ export function agentOwnedFiles(reflogNewestFirst, sessionStart, filesInCommit, 
  * Missing-test verdict stays feedback, including at Stop.
  * @param {{ decision: string, reason: string, context?: string, findings?: readonly { path: string, line: number, rule: string, message: string }[] }} review
  * @param {readonly string[]} files
+ * @param {readonly string[]} [ignoredPaths]
  */
-export function applyMissingTests(review, files) {
-  const missing = missingRelatedTests(files)
+export function applyMissingTests(review, files, ignoredPaths = []) {
+  const ignored = new Set(ignoredPaths)
+  const missing = missingRelatedTests(files).filter((file) => !ignored.has(file))
   if (missing.length === 0) return review
   const extra = missingTestsReason(missing)
   return {

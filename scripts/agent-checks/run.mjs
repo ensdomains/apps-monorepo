@@ -33,6 +33,7 @@ import {
   reviewDiff,
   reviewPrBody,
   selectBase,
+  stylingOnlyPaths,
   syntheticAddedDiff,
   verificationKey,
   vitestTargets,
@@ -149,7 +150,7 @@ function checkDiff(options) {
   const missingPaths = choice.agentOwned
     ? filesForMissingTests(choice)
     : pathsInDiff(diff).concat(untrackedSource())
-  return applyMissingTests(reviewed, missingPaths)
+  return applyMissingTests(reviewed, missingPaths, stylingOnlyPaths(diff))
 }
 
 function prBody(options) {
@@ -201,7 +202,18 @@ function verify(options) {
     if (repeated) return repeated
   }
 
-  const missing = missingRelatedTests(choice.agentOwned ? filesForMissingTests(choice) : files)
+  let diff = choice.base ? git(['diff', ...choice.range]) : ''
+  diff += git(['diff', 'HEAD'])
+  for (const file of untrackedSource()) {
+    if (!existsSync(inRepo(file))) continue
+    const stat = readFileSync(inRepo(file))
+    if (stat.length > 200_000) continue
+    diff += syntheticAddedDiff(file, stat.toString('utf8'))
+  }
+  const stylingOnly = new Set(stylingOnlyPaths(diff))
+  const missing = missingRelatedTests(
+    choice.agentOwned ? filesForMissingTests(choice) : files,
+  ).filter((file) => !stylingOnly.has(file))
   const sourceFiles = files.filter((file) => /\.tsx?$/.test(file))
   const checked = verifyTypecheck(choice.base, sourceFiles)
   const verdict = missingTestVerdict(checked, missing)

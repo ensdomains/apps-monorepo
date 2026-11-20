@@ -20,6 +20,7 @@ import {
   reviewDiff,
   reviewPrBody,
   selectBase,
+  stylingOnlyPaths,
   verificationKey,
   vitestTargets,
   writeCachedVerdict,
@@ -260,6 +261,18 @@ test('branch name stays quiet unless a ticket id is known', () => {
     'block',
   )
   assert.equal(reviewBranch({ branch: 'linear/web-1', ticketId: 'WEB-1' }).decision, 'allow')
+  assert.equal(
+    reviewBranch({ branch: 'feature/web-2106-long-primary-name', ticketId: 'WEB-2106' }).decision,
+    'allow',
+  )
+  assert.equal(
+    reviewBranch({ branch: 'david/web-1234-fix-name', ticketId: 'WEB-1234' }).decision,
+    'allow',
+  )
+  assert.equal(
+    reviewBranch({ branch: 'feature/web-21060-wrong-ticket', ticketId: 'WEB-2106' }).decision,
+    'feedback',
+  )
 })
 
 test('verify targets stay inside the changed package', () => {
@@ -306,6 +319,46 @@ test('claude adapter denies npx tsc and does not re-enter a stop hook', () => {
   })
   assert.equal(stopped.status, 0)
   assert.equal(stopped.stdout, '')
+})
+
+test('styling-only TSX changes do not require a class-string test', () => {
+  const simple = [
+    'diff --git a/apps/portal/src/routes/$name/index.tsx b/apps/portal/src/routes/$name/index.tsx',
+    '--- a/apps/portal/src/routes/$name/index.tsx',
+    '+++ b/apps/portal/src/routes/$name/index.tsx',
+    '@@ -1 +1 @@',
+    '-<div className="flex flex-col">',
+    '+<div className="flex flex-col gap-4 sm:gap-0">',
+    '',
+  ].join('\n')
+  assert.deepEqual(stylingOnlyPaths(simple), [
+    'apps/portal/src/routes/$name/index.tsx',
+  ])
+
+  const multiline = [
+    'diff --git a/apps/manager/src/DesktopAccountSection.tsx b/apps/manager/src/DesktopAccountSection.tsx',
+    '--- a/apps/manager/src/DesktopAccountSection.tsx',
+    '+++ b/apps/manager/src/DesktopAccountSection.tsx',
+    '@@ -1 +1,4 @@',
+    "-className={tw(floatingWrapperClassName, 'group relative')}",
+    '+className={tw(',
+    '+  floatingWrapperClassName,',
+    "+  'group relative min-w-0 max-w-[240px]',",
+    '+)}',
+    '',
+  ].join('\n')
+  assert.deepEqual(stylingOnlyPaths(multiline), [
+    'apps/manager/src/DesktopAccountSection.tsx',
+  ])
+
+  const behavior = `${simple}\n@@ -3 +3 @@\n-onClick={open}\n+onClick={close}\n`
+  assert.deepEqual(stylingOnlyPaths(behavior), [])
+  const review = applyMissingTests(
+    { decision: 'allow', reason: '', findings: [] },
+    ['apps/portal/src/routes/$name/index.tsx'],
+    stylingOnlyPaths(simple),
+  )
+  assert.equal(review.decision, 'allow')
 })
 
 test('a runtime change without a related test is feedback, and a paired test clears it', () => {

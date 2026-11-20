@@ -7,7 +7,8 @@
  * is present but missing its sections. stop_hook_active skips the second pass.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -64,7 +65,13 @@ if (event === 'PostToolUse') {
   if (verdict.context && markOnce(stringField(input, 'session_id'))) {
     parts.push(verdict.context)
   }
-  if (verdict.decision === 'feedback' && verdict.reason) parts.push(verdict.reason)
+  if (verdict.decision === 'feedback' && verdict.reason) {
+    if (feedbackChanged(stringField(input, 'session_id'), verdict.reason)) {
+      parts.push(verdict.reason)
+    }
+  } else {
+    clearFeedback(stringField(input, 'session_id'))
+  }
   if (parts.length > 0) {
     note(verdict)
     write({
@@ -197,9 +204,30 @@ function objectField(source, key) {
  */
 function markOnce(sessionId) {
   if (!sessionId) return true
-  const file = path.join(os.tmpdir(), 'ens-agent-checks', `${sessionId}-tm`)
+  const file = stateFile(sessionId, 'tm')
   if (existsSync(file)) return false
   mkdirSync(path.dirname(file), { recursive: true })
   writeFileSync(file, '1')
   return true
+}
+
+/** Show identical feedback once per unchanged feedback state. */
+function feedbackChanged(sessionId, reason) {
+  if (!sessionId) return true
+  const file = stateFile(sessionId, 'feedback')
+  const hash = createHash('sha256').update(reason).digest('hex')
+  if (existsSync(file) && readFileSync(file, 'utf8') === hash) return false
+  mkdirSync(path.dirname(file), { recursive: true })
+  writeFileSync(file, hash)
+  return true
+}
+
+function clearFeedback(sessionId) {
+  if (!sessionId) return
+  rmSync(stateFile(sessionId, 'feedback'), { force: true })
+}
+
+function stateFile(sessionId, suffix) {
+  const safe = sessionId.replace(/[^A-Za-z0-9._-]/g, '_')
+  return path.join(os.tmpdir(), 'ens-agent-checks', `${safe}-${suffix}`)
 }

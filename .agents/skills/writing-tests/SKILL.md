@@ -9,6 +9,10 @@ A runtime behaviour change is not done until focused tests sit next to the code 
 
 When a change alters behaviour on more than one code path, add a focused test for each path whose behaviour changes, not only the paths the ticket's acceptance criteria name. Example: a shared predicate used by both ENSv1 and ENSv2 names. If v1 names also move from 30 to 60 days, add a v1 test too.
 
+A styling-only class change does not need a class-string test. Run the nearest existing focused tests and verify the rendered screen at desktop and mobile width. If the change affects interaction, accessibility, conditional rendering or data, it is not styling-only and needs a test.
+
+Existing `as unknown as`, non-null assertions and suppressions in a test file are not patterns to copy. Prefer a typed builder, `satisfies`, or an existing complete fixture.
+
 ## Don't write
 
 - **Tests of dead code.** If nothing outside tests imports a function, delete the function rather than testing it. Don't export a helper only so a test can reach it; test it through the live entry point. knip can see export-only-to-tests usage, but CI does not fail on knip yet (the step in `.github/workflows/test.yml` is still commented out).
