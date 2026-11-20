@@ -23,6 +23,7 @@ let registriesQuery: QueryStub = idle()
 let roleQuery: QueryStub = idle()
 let resourceIdQuery: QueryStub = idle()
 let v1Query: QueryStub = idle()
+let wrapperAccessQuery: QueryStub = idle()
 
 vi.mock('wagmi', async (importOriginal) => ({
   ...(await importOriginal<typeof import('wagmi')>()),
@@ -51,6 +52,7 @@ vi.mock('@tanstack/react-query', async () => {
         .with('hasRoles', () => roleQuery)
         .with('get-name-resource-id', () => resourceIdQuery)
         .with('transfer-v1-name-state', () => v1Query)
+        .with('transfer-v1-wrapper-access', () => wrapperAccessQuery)
         .otherwise(idle)
 
       // `useNameResourceId` reads `isPending`, the rest read `isLoading`.
@@ -81,6 +83,7 @@ describe('useCanSetResolver', () => {
     roleQuery = idle()
     resourceIdQuery = idle()
     v1Query = idle()
+    wrapperAccessQuery = idle()
   })
 
   it('lets the registry owner of a V1 name set its resolver', () => {
@@ -137,6 +140,24 @@ describe('useCanSetResolver', () => {
 
     expect(result.canSet).toBe(false)
     expect(result.target).toEqual({ protocol: 'ENSv1', isWrapped: true })
+  })
+
+  it('lets the wrapped holder’s NameWrapper operator set its resolver', () => {
+    ownerQuery = settled({ owner: OWNER, protocolVersion: 'ENSv1' })
+    v1Query = settled({
+      subject: {
+        kind: 'v1-wrapped',
+        owner: OWNER,
+        fuses: { cannotSetResolver: false },
+      },
+    })
+    wrapperAccessQuery = settled({
+      canModifyName: true,
+      canModifyParent: false,
+    })
+    connectedAddress = STRANGER
+
+    expect(render('wrapped.eth').canSet).toBe(true)
   })
 
   it('uses the role for a V2 name', () => {

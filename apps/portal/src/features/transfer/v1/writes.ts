@@ -60,13 +60,15 @@ export const prepareTransferV1NameTransaction = ({
   shouldReclaim = false,
   walletClient,
   chainId,
+  holder = walletClient.account.address,
 }: IntentContext & {
   readonly name: string
   readonly recipient: Address
   readonly contract: 'registrar' | 'nameWrapper'
   readonly shouldReclaim?: boolean
+  /** Whose token moves: the sender, unless it acts as the holder's operator. */
+  readonly holder?: Address
 }): CustomTransactionIntent => {
-  const from = walletClient.account.address
   // The registrar's token id is the 2LD's labelhash; the wrapper's is the
   // namehash. Derived fail-closed rather than by splitting the displayed name:
   // `labelhash` leaves an encoded (`[<64 hex>]`) label unhashed, so the token
@@ -87,7 +89,7 @@ export const prepareTransferV1NameTransaction = ({
       data: encodeFunctionData({
         abi: baseRegistrarSafeTransferFromSnippet,
         functionName: 'safeTransferFrom',
-        args: [from, recipient, registrarTokenId],
+        args: [holder, recipient, registrarTokenId],
       }),
     }))
     .with({ contract: 'nameWrapper' }, () => ({
@@ -95,12 +97,17 @@ export const prepareTransferV1NameTransaction = ({
       data: encodeFunctionData({
         abi: nameWrapperSafeTransferFromSnippet,
         functionName: 'safeTransferFrom',
-        args: [from, recipient, BigInt(namehash(name)), 1n, '0x'],
+        args: [holder, recipient, BigInt(namehash(name)), 1n, '0x'],
       }),
     }))
     .exhaustive()
 
-  return toEoaCustomIntent({ from, to, data, chainId })
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to,
+    data,
+    chainId,
+  })
 }
 
 /** `ENSRegistry.setOwner(node, recipient)` on the legacy registry. */

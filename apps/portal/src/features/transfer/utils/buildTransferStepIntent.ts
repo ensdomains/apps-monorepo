@@ -204,8 +204,12 @@ export const buildTransferStepIntent = (
       .with(['transfer-erc721', { kind: 'v1-registrar' }], () =>
         prepareTransferV1NameTransaction({ ...ctx, contract: 'registrar' }),
       )
-      .with(['transfer-erc1155', { kind: 'v1-wrapped' }], () =>
-        prepareTransferV1NameTransaction({ ...ctx, contract: 'nameWrapper' }),
+      .with(['transfer-erc1155', { kind: 'v1-wrapped' }], ([, { owner }]) =>
+        prepareTransferV1NameTransaction({
+          ...ctx,
+          contract: 'nameWrapper',
+          holder: owner,
+        }),
       )
       .with(['set-registry-owner', { kind: 'v1-registry' }], () =>
         prepareSetV1RegistryOwnerTransaction(ctx),

@@ -25,6 +25,10 @@ import { getNameResourceIdQueryOptions } from '@/features/registry/hooks/useName
 import type { ResolverWriteTarget } from '@/features/resolver/helpers/changeResolver'
 import type { V1TransferSubject } from '@/features/transfer/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
+import {
+  getV1WrapperAccessQueryOptions,
+  type V1WrapperAccess,
+} from '@/features/transfer/v1/getV1WrapperAccess'
 import { canSetV1Resolver } from '@/features/transfer/v1/rules'
 import { type ResourceId, resourceIdForName } from '@/lib/resource/resourceId'
 
@@ -73,13 +77,18 @@ const deriveCanSet = ({
   isV2,
   hasRole,
   v1Subject,
+  wrapperAccess,
 }: Pick<Derivation, 'isV2' | 'v1Subject'> & {
   readonly account: Address | undefined
   readonly hasRole: boolean | undefined
+  readonly wrapperAccess: V1WrapperAccess | undefined
 }): boolean => {
   if (!account) return false
   if (isV2) return hasRole === true
-  return !!v1Subject && canSetV1Resolver({ subject: v1Subject, account })
+  return (
+    !!v1Subject &&
+    canSetV1Resolver({ subject: v1Subject, account, wrapperAccess })
+  )
 }
 
 export function useCanSetResolver({
@@ -147,17 +156,31 @@ export function useCanSetResolver({
   // answering from that stale subject after it resolves as V2.
   const v1Subject = isV1 ? (v1Query.data?.subject ?? null) : null
 
+  const wrapperAccessQuery = useQuery({
+    ...getV1WrapperAccessQueryOptions({
+      name,
+      account: account ?? zeroAddress,
+    }),
+    enabled: isV1 && !!account,
+  })
+
   const v2Loading =
     registryQuery.isLoading ||
     isResourceIdLoading ||
     (!!registryAddress && !!resourceId && roleQuery.isLoading)
 
   return {
-    canSet: deriveCanSet({ account, isV2, hasRole: roleQuery.data, v1Subject }),
+    canSet: deriveCanSet({
+      account,
+      isV2,
+      hasRole: roleQuery.data,
+      v1Subject,
+      wrapperAccess: wrapperAccessQuery.data,
+    }),
     isLoading:
       ownerQuery.isLoading ||
       (isV2 && v2Loading) ||
-      (isV1 && v1Query.isLoading),
+      (isV1 && (v1Query.isLoading || wrapperAccessQuery.isLoading)),
     target: deriveTarget({ isV2, registryAddress, resourceId, v1Subject }),
     isUnsupported: isV2 && isUnsupported,
   }

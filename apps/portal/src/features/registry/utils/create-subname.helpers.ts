@@ -27,6 +27,7 @@ import type {
   V1TransferSubject,
 } from '@/features/transfer/types'
 import type { V1NameState } from '@/features/transfer/v1/getV1NameState'
+import type { V1WrapperAccess } from '@/features/transfer/v1/getV1WrapperAccess'
 import { canParentReissueV1Subname } from '@/features/transfer/v1/rules'
 import { ensChain } from '@/lib/wagmi'
 
@@ -253,18 +254,24 @@ export const getV1SubnameParentGate = (
 
 /**
  * Whether `account` can create a subname under a V1 name. With no account the
- * holder check is left to the form, which asks for a wallet first.
+ * holder check is left to the form, which asks for a wallet first. The
+ * wrapper's `setSubnodeRecord` takes the holder's operators too.
  */
 export const getV1SubnameCreateGate = (
   state: V1NameState,
   account: Address | undefined,
+  wrapperAccess?: V1WrapperAccess,
 ): V1SubnameCreateGate => {
   const held = toHeldParent(state)
   if (held.reason !== 'ok') return held
   if (!canParentReissueV1Subname(held.parent)) {
     return { reason: 'burned-fuse' }
   }
-  if (account && !isParentHolder(held.parent, account)) {
+  if (
+    account &&
+    !(held.parent.isWrapped && wrapperAccess?.canModifyName) &&
+    !isParentHolder(held.parent, account)
+  ) {
     return { reason: 'not-holder' }
   }
   return {
