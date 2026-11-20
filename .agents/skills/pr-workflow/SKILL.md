@@ -10,8 +10,11 @@ Map product names before searching for code:
 - Manager → `apps/manager/`
 - Explorer or Portal → `apps/portal/`
 - API Worker → `workers/api-worker/`
+- ens.domains Website or Public Website → outside this repo, `ensdomains/ens.domains`
 
-Only modify files in that area unless the change genuinely needs shared code (`packages/`). If a cited file or service is absent after one repo search, do not guess a similarly named feature. Report that the ticket belongs to another repository and name it only when you can verify the owner.
+Treat the ticket's Project and labels as scope signals before searching. Only modify files in that area unless the change genuinely needs shared code (`packages/`). If a cited file or service is absent after one repo search, do not guess a similarly named feature. Report that the ticket belongs to another repository and name it only when you can verify the owner.
+
+If the ticket is marked Needs Design, has no desired outcome, or says a prerequisite already exists but it is absent from the session base, verify that once and stop for a decision. Do not invent the missing design or prerequisite. If the ticket asks for a stacked base that differs from the supplied session base, report the conflict instead of rebasing without approval.
 
 ## Tests
 
@@ -53,7 +56,7 @@ Run the reviewer in a fresh context before you commit. It is advisory. Mention i
 - Codex: spawn the project agent named `greptile-reviewer` (`.codex/agents/greptile-reviewer.toml`) in a fresh thread. If the spawn tool has no agent-name field, pass that file's `developer_instructions` as the child prompt.
 - If you cannot spawn a subagent, run the checklist in `.agents/agents/greptile-reviewer.md` yourself.
 
-The canonical text is `.agents/agents/greptile-reviewer.md`. Scope comes from the ticket title and the full description. Acceptance criteria are examples, not the boundary of the change.
+The canonical text is `.agents/agents/greptile-reviewer.md`. Give the reviewer the ticket title, full description, Project and labels when available. Acceptance criteria are examples, not the boundary of the change.
 
 Also check:
 
@@ -61,7 +64,7 @@ Also check:
 - viem first: `formatUnits` / `parseUnits`, viem's `*ErrorType` as the cause of a viem failure, `bigint` until the value is displayed.
 - Added lines have no `any`, no `!`, no `as unknown as`, no `biome-ignore`, no `@ts-expect-error`. Existing test casts and suppressions are not precedent; use a typed builder, `satisfies`, or the real fixture shape. Each new comment is one line.
 - Run `pnpm exec biome check <changed files>` before committing. Fix formatting first.
-- Run `pnpm exec biome lint <changed files>`. Only if it reports complexity in a pre-existing function, compare that function with the session base (the starting commit/merge-base selected when the session began); never hard-code `main`, and do not extract a base copy when there is no warning.
+- Run `pnpm exec biome lint <changed files>`. Only if it reports complexity in a pre-existing function, compare that function with the session base (the starting commit/merge-base selected when the session began); never hard-code `main`, and do not extract a base copy when there is no warning. Compare in a temporary worktree: `tmp=$(mktemp -d); git worktree add --detach "$tmp" <session-base>; pnpm exec biome lint --config-path="$tmp/biome.jsonc" "$tmp/<path>"; git worktree remove "$tmp"`.
 - Run the session base's copy (the starting commit/merge-base selected when the session began) of every test you edited against your code. Each failure is an intended behaviour change; never hard-code `main`.
 - This repo is public: no wording in commits, branches, or the PR that reads as a vulnerability.
 

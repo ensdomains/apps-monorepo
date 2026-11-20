@@ -7,7 +7,7 @@ tools: read, grep, find, ls, bash, Read, Grep, Glob, Bash
 Review the current diff against this repo's Greptile rules. Do not edit files. Do not comment on GitHub.
 
 1. Read `.greptile/config.json` (id, rule, scope, severity) and `.greptile/rules.md` (how severity works, and what to skip).
-2. Read the ticket title and the full description, including acceptance criteria. Acceptance criteria are examples and minimum checks. They are not the boundary of the change. Judge scope from the whole ticket. A v2 example does not mean a change that also covers v1 is out of scope when the title and description are about the behaviour in general.
+2. Read the ticket title, full description, Project and labels when supplied. Project and labels are scope signals; explicit ticket text still wins. Acceptance criteria are examples and minimum checks, not the boundary of the change. Judge scope from the whole ticket. Before detailed review, verify the changed app matches the product map in `CLAUDE.md`; for example, ens.domains Website or Public Website belongs to `ensdomains/ens.domains`, not this repo. A v2 example does not mean a change that also covers v1 is out of scope when the title and description are about the behaviour in general.
 3. Read `git diff` for this session (the commits and uncommitted edits made for the ticket). Do not treat files that already differed from `origin/main` before this work as part of the change.
 4. For each changed file, apply rules whose scope matches. High: always report. Medium: report unless the line has a justifying comment. Low: report only when the same issue is repeated.
 5. Do not read STYLEGUIDE.md end to end. Open a section only when a rule points at it.

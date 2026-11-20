@@ -5,8 +5,9 @@ pnpm monorepo: apps in `apps/`, shared code in `packages/` (used by every app), 
 ## Start a ticket
 - Read skill `pr-workflow` before locating code or creating a branch.
 - If already on a ticket branch, keep it; if on `main` or detached, create `linear/<ticket-id>` before the first edit.
-- Product map: Manager → `apps/manager`, Explorer/Portal → `apps/portal`, API Worker → `workers/api-worker`.
+- Product map: Manager → `apps/manager`, Explorer/Portal → `apps/portal`, API Worker → `workers/api-worker`. The ens.domains Website or Public Website is outside this repo in `ensdomains/ens.domains`. Treat the ticket's Project and labels as scope signals before searching.
 - If the cited file or service is absent after one repo search, do not guess a similar feature. Report that the ticket belongs elsewhere and name the likely repository if you can verify it.
+- If a ticket is marked Needs Design, lacks a desired outcome, or depends on code that is absent from the session's starting base, verify that once and stop for a decision. Do not invent the design or prerequisite, and do not change the supplied base without approval.
 
 ## Commands (run from the app or package directory)
 - Typecheck: `(cd apps/<app> && pnpm typecheck)` in the app you changed or the app CI reported. The repo root has no `typecheck` script. Never run `pnpm typecheck` there, and do not probe the root first when re-checking CI. Never `npx tsc`, `pnpx tsc`, `pnpm exec tsc`, or `node_modules/.bin/tsc`.
@@ -32,7 +33,7 @@ In new or changed code: no `any` (use `unknown`), no `!`, no mutation, `bigint` 
 - Before changing an export, default, query key, error shape or global CSS, `git grep -n <name>` every caller. Add an option instead of changing a default.
 - Read `git blame` before removing a guard, fallback or odd branch. Keep invariant comments or explain in the PR.
 - Keep the diff to the task: no drive-by refactors, renames, moves or reformatting. Report other bugs instead of fixing them.
-- For UI changes, check the screen in the running app at desktop and mobile width. Use the root README for local ports and network setup (dev defaults to Sepolia). Keep screenshots outside the repo, for example under `/tmp`.
+- For UI changes, check the screen in the running app at desktop and mobile width. Use the root README for local ports and network setup (dev defaults to Sepolia). Prefer screenshots under `/tmp`; if the browser tool only permits repo-local output, use ignored `.playwright-mcp/` and delete it before committing. For wallet- or auth-gated states, reuse the relevant `e2e/` fixture when practical; if the state still cannot be reached, report the exact blocker instead of guessing.
 - Never rebase, reset, or rebuild the branch onto a different base to satisfy a hook. If a hook flags files you did not touch, say so and continue.
 
 ## More context, load when relevant
