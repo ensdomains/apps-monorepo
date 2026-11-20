@@ -1,3 +1,4 @@
+import { SessionAuthorizationSignerError } from '@ens-apps/smart-account'
 import {
   type TransactionRequest,
   TransactionSubmissionError,
@@ -221,6 +222,11 @@ describe('getRegistrationFailureReason', () => {
       'a simulation refused for other reasons',
       simulation('EXECUTION_FAILED'),
       undefined,
+    ],
+    [
+      'a session authorization the owner did not sign',
+      new SessionAuthorizationSignerError({ cause: new Error('other key') }),
+      'sessionSignerMismatch',
     ],
     ['a taken name', priceReadRevert(), undefined],
     ['a plain error', new Error('rpc down'), undefined],

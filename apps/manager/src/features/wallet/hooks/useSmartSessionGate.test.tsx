@@ -95,6 +95,20 @@ describe('useSmartSessionGate', () => {
     expect(screen.getByText('Enable Sessions')).toBeInTheDocument()
   })
 
+  it("explains a signature that isn't the owner's, and keeps Try Again", async () => {
+    enableSession.mockResolvedValue({ status: 'signer-mismatch' })
+    render(<Harness />)
+    openDialog()
+
+    fireEvent.click(screen.getByText('Enable Sessions'))
+
+    expect(
+      await screen.findByText(/Your wallet signed a different request/),
+    ).toBeVisible()
+    expect(screen.getByText('Try Again')).toBeVisible()
+    expect(proceed).not.toHaveBeenCalled()
+  })
+
   it('a request enabled after dismiss and reopen closes the new prompt and runs its action', async () => {
     let resolve: (outcome: EnableSessionOutcome) => void = () => {}
     enableSession.mockReturnValue(

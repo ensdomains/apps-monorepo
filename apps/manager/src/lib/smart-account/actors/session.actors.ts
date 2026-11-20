@@ -23,11 +23,13 @@ import {
   DEFAULT_SESSION_VALIDITY_SECONDS,
   getSkippedStatus,
   getValidSessionForAccount,
+  getVerifiedSessionForAccount,
   hasRegistrationHeadroom,
   isRhinestoneSession,
   quoteSessionRefundCaps,
   type RefundCaps,
   type RhinestoneStoredSession,
+  type SessionAuthorizationSignerError,
   type SessionEnableError,
   SessionRestoreError,
   type SessionScope,
@@ -128,7 +130,10 @@ function resolveRefundCaps(
  */
 export function createSessionActor(
   input: CreateSessionInput,
-): ResultAsync<CreateSessionOutput, SessionEnableError> {
+): ResultAsync<
+  CreateSessionOutput,
+  SessionEnableError | SessionAuthorizationSignerError
+> {
   const sessionPrivateKey = generatePrivateKey()
   const sessionAccount = privateKeyToAccount(sessionPrivateKey)
   const resolver = computeResolverAddress({
@@ -147,6 +152,7 @@ export function createSessionActor(
         publicClient: input.publicClient,
         chain: input.chain,
         hca: input.accountAddress,
+        owner: input.ownerAddress,
         resolver,
         sessionAccount,
         validUntil,
@@ -236,38 +242,47 @@ export interface ResolvedSession {
  */
 export function resolveSessionActor(
   input: ResolveSessionInput,
-): ResultAsync<ResolvedSession, SessionEnableError> {
+): ResultAsync<
+  ResolvedSession,
+  SessionEnableError | SessionAuthorizationSignerError
+> {
   const { ownerAddress, accountAddress, chain } = input
 
   if (input.replaceWithCaps) return createAndResolve(input)
 
-  const stored = getValidSessionForAccount({
-    accountAddress,
-    ownerAddress,
-    chainId: chain.id,
-    ...(input.refundToken ? { refundToken: input.refundToken } : {}),
-  })
-  // Mint a fresh session rather than reusing one that would expire mid-flight:
-  // the reveal is session-signed and runs AFTER `MIN_COMMITMENT_AGE`, so a
-  // session that only just outlives the commit strands the commitment. This
-  // mirrors `needsSessionBeforeRegistration`; if the two disagreed, the gate
-  // would prompt and then be handed back the same expiring session forever.
-  if (
-    !stored ||
-    !isRhinestoneSession(stored) ||
-    !hasRegistrationHeadroom(stored)
-  ) {
-    return createAndResolve(input)
-  }
+  return fromSafePromise(
+    getVerifiedSessionForAccount({
+      accountAddress,
+      ownerAddress,
+      chainId: chain.id,
+      ...(input.refundToken ? { refundToken: input.refundToken } : {}),
+    }),
+  ).andThen((stored) => {
+    // Mint a fresh session rather than reusing one that would expire mid-flight:
+    // the reveal is session-signed and runs AFTER `MIN_COMMITMENT_AGE`, so a
+    // session that only just outlives the commit strands the commitment. This
+    // mirrors `needsSessionBeforeRegistration`; if the two disagreed, the gate
+    // would prompt and then be handed back the same expiring session forever.
+    if (
+      !stored ||
+      !isRhinestoneSession(stored) ||
+      !hasRegistrationHeadroom(stored)
+    ) {
+      return createAndResolve(input)
+    }
 
-  return restoreSessionActor({ session: stored })
-    .map((): ResolvedSession => ({ session: stored }))
-    .orElse(() => createAndResolve(input))
+    return restoreSessionActor({ session: stored })
+      .map((): ResolvedSession => ({ session: stored }))
+      .orElse(() => createAndResolve(input))
+  })
 }
 
 function createAndResolve(
   input: ResolveSessionInput,
-): ResultAsync<ResolvedSession, SessionEnableError> {
+): ResultAsync<
+  ResolvedSession,
+  SessionEnableError | SessionAuthorizationSignerError
+> {
   return createSessionActor({
     ownerAddress: input.ownerAddress,
     accountAddress: input.accountAddress,

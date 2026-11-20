@@ -10,9 +10,17 @@ import {
   sizeRefundCaps,
   storedRefundCaps,
 } from '@ens-apps/smart-account'
+import { getSessionAuthorizationDigest } from '@ens-apps/smart-account/providers/rhinestone/session-authorization'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import { okAsync } from 'neverthrow'
-import type { Chain, PublicClient } from 'viem'
+import { fromSafePromise } from 'neverthrow'
+import {
+  type Chain,
+  concat,
+  type Hex,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -33,7 +41,19 @@ vi.mock('@ens-apps/smart-account', async (importOriginal) => ({
 }))
 
 const HCA = '0xaaaa000000000000000000000000000000000001'
-const OWNER = '0x1111111111111111111111111111111111111111'
+const OWNER_ACCOUNT = privateKeyToAccount(`0x${'02'.repeat(32)}`)
+const OWNER = OWNER_ACCOUNT.address
+const SESSION_DIGEST = `0x${'55'.repeat(32)}` as const
+// The validator's digest over `[{ chainId: 11155111, sessionDigest: SESSION_DIGEST }]`, so the SDK's signature recovers to OWNER.
+const signAuthorization = async (signer = OWNER_ACCOUNT): Promise<Hex> =>
+  concat([
+    zeroAddress,
+    await signer.sign({
+      hash: getSessionAuthorizationDigest([
+        { chainId: 11155111n, sessionDigest: SESSION_DIGEST },
+      ]),
+    }),
+  ])
 
 const quotedCaps = sizeRefundCaps(2_972_344n)
 
@@ -55,19 +75,19 @@ beforeEach(() => {
       readonly refundCaps: typeof quotedCaps
       readonly validUntil: bigint
     }) =>
-      okAsync({
+      fromSafePromise(signAuthorization()).map((userSignature) => ({
         permissionId: `0x${'22'.repeat(32)}`,
         validUntil: params.validUntil,
         hcaSessionNonce: 0n,
         refundCaps: params.refundCaps,
         enableData: {
-          userSignature: `0x${'44'.repeat(85)}`,
+          userSignature,
           hashesAndChainIds: [
-            { chainId: 11155111n, sessionDigest: `0x${'55'.repeat(32)}` },
+            { chainId: 11155111n, sessionDigest: SESSION_DIGEST },
           ],
           sessionToEnableIndex: 0,
         },
-      }),
+      })),
   )
 })
 
@@ -119,7 +139,7 @@ describe('createSessionActor', () => {
 })
 
 describe('resolveSessionActor', () => {
-  const storeValidSession = () =>
+  const storeValidSession = async (signer = OWNER_ACCOUNT) =>
     saveSession({
       id: 'stored',
       provider: 'rhinestone',
@@ -133,15 +153,15 @@ describe('resolveSessionActor', () => {
       permissionId: `0x${'22'.repeat(32)}`,
       resolver: '0x3333333333333333333333333333333333333333',
       hcaSessionNonce: '0',
-      authorization: `0x${'44'.repeat(85)}`,
+      authorization: await signAuthorization(signer),
       hashesAndChainIds: [
-        { chainId: '11155111', sessionDigest: `0x${'55'.repeat(32)}` },
+        { chainId: '11155111', sessionDigest: SESSION_DIGEST },
       ],
       sessionToEnableIndex: 0,
     })
 
   it('reuses a valid stored session', async () => {
-    storeValidSession()
+    await storeValidSession()
 
     const result = await resolveSessionActor(input)
 
@@ -149,8 +169,23 @@ describe('resolveSessionActor', () => {
     expect(mocks.createDestinationSession).not.toHaveBeenCalled()
   })
 
+  it('replaces a stored session whose authorization another key signed', async () => {
+    await storeValidSession(privateKeyToAccount(`0x${'03'.repeat(32)}`))
+    mocks.quoteSessionRefundCaps.mockResolvedValue({
+      source: 'quote',
+      caps: quotedCaps,
+    })
+
+    const result = await resolveSessionActor(input)
+
+    expect(mocks.createDestinationSession).toHaveBeenCalledOnce()
+    const session = result._unsafeUnwrap().session
+    expect(session.id).not.toBe('stored')
+    expect(getSession(HCA)?.id).toBe(session.id)
+  })
+
   it('replaces a valid stored session when asked for new caps', async () => {
-    storeValidSession()
+    await storeValidSession()
 
     const result = await resolveSessionActor({
       ...input,
@@ -168,7 +203,7 @@ describe('resolveSessionActor', () => {
 
   it('authorizes a session in another refund token beside the stored one, then reuses it', async () => {
     const circleUsdc = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
-    storeValidSession()
+    await storeValidSession()
     mocks.quoteSessionRefundCaps.mockResolvedValue({
       source: 'quote',
       caps: quotedCaps,

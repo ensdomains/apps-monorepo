@@ -113,7 +113,9 @@ const envelopeSchema = v.object({
   record: v.string(),
   confirmedData: confirmedDataSchema,
   postRegistrationSetup: v.optional(postRegistrationSetupSchema),
-  failureReason: v.optional(v.literal('insufficientFunds')),
+  failureReason: v.optional(
+    v.picklist(['insufficientFunds', 'sessionSignerMismatch']),
+  ),
 })
 
 type StoredRegistrationEnvelope = v.InferOutput<typeof envelopeSchema>

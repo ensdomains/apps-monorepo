@@ -149,6 +149,17 @@ describe('FailureStepView', () => {
     expect(onCancel).toHaveBeenCalledOnce()
   })
 
+  it('explains a session authorization the owner did not sign, and keeps Try Again', () => {
+    const onRetry = vi.fn()
+    renderView({ onRetry, message: '', failureReason: 'sessionSignerMismatch' })
+
+    expect(
+      screen.getByText(/your wallet signed a different request/i),
+    ).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }))
+    expect(onRetry).toHaveBeenCalledOnce()
+  })
+
   it('still reports a real failure as one', () => {
     renderView()
 

@@ -104,16 +104,24 @@ const isInsufficientBalanceRefusal = (error: Error): boolean => {
   )
 }
 
-/** Why a run failed, when the failure screen has something specific to say. */
-export type RegistrationFailureReason = 'insufficientFunds'
+// Read by tag, not `instanceof`, which a minified build can break.
+const isSessionSignerMismatch = (error: Error): boolean =>
+  asRecord(error)._tag === 'SessionAuthorizationSignerError'
 
-/** `insufficientFunds` when the orchestrator refused because the smart account can't pay, e.g. its funds were withdrawn. */
+/** Why a run failed, when the failure screen has something specific to say. */
+export type RegistrationFailureReason =
+  | 'insufficientFunds'
+  | 'sessionSignerMismatch'
+
+/** `insufficientFunds` when the smart account can't pay; `sessionSignerMismatch` when a new session's authorization isn't the owner's. */
 export const getRegistrationFailureReason = (
   error: unknown,
-): RegistrationFailureReason | undefined =>
-  causeChain(error).some(isInsufficientBalanceRefusal)
-    ? 'insufficientFunds'
-    : undefined
+): RegistrationFailureReason | undefined => {
+  const chain = causeChain(error)
+  if (chain.some(isInsufficientBalanceRefusal)) return 'insufficientFunds'
+  if (chain.some(isSessionSignerMismatch)) return 'sessionSignerMismatch'
+  return undefined
+}
 
 /**
  * A readable one-liner for the failure screen. viem's `message` appends the

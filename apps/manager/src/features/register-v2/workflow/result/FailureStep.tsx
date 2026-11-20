@@ -7,6 +7,7 @@ import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { SESSION_SIGNER_MISMATCH_MESSAGE } from '@/lib/smart-account/sessionMessages'
 import {
   isSessionRevokedFailure,
   type RegistrationFailureReason,
@@ -142,6 +143,7 @@ export const FailureStepView = ({
             isWalletBusy,
             isInsufficientFunds,
             isSessionRevoked,
+            failureReason,
             message,
           })
             .with(
@@ -153,6 +155,9 @@ export const FailureStepView = ({
               { isInsufficientFunds: true },
               () =>
                 t`Your smart account no longer has enough funds to finish registering ${label}.eth. This can happen if funds are withdrawn in another tab or browser while a registration is running.`,
+            )
+            .with({ failureReason: 'sessionSignerMismatch' }, () =>
+              t(SESSION_SIGNER_MISMATCH_MESSAGE),
             )
             .with(
               { isWalletBusy: false, isSessionRevoked: true },

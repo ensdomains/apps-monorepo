@@ -45,15 +45,19 @@ vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
 
 import {
   buildHcaDeploymentCall,
+  getAllSessions,
   HcaDeploymentCallValidationError,
   type RhinestoneStoredSession,
   removeSessionsByOwner,
   revokeSessionsOnChain,
   SessionRevokeError,
+  saveSession,
 } from '@ens-apps/smart-account'
+import { getSessionAuthorizationDigest } from '@ens-apps/smart-account/providers/rhinestone/session-authorization'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { errAsync, okAsync } from 'neverthrow'
-import type { Address, WalletClient } from 'viem'
+import { type Address, concat, type WalletClient, zeroAddress } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { useWalletClient } from 'wagmi'
 import { chain as appChain } from '@/config'
 import { backendClient } from '@/utils/backend-client'
@@ -438,6 +442,82 @@ describe('SmartAccountContext', () => {
       expect(resolveSessionActor).toHaveBeenCalledWith(
         expect.objectContaining({ refundToken: CIRCLE_USDC }),
       )
+      expect(result.current.hasActiveSession).toBe(false)
+    })
+  })
+
+  describe('a stored session on page load', () => {
+    const OWNER_ACCOUNT = privateKeyToAccount(`0x${'02'.repeat(32)}`)
+    const OTHER_ACCOUNT = privateKeyToAccount(`0x${'03'.repeat(32)}`)
+    const HCA: Address = '0x2222222222222222222222222222222222222222'
+    const SESSION_DIGEST = `0x${'55'.repeat(32)}` as const
+
+    const storeSessionSignedBy = async (
+      signer: typeof OWNER_ACCOUNT,
+    ): Promise<void> =>
+      saveSession({
+        id: 'stored-session',
+        provider: 'rhinestone',
+        sessionKeyAddress: '0x9999999999999999999999999999999999999999',
+        smartAccountAddress: HCA,
+        ownerAddress: OWNER_ACCOUNT.address,
+        createdAt: Date.now(),
+        chainId: appChain.id,
+        validUntil: Math.floor(Date.now() / 1000) + 3600,
+        sessionPrivateKey: `0x${'1'.repeat(64)}`,
+        permissionId: `0x${'2'.repeat(64)}`,
+        resolver: '0x3333333333333333333333333333333333333333',
+        hcaSessionNonce: '0',
+        authorization: concat([
+          zeroAddress,
+          await signer.sign({
+            hash: getSessionAuthorizationDigest([
+              { chainId: BigInt(appChain.id), sessionDigest: SESSION_DIGEST },
+            ]),
+          }),
+        ]),
+        hashesAndChainIds: [
+          { chainId: String(appChain.id), sessionDigest: SESSION_DIGEST },
+        ],
+        sessionToEnableIndex: 0,
+      })
+
+    const loadPage = () => {
+      const client: Pick<RhinestoneAccount, 'getAddress' | 'isDeployed'> = {
+        getAddress: () => HCA,
+        isDeployed: async () => true,
+      }
+      vi.mocked(initializeRhinestoneAccount).mockResolvedValueOnce({
+        client,
+        address: HCA,
+        ownerAddress: OWNER_ACCOUNT.address,
+        alreadyDeployed: true,
+        config: { chain: appChain },
+      } as RhinestoneInitResult)
+      const walletClient: Pick<WalletClient, 'account'> = {
+        account: { address: OWNER_ACCOUNT.address, type: 'json-rpc' },
+      }
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: walletClient,
+      } as ReturnType<typeof useWalletClient>)
+      return renderHook(() => useSmartAccountContext(), {
+        wrapper: createWrapper(),
+      })
+    }
+
+    it('restores a session the owner authorized', async () => {
+      await storeSessionSignedBy(OWNER_ACCOUNT)
+      const { result } = loadPage()
+
+      await waitFor(() => expect(result.current.hasActiveSession).toBe(true))
+    })
+
+    it('drops a session another key authorized', async () => {
+      await storeSessionSignedBy(OTHER_ACCOUNT)
+      const { result } = loadPage()
+
+      await waitFor(() => expect(getAllSessions()).toEqual([]))
+      expect(result.current.accountAddress).toBe(HCA)
       expect(result.current.hasActiveSession).toBe(false)
     })
   })

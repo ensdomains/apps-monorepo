@@ -1,6 +1,6 @@
 'use client'
 
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { Loader2 } from 'lucide-react'
 import { match } from 'ts-pattern'
 import { EnsMobileIcon } from '@/assets/icons/ens-mobile-icon'
@@ -12,6 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { SESSION_SIGNER_MISMATCH_MESSAGE } from '@/lib/smart-account/sessionMessages'
+
+/** Why the last attempt in this dialog failed. */
+export type EnableSessionFailure = 'failed' | 'signer-mismatch'
 
 type EnableSessionModalProps = {
   readonly open: boolean
@@ -20,8 +24,8 @@ type EnableSessionModalProps = {
   readonly onEnableSession: () => Promise<void>
   /** True while the ENABLE signature is in flight. */
   readonly isEnabling?: boolean
-  /** True when the last attempt in this dialog failed. */
-  readonly hasError?: boolean
+  /** Set when the last attempt in this dialog failed. */
+  readonly failure?: EnableSessionFailure | null
 }
 
 export const EnableSessionModal = ({
@@ -29,11 +33,12 @@ export const EnableSessionModal = ({
   onDismiss,
   onEnableSession,
   isEnabling = false,
-  hasError = false,
+  failure = null,
 }: EnableSessionModalProps) => {
+  const { t } = useLingui()
   const status: 'idle' | 'signing' | 'error' = (() => {
     if (isEnabling) return 'signing'
-    if (hasError) return 'error'
+    if (failure) return 'error'
     return 'idle'
   })()
 
@@ -78,14 +83,18 @@ export const EnableSessionModal = ({
                   confirmation.
                 </Trans>
               ))
-              .with('error', () => (
-                <Trans>
-                  You can keep browsing, but registering or managing names needs
-                  a session.
-                  <br />
-                  Try again when you&apos;re ready.
-                </Trans>
-              ))
+              .with('error', () =>
+                failure === 'signer-mismatch' ? (
+                  t(SESSION_SIGNER_MISMATCH_MESSAGE)
+                ) : (
+                  <Trans>
+                    You can keep browsing, but registering or managing names
+                    needs a session.
+                    <br />
+                    Try again when you&apos;re ready.
+                  </Trans>
+                ),
+              )
               .with('idle', () => (
                 <Trans>
                   Sign once to skip wallet prompts for registrations and

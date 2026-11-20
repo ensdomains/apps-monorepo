@@ -22,4 +22,4 @@ export const Idle: Story = {}
 export const Signing: Story = { args: { isEnabling: true } }
 
 /** The last attempt failed; the page stays usable without a session. */
-export const Failed: Story = { args: { hasError: true } }
+export const Failed: Story = { args: { failure: 'failed' } }

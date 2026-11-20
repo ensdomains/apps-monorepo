@@ -88,6 +88,12 @@ mismatch. **Use the trace depth to tell them apart:** if it reverts *before*
 recovered and it is the very first check,
 `config.sessionKey == address(0)` — an unenabled session (§7), not a bad key.
 
+If it reverts *after* `ownerAndSessionNonce` and `ecrecover`, the session
+authorization recovered to someone other than the owner: the wallet signed a
+different digest. The app now runs the same recovery before it stores or reuses
+a session (`session-authorization.ts`), so that case fails at authorization with
+an explanatory error instead of on every intent.
+
 ## 4. The policy pins exact calldata — not just arguments
 
 `HCAResolverPolicyLib.checkDeployment` decodes `deployProxy`'s arguments,
