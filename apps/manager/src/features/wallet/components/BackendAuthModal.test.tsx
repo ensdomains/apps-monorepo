@@ -1,3 +1,4 @@
+import { READ_ONLY_WALLET_RDNS } from '@ens-apps/utils/readOnlyWallet'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -110,6 +111,17 @@ describe('BackendAuthModal', () => {
       ).not.toBeInTheDocument()
     })
     expect(backendAuthStore.get().context.modalDismissed).toBe(true)
+  })
+
+  it('does not ask a read-only custom wallet to sign in', () => {
+    wagmiMock.useConnection.mockReturnValue({
+      isConnected: true,
+      connector: { id: `${READ_ONLY_WALLET_RDNS}.0xdead` },
+    })
+
+    render(<BackendAuthModal />)
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
   it('does not dismiss when SKIP is typed while the modal is closed', () => {

@@ -1,3 +1,4 @@
+import { isReadOnlyWalletConnector } from '@ens-apps/utils/readOnlyWallet'
 import { Trans } from '@lingui/react/macro'
 import { useHotkeySequence } from '@tanstack/react-hotkeys'
 import { useMutation } from '@tanstack/react-query'
@@ -21,7 +22,7 @@ export const BackendAuthModal = () => {
   const signIn = useMutation(signInBackendMutation)
   const [isConfirmingSkip, setIsConfirmingSkip] = useState(false)
 
-  const { isConnected: isWalletConnected } = useConnection()
+  const { isConnected: isWalletConnected, connector } = useConnection()
   const { disconnect, isDisconnecting } = useWalletDisconnect()
 
   // Hold this modal until the SCA is live. Hook is null before the
@@ -30,8 +31,13 @@ export const BackendAuthModal = () => {
   const walletClient = smartAccount?.walletClient
   const isSmartAccountReady =
     smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
+  // A read-only custom wallet can never sign the SIWE message, so asking would
+  // only leave a modal the tester has to dismiss.
   const shouldShowModal =
-    isWalletConnected && isNotAuthedOrDismissed && isSmartAccountReady
+    isWalletConnected &&
+    isNotAuthedOrDismissed &&
+    isSmartAccountReady &&
+    !isReadOnlyWalletConnector(connector)
 
   // The modal stays mounted while closed (SKIP hotkey, disconnect, dismiss),
   // so reset here to reopen at sign-in rather than the skip confirmation

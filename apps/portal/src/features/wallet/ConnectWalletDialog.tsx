@@ -21,6 +21,7 @@ import {
   normalizeConnectError,
   WALLETCONNECT_ID,
 } from './connect.helpers'
+import { ReadOnlyWalletTrigger } from './ReadOnlyWalletTrigger'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
 
 // The WalletConnect (reown) modal's theme is fixed at connector creation, so a
@@ -287,6 +288,10 @@ export const ConnectWalletDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-5 p-8 sm:max-w-100">
+        <ReadOnlyWalletTrigger
+          enabled={open && !isConnecting}
+          onError={setError}
+        />
         <DialogHeader>
           <DialogTitle>Connect a wallet</DialogTitle>
         </DialogHeader>
