@@ -494,24 +494,32 @@ the rule in its message.
 `settlementLayers: ['ACROSS']`; Rhinestone confirmed Across stays available
 when asked for. If every L2 source turns unavailable at once, check this first.
 
-**Only a plain or MetaMask-delegated payer gets a permit.** The `approval`
-requirement carries a `permit` for a wallet with no code, and for one delegated
-to MetaMask's `EIP7702StatelessDeleGator` (`0x63c0c19a…`). Any other EIP-7702
-delegate gets none, although the SDK sends `accountType: 'EOA'`. That includes
-Calibur (Rainbow, Uniswap), whose ERC-1271 accepts the permit
-(`HCA_7702_WALLETS.md` in transaction-manager). Quoted on Base on 2026-11-20
-against eleven delegates. The quote is accepted with `needsOnchainApproval`,
-and the pay path sends `approve(Permit2, max)` on the L2 before quoting again;
-that takes a little ETH there, once per L2.
+**A delegated payer may get no permit.** The `approval` requirement carries a
+`permit` for a wallet with no code. For a wallet with an EIP-7702 delegation it
+may not, although the SDK sends `accountType: 'EOA'`. Two accounts from
+2026-11-20, which do not fully agree:
+
+- Rhinestone said a delegated payer needs the onchain approve for now, and that
+  a permit for MetaMask-delegated payers was still to be built.
+- Quotes run on Base later that day against eleven delegates returned a permit
+  only for MetaMask's `EIP7702StatelessDeleGator` (`0x63c0c19a…`), and none for
+  the others, Calibur (Rainbow, Uniswap) included, whose ERC-1271 accepts the
+  permit (`HCA_7702_WALLETS.md` in transaction-manager).
+
+So read `permit` in the quote rather than assume it from the wallet. A quote
+without one is accepted with `needsOnchainApproval`, and the pay path sends
+`approve(Permit2, max)` on the L2 before quoting again; that takes a little ETH
+there, once per L2.
 
 **The requirement is the allowance check.** It is listed only while the
 wallet's Permit2 allowance falls short; an approved wallet gets none. So the
-picker reads no allowance itself, and a fresh quote that still lists the
-approval after the approve is refused rather than signed: the orchestrator has
-not seen the approval yet, and the intent would fail at claim.
+picker reads no allowance itself. The pay path waits two confirmations of the
+approve before quoting again, and a fresh quote that still lists the approval
+is refused rather than signed: the orchestrator has not seen the approval yet,
+and the intent would fail at claim. Paying again skips the approve.
 
 **Check the payer, not only the app.** A wallet can gain a delegation between
-two tests (MetaMask offers the upgrade on its own), which changes the quote
+two tests (a wallet's own upgrade prompt is enough), which changes the quote
 with no change on our side:
 
 ```bash
