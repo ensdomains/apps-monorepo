@@ -26,8 +26,10 @@ export {
   toSdkAuth,
 } from './auth'
 export {
+  classifyHcaBudgetFailureReasons,
   commitLegGasLimit,
   estimateHcaBudget,
+  findHcaBudgetUnquotedError,
   HCA_ACCOUNT_DEPLOY_GAS,
   HCA_ADDR_REVERSE_CLEAR_GAS,
   HCA_LEG_GAS_LIMITS,
@@ -37,7 +39,9 @@ export {
   HCA_RESOLVER_DEPLOY_GAS,
   type HcaBudgetBreakdown,
   HcaBudgetExceedsMaximumError,
+  type HcaBudgetFailureKind,
   type HcaBudgetParams,
+  HcaBudgetUnquotedError,
   type HcaLeg,
   hcaBudgetMaximum,
   legFeeUsdc,
