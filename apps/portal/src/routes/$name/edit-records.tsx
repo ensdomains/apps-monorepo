@@ -2,7 +2,7 @@ import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import type { GetRecordsReturnType } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
+import { AlertCircle, ArrowLeftIcon, ChevronDown, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useAccount, useConnection, useWalletClient } from 'wagmi'
@@ -12,6 +12,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { PageHeading } from '@/components/PageHeading'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -21,9 +22,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { AddRecordButton } from '@/features/records/components/AddRecordButton'
 import { EditRecordsDeniedMessage } from '@/features/records/components/EditRecordsDeniedMessage'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
+import {
+  getAddRecordFeedback,
+  getAddRecordStatus,
+} from '@/features/records/helpers/getAddRecordStatus'
 import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
 import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
@@ -62,9 +68,6 @@ const RECORD_TYPES: { value: RecordType; label: string }[] = [
   { value: 'abi', label: 'ABI' },
   { value: 'contentHash', label: 'Contenthash' },
 ]
-
-/** Record types that don't require a key input (single-value records) */
-const KEYLESS_RECORD_TYPES: RecordType[] = ['contentHash', 'abi']
 
 const SAVE_RECORDS_TRANSACTION_ID = 'tx-save-resolver-records'
 
@@ -243,9 +246,22 @@ const EditRecordsContent = ({
       : ''
   const [keyInput, setKeyInput] = useState('')
   const [valueInput, setValueInput] = useState('')
+  // Set when the value field is left, so an address is not flagged while it is still being typed.
+  const [isValueTouched, setIsValueTouched] = useState(false)
+  const addRecordStatus = getAddRecordStatus({
+    type: selectedType,
+    key: keyInput,
+    value: valueInput,
+  })
+  const canAddNewRecord = addRecordStatus.status === 'ready'
+  const { disabledReason, error: visibleAddRecordError } = getAddRecordFeedback(
+    addRecordStatus,
+    isValueTouched,
+  )
 
   // Reset key input when type changes (different types have different key requirements)
   const handleTypeChange = (newType: RecordType | '') => {
+    setIsValueTouched(false)
     setPickedType(newType)
     setKeyInput('') // Reset key when type changes
   }
@@ -407,14 +423,10 @@ const EditRecordsContent = ({
   const typeSelectId = useId()
   const keyInputId = useId()
   const valueInputId = useId()
-
-  // Check if the selected type requires a key
-  const requiresKey =
-    selectedType !== '' && !KEYLESS_RECORD_TYPES.includes(selectedType)
+  const addRecordErrorId = useId()
 
   const handleAddRecord = () => {
-    if (!selectedType) return
-    if (requiresKey && !keyInput) return
+    if (!selectedType || !canAddNewRecord) return
 
     addRecord(selectedType, keyInput, valueInput)
 
@@ -422,6 +434,7 @@ const EditRecordsContent = ({
     setPickedType('')
     setKeyInput('')
     setValueInput('')
+    setIsValueTouched(false)
   }
 
   return (
@@ -543,6 +556,11 @@ const EditRecordsContent = ({
               type="text"
               value={valueInput}
               onChange={(e) => setValueInput(e.target.value)}
+              onBlur={() => setIsValueTouched(true)}
+              aria-invalid={visibleAddRecordError ? true : undefined}
+              aria-describedby={
+                visibleAddRecordError ? addRecordErrorId : undefined
+              }
               placeholder=""
               className="h-9 w-full rounded-sm border border-input bg-background px-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             />
@@ -553,17 +571,24 @@ const EditRecordsContent = ({
             <span className="text-small text-transparent select-none">
               Action
             </span>
-            <Button
-              variant="default"
+            <AddRecordButton
+              disabledReason={disabledReason}
               onClick={handleAddRecord}
-              disabled={!selectedType || (requiresKey && !keyInput)}
-              className="flex items-center gap-2 whitespace-nowrap"
-            >
-              Add record
-              <CirclePlus className="size-4" />
-            </Button>
+            />
           </div>
         </div>
+        {visibleAddRecordError && (
+          <Alert
+            id={addRecordErrorId}
+            variant="destructive"
+            className="mt-4 items-center [&>svg]:translate-y-0"
+          >
+            <AlertCircle />
+            <AlertDescription className="min-w-0 wrap-anywhere">
+              {visibleAddRecordError}
+            </AlertDescription>
+          </Alert>
+        )}
       </header>
 
       {/* Main Content */}

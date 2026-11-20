@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { assert, describe, expect, it } from 'vitest'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import {
   createNewRecord,
@@ -216,7 +216,9 @@ describe('mergeRecordsWithChanges', () => {
 
 describe('createNewRecord', () => {
   it('creates a text record with unique _uid', () => {
-    const record = createNewRecord('text', 'name', 'John')
+    const recordResult = createNewRecord('text', 'name', 'John')
+    assert(recordResult.isOk())
+    const record = recordResult.value
 
     expect(record).toMatchObject({
       type: 'text',
@@ -228,14 +230,20 @@ describe('createNewRecord', () => {
   })
 
   it('creates unique _uids for multiple records', () => {
-    const record1 = createNewRecord('text', 'name', 'John')
-    const record2 = createNewRecord('text', 'name', 'Jane')
+    const record1Result = createNewRecord('text', 'name', 'John')
+    assert(record1Result.isOk())
+    const record1 = record1Result.value
+    const record2Result = createNewRecord('text', 'name', 'Jane')
+    assert(record2Result.isOk())
+    const record2 = record2Result.value
 
     expect(record1._uid).not.toBe(record2._uid)
   })
 
   it('creates an ETH address record with coin type 60', () => {
-    const record = createNewRecord('address', 'ETH', '0x123')
+    const recordResult = createNewRecord('address', 'ETH', '0x123')
+    assert(recordResult.isOk())
+    const record = recordResult.value
 
     expect(record).toMatchObject({
       type: 'address',
@@ -247,7 +255,9 @@ describe('createNewRecord', () => {
   })
 
   it('creates a BTC address record with coin type 0', () => {
-    const record = createNewRecord('address', 'btc', 'bc1...')
+    const recordResult = createNewRecord('address', 'btc', 'bc1...')
+    assert(recordResult.isOk())
+    const record = recordResult.value
 
     expect(record).toMatchObject({
       type: 'address',
@@ -259,11 +269,13 @@ describe('createNewRecord', () => {
   })
 
   it('creates a SOL address record with correct coin type', () => {
-    const record = createNewRecord(
+    const recordResult = createNewRecord(
       'address',
       'sol',
       'So11111111111111111111111111111111111111112',
     )
+    assert(recordResult.isOk())
+    const record = recordResult.value
 
     expect(record).toMatchObject({
       type: 'address',
@@ -275,7 +287,9 @@ describe('createNewRecord', () => {
   })
 
   it('creates the ENSIP-19 default address record with coin type 0x80000000', () => {
-    const record = createNewRecord('address', 'DEFAULT', '0x123')
+    const recordResult = createNewRecord('address', 'DEFAULT', '0x123')
+    assert(recordResult.isOk())
+    const record = recordResult.value
 
     expect(record).toMatchObject({
       type: 'address',
@@ -286,20 +300,21 @@ describe('createNewRecord', () => {
     expect(record._uid).toBeDefined()
   })
 
-  it('defaults to ETH coin type (60) for unknown coin names', () => {
-    const record = createNewRecord('address', 'UNKNOWN', 'someaddress')
-
-    expect(record).toMatchObject({
-      type: 'address',
-      key: 'UNKNOWN',
-      value: 'someaddress',
-      id: 60,
-    })
-    expect(record._uid).toBeDefined()
-  })
+  it.each(['UNKNOWN', '', 'constructor', '__proto__'])(
+    'refuses unrecognized coin %j without producing an ETH record',
+    (key) => {
+      for (const value of ['', '0x1234567890123456789012345678901234567890']) {
+        const result = createNewRecord('address', key, value)
+        expect(result.isErr()).toBe(true)
+        expect(result).not.toHaveProperty('value')
+      }
+    },
+  )
 
   it('creates a contentHash record', () => {
-    const record = createNewRecord('contentHash', '', 'ipfs://abc')
+    const recordResult = createNewRecord('contentHash', '', 'ipfs://abc')
+    assert(recordResult.isOk())
+    const record = recordResult.value
 
     expect(record).toMatchObject({
       type: 'contentHash',
@@ -309,7 +324,9 @@ describe('createNewRecord', () => {
   })
 
   it('creates ABI record without key', () => {
-    const record = createNewRecord('abi', '', '[{"type":"function"}]')
+    const recordResult = createNewRecord('abi', '', '[{"type":"function"}]')
+    assert(recordResult.isOk())
+    const record = recordResult.value
 
     expect(record).toMatchObject({
       type: 'abi',

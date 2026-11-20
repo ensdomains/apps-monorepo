@@ -61,9 +61,10 @@ export function editRecordsReducer(
         action.key,
         action.value,
       )
+      if (newRecord.isErr()) return state
       return {
         ...state,
-        newRecords: [...state.newRecords, newRecord],
+        newRecords: [...state.newRecords, newRecord.value],
       }
     }
 

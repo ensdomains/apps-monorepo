@@ -247,6 +247,44 @@ describe('validateRecord', () => {
     })
   })
 
+  it.each(['UNKNOWN', ''])(
+    'rejects new address rows with coin %j before empty-value handling',
+    (key) => {
+      for (const value of [
+        '',
+        '   ',
+        '0x1234567890123456789012345678901234567890',
+      ]) {
+        expect(
+          validateRecord({ type: 'address', key, value, id: 60, isNew: true }),
+        ).toBe(
+          key ? 'Unsupported coin. Select a supported coin.' : 'Select a coin.',
+        )
+      }
+    },
+  )
+
+  it.each(['', '0x1234567890123456789012345678901234567890'])(
+    'does not validate a missing coin as ETH on an existing row with value %j',
+    (value) => {
+      expect(validateRecord({ type: 'address', key: '', value, id: 60 })).toBe(
+        'Select a coin.',
+      )
+    },
+  )
+
+  it('rejects a new recognized coin paired with another coin type', () => {
+    expect(
+      validateRecord({
+        type: 'address',
+        key: 'BTC',
+        value: '',
+        id: 60,
+        isNew: true,
+      }),
+    ).toBe('Coin does not match record coin type.')
+  })
+
   describe('address validation (coin address-encoder 3.0.0 removed)', () => {
     // An existing Binance Chain (714) record can still be edited: ensjs encodes it.
     const bnbRecord = (value: string): EditableRecord => ({

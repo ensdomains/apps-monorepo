@@ -92,7 +92,7 @@ export function CoinSelect({
             placeholder="Search coins..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border-0 p-0 shadow-none focus-visible:ring-0"
+            className="border-0 py-0 shadow-none focus-visible:ring-0"
           />
         </div>
         <div className="max-h-[300px] overflow-y-auto p-1">
