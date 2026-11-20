@@ -195,6 +195,21 @@ describe('V1 renewal state machine', () => {
     actor.stop()
   })
 
+  it('renews on retry when the expiry moved but stayed below the paid target', async () => {
+    mocks.submitRenewActor
+      .mockReturnValueOnce(errAsync(new Error('Temporary failure')))
+      .mockReturnValueOnce(okAsync('renewal-tx'))
+    const actor = startRenewal()
+    await waitForState(actor, 'failure')
+
+    mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY + 1n))
+    actor.send({ type: 'retry' })
+    await waitForState(actor, 'success')
+
+    expect(mocks.submitRenewActor).toHaveBeenCalledTimes(2)
+    actor.stop()
+  })
+
   it('passes the V1 renewer to allowance, approval, and renewal actors', async () => {
     mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(0n))
     const actor = startRenewal('v1')
