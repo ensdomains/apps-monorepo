@@ -871,7 +871,7 @@ describe('submitWarpTransaction — paid from an L2', () => {
 
   it('approves Permit2 when the quote has no permit, then signs a fresh quote', async () => {
     const { wallet, source, request, signer } = setup()
-    const fresh = { ...UNAPPROVED_QUOTE, amountIn: 5_013_000n }
+    const fresh = { ...QUOTE, amountIn: 5_013_000n }
     vi.mocked(quoteL2Bridge)
       .mockReturnValueOnce(okAsync(UNAPPROVED_QUOTE))
       .mockReturnValueOnce(okAsync(fresh))
@@ -882,6 +882,18 @@ describe('submitWarpTransaction — paid from an L2', () => {
     // The fee cap's worth on top, so any route the validator accepts is allowed.
     expect(source.ensureAllowance).toHaveBeenCalledWith(6_000_000n)
     expect(submitL2Bridge).toHaveBeenCalledWith(wallet, fresh)
+  })
+
+  // The orchestrator's node may not see the approval yet; that intent would fail at claim.
+  it('refuses a fresh quote that still asks for the approval, without signing', async () => {
+    const { source, request, signer } = setup()
+    vi.mocked(quoteL2Bridge).mockReturnValue(okAsync(UNAPPROVED_QUOTE))
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(L2PaymentNotSentError)
+    expect(source.ensureAllowance).toHaveBeenCalledOnce()
+    expect(submitL2Bridge).not.toHaveBeenCalled()
   })
 
   it('reports a failed approval as never sent, without signing', async () => {

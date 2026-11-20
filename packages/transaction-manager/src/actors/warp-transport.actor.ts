@@ -212,7 +212,18 @@ function submitL2FundedIntent(
       ? yield* fromPromise(
           source.ensureAllowance(amountOut + l2BridgeMaxFee(amountOut)),
           notSent('approve USDC for Permit2'),
-        ).andThen(quotePayment)
+        )
+          .andThen(quotePayment)
+          // Signed now, it would fail at claim; the orchestrator hasn't seen the approval.
+          .andThen((fresh) =>
+            fresh.needsOnchainApproval
+              ? err(
+                  notSent('quote the payment')(
+                    new Error('the route still asks for a USDC approval'),
+                  ),
+                )
+              : ok(fresh),
+          )
       : firstQuote
     const intent = yield* submitL2Bridge(wallet, quote).mapErr((error) => {
       if (error instanceof L2BridgeUnconfirmedError) {
