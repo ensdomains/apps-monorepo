@@ -24,7 +24,7 @@ export interface EnsData {
 /** Cap the avatar payload to avoid memory-exhaustion / amplification abuse. */
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
-/** Longest inline avatar URI we embed: {@link AVATAR_MAX_BYTES} once base64-encoded. */
+/** Longest inline avatar payload we embed: {@link AVATAR_MAX_BYTES} once base64-encoded. */
 const INLINE_AVATAR_MAX_CHARS = Math.ceil(AVATAR_MAX_BYTES / 3) * 4
 
 /**
@@ -114,7 +114,8 @@ export async function resolveAvatarDataUri(
     // through without re-fetching (fetching a huge data: URI is itself abusable).
     // Still enforce the card's accepted MIME types on the embedded one.
     if (resolved.kind === 'inline') {
-      return resolved.uri.length <= INLINE_AVATAR_MAX_CHARS &&
+      const payload = resolved.uri.slice(resolved.uri.indexOf(',') + 1)
+      return payload.length <= INLINE_AVATAR_MAX_CHARS &&
         isOgAvatarDataUri(resolved.uri)
         ? inlineAvatarDataUri(resolved.uri, images)
         : null

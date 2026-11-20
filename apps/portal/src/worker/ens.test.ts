@@ -195,12 +195,15 @@ describe('resolveAvatarDataUri (worker)', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it('returns null for an inline data: URI past the byte cap', async () => {
-    const inline = `data:image/png;base64,${'A'.repeat(Math.ceil((5 * 1024 * 1024 + 3) / 3) * 4)}`
+  it.each([
+    [5 * 1024 * 1024, true],
+    [5 * 1024 * 1024 + 3, false],
+  ])('embeds an inline payload of %i bytes: %s', async (bytes, isEmbedded) => {
+    const inline = `data:image/png;base64,${'A'.repeat(Math.ceil(bytes / 3) * 4)}`
 
     const result = await resolveAvatarDataUri(client, inline)
 
-    expect(result).toBeNull()
+    expect(result).toBe(isEmbedded ? inline : null)
   })
 
   it('rejects inline data: URIs with a non-image MIME type without fetching', async () => {

@@ -7,6 +7,7 @@ describe('isOgAvatarContentType', () => {
     ['image/jpeg', true],
     ['image/webp', true],
     ['image/png; charset=binary', true],
+    ['IMAGE/PNG', true],
     ['image/svg+xml', false],
     ['image/svg+xml; charset=utf-8', false],
     ['image/SVG+XML', false],
