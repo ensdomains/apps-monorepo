@@ -40,6 +40,7 @@ import {
 import { flattenHistoryData } from '@/utils/history/historyEventsToTableEvents'
 import { NODES_WITH_RECORDS } from './useNodesWithRecords'
 import { RESOLVER_ROLES_FOR_ACCOUNT } from './useResolverCallerAdminRoles'
+import { userPermissionedResolversQueryKey } from './useUserPermissionedResolvers'
 
 /**
  * A name that shares its record with at least one other name on this resolver.
@@ -656,13 +657,15 @@ const RESOLVER_QUERY_KEYS: ReadonlySet<unknown> = new Set([
 const isResolver = (value: unknown, address: Address): boolean =>
   String(value).toLowerCase() === address.toLowerCase()
 
-/** Refreshes what a write to the resolver's links or roles changes, the caller's role reads included. */
+/** Refreshes what a write to the resolver's links or roles changes, the caller's role reads and resolver picker included. */
 export const invalidateResolverOverview = (
   queryClient: QueryClient,
   address: Address,
 ) =>
   queryClient.invalidateQueries({
     predicate: ({ queryKey: [key, params] }) => {
+      // The Change resolver picker lists resolvers by the caller's root roles, on any resolver.
+      if (key === userPermissionedResolversQueryKey.key) return true
       if (typeof params !== 'object' || params === null) return false
       if (RESOLVER_QUERY_KEYS.has(key))
         return 'address' in params && isResolver(params.address, address)
