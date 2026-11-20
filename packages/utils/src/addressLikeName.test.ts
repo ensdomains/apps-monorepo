@@ -26,10 +26,14 @@ describe('isAddressLikeName', () => {
     ],
     ['a Bitcoin P2PKH address', '1a1zp1ep5qgefi2dmptftl5slmv7divfna.eth'],
     ['a Bitcoin P2SH address', '3j98t1wpez73cnmqviecrnyiwrnqrhwnly.eth'],
-    ['a short Bitcoin P2PKH address', '1boatslrhzbwx9t7e8m3vgnbmqn6p4.eth'],
+    ['a short Bitcoin P2PKH address', '1111111111111111111114olvt2.eth'],
     [
       'a Bitcoin P2PKH address with few digits',
       '1LfdMrcyu1TfXrVTKoEAtYMRdgkySWFNSk.eth',
+    ],
+    [
+      'a Bitcoin P2PKH address with almost no digits',
+      '1hnjkwjimlixzzbgyvawefejsfbkbgkzq3.eth',
     ],
     ['a Solana address', '9wzdxwbbmkg8ztbnmquxvqrayrzzdsgydlvl9zytawwm.eth'],
     [
@@ -41,10 +45,18 @@ describe('isAddressLikeName', () => {
       '4CCfxWgJFwbMqiJdK8bexFCvJhoPJgFLwXZBQCWgjutS.eth',
     ],
     [
+      'a Solana address with almost no digits',
+      'bbvcvtbhgumnlmwlbymfesxdll73pdtrhhpxcyxrtyyo.eth',
+    ],
+    [
       'a Solana address with clustered digits',
       'so11111111111111111111111111111111111111112.eth',
     ],
     ['the Solana system program', `${'1'.repeat(32)}.eth`],
+    [
+      'a name as long as a Solana address, which it spells with `L`',
+      'thisisaverylongnamethatsomeonemightregister.eth',
+    ],
     ['an address-like subname', `${VITALIK}.base.eth`],
     ['a name under an address-like parent', `pay.${VITALIK}.eth`],
     ['an address-like DNS name', `${VITALIK}.xyz`],
@@ -57,10 +69,7 @@ describe('isAddressLikeName', () => {
     ['a short 0x vanity name', '0xvitalik.eth'],
     ['a short hex name', '0xdeadbeef.eth'],
     ['a long name ending in a year', 'thebestcoffeeshopinnewyorkcity2024.eth'],
-    [
-      'a long all-letter name',
-      'thisisaverylongnamethatsomeonemightregister.eth',
-    ],
+    ['a name of words and digits', 'hellomr1solanahowareyou2thankyou.eth'],
     [
       'a Solana-length name with a year',
       'summerroadtripwithallmyfriends1999.eth',
@@ -72,7 +81,7 @@ describe('isAddressLikeName', () => {
     ],
     [
       'a name starting with bc1 that is not bech32',
-      'bc1isthebestnameforbitcoinfansaroundtheworld.eth',
+      'bc1isthebestnameforbitcoinfansallaroundyou.eth',
     ],
     ['an emoji name', '👍👍👍.eth'],
   ])('allows %s', (_case, name) => {
