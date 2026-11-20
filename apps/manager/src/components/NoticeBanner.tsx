@@ -8,7 +8,7 @@ import { useLingui } from '@lingui/react/macro'
 import { XIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNoticeBanner } from '@/lib/posthog/useNoticeBanner'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 const VARIANT_CLASSES: Record<NoticeBannerVariant, string> = {
   info: 'bg-ens-lapis-bg text-ens-lapis-dense',
@@ -38,7 +38,7 @@ export const NoticeBanner = () => {
 
   return (
     <div
-      className={tw(
+      className={cn(
         'sticky top-0 z-40 flex w-full items-center gap-3 px-4 py-2 text-sm',
         VARIANT_CLASSES[notice.variant],
       )}

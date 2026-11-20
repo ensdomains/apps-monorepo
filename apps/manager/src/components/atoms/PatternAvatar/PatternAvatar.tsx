@@ -5,7 +5,7 @@ import {
 } from '@ensdomains/etherloom'
 import { useMemo } from 'react'
 
-import { twm } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 const etherloomPattern: PatternName = 'ENS Vertical Pairs'
 const defaultEtherloomColor = '#0082BB'
@@ -41,7 +41,7 @@ export const PatternAvatar = ({
 
   return (
     <div
-      className={twm(
+      className={cn(
         'flex h-full w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 shadow-inner',
         className,
       )}

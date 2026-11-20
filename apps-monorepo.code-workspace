@@ -32,6 +32,6 @@
       "source.organizeImports.biome": "explicit",
       "source.fixAll.biome": "explicit"
     },
-    "tailwindCSS.classFunctions": ["cva", "clsx", "cn", "tw", "twm"],
+    "tailwindCSS.classFunctions": ["cva", "clsx", "cn"],
   }
 }

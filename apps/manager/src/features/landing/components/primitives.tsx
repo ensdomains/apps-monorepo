@@ -1,7 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
-import { tw } from '@/utils/tailwind'
 
 /**
  * A repeating weave pattern SVG background.
@@ -86,7 +85,12 @@ export const ChatBubble = ({
     >
       {/* Main bubble */}
       <div
-        className={tw`rounded-sm px-4 py-3 font-medium text-sm leading-ens-tight shadow-sm md:text-lg ${kind === 'message' ? 'bg-ens-white text-ens-gray' : 'bg-ens-lapis-core text-ens-white'}`}
+        className={cn(
+          'rounded-sm px-4 py-3 font-medium text-sm leading-ens-tight shadow-sm md:text-lg',
+          kind === 'message'
+            ? 'bg-ens-white text-ens-gray'
+            : 'bg-ens-lapis-core text-ens-white',
+        )}
       >
         {children}
       </div>

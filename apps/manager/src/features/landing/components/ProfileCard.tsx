@@ -3,7 +3,7 @@ import { CalendarIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { formatDashboardDate } from '@/features/dashboard/utils'
-import { tw, twm } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
 const COLOR_VARIANTS = {
   garnet: {
@@ -85,7 +85,7 @@ export const ProfileCard = ({
 }) => {
   return (
     <motion.div
-      className={twm(
+      className={cn(
         'w-full overflow-hidden rounded-xl',
         COLOR_VARIANTS[variant].bg,
         className,
@@ -100,63 +100,84 @@ export const ProfileCard = ({
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
     >
       <div
-        className={tw`relative mb-18 h-32 w-full ${COLOR_VARIANTS[variant].surface.bg}`}
+        className={cn(
+          'relative mb-18 h-32 w-full',
+          COLOR_VARIANTS[variant].surface.bg,
+        )}
       >
         <img
           alt={name}
-          className={tw`absolute -bottom-1/2 left-5 size-32 rounded-full border-4 ${COLOR_VARIANTS[variant].border}`}
+          className={cn(
+            'absolute -bottom-1/2 left-5 size-32 rounded-full border-4',
+            COLOR_VARIANTS[variant].border,
+          )}
           src={avatarUrl}
         />
       </div>
 
       <div className="px-4 pb-4">
         <p
-          className={tw`w-fit rounded-sm p-2.5 font-medium text-ens-white text-lg leading-ens-none ${COLOR_VARIANTS[variant].core.bg}`}
+          className={cn(
+            'w-fit rounded-sm p-2.5 font-medium text-ens-white text-lg leading-ens-none',
+            COLOR_VARIANTS[variant].core.bg,
+          )}
         >
           {name}
         </p>
         <p
-          className={tw`mt-3 flex items-center gap-1.5 font-normal font-sans text-sm ${COLOR_VARIANTS[variant].surface.text}`}
+          className={cn(
+            'mt-3 flex items-center gap-1.5 font-normal font-sans text-sm',
+            COLOR_VARIANTS[variant].surface.text,
+          )}
         >
           <span>
             <CalendarIcon className="inline-block size-4" />{' '}
             <Trans>Registered</Trans>{' '}
           </span>
           <span
-            className={tw`font-medium ${COLOR_VARIANTS[variant].core.text}`}
+            className={cn('font-medium', COLOR_VARIANTS[variant].core.text)}
           >
             {formatDashboardDate(registeredDate)}
           </span>
         </p>
 
         <p
-          className={tw`mt-4 font-serif text-base leading-ens-none ${COLOR_VARIANTS[variant].core.text}`}
+          className={cn(
+            'mt-4 font-serif text-base leading-ens-none',
+            COLOR_VARIANTS[variant].core.text,
+          )}
         >
           {description}
         </p>
 
-        <div className={tw`my-4 h-px w-full ${COLOR_VARIANTS[variant].bg2}`} />
+        <div className={cn('my-4 h-px w-full', COLOR_VARIANTS[variant].bg2)} />
         <p
-          className={tw`mb-3 font-medium text-lg ${COLOR_VARIANTS[variant].core.text}`}
+          className={cn(
+            'mb-3 font-medium text-lg',
+            COLOR_VARIANTS[variant].core.text,
+          )}
         >
           <Trans>links</Trans>
         </p>
         <div className="flex flex-wrap gap-2">
           {links.map(({ icon, href, title }) => (
             <a
-              className={tw`flex items-center gap-1 rounded-sm p-2 ${COLOR_VARIANTS[variant].bg2}`}
+              className={cn(
+                'flex items-center gap-1 rounded-sm p-2',
+                COLOR_VARIANTS[variant].bg2,
+              )}
               href={href}
               key={href}
               rel="noopener noreferrer"
               target="_blank"
             >
               <span
-                className={tw`size-4 ${COLOR_VARIANTS[variant].surface.text}`}
+                className={cn('size-4', COLOR_VARIANTS[variant].surface.text)}
               >
                 {icon}
               </span>
               <span
-                className={tw`font-normal ${COLOR_VARIANTS[variant].core.text}`}
+                className={cn('font-normal', COLOR_VARIANTS[variant].core.text)}
               >
                 {title}
               </span>

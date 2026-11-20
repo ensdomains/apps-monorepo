@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { UnreadDot } from '../notifications/UnreadBadge'
 import { AccountTriggerContent } from './AccountTriggerContent'
 
@@ -9,7 +9,7 @@ export const AccountTriggerButton = ({
 }: ComponentProps<'button'>) => {
   return (
     <button
-      className={tw('group relative flex items-center gap-2', className)}
+      className={cn('group relative flex items-center gap-2', className)}
       type="button"
       {...props}
     >

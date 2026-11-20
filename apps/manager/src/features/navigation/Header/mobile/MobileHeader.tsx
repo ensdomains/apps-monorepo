@@ -5,7 +5,7 @@ import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { useDebounce } from '@/hooks/useDebounce'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { MobileAccountDrawer } from '../account/MobileAccountDrawer'
 import { MobileNavigationDrawer } from '../navigation/MobileNavigationDrawer'
 import {
@@ -50,7 +50,7 @@ export const MobileHeader = ({
   return (
     <header className="sticky top-0 z-20">
       <nav
-        className={tw(
+        className={cn(
           'relative flex h-[54px] min-w-0 items-center px-4 py-2',
           hasBlurredBackground && floatingWrapperGlassClassName,
           transparentBackground && !hasBlurredBackground && 'bg-transparent',

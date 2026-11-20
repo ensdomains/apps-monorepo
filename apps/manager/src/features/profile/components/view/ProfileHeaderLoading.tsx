@@ -6,7 +6,6 @@ import {
 } from '@/components/ui/material-symbol'
 import { getLoadingHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { cn } from '@/lib/utils'
-import { tw } from '@/utils/tailwind'
 import { ProfileDesktopActionsLoading } from './ProfileActionsLoading'
 import { ProfileNameBadgeRow } from './ProfileDetails'
 import { getMotionProps, SkeletonBlock } from './ProfileLoadingPrimitives'
@@ -54,7 +53,7 @@ const NeutralAvatarLoading = ({
     <div className="grid size-full grid-cols-6 grid-rows-6 gap-1.5">
       {neutralAvatarCellIds.map((cellId) => (
         <div
-          className={tw(
+          className={cn(
             'rounded-xs',
             neutralAvatarFilledCells.has(cellId)
               ? 'bg-ens-quartz-300'
@@ -80,7 +79,7 @@ const ProfileNameBadgeLoading = ({
   <ProfileNameBadgeRow
     badge={
       <div
-        className={tw(
+        className={cn(
           'relative inline-flex min-w-0 max-w-full items-center overflow-hidden rounded-[3px] px-3 py-1.5',
           name ? 'bg-ens-quartz-700 text-white' : 'bg-ens-quartz-200',
         )}
@@ -128,7 +127,7 @@ const ProfileDetailLoading = ({
     </div>
     <div className="flex min-w-0 items-center gap-0.5 py-1">
       <SkeletonBlock
-        className={tw('h-[13px] rounded-sm', valueWidth)}
+        className={cn('h-[13px] rounded-sm', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
       {hasCopy ? (
@@ -231,7 +230,7 @@ export const ProfileHeaderLoading = ({
                     shouldReduceMotion={shouldReduceMotion}
                   />
                   <SkeletonBlock
-                    className={tw(
+                    className={cn(
                       'h-[13px]',
                       id === 'timezone' ? 'w-36' : 'w-24',
                     )}

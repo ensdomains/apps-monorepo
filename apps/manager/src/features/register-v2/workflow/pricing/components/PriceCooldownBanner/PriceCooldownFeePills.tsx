@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { AnimatedPrice } from '../AnimatedPrice'
 import type { PriceCooldownFees } from './types'
 
@@ -26,7 +26,7 @@ const FeePill = ({
   layout = 'row',
 }: FeePillProps) => (
   <div
-    className={tw(
+    className={cn(
       'relative flex min-h-[78px] flex-col items-center justify-center gap-1.5 rounded-xl px-4 py-3',
       'lg:min-h-11.5 lg:flex-row lg:justify-start lg:gap-3 lg:py-2',
       variant === 'base' ? 'bg-[#effafe]' : 'bg-ens-lapis-100',
@@ -39,7 +39,7 @@ const FeePill = ({
     </span>
     <div className="flex items-center gap-0.5">
       <span
-        className={tw(
+        className={cn(
           'font-medium font-mono text-base tabular-nums leading-normal tracking-tight',
           variant === 'premium' ? 'text-ens-lapis-500' : 'text-[#1d293d]',
         )}

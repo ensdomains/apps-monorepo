@@ -286,7 +286,7 @@
 
     {
       "id": "cn-class-helper",
-      "rule": "Use `cn` from `@/lib/utils` for conflict-resolving Tailwind class merges. Don't introduce `tw`/`twm` unless the surrounding area already uses them.",
+      "rule": "Use `cn` from `@/lib/utils` to build every Tailwind class list; it is the only class helper.",
       "scope": ["apps/**/*.tsx"],
       "severity": "medium"
     },

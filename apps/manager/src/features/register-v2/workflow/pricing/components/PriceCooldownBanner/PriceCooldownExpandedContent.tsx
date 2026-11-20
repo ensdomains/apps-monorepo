@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { cn } from '@/lib/utils'
 import { isFeatureEnabled } from '@/utils/feature-flags'
-import { tw } from '@/utils/tailwind'
 import { PriceCooldownDecayChart } from './PriceCooldownDecayChart'
 import type { PriceCooldownDemand, PriceCooldownInfo } from './types'
 import type { PriceCooldownChartSelection } from './usePriceCooldownChartSelection'
@@ -117,7 +117,7 @@ const TargetPriceField = ({
         </span>
       </p>
       <label
-        className={tw(
+        className={cn(
           'flex h-12 w-full cursor-text items-center gap-2 overflow-hidden',
           'rounded border border-ens-quartz-200 bg-white px-4',
           'focus-within:border-ens-lapis-400',
@@ -125,7 +125,7 @@ const TargetPriceField = ({
       >
         <span className="text-ens-quartz-900 text-sm">$</span>
         <input
-          className={tw(
+          className={cn(
             'min-w-[2ch] flex-initial [field-sizing:content]',
             'border-0 bg-transparent p-0 text-ens-quartz-900 text-sm outline-none',
             'placeholder:text-ens-quartz-360',
@@ -205,7 +205,7 @@ export const PriceCooldownExpandedContent = ({
           timezoneLabel={timezoneLabel}
         />
         <div
-          className={tw(
+          className={cn(
             'rounded-xl border-[#80c4e0] border-[0.5px] bg-[#effafe] p-4',
           )}
         >

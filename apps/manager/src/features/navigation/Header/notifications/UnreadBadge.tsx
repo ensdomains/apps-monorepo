@@ -1,4 +1,4 @@
-import { tw } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 import { useUnreadNotificationsCount } from './useUnreadNotificationsCount'
 
 type UnreadBadgeProps = {
@@ -13,7 +13,7 @@ type UnreadCountPillProps = UnreadBadgeProps & {
 
 export const UnreadCountPill = ({ count, className }: UnreadCountPillProps) => (
   <span
-    className={tw(
+    className={cn(
       'flex size-5 items-center justify-center rounded-full bg-ens-signal-danger-100 text-ens-signal-danger-600 text-xs leading-none tracking-ens-wide',
       className,
     )}
@@ -29,7 +29,7 @@ export const UnreadDot = ({ className }: UnreadBadgeProps) => {
 
   return (
     <div
-      className={tw(
+      className={cn(
         'size-3 rounded-full bg-ens-signal-danger-500 md:size-3.5',
         className,
       )}

@@ -1,14 +1,14 @@
 import { Link, type LinkOptions } from '@tanstack/react-router'
 import type React from 'react'
-import { tw, twm } from '@/utils/tailwind'
+import { cn } from '@/lib/utils'
 
-const accountMenuRowClassName = tw(
+const accountMenuRowClassName = cn(
   'group flex w-full items-center gap-2 rounded p-3 text-left text-base text-ens-quartz-900 leading-ens-none transition-colors',
 )
 
-const accountMenuItemClassName = tw(
+const accountMenuItemClassName = cn(
   accountMenuRowClassName,
-  'not-aria-disabled:not-disabled:hover:bg-ens-quartz-50 aria-disabled:cursor-not-allowed aria-disabled:text-ens-quartz-350 disabled:cursor-not-allowed disabled:text-ens-quartz-350',
+  'not-aria-disabled:not-disabled:hover:bg-ens-quartz-50 disabled:cursor-not-allowed disabled:text-ens-quartz-350 aria-disabled:cursor-not-allowed aria-disabled:text-ens-quartz-350',
 )
 
 type AccountMenuItemContentProps = {
@@ -40,7 +40,7 @@ export const AccountMenuItemLink = ({
   onClick,
 }: AccountMenuItemLinkProps) => (
   <Link
-    activeProps={{ className: tw`bg-ens-quartz-50` }}
+    activeProps={{ className: cn('bg-ens-quartz-50') }}
     className={accountMenuItemClassName}
     onClick={() => {
       if (link.disabled) return
@@ -62,7 +62,7 @@ export const AccountMenuItemButton = ({
   ...props
 }: AccountMenuItemButtonProps) => (
   <button
-    className={twm(accountMenuItemClassName, className)}
+    className={cn(accountMenuItemClassName, className)}
     type="button"
     {...props}
   >
@@ -79,7 +79,7 @@ export const AccountMenuItemStatus = ({
   className,
   ...props
 }: AccountMenuItemStatusProps) => (
-  <div className={twm(accountMenuRowClassName, className)} {...props}>
+  <div className={cn(accountMenuRowClassName, className)} {...props}>
     <AccountMenuItemContent prefix={prefix}>{children}</AccountMenuItemContent>
   </div>
 )
