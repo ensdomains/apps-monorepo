@@ -34,6 +34,7 @@ import {
   getRenewerAddress,
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
+import { hasReachedRenewalTarget } from '@/features/renew/utils/renewalTarget'
 import { getRunPaymentToken, type RENEWAL_TOKEN } from '@/lib/tokens'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -293,7 +294,12 @@ export const renewalUiMachine = setup({
     isHcaRenewal: ({ context }) =>
       context.submissionData?.signer.type === 'rhinestone',
     alreadyRenewed: ({ context }, params: { expiry: bigint | null }) =>
-      params.expiry !== null && params.expiry > context.currentExpiry,
+      context.submissionData !== undefined &&
+      hasReachedRenewalTarget({
+        expiry: params.expiry,
+        currentExpiry: context.currentExpiry,
+        duration: context.submissionData.duration,
+      }),
   },
   actions: {
     setDuration: assign({

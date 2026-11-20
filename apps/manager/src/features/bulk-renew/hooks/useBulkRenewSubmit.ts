@@ -34,6 +34,7 @@ import {
 import type { HcaRenewalEthFunding } from '@/features/renew/service/renewalEthSwap'
 import { chunkRenewalItems } from '@/features/renew/utils/chunks'
 import { getRenewerAddress } from '@/features/renew/utils/renewalProtocol'
+import { hasReachedRenewalTarget } from '@/features/renew/utils/renewalTarget'
 import { ENS_LABS_REFERRER } from '@/lib/referrer'
 import {
   useHcaFundingPrompt,
@@ -314,7 +315,7 @@ const runHcaRenewals = ResultFn(async function* (
 })
 
 /**
- * Labels whose on-chain expiry has moved past the one their run started from.
+ * Labels whose on-chain expiry reached the target their run paid for.
  * A renewal can land and still fail its wait, so a retry checks before paying.
  */
 const findAlreadyRenewed = ResultFn(async function* (
@@ -325,10 +326,13 @@ const findAlreadyRenewed = ResultFn(async function* (
   )
   return ok(
     items
-      .filter((item, index) => {
-        const expiry = expiries[index]?.expiry
-        return expiry != null && expiry > item.currentExpiry
-      })
+      .filter((item, index) =>
+        hasReachedRenewalTarget({
+          expiry: expiries[index]?.expiry ?? null,
+          currentExpiry: item.currentExpiry,
+          duration: item.duration,
+        }),
+      )
       .map((item) => item.label),
   )
 })
