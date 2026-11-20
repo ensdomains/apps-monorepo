@@ -20,7 +20,7 @@ interface ExtendSubnameExpiryInput {
   readonly id: string
 }
 
-/** Moves an ENSv2 subname's expiry later, then refreshes the parent's subnames. */
+/** Moves an ENSv2 subname's expiry later, then refreshes its expiry and the parent's subnames. */
 export const useExtendSubnameExpiryMutation = ({
   name,
   registryAddress,
@@ -62,8 +62,10 @@ export const useExtendSubnameExpiryMutation = ({
       )
       return waitForTransaction(txId)
     },
-    onSuccess: () => {
-      refreshSubnameQueries(queryClient, { name, protocolVersion: 'ENSv2' })
+    onSuccess: (_, { subname }) => {
+      refreshSubnameQueries(queryClient, { name, protocolVersion: 'ENSv2' }, [
+        subname,
+      ])
     },
   })
 }
