@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "test": "node --experimental-strip-types src/drawerRequest.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "biome check"
   },

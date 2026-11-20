@@ -66,6 +66,7 @@ export type UseV1RenewableResult = {
   readonly isRenewable: (name: string) => boolean
   /** True while any name's `isRenewable` query is still resolving. */
   readonly isLoading: boolean
+  readonly hasError: boolean
 }
 
 /**
@@ -87,5 +88,9 @@ export function useV1Renewable(names: readonly string[]): UseV1RenewableResult {
   })
   const renewable = new Set(names.filter((_, i) => queries[i]?.data === true))
   const isLoading = queries.some((query) => query.isLoading)
-  return { isRenewable: (name) => renewable.has(name), isLoading }
+  return {
+    isRenewable: (name) => renewable.has(name),
+    isLoading,
+    hasError: queries.some((query) => query.isError),
+  }
 }

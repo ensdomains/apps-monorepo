@@ -1,4 +1,3 @@
-import { DevDrawer } from '@ens-apps/dev-tools'
 import {
   TransactionManagerProvider,
   transactionManager,
@@ -19,6 +18,7 @@ import { AnalyticsConsentBanner } from '@/components/AnalyticsConsentBanner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NoticeBanner } from '@/components/NoticeBanner'
 import { isSepoliaBuild } from '@/config'
+import { CommandPaletteProvider } from '@/features/command-palette/CommandPaletteProvider'
 import { useTransactionManagerAccount } from '@/features/transaction-manager/hooks/useTransactionManagerAccount'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
@@ -113,17 +113,14 @@ export const Route = createRootRoute({
             <ConnectModalProvider>
               <TransactionManagerSetup>
                 <PHProvider>
-                  <NoticeBanner />
-                  <Outlet />
-                  <AnalyticsConsentBanner />
+                  <CommandPaletteProvider>
+                    <NoticeBanner />
+                    <Outlet />
+                    <AnalyticsConsentBanner />
+                  </CommandPaletteProvider>
                 </PHProvider>
               </TransactionManagerSetup>
             </ConnectModalProvider>
-            {/* Inside QueryClientProvider on purpose: the dev panels use
-                useQueryClient/useQuery (to invalidate the app's own queries
-                after seeding a name or warping time), so mounting them outside
-                it throws as soon as the drawer is opened. */}
-            <DevDrawer />
           </QueryClientProvider>
         </WagmiProvider>
 

@@ -36,6 +36,8 @@ type SidebarContextProps = {
   setOpen: (open: boolean) => void
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
+  closeMobileSidebar: (onClosed: () => void) => void
+  onMobileSidebarCloseAutoFocus: (event: Event) => void
   isMobile: boolean
   toggleSidebar: () => void
 }
@@ -66,6 +68,25 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  const pendingMobileClose = React.useRef<(() => void) | null>(null)
+  const closeMobileSidebar = React.useCallback(
+    (onClosed: () => void) => {
+      if (!openMobile) {
+        onClosed()
+        return
+      }
+      pendingMobileClose.current = onClosed
+      setOpenMobile(false)
+    },
+    [openMobile],
+  )
+  const onMobileSidebarCloseAutoFocus = React.useCallback((event: Event) => {
+    const onClosed = pendingMobileClose.current
+    pendingMobileClose.current = null
+    if (!onClosed) return
+    event.preventDefault()
+    onClosed()
+  }, [])
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -106,9 +127,20 @@ function SidebarProvider({
       isMobile,
       openMobile,
       setOpenMobile,
+      closeMobileSidebar,
+      onMobileSidebarCloseAutoFocus,
       toggleSidebar,
     }),
-    [state, open, setOpen, isMobile, openMobile, toggleSidebar],
+    [
+      state,
+      open,
+      setOpen,
+      isMobile,
+      openMobile,
+      toggleSidebar,
+      closeMobileSidebar,
+      onMobileSidebarCloseAutoFocus,
+    ],
   )
 
   return (
@@ -148,7 +180,13 @@ function Sidebar({
   variant?: 'sidebar' | 'floating' | 'inset'
   collapsible?: 'offcanvas' | 'icon' | 'none'
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const {
+    isMobile,
+    state,
+    openMobile,
+    setOpenMobile,
+    onMobileSidebarCloseAutoFocus,
+  } = useSidebar()
 
   if (collapsible === 'none') {
     return (
@@ -179,6 +217,7 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          onCloseAutoFocus={onMobileSidebarCloseAutoFocus}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>

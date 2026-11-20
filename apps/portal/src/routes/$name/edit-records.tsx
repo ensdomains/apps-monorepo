@@ -27,6 +27,7 @@ import { PendingChangesBar } from '@/features/records/components/PendingChangesB
 import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
 import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
+import { useEditRecordsLeaveProtection } from '@/features/records/hooks/useEditRecordsLeaveProtection'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
@@ -272,6 +273,8 @@ const EditRecordsContent = ({
     discardAll,
   } = useEditRecordsState(originalRecords)
 
+  useEditRecordsLeaveProtection(changesCount)
+
   const {
     isOpen: isTransactionModalOpen,
     closeModal: closeTransactionModal,
@@ -301,7 +304,7 @@ const EditRecordsContent = ({
   // This avoids the issue where deleted records reappear if we clear local state
   // before the indexer has caught up.
   const handleSyncComplete = useCallback(() => {
-    navigate({ to: '/$name/records', params: { name } })
+    navigate({ to: '/$name/records', params: { name }, ignoreBlocker: true })
   }, [navigate, name])
 
   // Save records hook

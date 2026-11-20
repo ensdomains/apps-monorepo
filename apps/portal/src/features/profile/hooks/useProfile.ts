@@ -24,6 +24,7 @@ class GetLegacyResolverError extends TaggedError('GetLegacyResolverError')<{
 
 type GetProfileParameters = {
   readonly name: string
+  readonly includeLegacyRecords?: boolean
 }
 
 const DEFAULT_COINS = [
@@ -181,6 +182,7 @@ const withExtraKeys = <
 
 export const getProfile = ResultFn(async function* ({
   name,
+  includeLegacyRecords = true,
 }: GetProfileParameters) {
   const keys = yield* getRecordKeys(name)
 
@@ -211,6 +213,8 @@ export const getProfile = ResultFn(async function* ({
     return ok({ records: wildcardRecords })
   }
 
+  if (!includeLegacyRecords) return ok({ records })
+
   // No resolver answered, which a lapsed ENSv1 name hits for the 28 days
   // between its v2 reservation expiring and its v1 grace ending. Its records
   // are still on the resolver the legacy registry names.
@@ -233,8 +237,8 @@ export const profileQueryKey = createQueryKey<'profile', GetProfileParameters>(
   'profile',
 )
 
-export const getProfileQueryOptions = ({ name }: GetProfileParameters) =>
+export const getProfileQueryOptions = (params: GetProfileParameters) =>
   resultQueryOptions({
-    queryKey: profileQueryKey({ name }),
+    queryKey: profileQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getProfile(params),
   })

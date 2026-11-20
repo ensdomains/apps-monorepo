@@ -10,14 +10,17 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   type PaginationState,
+  type Row,
   type RowSelectionState,
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
 import { FastForward, Search, XIcon } from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ListLoader } from '@/components/ListLoader/ListLoader'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -31,6 +34,10 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { chain } from '@/config'
+import { getPaletteWorkflowReadiness } from '@/features/command-palette/handoff'
+import { usePageCommands } from '@/features/command-palette/usePageCommands'
+import { usePaletteHandoff } from '@/features/command-palette/usePaletteHandoff'
 import {
   getAddressNamesQueryKey,
   getAddressNamesQueryOptions,
@@ -47,6 +54,10 @@ import {
   nameColumnVisibility,
 } from '@/features/names/components/NamesTable/columns'
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
+import {
+  isSamePaletteSelection,
+  selectPaletteNameRows,
+} from '@/features/names/utils/paletteSelection'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
 import { useV1Renewable } from '@/features/renew/hooks/useIsRenewable'
@@ -56,6 +67,7 @@ import {
 } from '@/features/renew/hooks/useRenewalTransactions'
 import {
   isExtendable2LD,
+  MS_PER_DAY,
   toSelectedName,
 } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -69,6 +81,13 @@ import { queryClient } from '@/utils/queryClient'
 
 const NO_NAMES: NameRow[] = []
 const NAMES_INITIAL_COUNT = 100
+
+const toPaletteRows = (rows: readonly Row<NameRow>[]) =>
+  rows.map((row) => ({
+    ...row.original,
+    id: row.id,
+    isSelectable: row.getCanSelect(),
+  }))
 
 export const Route = createFileRoute('/addr/$addr/names')({
   component: RouteComponent,
@@ -130,6 +149,7 @@ const NamesList = ({
     pageSize: NAMES_INITIAL_COUNT,
   })
   const [extendModalOpen, setExtendModalOpen] = useState(false)
+  const { address: connectedAddress } = useConnection()
 
   const {
     transactions: renewalTransactions,
@@ -212,6 +232,132 @@ const NamesList = ({
     onAll: () => table.setPageSize(filteredCount),
   }
 
+  const openSelectedRenewal = useCallback(() => {
+    if (extendableNames.length === 0 || renewabilityLoading) return
+    if (isTransactionInFlight(activeTxState)) {
+      openRenewalModal()
+      return
+    }
+    // Terminal attempts are stale; the existing feature owns cleanup and flow scope.
+    if (activeTxState) transactionManager.cancelTransaction(activeTxState.txId)
+    clearIncompatibleRenewalState(
+      extendableNames.length === 1 ? 'single' : 'multi',
+    )
+    setExtendModalOpen(true)
+  }, [
+    activeTxState,
+    clearIncompatibleRenewalState,
+    extendableNames.length,
+    openRenewalModal,
+    renewabilityLoading,
+  ])
+
+  usePaletteHandoff({
+    kind: 'expiring-names',
+    address,
+    account: connectedAddress,
+    chainId: chain.id,
+    readiness: 'ready',
+    onOpen: () => {
+      const now = new Date()
+      setColumnFilters([
+        {
+          id: 'expiryDate',
+          value: {
+            from: now,
+            to: new Date(now.getTime() + 30 * MS_PER_DAY),
+          },
+        },
+      ])
+    },
+  })
+
+  const shownRows = table.getRowModel().rows
+  const filteredRows = table.getFilteredRowModel().rows
+  const pageCommands = useMemo(() => {
+    const now = new Date()
+    const shownSelection = selectPaletteNameRows({
+      rows: toPaletteRows(shownRows),
+      mode: 'shown',
+      now,
+    })
+    const expiringSelection = selectPaletteNameRows({
+      rows: toPaletteRows(filteredRows),
+      mode: 'expiring',
+      now,
+    })
+    const graceSelection = selectPaletteNameRows({
+      rows: toPaletteRows(filteredRows),
+      mode: 'grace',
+      now,
+    })
+    return [
+      {
+        id: 'names.select-shown',
+        title: `Select ${Object.keys(shownSelection).length} renewal candidates currently shown`,
+        description:
+          'Replaces selection; further eligibility checks run before renewal.',
+        keywords: ['select all displayed loaded names'],
+        onSelect: () => setRowSelection(shownSelection),
+      },
+      {
+        id: 'names.select-expiring',
+        title: 'Select names expiring within 30 days',
+        description: `${Object.keys(expiringSelection).length} candidates across all filtered names; replaces selection.`,
+        keywords: ['expiry soon bulk renew extend'],
+        onSelect: () => setRowSelection(expiringSelection),
+      },
+      {
+        id: 'names.select-grace',
+        title: 'Select names in grace period',
+        description: `${Object.keys(graceSelection).length} candidates across all filtered names; replaces selection.`,
+        keywords: ['grace expired bulk renew'],
+        onSelect: () => setRowSelection(graceSelection),
+      },
+      {
+        id: 'names.clear-selection',
+        title: 'Clear name selection',
+        description: `${rowCount} currently selected`,
+        onSelect: () => setRowSelection({}),
+      },
+      {
+        id: 'names.renew-selected',
+        title: `Renew ${extendableNames.length} selected names…`,
+        description: `${rowCount} selected; opens the existing renewal review.`,
+        keywords: ['extend batch bulk'],
+        disabledReason: renewabilityLoading
+          ? 'Checking renewal eligibility…'
+          : extendableNames.length === 0
+            ? 'Select eligible names first.'
+            : undefined,
+        onSelect: () => {
+          if (
+            !isSamePaletteSelection(
+              selectedRows.map(({ id }) => id),
+              table.getSelectedRowModel().rows.map(({ id }) => id),
+            )
+          ) {
+            toast.error(
+              'The selected names changed. Review the selection and try again.',
+            )
+            return
+          }
+          openSelectedRenewal()
+        },
+      },
+    ]
+  }, [
+    extendableNames.length,
+    filteredRows,
+    openSelectedRenewal,
+    renewabilityLoading,
+    rowCount,
+    shownRows,
+    selectedRows,
+    table,
+  ])
+  usePageCommands(pageCommands)
+
   return (
     <>
       <header
@@ -250,26 +396,7 @@ const NamesList = ({
               variant="default"
               size="sm"
               disabled={extendableNames.length === 0 || renewabilityLoading}
-              onClick={() => {
-                if (isTransactionInFlight(activeTxState)) {
-                  // Reopening an attempt that is already running: reuse the
-                  // scope it was started with rather than naming a new one.
-                  openRenewalModal()
-                  return
-                }
-                // A terminal actor from a previous attempt is stale for a new
-                // one, and the step ids are scoped, so it no longer shadows
-                // the fresh attempt. Cancelling is still wanted to keep the
-                // manager's list from growing, and it is the one actor the
-                // modal's `activeTxState` lookup points at.
-                if (activeTxState) {
-                  transactionManager.cancelTransaction(activeTxState.txId)
-                }
-                clearIncompatibleRenewalState(
-                  extendableNames.length === 1 ? 'single' : 'multi',
-                )
-                setExtendModalOpen(true)
-              }}
+              onClick={openSelectedRenewal}
             >
               <FastForward className="size-4" />
               Extend
@@ -299,6 +426,13 @@ const NamesList = ({
             </InputGroup>
             <NamesFilters table={table} v2RolesState={v2RolesState} />
           </div>
+        )}
+        {rowCount > 0 && (
+          <p role="status" className="text-small text-muted-foreground">
+            {renewabilityLoading
+              ? 'Checking renewal eligibility…'
+              : `${extendableNames.length} eligible for renewal${extendableNames.length < rowCount ? `; ${rowCount - extendableNames.length} selected names are excluded` : ''}.`}
+          </p>
         )}
       </header>
       <div className="overflow-x-auto">
@@ -338,6 +472,7 @@ const NamesList = ({
 
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
+  const { address: connectedAddress } = useConnection()
 
   const namesQuery = useQuery(getAddressNamesQueryOptions({ address }))
   const rolesQuery = useQuery(getAddressRolesQueryOptions({ address }))
@@ -357,6 +492,25 @@ function RouteComponent() {
       }),
     [namesQuery.data, rolesQuery.data, rolesQuery.isError],
   )
+
+  usePaletteHandoff({
+    kind: 'expiring-names',
+    address,
+    account: connectedAddress,
+    chainId: chain.id,
+    readiness:
+      allNames.length > 0 && !namesQuery.isError
+        ? 'checking'
+        : getPaletteWorkflowReadiness({
+            isChecking: namesQuery.isLoading,
+            canOpen: false,
+            blockedReason: 'This address has no names to filter.',
+            failureReason: namesQuery.isError
+              ? 'Could not load names. Refresh this page and try again.'
+              : null,
+          }),
+    onOpen: () => {},
+  })
   if (namesQuery.isLoading) {
     return <LoadingMessage />
   }

@@ -21,8 +21,12 @@ import {
 import { filterAndSortOwnedNames } from '../utils/ownedNamesUtils'
 import {
   buildSearchResultItems,
-  isSubname,
+  getSearchNameVerificationFromQueries,
+  getSearchOwnerData,
+  getSearchVerificationPolicy,
+  type SearchNameVerification,
   type SearchResultItem,
+  type SearchVerificationMode,
   sortExactMatchFirst,
 } from '../utils/searchResultsUtils'
 import { getAddressNamesQueryOptions } from './useAddressNames'
@@ -40,6 +44,14 @@ export type UseSearchResultsParams = {
   navigateToName: (name: string) => void
   navigateToAddress: (address: string) => void
   navigateToResolver: (address: string) => void
+  readonly enabled?: boolean
+  readonly fetchOwnedNames?: boolean
+  readonly suggestionTlds?: readonly string[]
+  readonly suggestionMode?: 'expanded' | 'focused'
+  readonly verificationLimit?: number
+  readonly verificationMode?: SearchVerificationMode
+  readonly shouldDeferDnsVerification?: boolean
+  readonly queryStaleTime?: number
 }
 
 export type { SearchResultItem } from '../utils/searchResultsUtils'
@@ -58,10 +70,20 @@ export type UseSearchResultsReturn = {
   >
   /** IDs of ownerless subnames whose records resolve: offchain names. */
   readonly offchainNameIds: ReadonlySet<string>
+  readonly failedOwnerIds: ReadonlySet<string>
+  readonly failedAvailabilityIds: ReadonlySet<string>
+  readonly failedRecordsIds: ReadonlySet<string>
+  readonly nameVerificationBySuggestionId: ReadonlyMap<
+    string,
+    SearchNameVerification
+  >
   availableNames: Suggestion[]
   /** IDs of suggestions whose availability check is still in progress. */
   pendingAvailabilityIds: Set<string>
   ownedNamesFiltered: { name: string }[]
+  readonly ownedNameSuggestions: readonly { readonly name: string }[]
+  readonly isOwnedNamesLoading: boolean
+  readonly hasOwnedNamesError: boolean
   /** Flat list in render order for keyboard nav (suggestions, then available, then owned). */
   allItems: SearchResultItem[]
   isTldsLoading: boolean
@@ -80,12 +102,27 @@ export const useSearchResults = ({
   navigateToName,
   navigateToAddress,
   navigateToResolver,
+  enabled = true,
+  fetchOwnedNames = true,
+  suggestionTlds,
+  suggestionMode = 'expanded',
+  verificationLimit = Number.POSITIVE_INFINITY,
+  verificationMode = 'full',
+  shouldDeferDnsVerification = false,
+  queryStaleTime,
 }: UseSearchResultsParams): UseSearchResultsReturn => {
+  const freshness =
+    queryStaleTime === undefined ? {} : { staleTime: queryStaleTime }
   const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
-  const { validTlds, isLoading: isTldsLoading } = useSuggestionTlds(
-    !!searchValue,
-  )
+  const { validTlds: discoveredTlds, isLoading: isTldsLoading } =
+    useSuggestionTlds(
+      enabled &&
+        Boolean(searchValue) &&
+        suggestionTlds === undefined &&
+        suggestionMode === 'expanded',
+    )
+  const validTlds = suggestionTlds ?? discoveredTlds
 
   const searchedAddress = isAddress(searchValue, { strict: false })
     ? searchValue
@@ -97,7 +134,8 @@ export const useSearchResults = ({
         '0x0000000000000000000000000000000000000000') as Address,
       interfaces: Object.values(RESOLVER_INTERFACE_IDS),
     }),
-    enabled: !!searchedAddress,
+    ...freshness,
+    enabled: enabled && Boolean(searchedAddress),
   })
 
   const isResolver = resolverInterfaces?.some(Boolean) ?? false
@@ -112,6 +150,7 @@ export const useSearchResults = ({
         navigateToResolver,
         isResolver,
         validTlds,
+        suggestionMode,
       }),
     [
       searchValue,
@@ -121,16 +160,17 @@ export const useSearchResults = ({
       navigateToResolver,
       isResolver,
       validTlds,
+      suggestionMode,
     ],
   )
 
   const addressForOwned = connectedAddress ?? zeroAddress
 
-  // The same read as the wallet's names list, so suggestions cost no request
-  // of their own.
+  // Disabled observers still expose cached names without fetching a cold portfolio.
   const namesQuery = useQuery({
     ...getAddressNamesQueryOptions({ address: addressForOwned }),
-    enabled: Boolean(connectedAddress),
+    ...freshness,
+    enabled: fetchOwnedNames && Boolean(connectedAddress),
   })
 
   const ownedNamesMerged = useMemo(
@@ -183,105 +223,192 @@ export const useSearchResults = ({
     [suggestionsFiltered],
   )
 
+  const ownerSuggestions = useMemo(
+    () =>
+      nameSuggestions
+        .slice(0, verificationLimit)
+        .filter(
+          (suggestion) =>
+            getSearchVerificationPolicy(
+              suggestion.inputValue,
+              verificationMode,
+              shouldDeferDnsVerification,
+            ).shouldReadOwner,
+        ),
+    [
+      nameSuggestions,
+      verificationLimit,
+      verificationMode,
+      shouldDeferDnsVerification,
+    ],
+  )
   const ownerQueries = useQueries({
-    queries: nameSuggestions.map((s) =>
-      getEnsOwnerQueryOptions({ name: s.inputValue }),
-    ),
+    queries: ownerSuggestions.map((s) => ({
+      ...getEnsOwnerQueryOptions({ name: s.inputValue }),
+      ...freshness,
+      enabled,
+    })),
   })
 
-  // An offchain (CCIP-Read) subname has no registry owner but still resolves.
-  const ownerlessSubnames = useMemo(
+  const recordSuggestions = useMemo(
     () =>
-      nameSuggestions.filter(
-        (s, i) => ownerQueries[i]?.data === null && isSubname(s.inputValue),
-      ),
-    [nameSuggestions, ownerQueries],
+      nameSuggestions.slice(0, verificationLimit).filter((s, i) => {
+        const policy = getSearchVerificationPolicy(
+          s.inputValue,
+          verificationMode,
+          shouldDeferDnsVerification,
+        )
+        return (
+          policy.shouldReadRecords &&
+          (!policy.shouldReadOwner ||
+            (ownerQueries[i]?.data === null && !ownerQueries[i]?.isError))
+        )
+      }),
+    [
+      nameSuggestions,
+      ownerQueries,
+      verificationLimit,
+      verificationMode,
+      shouldDeferDnsVerification,
+    ],
   )
 
   const recordsQueries = useQueries({
-    queries: ownerlessSubnames.map((s) =>
-      getProfileQueryOptions({ name: s.inputValue }),
-    ),
+    queries: recordSuggestions.map((s) => ({
+      ...getProfileQueryOptions({
+        name: s.inputValue,
+        ...(verificationMode === 'discovery'
+          ? { includeLegacyRecords: false }
+          : {}),
+      }),
+      ...freshness,
+      enabled,
+    })),
   })
 
-  const offchainNameIds = useMemo(
+  const resolvedRecordIds = useMemo(
     () =>
       new Set(
-        ownerlessSubnames
-          .filter((_, i) =>
-            hasResolvedRecords(recordsQueries[i]?.data?.records),
+        recordSuggestions
+          .filter(
+            (_, i) =>
+              !recordsQueries[i]?.isError &&
+              hasResolvedRecords(recordsQueries[i]?.data?.records),
           )
           .map((s) => s.id),
       ),
-    [ownerlessSubnames, recordsQueries],
+    [recordSuggestions, recordsQueries],
+  )
+
+  const offchainNameIds = new Set(
+    ownerSuggestions
+      .filter(
+        (s, i) => ownerQueries[i]?.data === null && resolvedRecordIds.has(s.id),
+      )
+      .map(({ id }) => id),
   )
 
   const pendingRecordsIds = useMemo(
     () =>
       new Set(
-        ownerlessSubnames
-          .filter((_, i) => recordsQueries[i]?.isPending)
+        recordSuggestions
+          .filter(
+            (_, i) =>
+              recordsQueries[i]?.isPending || recordsQueries[i]?.isError,
+          )
           .map((s) => s.id),
       ),
-    [ownerlessSubnames, recordsQueries],
+    [recordSuggestions, recordsQueries],
   )
 
   const ownerBySuggestionId = useMemo(() => {
-    const m = new Map<
-      string,
-      | {
-          owner: string
-          registryAddress: string
-          protocolVersion: ProtocolVersion
-        }
-      | null
-      | undefined
-    >()
-    nameSuggestions.forEach((s, i) => {
-      const query = ownerQueries[i]
-      // Unresolved until an ownerless subname's records settle.
-      m.set(
-        s.id,
-        pendingRecordsIds.has(s.id)
-          ? undefined
-          : query?.isError
-            ? null
-            : query?.data,
-      )
-    })
-    return m
+    return new Map(
+      nameSuggestions.map((s, i) => {
+        const query = ownerQueries[i]
+        const owner = getSearchOwnerData(query, pendingRecordsIds.has(s.id))
+        return [s.id, owner] as const
+      }),
+    )
   }, [nameSuggestions, ownerQueries, pendingRecordsIds])
 
   // Owner isn't a proxy for registered: an expired name keeps a registry entry
   // pointing at the NameWrapper, so it has an owner and is still available.
   const namesToCheckAvailability = useMemo(
-    () => nameSuggestions.filter((s) => isRegistrable(s.inputValue)),
-    [nameSuggestions],
+    () =>
+      nameSuggestions
+        .slice(0, verificationLimit)
+        .filter((s) => isRegistrable(s.inputValue)),
+    [nameSuggestions, verificationLimit],
   )
 
   const availabilityQueries = useQueries({
-    queries: namesToCheckAvailability.map((s) =>
-      getNameAvailabilityQueryOptions({ name: s.inputValue }),
-    ),
+    queries: namesToCheckAvailability.map((s) => ({
+      ...getNameAvailabilityQueryOptions({ name: s.inputValue }),
+      ...freshness,
+      enabled,
+    })),
   })
 
   const availableNames = useMemo(
     () =>
       namesToCheckAvailability.filter(
-        (_, i) => availabilityQueries[i]?.data?.isAvailable === true,
+        (_, i) =>
+          !availabilityQueries[i]?.isError &&
+          availabilityQueries[i]?.data?.isAvailable === true,
       ),
     [namesToCheckAvailability, availabilityQueries],
   )
 
   const pendingAvailabilityIds = useMemo(() => {
-    const set = new Set<string>()
-    namesToCheckAvailability.forEach((s, i) => {
-      if (availabilityQueries[i]?.data === undefined) {
-        set.add(s.id)
-      }
-    })
-    return set
-  }, [namesToCheckAvailability, availabilityQueries])
+    return new Set(
+      namesToCheckAvailability
+        .filter((_, i) => enabled && availabilityQueries[i]?.isPending)
+        .map(({ id }) => id),
+    )
+  }, [namesToCheckAvailability, availabilityQueries, enabled])
+
+  const failedOwnerIds = new Set(
+    nameSuggestions
+      .filter((_, i) => ownerQueries[i]?.isError)
+      .map(({ id }) => id),
+  )
+  const failedAvailabilityIds = new Set(
+    namesToCheckAvailability
+      .filter((_, i) => availabilityQueries[i]?.isError)
+      .map(({ id }) => id),
+  )
+  const failedRecordsIds = new Set(
+    recordSuggestions
+      .filter((_, i) => recordsQueries[i]?.isError)
+      .map(({ id }) => id),
+  )
+  const nameVerificationBySuggestionId = new Map(
+    nameSuggestions.map((suggestion, index) => {
+      const ownerQuery = ownerQueries[index]
+      const recordIndex = recordSuggestions.findIndex(
+        ({ id }) => id === suggestion.id,
+      )
+      const recordQuery = recordsQueries[recordIndex]
+      const availabilityIndex = namesToCheckAvailability.findIndex(
+        ({ id }) => id === suggestion.id,
+      )
+      const availabilityQuery = availabilityQueries[availabilityIndex]
+      const verification = getSearchNameVerificationFromQueries({
+        name: suggestion.inputValue,
+        isOwnerEnabled: getSearchVerificationPolicy(
+          suggestion.inputValue,
+          verificationMode,
+          shouldDeferDnsVerification,
+        ).shouldReadOwner,
+        isEnabled: enabled && index < verificationLimit,
+        owner: ownerQuery,
+        records: recordQuery,
+        hasResolution: resolvedRecordIds.has(suggestion.id),
+        availability: availabilityQuery,
+      })
+      return [suggestion.id, verification] as const
+    }),
+  )
 
   const hasSuggestions = suggestionsFiltered.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
@@ -292,18 +419,28 @@ export const useSearchResults = ({
     () =>
       buildSearchResultItems({
         suggestions: suggestionsFiltered,
+        availableNames,
         ownedNamesFiltered,
       }),
-    [suggestionsFiltered, ownedNamesFiltered],
+    [suggestionsFiltered, availableNames, ownedNamesFiltered],
   )
 
   return {
     suggestions: suggestionsFiltered,
     ownerBySuggestionId,
     offchainNameIds,
+    failedOwnerIds,
+    failedAvailabilityIds,
+    failedRecordsIds,
+    nameVerificationBySuggestionId,
     availableNames,
     pendingAvailabilityIds,
     ownedNamesFiltered,
+    ownedNameSuggestions: ownedNamesMerged
+      .slice(0, MAX_OWNED_NAMES)
+      .map(({ name }) => ({ name })),
+    isOwnedNamesLoading: namesQuery.isLoading,
+    hasOwnedNamesError: namesQuery.isError,
     allItems,
     isTldsLoading,
     hasAnySection,

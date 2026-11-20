@@ -1,10 +1,15 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { FastForward } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import { chain } from '@/config'
+import { usePageCommands } from '@/features/command-palette/usePageCommands'
+import { usePaletteHandoff } from '@/features/command-palette/usePaletteHandoff'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
+import { getRenewalPaletteState } from '@/features/renew/utils/paletteHandoff'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
   isTransactionInFlight,
@@ -37,7 +42,11 @@ export const ExtendNameButton = ({
 }: ExtendNameButtonProps) => {
   const [open, setOpen] = useState(false)
 
-  const { canExtend, selectedName } = useCanExtend({ name, protocolVersion })
+  const { canExtend, selectedName, isChecking, hasCheckError } = useCanExtend({
+    name,
+    protocolVersion,
+  })
+  const { address } = useConnection()
 
   const { transactions, startFlow, clearIncompatibleRenewalState, openModal } =
     useRenewalTransactions({
@@ -48,28 +57,58 @@ export const ExtendNameButton = ({
 
   const activeTxState = useActiveTransactionState()
   const { isOpen: isTransactionModalOpen } = useTransactionModal()
+  const paletteState = getRenewalPaletteState({
+    name,
+    isChecking,
+    canExtend,
+    hasCheckError,
+    isOperationInFlight: isTransactionInFlight(activeTxState),
+    activeTransactionId: activeTxState?.txId,
+    transactionIds: transactions.map((transaction) => transaction.id),
+  })
+  const pageCommands = useMemo(
+    () =>
+      paletteState.canViewActiveOperation
+        ? [
+            {
+              id: 'renewal.view-active-operation',
+              title: 'View active operation',
+              description:
+                'Open the existing renewal progress shown by this page.',
+              keywords: ['active', 'pending', 'transaction', 'progress'],
+              onSelect: openModal,
+            },
+          ]
+        : [],
+    [paletteState.canViewActiveOperation, openModal],
+  )
+  usePageCommands(pageCommands)
+
+  const openRenewal = () => {
+    if (isTransactionInFlight(activeTxState)) {
+      openModal()
+      return
+    }
+    // A terminal attempt is stale; the existing flow owns its cleanup.
+    if (activeTxState) transactionManager.cancelTransaction(activeTxState.txId)
+    clearIncompatibleRenewalState('single')
+    setOpen(true)
+  }
+
+  usePaletteHandoff({
+    kind: 'renew',
+    name,
+    chainId: chain.id,
+    account: address,
+    readiness: paletteState.readiness,
+    onOpen: openRenewal,
+  })
 
   if (!canExtend) return null
 
   return (
     <>
-      <Button
-        variant="default"
-        onClick={() => {
-          if (isTransactionInFlight(activeTxState)) {
-            openModal()
-            return
-          }
-          // A terminal actor from a previous attempt is stale for a new one.
-          // Step ids are scoped, so it no longer shadows the fresh attempt;
-          // cancelling keeps the manager's list from growing.
-          if (activeTxState) {
-            transactionManager.cancelTransaction(activeTxState.txId)
-          }
-          clearIncompatibleRenewalState('single')
-          setOpen(true)
-        }}
-      >
+      <Button variant="default" onClick={openRenewal}>
         <FastForward className="size-4" />
         {ACTION_LABELS[protocolVersion]}
       </Button>

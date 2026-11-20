@@ -29,12 +29,14 @@ import {
 import {
   type CSSProperties,
   type ReactNode,
+  useCallback,
   useEffect,
   useRef,
   useState,
 } from 'react'
 import { isDevDrawerEnabled } from './config'
 import { DqaAuthButton } from './DqaAuthButton'
+import { type DevDrawerTool, getDevDrawerOpenRequest } from './drawerRequest'
 import { DRAWER, DRAWER_THEME_VARS } from './drawerTheme'
 import { EnsMark } from './EnsMark'
 import {
@@ -43,6 +45,7 @@ import {
   setDevToolsLayout,
   subscribeDevToolsLayout,
 } from './layoutPreference'
+import { useDevDrawerOpenRequest } from './useDevDrawerOpenRequest'
 
 // Sit left of the TanStack devtools button in dev. That widget is dev-only
 // (renders nothing in production builds), so in QA/PR-preview builds the
@@ -51,6 +54,12 @@ const TANSTACK_DEVTOOLS_OFFSET = import.meta.env.DEV ? 168 - 10 : 10
 
 const ACTIVE_TAB_KEY = 'ens-devtools:active-tab'
 
+const rememberActiveTab = (key: string) => {
+  try {
+    window.localStorage.setItem(ACTIVE_TAB_KEY, key)
+  } catch {}
+}
+
 type ToolTab = {
   readonly key: string
   readonly label: string
@@ -58,9 +67,14 @@ type ToolTab = {
   readonly content: ReactNode
 }
 
-export function DevDrawer() {
+type DevDrawerProps = {
+  readonly openTool?: DevDrawerTool
+  readonly onOpenRequestHandled?: (result: 'opened' | 'unavailable') => void
+}
+
+export const DevDrawer = (props: DevDrawerProps = {}) => {
   if (!isDevDrawerEnabled()) return null
-  return <DevDrawerGate />
+  return <DevDrawerGate {...props} />
 }
 
 /**
@@ -68,7 +82,7 @@ export function DevDrawer() {
  * button, which doesn't pop in over a still-loading page. We wait for the load
  * event (if not already fired) plus an idle/settle tick.
  */
-function DevDrawerGate() {
+const DevDrawerGate = (props: DevDrawerProps) => {
   // MUST start `false`, even when the document has already finished loading.
   //
   // Seeding from `document.readyState` made the FIRST client render disagree
@@ -102,10 +116,10 @@ function DevDrawerGate() {
   }, [ready])
 
   if (!ready) return null
-  return <DevDrawerInner />
+  return <DevDrawerInner {...props} />
 }
 
-function DevDrawerInner() {
+const DevDrawerInner = ({ openTool, onOpenRequestHandled }: DevDrawerProps) => {
   const [rendered, setRendered] = useState(false)
   const [shown, setShown] = useState(false)
   const [settled, setSettled] = useState(false)
@@ -137,6 +151,29 @@ function DevDrawerInner() {
   const travelEnabled = isTimeTravelEnabled()
   const migrationEnabled = isMigrationToolEnabled()
   const dqaEnabled = isDQAEnabled()
+  const openRequest = getDevDrawerOpenRequest({
+    tool: openTool,
+    activeTab: activeKey,
+    capabilities: {
+      isTimeTravelEnabled: travelEnabled,
+      isMigrationEnabled: migrationEnabled,
+      isDesignQaEnabled: dqaEnabled,
+    },
+  })
+  useDevDrawerOpenRequest({
+    tool: openTool,
+    request: openRequest,
+    onOpen: useCallback(
+      (tab) => {
+        setActiveKey(tab)
+        rememberActiveTab(tab)
+        setRendered(true)
+        setShown(rendered)
+      },
+      [rendered],
+    ),
+    onHandled: onOpenRequestHandled,
+  })
 
   useEffect(() => {
     if (dqaEnabled && !isDqaMockUiEnabled()) void loadDqaOverlay()
@@ -291,9 +328,7 @@ function DevDrawerInner() {
 
   const selectTab = (key: string) => {
     setActiveKey(key)
-    try {
-      window.localStorage.setItem(ACTIVE_TAB_KEY, key)
-    } catch {}
+    rememberActiveTab(key)
   }
 
   const toolTabs = (
