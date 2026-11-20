@@ -1,12 +1,12 @@
 import { okAsync } from 'neverthrow'
-import type { Address } from 'viem'
-import {
-  ContractFunctionExecutionError,
-  ExecutionRevertedError,
-  toFunctionSelector,
-  zeroAddress,
-} from 'viem'
+import type { Address, Hex } from 'viem'
+import { toFunctionSelector, zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type EthCallRequest,
+  offchainLookupRevert,
+  revertWith,
+} from '@/test-utils/ethCallClient.fixture'
 import { hasV2NameEntry, readNameResolver } from './changeResolver'
 import { getProfileEthAddressSnapshot } from './profileEthAddress'
 
@@ -19,12 +19,31 @@ const FALLBACK_RESOLVER =
 
 const client = vi.hoisted(() => ({
   multicall: vi.fn(),
-  call: vi.fn(),
+  ethCall: vi.fn<(request: EthCallRequest) => Promise<Hex>>(),
+  gateway: vi.fn(async (): Promise<Hex> => {
+    throw new Error('gateway.test is unreachable')
+  }),
   getCode: vi.fn(async () => '0x6000'),
   readContract: vi.fn(),
 }))
 
-vi.mock('@/lib/wagmi', () => ({ publicClient: client }))
+vi.mock('@/lib/wagmi', async () => {
+  const { createEthCallClient } = await import(
+    '@/test-utils/ethCallClient.fixture'
+  )
+  const { client: rpc } = createEthCallClient(
+    (request) => client.ethCall(request),
+    client.gateway,
+  )
+  return {
+    publicClient: {
+      ...rpc,
+      multicall: client.multicall,
+      getCode: client.getCode,
+      readContract: client.readContract,
+    },
+  }
+})
 vi.mock('./changeResolver', () => ({
   resolveNameRegistry: vi.fn(async () => ({
     label: 'leon',
@@ -52,7 +71,7 @@ const supportsNameSetters = (supported: boolean) =>
   client.multicall.mockResolvedValue([{ status: 'success', result: supported }])
 
 const probedSelector = () => {
-  const call = client.call.mock.calls[0]
+  const call = client.ethCall.mock.calls[0]
   if (!call) throw new Error('expected the resolver to be probed via call')
   return (call[0] as { data: string }).data.slice(0, 10)
 }
@@ -61,7 +80,8 @@ beforeEach(() => {
   vi.mocked(hasV2NameEntry).mockResolvedValue(false)
   vi.mocked(readNameResolver).mockResolvedValue(zeroAddress)
   client.multicall.mockReset()
-  client.call.mockReset()
+  client.ethCall.mockReset()
+  client.gateway.mockClear()
   client.readContract.mockReset()
   client.readContract.mockResolvedValue(zeroAddress)
 })
@@ -71,13 +91,13 @@ describe('getResolverWriteState', () => {
   // resolver passes the check and the save reverts.
   it('probes a PermissionedResolver with the name-based setter', async () => {
     supportsNameSetters(true)
-    client.call.mockResolvedValue({ data: '0x' })
+    client.ethCall.mockResolvedValue('0x')
 
     const result = await getResolverWriteState('leon.eth', OWNER)
 
     expect(result._unsafeUnwrap().canWrite).toBe(true)
-    expect(client.call).toHaveBeenCalledWith(
-      expect.objectContaining({ account: OWNER, to: RESOLVER }),
+    expect(client.ethCall).toHaveBeenCalledWith(
+      expect.objectContaining({ from: OWNER, to: RESOLVER }),
     )
     expect(probedSelector()).toBe(
       toFunctionSelector('setAddress(bytes,uint256,bytes)'),
@@ -86,7 +106,7 @@ describe('getResolverWriteState', () => {
 
   it('probes a public or legacy resolver with the node-based setter', async () => {
     supportsNameSetters(false)
-    client.call.mockResolvedValue({ data: '0x' })
+    client.ethCall.mockResolvedValue('0x')
 
     const result = await getResolverWriteState('leon.eth', OWNER)
 
@@ -98,21 +118,26 @@ describe('getResolverWriteState', () => {
 
   it('reports no access when the dry run reverts', async () => {
     supportsNameSetters(false)
-    client.call.mockRejectedValue(
-      new ContractFunctionExecutionError(new ExecutionRevertedError(), {
-        abi: [],
-        functionName: 'setAddr',
-      }),
-    )
+    client.ethCall.mockRejectedValue(revertWith())
 
     const result = await getResolverWriteState('leon.eth', OWNER)
 
     expect(result._unsafeUnwrap().canWrite).toBe(false)
   })
 
+  it('reports no access without a gateway request when the resolver answers with OffchainLookup', async () => {
+    supportsNameSetters(false)
+    client.ethCall.mockRejectedValue(offchainLookupRevert(RESOLVER))
+
+    const result = await getResolverWriteState('leon.eth', OWNER)
+
+    expect(result._unsafeUnwrap().canWrite).toBe(false)
+    expect(client.gateway).not.toHaveBeenCalled()
+  })
+
   it('surfaces a non-revert failure instead of reporting no access', async () => {
     supportsNameSetters(true)
-    client.call.mockRejectedValue(new Error('rpc down'))
+    client.ethCall.mockRejectedValue(new Error('rpc down'))
 
     const result = await getResolverWriteState('leon.eth', OWNER)
 
@@ -129,12 +154,12 @@ describe('getResolverWriteState', () => {
       resolverAddress: undefined,
       canWrite: false,
     })
-    expect(client.call).not.toHaveBeenCalled()
+    expect(client.ethCall).not.toHaveBeenCalled()
   })
 
   it('reports the resolver address alongside a successful probe', async () => {
     client.multicall.mockResolvedValue([{ status: 'success', result: false }])
-    client.call.mockResolvedValue({ data: '0x' })
+    client.ethCall.mockResolvedValue('0x')
 
     const result = await getResolverWriteState('pookie.eth', OWNER)
 
@@ -165,7 +190,7 @@ describe('getResolverWriteState', () => {
       if (v2Resolver) vi.mocked(readNameResolver).mockResolvedValue(v2Resolver)
       client.readContract.mockResolvedValue(V1_RESOLVER)
       supportsNameSetters(false)
-      client.call.mockResolvedValue({ data: '0x' })
+      client.ethCall.mockResolvedValue('0x')
 
       const result = await getResolverWriteState('2.testname1234.eth', OWNER)
 
@@ -173,7 +198,7 @@ describe('getResolverWriteState', () => {
         resolverAddress: expected,
         canWrite: true,
       })
-      expect(client.call).toHaveBeenCalledWith(
+      expect(client.ethCall).toHaveBeenCalledWith(
         expect.objectContaining({ to: expected }),
       )
     },
@@ -188,6 +213,6 @@ describe('getResolverWriteState', () => {
     const result = await getResolverWriteState('1.qa-ens.eth', OWNER)
 
     expect(result._unsafeUnwrap().canWrite).toBe(false)
-    expect(client.call).not.toHaveBeenCalled()
+    expect(client.ethCall).not.toHaveBeenCalled()
   })
 })

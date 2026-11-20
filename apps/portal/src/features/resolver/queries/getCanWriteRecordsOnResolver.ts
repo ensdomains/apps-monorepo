@@ -10,7 +10,6 @@ import {
 import { fromPromise, ok } from 'neverthrow'
 import { type Address, encodeFunctionData, type Hex, namehash } from 'viem'
 import { call } from 'viem/actions'
-import { getAction } from 'viem/utils'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { isContractRevert } from '@/utils/errors/isContractRevert'
 
@@ -78,11 +77,11 @@ export const getCanWriteRecordsOnResolver = ResultFn(async function* ({
   const accepted = yield* fromPromise(
     Promise.all(
       probes.map((data) =>
-        getAction(
-          client,
-          call,
-          'call',
-        )({ account, to: resolverAddress, data }).then(
+        // A gateway lookup is not followed, so it reads as a revert.
+        call(
+          { ...client, ccipRead: false },
+          { account, to: resolverAddress, data },
+        ).then(
           () => true,
           (error: unknown) => {
             if (isContractRevert(error)) return false

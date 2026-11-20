@@ -1,5 +1,6 @@
 import type { Address, PublicClient } from 'viem'
 import { BaseError, ExecutionRevertedError } from 'viem'
+import { call } from 'viem/actions'
 import {
   buildSetResolverCall,
   type NameRegistryLocation,
@@ -28,7 +29,11 @@ export const canSetNameResolver = async ({
   })
 
   try {
-    await publicClient.call({ account: ownerAddress, to, data })
+    // A gateway lookup is not followed, so it reads as a revert.
+    await call(
+      { ...publicClient, ccipRead: false },
+      { account: ownerAddress, to, data },
+    )
     return true
   } catch (error) {
     if (
