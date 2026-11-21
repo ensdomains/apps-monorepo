@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
+import { cn } from '@/lib/utils'
+import {
+  iconActionClassName,
+  renewActionClassName,
+} from './ProfileAction.styles'
 import { ProfileHeader } from './ProfileHeader'
 
 const OWNER = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'
@@ -64,4 +69,22 @@ export const LongEnsName: Story = {
 /** A subname shows its parent, linked, beside the owner. */
 export const Subname: Story = {
   args: { name: 'cats.example.eth' },
+}
+
+// Stands in for the visitor actions at their real widths, without their data
+const ACTIONS_PLACEHOLDER = (
+  <div className="flex shrink-0 items-center gap-2">
+    <span className={iconActionClassName} />
+    <span className={iconActionClassName} />
+    <span className={cn(renewActionClassName, 'w-23')} />
+    <span className={cn(renewActionClassName, 'w-37.5')} />
+  </div>
+)
+
+/** A long parent beside the actions truncates instead of running under them. */
+export const SubnameWithLongParent: Story = {
+  args: {
+    actions: ACTIONS_PLACEHOLDER,
+    name: `cats.${'a-very-long-parent-label-'.repeat(3)}name.eth`,
+  },
 }

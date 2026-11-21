@@ -30,8 +30,9 @@ const detailLabelClassName =
   'font-sans text-[13px] text-neutral-500 leading-none tracking-[0.2px]'
 const detailValueClassName =
   'font-sans text-[13px] text-neutral-800 leading-none tracking-[0.2px]'
+// Inset so the truncating value's overflow doesn't clip the ring
 const detailLinkClassName =
-  'text-inherit hover:underline focus-visible:underline focus-visible:outline-none'
+  'rounded-sm text-inherit hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-inset'
 
 /** Shared by the badge and its skeleton so the badge stays put on load. */
 export const ProfileNameBadgeRow = ({
@@ -67,12 +68,20 @@ export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
 
 const ProfileDetail = ({
   label,
+  shouldShrink = false,
   value,
 }: {
+  /** The parent can be long, so it gives way to keep the row beside the actions. */
+  readonly shouldShrink?: boolean
   readonly label: React.ReactNode
   readonly value: React.ReactNode
 }) => (
-  <div className="flex min-w-0 max-w-full shrink-0 flex-col items-start gap-2">
+  <div
+    className={cn(
+      'flex min-w-0 max-w-full flex-col items-start gap-2',
+      shouldShrink ? 'shrink' : 'shrink-0',
+    )}
+  >
     <div className={detailLabelClassName}>
       <span>{label}</span>
     </div>
@@ -122,6 +131,7 @@ export const ProfileDetails = ({
       {parentName ? (
         <ProfileDetail
           label={<Trans>Parent</Trans>}
+          shouldShrink
           value={
             <Link
               className={detailLinkClassName}
