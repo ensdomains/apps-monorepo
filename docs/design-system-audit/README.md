@@ -183,3 +183,117 @@ with Figma. Explorer's comments claim its type scale is "1:1 with the ENS
 Builder / Figma type styles (WEB-595)" and list three line-height deviations
 from Figma (`index.css:451-512`). Those are the authors' claims, not checked
 here.
+
+## 2. Usage, dead code and duplication
+
+### 2.1 Import counts
+
+The "Importers" column in 1.1 is the per-component, per-app import count
+(`inventory.py`). The most used: Explorer `ui/button` (93), Manager
+`ui/material-symbol` (80), Manager `ui/button` (54), Manager `ui/card` (27),
+Explorer `ui/alert` (26). 23 of 41 Manager files and 11 of 30 Explorer files have
+three importers or fewer (5 Manager files have none, see 2.2).
+
+### 2.2 Dead code
+
+Components with 0 importers outside tests and stories (`inventory.py`,
+confirmed with `git grep -n <Name> -- apps/<app>/src`):
+
+| Component | Only referenced by | Note |
+| --- | --- | --- |
+| Manager `atoms/Badge/Badge.tsx` | its story | wraps `ui/badge` with Tailwind default greens, reds and purples |
+| Manager `atoms/QRPattern/QRPattern.tsx` | its story | |
+| Manager `molecules/FormField/FormField.tsx` | its story | |
+| Manager `organisms/SearchForm/SearchForm.tsx` | its story | |
+| Manager `ens-consumer/button/LinkButton.tsx` | nothing | `ui/button.tsx` exports its own `LinkButton`, used by `NameFallbackCard.tsx:2` |
+| Manager `ui/text.tsx` | `FormField.tsx:3`, `SearchForm.tsx:2` | dead once those two go |
+
+Knip is configured (`knip.json`, `pnpm knip`) but does not run in CI
+(`grep -n knip .github/workflows/*.yml` prints nothing), so nothing stops new
+dead components.
+
+Variant values with no use. Command:
+`python3 docs/design-system-audit/scripts/variants.py`, which counts literal
+`variant="x"` / `variant: 'x'` in the files that import the component. Each
+zero below was then checked for any `'x'` string literal in those files.
+Default variants are left out, since every call without the prop uses them.
+Dynamic props (`variant={x}`) are not resolved: there are 23 in Manager and
+13 in Explorer (`variant=\{` outside `components/ui`), so these are
+candidates to confirm, not proof.
+
+| App | Component | Unused values |
+| --- | --- | --- |
+| Manager | `ui/button` | `variant`: connectWallet, payment |
+| Manager | `ui/badge` | `variant`: lightBlue, red |
+| Manager | `ui/alert` | `variant`: info |
+| Manager | `ens-consumer/button/Button` | `color`: none, lightBlue, temp-light-gray, temp-light-gray-ghost; `size`: none, sm, temp-xxs |
+| Manager | `ui/input-group` | `align`: block-start, block-end; `size`: sm, icon-sm |
+| Manager | `ui/field` | `orientation`: responsive |
+| Explorer | `ui/button` | `variant`: input; `size`: lg |
+| Explorer | `ui/badge` | `variant`: accent |
+| Explorer | `ui/sidebar` (menu button) | `variant`: outline; `size`: sm, lg |
+| Explorer | `ui/input-group` | `align`: block-start, block-end; `size`: icon-sm |
+| Explorer | `ui/field` | `orientation`: horizontal, responsive |
+
+Unused color tokens (`tokens.py`, uses outside the defining CSS file):
+Manager 38 of 146 (all 4 `ens-bronzite-*`, 14 signal steps, 6 old brand
+colors, all 5 `chart-*`, all 8 `sidebar-*`); Explorer 49 of 121 (7 of 8
+`quartz-*`, 26 of 27 signal steps as utilities, 4 of 5 `lapis-*`). Explorer's
+signal ramps are still read inside `index.css` by its `button-*` and
+`message-*` tokens, so they are not dead, just not used directly.
+
+### 2.3 Components copied between Manager and Explorer
+
+Sixteen `ui/` files exist in both apps under the same name. Command:
+`python3 docs/design-system-audit/scripts/drift.py`. "Diff lines" is
+`diff` output; "only in M / only in E" counts class tokens one copy has and
+the other lacks, so class order (sorted by Biome only in Manager) does not
+count as drift.
+
+| File | Diff lines | Only in M / only in E | Drift |
+| --- | --- | --- | --- |
+| `collapsible.tsx` | 1 | 0 / 0 | none (one import line) |
+| `textarea.tsx` | 4 | 3 / 3 | radius `rounded-sm` vs `rounded-md`; Explorer adds dark mode |
+| `popover.tsx` | 13 | 2 / 2 | width `w-72` vs `w-50`; Manager adds `border` |
+| `switch.tsx` | 18 | 3 / 10 | Manager uses brand lapis/gray, Explorer semantic `primary`/`input` |
+| `tabs.tsx` | 27 | 7 / 19 | different list shape (`rounded-full`, `h-9`) and active style |
+| `label.tsx` | 41 | 2 / 6 | `text-sm font-medium` vs `text-base font-normal muted` |
+| `badge.tsx` | 43 | 12 / 31 | Manager: default Tailwind palette; Explorer: semantic fills |
+| `dialog.tsx` | 47 | 4 / 16 | title size, max height, close button |
+| `button.tsx` | 75 | 33 / 41 | different variant sets (section 1.1), radius and font |
+| `tooltip.tsx` | 79 | 4 / 18 | color (`bg-foreground` vs `bg-primary`), arrow, animation |
+| `dropdown-menu.tsx` | 83 | 4 / 12 | text size, overflow, destructive dark style |
+| `input-group.tsx` | 109 | 44 / 25 | spacing and invalid-state styling |
+| `input.tsx` | 108 | 36 / 6 | Manager's adds success/error states and an icon slot (107 vs 25 lines) |
+| `field.tsx` | 135 | 19 / 20 | gaps, padding and text size |
+| `alert.tsx` | 174 | 30 / 45 | different variants (`info` vs `neutral`), brand vs semantic colors |
+| `calendar.tsx` | 395 | 36 / 37 | rewritten: cell size, selected colors, hex values in Manager |
+
+All sixteen have drifted except `collapsible.tsx`. Both copies come from the
+same shadcn `new-york` base (`components.json`), so the base is a common
+starting point for the shared package.
+
+Both apps also define their own `cn`: `apps/manager/src/lib/utils.ts:13`
+(clsx + tailwind-merge, extended for three custom shadows) and
+`apps/portal/src/lib/utils.ts:27` (cva `cx` + tailwind-merge, extended for
+the custom type scale). They are not interchangeable: each one knows only its
+own app's custom classes.
+
+### 2.4 Several components doing one job
+
+| Job | Manager (importers) | Explorer (importers) |
+| --- | --- | --- |
+| Button | `ui/button` (54), `ens-consumer/button/Button` on Base UI (4), native `<button>` (97 in 70 files, section 3.1) | `ui/button` (93), native `<button>` (26 in 21 files) |
+| Link styled as button | `LinkButton` in `ui/button.tsx` (1), `ens-consumer/button/LinkButton` (0) | `Button asChild` |
+| Copy button | `atoms/CopyableButton` (6), `atoms/NameCopyButton` (2) | `components/CopyButton` (8), `components/CopyableRecord` (8) |
+| Badge / pill | `ui/badge` (3), `atoms/Badge` (0), `molecules/.../DomainAttributePill` (5), `features/grace/.../GracePeriodBadge` (3) | `ui/badge` (20, plus `SoonBadge`), `components/EntityBadge` (43) |
+| Inline message | `ui/alert` (11) | `ui/alert` (26) and `ui/message-card` (20), same four tones from the same `message-*` tokens |
+| Modal / overlay | `ui/dialog` (19), `ui/alert-dialog` (8), `ui/drawer` (3) | `ui/dialog` (13), `ui/sheet` (15) |
+| Popover | `ui/popover` on Radix (4) and `base-ui/popover` on Base UI (3) | `ui/popover` (6), `ui/hover-card` (1) |
+| Select / dropdown | no Select component; `ui/dropdown-menu` (5); native `<select>` (1) | no Select component; `ui/dropdown-menu` (5), `ui/combobox` (1), `ui/command` (3), `components/CoinSelect` (1); native `<select>` (3) |
+| Checkbox | none: native `<input type="checkbox">` (6) | `ui/checkbox` (13) |
+| Typography | `ui/text` (dead) next to 214 arbitrary `text-[…]` values (section 3.3) | type-scale utilities (`text-h1`…`text-small`) |
+| Icons | `MSymbol` (80 files) and lucide (75 files) | lucide (150 files) |
+
+Commands for the app-level rows: `git grep -lE "import .*from '[^']*/<Name>'" -- apps/<app>/src`,
+minus test and story files.
