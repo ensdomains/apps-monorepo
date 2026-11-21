@@ -75,6 +75,10 @@ import {
 } from '../../../helpers/portal-auth.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 import { serveV1Names } from '../../../helpers/v1-names.js'
+import {
+  factoryDeployment,
+  wrapFactoryReceipts,
+} from '../../../helpers/wrapped-receipt.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const DOMAIN_TO_REGISTER =
@@ -3927,5 +3931,66 @@ test.describe('Portal registration sets the ETH address (WEB-2143)', () => {
       register: 1,
       setAddress: 1,
     })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEB-2200 — the registration's resolver is read only from the factory's log
+//
+// The bug: on a wallet's first registration, the registration machine's
+// `resolveResolverDeployment` took the resolver from the first `ProxyDeployed`
+// log anywhere in the deploy receipt. A transaction carried by another
+// contract can hold one from that contract first, and the name was then
+// committed and registered with whatever resolver it announced.
+//
+// The fix: the actor passes the receipt to `findDeployedProxyAddress` with the
+// chain's `VerifiableFactory` (`getDestinationContracts(context.chainId)`), so
+// only the factory's logs count.
+//
+// The unit test stubs the receipt; the machine tests stub the actor. This runs
+// a fresh wallet's whole registration on the fork, deploy included, with a
+// decoy added to the receipt the page reads (helpers/wrapped-receipt.ts), and
+// checks the resolver the .eth registry records against the factory's event in
+// the untouched receipt. It also proves the new `chainId` input reaches the
+// actor: a wrong or missing one fails the run before the commitment.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Portal registration — the deployed resolver comes from the factory (WEB-2200)', () => {
+  test('registers with the resolver the factory deployed, not one another contract announced first', async ({
+    page,
+  }) => {
+    test.setTimeout(420_000)
+    const { account, wallet } = await freshWallet(page)
+    const owner = account.address
+    const states = recordRegistrationTxStates(page)
+    const name = `e2e-web2200-${Date.now().toString(36)}.eth`
+    const { decoy, wrapped } = await wrapFactoryReceipts(page)
+
+    await page.goto(`${PORTAL_APP_URL}/register?name=${name}`)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const dialog = await openRegistrationOverview(page)
+    // A fresh wallet has no resolver yet, so this run deploys one.
+    await expect(overviewRow(dialog, 'Deploy resolver')).toBeVisible()
+    await startAndFinish(dialog, wallet, states)
+    await expect
+      .poll(() => getOwner(publicClient as never, { name }), {
+        timeout: 30_000,
+      })
+      .toBe(owner)
+
+    // The page read the deploy's receipt with the decoy in front.
+    const deployment = await factoryDeployment(wrapped)
+    expect(states).toContain('tx-reg-deploy-resolver:success')
+
+    const resolver = await registryResolver(name)
+    // The bug: the name is registered with the address the other contract
+    // announced.
+    expect(resolver, 'the resolver must not be the decoy').not.toBe(decoy)
+    expect(resolver).toBe(deployment.proxy)
+    expect(
+      await resolvedEthAddress(name),
+      'the ETH address step wrote to the deployed resolver',
+    ).toBe(owner.toLowerCase())
   })
 })

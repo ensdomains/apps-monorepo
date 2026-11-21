@@ -764,9 +764,11 @@ export const registrationMachine = setup({
         return submitResolverDeploymentActor(input)
       },
     ),
-    resolveResolverDeployment: fromResultAsync((input: { txId: string }) => {
-      return resolveResolverDeploymentActor(input)
-    }),
+    resolveResolverDeployment: fromResultAsync(
+      (input: { txId: string; readonly chainId: number }) => {
+        return resolveResolverDeploymentActor(input)
+      },
+    ),
     generateCommitment: fromResultAsync(
       ({
         name,
@@ -1941,8 +1943,11 @@ export const registrationMachine = setup({
       entry: ['logTransition'],
       invoke: {
         src: 'resolveResolverDeployment',
-        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-        input: ({ context }) => ({ txId: context.resolverTxId! }),
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          txId: context.resolverTxId!,
+          chainId: context.chainId,
+        }),
         onDone: {
           target: 'preparingCommitment',
           actions: assign({

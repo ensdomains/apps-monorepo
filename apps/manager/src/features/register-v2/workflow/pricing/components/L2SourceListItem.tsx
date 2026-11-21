@@ -73,6 +73,7 @@ export const getL2SelectionMessage = (
     status: row.option.status,
     isShort: isL2ShortOfFunds(row),
     hasQuoteFailed: row.hasQuoteFailed,
+    isShortOfGas: row.isShortOfGas,
     shortfall,
     isQuoted: quoted !== undefined,
     isEstimated: estimated !== undefined,
@@ -101,6 +102,12 @@ export const getL2SelectionMessage = (
     ))
     .with({ isShort: true }, () => (
       <Trans>Not enough USDC on {chainName}.</Trans>
+    ))
+    .with({ isShortOfGas: true }, () => (
+      <Trans>
+        Paying from {chainName} the first time needs a little ETH there to
+        approve USDC.
+      </Trans>
     ))
     .with({ hasQuoteFailed: true }, () => (
       <Trans>Paying from {chainName} isn't available right now.</Trans>
@@ -150,6 +157,11 @@ export const L2SourceListItem = ({
       name="USDC"
       onSelect={onSelect}
       selectLabel={t`Select USDC on ${chainName}`}
+      warning={
+        row.isShortOfGas ? (
+          <Trans>Not enough ETH for approval</Trans>
+        ) : undefined
+      }
     />
   )
 }

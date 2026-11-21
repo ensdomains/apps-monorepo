@@ -84,7 +84,9 @@ describe('getSelectedL2ChainId', () => {
 })
 
 describe('isCirclePaymentMethod', () => {
-  const holding = (usdc: bigint) => ({ [baseSepolia.id]: { usdc } })
+  const holding = (usdc: bigint) => ({
+    [baseSepolia.id]: { usdc, eth: 0n },
+  })
 
   // Unlike the bridge, the token does not drop a chosen L2 with nothing to send.
   it.each([

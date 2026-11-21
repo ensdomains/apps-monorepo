@@ -1,10 +1,25 @@
+import {
+  type Address,
+  DecodeLogDataMismatch,
+  encodeAbiParameters,
+  pad,
+  toEventSelector,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it } from 'vitest'
+import {
+  AmbiguousProxyDeploymentError,
+  DecodeProxyDeployedError,
+} from './errors'
 import {
   computeResolverSalt,
   getDestinationContracts,
 } from './providers/rhinestone/manifest'
-import { computeVerifiableProxyAddress } from './verifiable-factory'
+import {
+  computeVerifiableProxyAddress,
+  findDeployedProxyAddress,
+  type ProxyDeployedLogLike,
+} from './verifiable-factory'
 
 const HCA = '0xaaaa000000000000000000000000000000000001' as const
 
@@ -38,5 +53,82 @@ describe('computeVerifiableProxyAddress', () => {
     })
 
     expect(first).not.toBe(second)
+  })
+})
+
+describe('findDeployedProxyAddress', () => {
+  const FACTORY = '0xda70306c98e97ece36f997a21368e53298572991' as const
+  const OTHER_FACTORY = '0x9999999999999999999999999999999999999999' as const
+  const RESOLVER = '0x1111111111111111111111111111111111111111' as const
+  const OTHER_RESOLVER = '0x2222222222222222222222222222222222222222' as const
+  const DEPLOYER = '0x3333333333333333333333333333333333333333' as const
+  const IMPLEMENTATION = '0x4444444444444444444444444444444444444444' as const
+
+  const proxyDeployedLog = (
+    address: Address,
+    proxyAddress: Address,
+  ): ProxyDeployedLogLike => ({
+    address,
+    topics: [
+      toEventSelector('ProxyDeployed(address,address,uint256,address)'),
+      pad(DEPLOYER),
+      pad(proxyAddress),
+    ],
+    data: encodeAbiParameters(
+      [{ type: 'uint256' }, { type: 'address' }],
+      [1n, IMPLEMENTATION],
+    ),
+  })
+
+  it('reads the proxy the factory deployed', () => {
+    expect(
+      findDeployedProxyAddress({
+        logs: [proxyDeployedLog(FACTORY, RESOLVER)],
+        factory: FACTORY,
+      })._unsafeUnwrap(),
+    ).toBe(RESOLVER)
+  })
+
+  it('ignores a ProxyDeployed emitted by another contract', () => {
+    expect(
+      findDeployedProxyAddress({
+        logs: [
+          proxyDeployedLog(OTHER_FACTORY, OTHER_RESOLVER),
+          proxyDeployedLog(FACTORY, RESOLVER),
+        ],
+        factory: FACTORY,
+      })._unsafeUnwrap(),
+    ).toBe(RESOLVER)
+  })
+
+  it('returns null when only another contract announced a proxy', () => {
+    expect(
+      findDeployedProxyAddress({
+        logs: [proxyDeployedLog(OTHER_FACTORY, OTHER_RESOLVER)],
+        factory: FACTORY,
+      })._unsafeUnwrap(),
+    ).toBeNull()
+  })
+
+  it('refuses a receipt in which the factory announced two proxies', () => {
+    expect(
+      findDeployedProxyAddress({
+        logs: [
+          proxyDeployedLog(FACTORY, RESOLVER),
+          proxyDeployedLog(FACTORY, OTHER_RESOLVER),
+        ],
+        factory: FACTORY,
+      })._unsafeUnwrapErr(),
+    ).toBeInstanceOf(AmbiguousProxyDeploymentError)
+  })
+
+  it("fails with viem's decode error when the factory's ProxyDeployed is malformed", () => {
+    const error = findDeployedProxyAddress({
+      logs: [{ ...proxyDeployedLog(FACTORY, RESOLVER), data: '0x' }],
+      factory: FACTORY,
+    })._unsafeUnwrapErr()
+
+    expect(error).toBeInstanceOf(DecodeProxyDeployedError)
+    expect(error.cause).toBeInstanceOf(DecodeLogDataMismatch)
   })
 })

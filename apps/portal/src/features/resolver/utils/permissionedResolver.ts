@@ -6,12 +6,10 @@ import {
   bytesToHex,
   type Chain,
   type Client,
-  decodeEventLog,
   encodeFunctionData,
   getAddress,
   type Hex,
   keccak256,
-  parseAbi,
   stringToBytes,
   type Transport,
 } from 'viem'
@@ -21,11 +19,6 @@ import { isContractRevert } from '@/utils/errors/isContractRevert'
 const permissionedResolverRoleBitmap = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
-
-const verifiableFactoryAbi = parseAbi([
-  'function deployProxy(address implementation, uint256 salt, bytes data)',
-  'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
-])
 
 export const generateResolverSalt = (name: string) => {
   // Use CSPRNG (not `Date.now()`/`Math.random()`) so the resolver salt is
@@ -49,30 +42,6 @@ export const getResolverInitCalldata = (ownerAddress: Address): Hex => {
       [],
     ],
   })
-}
-
-export const parseProxyDeployedAddress = (
-  logs: readonly { topics: readonly Hex[]; data: Hex }[],
-): Address | null => {
-  for (const log of logs) {
-    if (log.topics.length === 0) continue
-
-    try {
-      const decoded = decodeEventLog({
-        abi: verifiableFactoryAbi,
-        data: log.data,
-        topics: log.topics as [Hex, ...Hex[]],
-      })
-
-      if (decoded.eventName === 'ProxyDeployed') {
-        return decoded.args.proxyAddress
-      }
-    } catch {
-      // Ignore logs that don't match ProxyDeployed
-    }
-  }
-
-  return null
 }
 
 export const decodeImplementationAddress = (

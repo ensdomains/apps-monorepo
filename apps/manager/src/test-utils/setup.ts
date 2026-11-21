@@ -10,6 +10,19 @@ import { vi } from 'vitest'
 // Drop this once https://github.com/capricorn86/happy-dom rejects lazily.
 Reflect.deleteProperty(Element.prototype, 'animate')
 
+// The Intercom widget never loads under happy-dom, so every SDK call warns.
+// Tests that assert on Intercom calls mock the SDK themselves.
+vi.mock('@intercom/messenger-js-sdk', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@intercom/messenger-js-sdk')>()
+  return Object.fromEntries(
+    Object.entries(actual).map(([name, value]) => [
+      name,
+      typeof value === 'function' ? vi.fn() : value,
+    ]),
+  )
+})
+
 // Every file that reaches `@/lib/wagmi` builds the real wagmi config, and the
 // WalletConnect connector's `setup()` then boots the whole WalletConnect SDK,
 // including network requests. No unit test talks to WalletConnect, so swap in
