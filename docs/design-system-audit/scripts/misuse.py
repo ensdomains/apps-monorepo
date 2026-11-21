@@ -4,6 +4,8 @@ import re
 import subprocess
 import sys
 
+from jsx import jsx_tags
+
 APPS = ['manager', 'portal']
 DS_DIR = re.compile(r'/components/(ui|base-ui|ens-consumer)/')
 DS_LAYERS = re.compile(r'/components/(ui|base-ui|ens-consumer|atoms|molecules|organisms)/')
@@ -13,6 +15,9 @@ CUSTOM_UTILS = {'w-full', 'max-w-full'}  # @utility w-full-* / max-w-full-* in m
 COLOR_CLASS = re.compile(r'(?<![\w-])(?:[a-z-]+:)*(bg|text|border)-(?!(xs|sm|base|lg|xl|\dxl|left|right|center|start|end|wrap|nowrap|ellipsis|clip|balance|pretty|none|solid|dashed|dotted|double|hidden|t|b|l|r|x|y|s|e|0|2|4|8|h\d|p|small)\b)[a-z\[#]')
 BG_CLASS = re.compile(r'(?<![\w-])(?:[a-z-]+:)*bg-(?!transparent\b)')
 COMMENT = re.compile(r'//|/\*')
+CLASS_TOKEN = r'[a-z0-9\-\[\]=/.%#()*&_:,>~+]+'
+UTILITY = r'(?:[a-z][a-z0-9\-\[\]/.%]*-[a-z0-9\-\[\]/.%]+|flex|grid|block|inline|hidden|contents|absolute|relative|fixed|sticky|static|truncate|underline|uppercase|italic|border|rounded|shadow|outline|transform)'
+IMPORTANT_TOKEN = re.compile(r'(?:' + CLASS_TOKEN + r':)?(?:!' + UTILITY + '|' + UTILITY + '!)')
 BOX_CLASS = re.compile(r'(?<![\w-])(?:[a-z-]+:)*(h|rounded|px|py|p)-')
 LOGIC_IMPORT = re.compile(r"from '(@/features[^']*|@/hooks[^']*|wagmi[^']*|@tanstack/react-query|@lingui[^']*|@/lib/(?!utils)[^']*|@ens-apps/[^']*|viem[^']*)'")
 
@@ -23,29 +28,9 @@ def add(key, app, path, line, snippet):
     found[key][app].append((path, line, ' '.join(snippet.split())[:90]))
 
 
-def sources(app):
+def sources(app, ext=('.tsx',)):
     out = subprocess.run(['git', 'ls-files', f'apps/{app}/src'], capture_output=True, text=True).stdout.split()
-    return [f for f in out if f.endswith('.tsx') and not re.search(r'\.(stories|test)\.tsx$', f)]
-
-
-def jsx_tags(text, names):
-    """Yield (line, tag text, end offset) for each JSX opening tag of the given element names."""
-    for m in re.finditer(r'<(' + names + r')(?=[\s>/])', text):
-        i, depth, quote = m.end(), 0, None
-        while i < len(text):
-            c = text[i]
-            if quote:
-                quote = None if c == quote else quote
-            elif c in '"\'`':
-                quote = c
-            elif c == '{':
-                depth += 1
-            elif c == '}':
-                depth -= 1
-            elif c == '>' and depth == 0:
-                break
-            i += 1
-        yield text.count('\n', 0, m.start()) + 1, text[m.start():i + 1], i + 1
+    return [f for f in out if f.endswith(ext) and not re.search(r'\.(stories|test)\.tsx?$', f)]
 
 
 def call_bodies(text, names):
@@ -94,6 +79,22 @@ def scan_tags(app, path, text, in_ds):
             add('override-box-' + name, app, path, ln, tag)
 
 
+def important_tokens(line):
+    """Tailwind important modifiers in the quoted strings of one source line: `!p-0`, `p-0!`, `hover:!p-0`."""
+    out = []
+    for literal in re.findall(r"'([^'\n]*)'|\"([^\"\n]*)\"|`([^`\n]*)`", line):
+        for token in ''.join(literal).split():
+            if IMPORTANT_TOKEN.fullmatch(token):
+                out.append(token)
+    return out
+
+
+def css_important(text):
+    """(line, text) for each `!important` declaration in a stylesheet, comments excluded."""
+    code = re.sub(r'/\*.*?\*/', lambda m: re.sub(r'[^\n]', ' ', m.group(0)), text, flags=re.S)
+    return [(i, line.strip()) for i, line in enumerate(code.split('\n'), 1) if '!important' in line]
+
+
 def scan_lines(app, path, text, in_ds):
     is_asset = '/assets/' in path or '/icons/' in path
     lines = text.split('\n')
@@ -102,8 +103,8 @@ def scan_lines(app, path, text, in_ds):
             add('a11y-outline-removed', app, path, i, line)
         if re.search(r'(?<![\w-])focus:ring', line):
             add('a11y-focus-not-visible', app, path, i, line)
-        if '!important' in line or (re.search(r'[\s\'"`]![a-z]+-[\w\[]|[a-z0-9\]]![\s\'"`]', line) and re.search(r'class|cn\(', line)):
-            add('important', app, path, i, line)
+        for token in important_tokens(line):
+            add('important-modifier', app, path, i, token)
         if not is_asset:
             for m in re.finditer(r'(?<=[\'"`\[(,: ])#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![\w-])', line):
                 add('hex-color', app, path, i, m.group(0))
@@ -141,24 +142,40 @@ def scan_file(app, path):
             add('ds-layer-logic-import', app, path, text.count('\n', 0, m.start()) + 1, m.group(1))
 
 
-for app in APPS:
-    for path in sources(app):
-        scan_file(app, path)
+def main():
+    for app in APPS:
+        for path in sources(app):
+            scan_file(app, path)
+        for path in sources(app, ('.ts',)):
+            for i, line in enumerate(open(path).read().split('\n'), 1):
+                for token in important_tokens(line):
+                    add('important-modifier', app, path, i, token)
+        for path in sources(app, ('.css',)):
+            for i, line in css_important(open(path).read()):
+                add('important-css', app, path, i, line)
+    report()
 
-only = [a for a in sys.argv[1:] if not a.startswith('--')]
-show_all = '--all' in sys.argv
-for key in sorted(found):
-    if only and not any(key.startswith(o) for o in only):
-        continue
-    if key.startswith('arbitrary:') and not only:
-        continue
-    parts = [f'{a}={len(found[key][a])} in {len({h[0] for h in found[key][a]})} files' for a in APPS]
-    print(f'## {key}: ' + ', '.join(parts))
-    for a in APPS:
-        for path, line, snippet in found[key][a][:None if show_all else 3]:
-            print(f'   {path}:{line}  {snippet}')
 
-if not only:
-    for a in APPS:
-        by_prop = collections.Counter(k.split(':', 1)[1] for k in found if k.startswith('arbitrary:') for _ in found[k][a])
-        print(f'## arbitrary values by utility, {a}: {by_prop.most_common(15)}')
+def report():
+
+    only = [a for a in sys.argv[1:] if not a.startswith('--')]
+    show_all = '--all' in sys.argv
+    for key in sorted(found):
+        if only and not any(key.startswith(o) for o in only):
+            continue
+        if key.startswith('arbitrary:') and not only:
+            continue
+        parts = [f'{a}={len(found[key][a])} in {len({h[0] for h in found[key][a]})} files' for a in APPS]
+        print(f'## {key}: ' + ', '.join(parts))
+        for a in APPS:
+            for path, line, snippet in found[key][a][:None if show_all else 3]:
+                print(f'   {path}:{line}  {snippet}')
+
+    if not only:
+        for a in APPS:
+            by_prop = collections.Counter(k.split(':', 1)[1] for k in found if k.startswith('arbitrary:') for _ in found[k][a])
+            print(f'## arbitrary values by utility, {a}: {by_prop.most_common(15)}')
+
+
+if __name__ == '__main__':
+    main()
