@@ -42,7 +42,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       </div>
     </>
   )
-  const className = `${profileTileClassName} flex-row transition hover:bg-ens-quartz-50 ${socialCardPaddingClassName} min-h-17 w-full items-center gap-2 font-sans text-left xl:min-h-22.75 xl:gap-3`
+  const className = `${profileTileClassName} group flex-row transition hover:bg-ens-quartz-50 ${socialCardPaddingClassName} min-h-17 w-full items-center gap-2 font-sans text-left xl:min-h-22.75 xl:gap-3`
 
   if (href) {
     return (

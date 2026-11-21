@@ -1,7 +1,10 @@
 import type { RecordInventory } from '@ens-apps/indexer/bigname'
 import { describe, expect, it } from 'vitest'
 import { mainProfileRecords } from '../data/records'
-import { selectProfileRecordKeys } from './profileRecordKeys'
+import {
+  selectProfileRecordKeys,
+  withSavedCustomTexts,
+} from './profileRecordKeys'
 
 const inventory = (
   overrides: Partial<RecordInventory> = {},
@@ -43,4 +46,38 @@ describe('selectProfileRecordKeys', () => {
       )
     },
   )
+
+  it('keeps reading a custom key the last fetch held before the index lists it', () => {
+    const keys = selectProfileRecordKeys(inventory({ known_keys: [] }), [
+      'inphinity.symbol',
+      'description',
+    ])
+
+    expect(keys.texts).toEqual([
+      ...mainProfileRecords.texts,
+      'inphinity.symbol',
+    ])
+  })
+})
+
+describe('withSavedCustomTexts', () => {
+  it('holds saved custom records, replacing old values and skipping blank rows', () => {
+    const texts = [
+      { key: 'description', value: 'Keep this' },
+      { key: 'inphinity.symbol', value: 'OLD' },
+    ]
+
+    expect(
+      withSavedCustomTexts(texts, [
+        { key: 'inphinity.symbol', value: 'AIBLD' },
+        { key: 'inphinity.index', value: '2' },
+        { key: ' ', value: 'no key yet' },
+        { key: 'inphinity.fee', value: '' },
+      ]),
+    ).toEqual([
+      { key: 'description', value: 'Keep this' },
+      { key: 'inphinity.symbol', value: 'AIBLD' },
+      { key: 'inphinity.index', value: '2' },
+    ])
+  })
 })

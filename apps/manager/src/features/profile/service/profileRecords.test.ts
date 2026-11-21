@@ -7,6 +7,7 @@ import {
   publicResolverSingleAddrSnippet,
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { QueryClient } from '@tanstack/react-query'
 import { errAsync, okAsync } from 'neverthrow'
 import {
   BaseError,
@@ -73,7 +74,7 @@ vi.mock('../data/records', () => ({
 }))
 
 import { NameRegistryNotFoundError } from './changeResolver'
-import { getProfileRecords } from './profileRecords'
+import { getProfileRecords, profileRecordsQuery } from './profileRecords'
 
 const resolverAddress = '0x2222222222222222222222222222222222222222'
 const ethAddress = '0x1111111111111111111111111111111111111111'
@@ -375,6 +376,25 @@ describe('profile records', () => {
     expect(
       requestedCalls().filter((call) => call.functionName === 'addr'),
     ).toHaveLength(4)
+  })
+
+  it('keeps reading a cached custom key that bigname has not indexed yet', async () => {
+    mocks.resolveNameData.mockResolvedValue(null)
+    const queryClient = new QueryClient()
+    const query = profileRecordsQuery('saved.eth')
+    queryClient.setQueryData(query.queryKey, {
+      texts: [{ key: 'inphinity.symbol', value: 'AIBLD' }],
+      coins: [],
+    })
+
+    await queryClient.fetchQuery(query)
+
+    expect(requestedTextKeys()).toEqual([
+      'avatar',
+      'theme',
+      'links',
+      'inphinity.symbol',
+    ])
   })
 
   it('reads the main keys for a name bigname has not indexed', async () => {

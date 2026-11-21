@@ -27,16 +27,36 @@ const safeGetCoderFromCoin = fromThrowable(getCoderFromCoin, () => undefined)
 const isSupportedCoinType = (coinType: number): boolean =>
   safeGetCoderFromCoin(coinType).isOk()
 
-/** The main profile keys, plus the keys bigname vouches for. */
+/** The main profile keys, the keys bigname vouches for, and text keys already held. */
 export const selectProfileRecordKeys = (
   inventory: RecordInventory | undefined,
+  heldTextKeys: readonly string[] = [],
 ): ProfileRecordKeys => {
   // bigname leaves known_keys empty when it can't vouch for the resolver's keys.
   const knownKeys = parseKnownKeys(inventory?.known_keys ?? [])
   return {
-    texts: unique([...mainProfileRecords.texts, ...knownKeys.texts]),
+    // Held keys cover a just-saved custom key the index hasn't caught up with yet.
+    texts: unique([
+      ...mainProfileRecords.texts,
+      ...knownKeys.texts,
+      ...heldTextKeys,
+    ]),
     coins: unique([...mainProfileRecords.coins, ...knownKeys.coins]).filter(
       isSupportedCoinType,
     ),
   }
+}
+
+type TextRecord = { readonly key: string; readonly value: string }
+
+/** Cached texts with the saved custom records in place, so the next read holds their keys. */
+export const withSavedCustomTexts = (
+  texts: readonly TextRecord[],
+  customRecords: readonly TextRecord[],
+): TextRecord[] => {
+  const saved = customRecords.filter(
+    ({ key, value }) => key.trim() !== '' && value.trim() !== '',
+  )
+  const savedKeys = new Set(saved.map(({ key }) => key))
+  return [...texts.filter(({ key }) => !savedKeys.has(key)), ...saved]
 }

@@ -207,6 +207,12 @@ export const getSecondarySocialRecords = (
   )
 }
 
+// A row still missing its key or value while being edited is not a record yet.
+export const getOtherRecords = (records: ProfileRecords): TextRecordValue[] =>
+  records.unknown.filter(
+    ({ key, value }) => key.trim() !== '' && value.trim() !== '',
+  )
+
 const toAddressItem = (
   address: AddressRecordValue,
   sourceIndex: number,

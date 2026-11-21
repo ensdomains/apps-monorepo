@@ -40,7 +40,7 @@ export const CopyableButton = ({
 
   return (
     <Button
-      className={className}
+      className={cn('group', className)}
       disabled={isDisabled}
       onClick={handleClick}
       size="sm"

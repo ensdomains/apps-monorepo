@@ -21,6 +21,8 @@ import {
   type PreparedProfileImageUpload,
   submitPreparedProfileImageUpload,
 } from '@/features/profile/service/profileImageUpload'
+import { withSavedCustomTexts } from '@/features/profile/service/profileRecordKeys'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import {
   type SaveRecordsParams,
   saveRecords,
@@ -174,6 +176,15 @@ const useCloseProfileDialogOnSuccessfulSave = ({
         records: savedRecords,
         queryClient,
       })
+      // The index lists a new custom key some time after the save confirms.
+      queryClient.setQueryData(
+        profileRecordsQuery(name).queryKey,
+        (previous) =>
+          previous && {
+            ...previous,
+            texts: withSavedCustomTexts(previous.texts, savedRecords.unknown),
+          },
+      )
       if (cancelled) return
       form.reset(savedRecords)
       await onUpdated?.()

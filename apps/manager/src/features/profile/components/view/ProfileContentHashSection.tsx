@@ -16,7 +16,7 @@ import { getContentHashHref } from './ProfileView.helpers'
 
 const cardClassName = cn(
   profileTileClassName,
-  'h-auto w-full min-w-0 flex-row items-center justify-between gap-4 p-6 text-left transition hover:bg-ens-quartz-50',
+  'group h-auto w-full min-w-0 flex-row items-center justify-between gap-4 p-6 text-left transition hover:bg-ens-quartz-50',
 )
 
 export const ProfileContentHashSection = ({

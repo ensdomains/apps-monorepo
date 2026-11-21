@@ -26,7 +26,7 @@ const contactMaterialIconClassName =
 
 const contactCardSurfaceClassName = cn(
   profileTileClassName,
-  'transition hover:bg-ens-quartz-50',
+  'group transition hover:bg-ens-quartz-50',
 )
 const contactLabelClassName =
   'h-[16.5px] w-full truncate font-sans font-normal text-[11px] text-ens-quartz-500 leading-[16.5px] tracking-[-0.121px] xl:h-[18px] xl:text-xs xl:leading-[18px] xl:tracking-[-0.132px]'
