@@ -6,15 +6,21 @@ import {
 import { toHex } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
+  type ResourceId,
+  resourceIdFromChainValue,
+} from '@/lib/resource/resourceId'
+import {
   decodeSetterGrants,
   describeResolverResource,
   formatSetterScope,
   groupRolesByAccount,
   planAccountRemoval,
+  type ResolverRevocation,
   ROOT_RESOURCE,
   ROOT_RESOURCE_LABEL,
   resolverPermissions,
   resolverRoleGroupId,
+  selfRemovalOrder,
   UNREADABLE_RESOURCE_LABEL,
 } from './resolverRoles'
 
@@ -228,6 +234,30 @@ describe('planAccountRemoval', () => {
     )
 
     expect(plan).toEqual({ type: 'unreadable' })
+  })
+})
+
+// WEB-1649: removing yourself root first took away the root admin the scoped
+// revokes after it relied on.
+describe('selfRemovalOrder', () => {
+  const id = (resource: bigint) =>
+    resourceIdFromChainValue(resource)._unsafeUnwrap()
+  const avatar = id(computeResolverResource({ kind: 'text', key: 'avatar' }))
+  const eth = id(computeResolverResource({ kind: 'address', coinType: 60n }))
+  const revocation = (resource: ResourceId): ResolverRevocation => ({
+    resource,
+    resourceLabel: resource.toString(),
+    roles: ['ROLE_SET_TEXT'],
+  })
+
+  it('moves root to the end and keeps the scoped order', () => {
+    expect(
+      selfRemovalOrder([
+        revocation(ROOT_RESOURCE),
+        revocation(avatar),
+        revocation(eth),
+      ]).map(({ resource }) => resource),
+    ).toEqual([avatar, eth, ROOT_RESOURCE])
   })
 })
 

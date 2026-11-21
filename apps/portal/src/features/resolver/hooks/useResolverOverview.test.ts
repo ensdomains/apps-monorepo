@@ -282,6 +282,19 @@ describe('getResolverOverviewQueryOptions', () => {
     expect(result?.roles.map(({ resource }) => resource)).toEqual(['42', null])
   })
 
+  // WEB-1649: bigname keeps serving a revoked grant with no powers. Left in, it
+  // listed an empty row and hid "No role holders yet" after the last removal.
+  it('drops grants with no powers left, from the roles and the holder count', async () => {
+    bigname.resolverRoles.mockReturnValue(
+      page([role(), role({ address: '0x1', powers: [] })]),
+    )
+
+    const result = await readOverview()
+
+    expect(result?.roles.map(({ account }) => account)).toEqual([HOLDER])
+    expect(result?.roleHolderCount).toBe(1)
+  })
+
   it('keeps the weakest coverage any page stated, and never reports an unsupported count', async () => {
     bigname.resolverLinks.mockReturnValue(
       page([], { total: null, completeness: 'unsupported' }),
