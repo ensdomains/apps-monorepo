@@ -15,7 +15,7 @@ unless a column says otherwise.
 1. **Two token sets that disagree.** The same color name renders a different
    value in each app (`garnet-500` `#e72a96` vs `#ed2496`), Explorer's `*-400`
    is Manager's `*-300` for four hues, and `rounded-md` is 6px vs 8px.
-   Manager also still uses 19 "old brand" colors 227 times and Tailwind's
+   Manager also still uses 13 of its 19 "old brand" colors, 227 times, and Tailwind's
    default palette 184 times. (1.2, F1)
 2. **Every shared primitive is a drifted copy.** 16 `ui/` files exist in both
    apps; 15 have drifted (up to 395 diff lines) and the two `cn` helpers merge
@@ -31,10 +31,10 @@ unless a column says otherwise.
    name, 6 focus rings use `focus:` instead of `focus-visible:`, and the
    a11y lint rules are warnings. (3.6, F3, F11)
 6. **Not ready to extract.** Two Manager molecules import from `features/`,
-   7 shared files carry Lingui copy, Explorer has no Storybook, and 48 of 71
+   6 shared files carry Lingui copy, Explorer has no Storybook, and 48 of 71
    components have no story and no test. (3.5, 1.1, F5, F15)
 7. **Dead weight.** 5 components with 0 importers (plus `ui/text`, used only
-   by two of them), ~25 unused variant values, 87 unused color tokens; knip
+   by two of them), 28 unused variant values, 87 unused color tokens; knip
    is not in CI. (2.2, F12)
 
 ## 1. Inventory
@@ -196,7 +196,7 @@ name renders a different color in each app.
 
 Defects inside Manager's `theme.css`:
 
-- `--color-ens-garnet-900` is declared twice (lines 69 and 75).
+- `--color-ens-garnet-900` is declared twice (lines 70 and 75).
 - `--Primary-Grey` (line 153) has no `--color-` prefix, so Tailwind makes no
   utility from it.
 - New and old names alias the same value: `ens-lapis-core` and `ens-blue`
@@ -235,9 +235,9 @@ confirmed with `git grep -n <Name> -- apps/<app>/src`):
 | Manager `ens-consumer/button/LinkButton.tsx` | nothing | `ui/button.tsx` exports its own `LinkButton`, used by `NameFallbackCard.tsx:2` |
 | Manager `ui/text.tsx` | `FormField.tsx:3`, `SearchForm.tsx:2` | dead once those two go |
 
-Knip is configured (`knip.json`, `pnpm knip`) but does not run in CI
-(`grep -n knip .github/workflows/*.yml` prints nothing), so nothing stops new
-dead components.
+Knip is configured (`knip.json`, `pnpm knip`) but does not run in CI: its
+only step, in `.github/workflows/test.yml:93-98`, is commented out "until Knip
+is configured for all packages". Nothing stops new dead components.
 
 Variant values with no use. Command:
 `python3 docs/design-system-audit/scripts/variants.py`, which counts literal
@@ -340,17 +340,17 @@ called out. Rules cited: `.greptile/config.json` ids, STYLEGUIDE.md sections.
 | Native `<input type="checkbox">` | — (Explorer has `ui/checkbox`) | 6 in 5 files | 0 |
 | Native `<input type="range">` | — (no Slider component) | 2 in 2 files | 0 |
 | Native `<dialog>` | — | 0 | 0 |
-| `<Button>` overriding background color via `className` | CVA for variants | 12 in 9 files | 3 in 3 files |
-| `<Button>` overriding height, radius or padding | CVA for variants | 19 in 13 files | 23 in 14 files |
-| `<DialogContent>` overriding color | CVA for variants | 11 in 11 files | 0 |
-| `<Card>` overriding padding or radius | CVA for variants | 26 in 22 files | n/a |
+| `<Button>` overriding background color via `className` (outside DS folders, `bg-transparent` not counted) | Component Variants with CVA | 12 in 9 files | 3 in 3 files |
+| `<Button>` overriding height, radius or padding | Component Variants with CVA | 19 in 13 files | 23 in 14 files |
+| `<DialogContent>` overriding color | Component Variants with CVA | 11 in 11 files | 0 |
+| `<Card>` overriding padding or radius | Component Variants with CVA | 26 in 22 files | n/a |
 | `!important` (CSS or Tailwind `!`) | — | 1, justified (`index.css:69`) | 0 |
 | Hex colors outside `assets/`, `icons/` | `no-arbitrary-tailwind` | 218 in 65 files | 15 in 3 files |
 | `rgb()`/`rgba()` in `.tsx` | `no-arbitrary-tailwind` | 32 in 21 files | 1 |
 | Arbitrary Tailwind values `x-[…]` | `no-arbitrary-tailwind` | 917 in 163 files | 180 in 62 files |
 | …of those with a comment on the line or the line above | allowed with a reason | 64 | 10 |
-| Inline `style={…}` | Utility-first | 65 in 36 files | 17 in 11 files |
-| Ternaries inside `cn`/`tw`/`twm`/`clsx` in `features/` | CVA for variants; `pattern-match-complex-conditionals` | 71 in 41 files | 20 in 11 files |
+| Inline `style={…}` | Utility-First Approach | 65 in 36 files | 17 in 11 files |
+| Ternaries inside `cn`/`tw`/`twm`/`clsx` in `features/` | Component Variants with CVA; `pattern-match-complex-conditionals` | 71 in 41 files | 20 in 11 files |
 | `tw`/`twm` calls | `cn-class-helper` | 75 in 34 files | 0 |
 | Bare `clsx` import | `cn-class-helper` | 2 | 0 |
 | Logic, IO or copy imported into DS layers | `thin-react-layer` | 13 in 8 files | 1 |
@@ -488,7 +488,7 @@ No `useQuery`, wagmi or data fetching in any DS-layer file.
   (`apps/manager/src/styles/index.css:194, 228-237`).
 - Biome's `a11y` rules `noStaticElementInteractions`, `useButtonType`,
   `useKeyWithClickEvents` and `noLabelWithoutControl` are `warn`, not
-  `error` (`biome.jsonc:63-68`), so CI does not block them. Existing
+  `error` (`biome.jsonc:63-67`), so CI does not block them. Existing
   suppressions: 6 in Manager, 10 in Explorer (5 in tests), each with a
   reason (`git grep -n 'biome-ignore lint/a11y' -- apps/<app>/src`).
 
@@ -519,16 +519,16 @@ section 5.
 | --- | --- | --- | --- | --- | --- | --- |
 | F1 | Same token name, different value or step between apps; `ens-` prefix only in Manager (1.2) | high | M | 2 CSS files, then every color class (Manager ~1,200 `ens-*` uses, `tokens.py`) | high | Design (Q1, Q2) |
 | F2 | 16 `ui/` primitives copied and drifted; two `cn` with different merge configs (2.3) | high | L | 32 `ui/` files, 2 `lib/utils.ts` | medium–high per component | Design for each visual diff; `collapsible` is a codemod |
-| F3 | Icon-only buttons with no accessible name (3.6) | high | S | 11 Explorer files | none | Codemod (copy goes through i18n) |
+| F3 | Icon-only buttons with no accessible name (3.6) | high | S | 10 Explorer files | none | Codemod (copy goes through i18n) |
 | F4 | Manager `Button` default variant is a fixed 191×56 CTA; primary blue rebuilt by hand 7 times; second Button on Base UI (3.2, 2.4) | high | M | `ui/button.tsx`, `ens-consumer/button/*`, 13 call sites | medium | Design (Q4) |
-| F5 | DS molecules import from `features/` and carry Lingui copy (3.5) | high (blocks extraction) | M | 7 DS files | none | Codemod (props in, no visual change) |
+| F5 | DS molecules import from `features/` and carry Lingui copy (3.5) | high (blocks extraction) | M | 6 DS files | none | Codemod (props in, no visual change) |
 | F6 | Manager has no type scale: 455 arbitrary `text/tracking/leading` values, `text-temp-*` tokens (3.3, 1.2) | medium | L | 90+ Manager files | high | Design (Q3) |
 | F7 | Hard-coded colors: 218 hex + 32 rgb in Manager, 184 default-palette uses (3.3) | medium | M | 65 + 21 files | medium | Codemod where the hex equals a token value; Design for the rest |
-| F8 | Old brand colors still used 227 times; aliases with identical values (1.2) | medium | S | ~80 Manager files (`git grep -lE -- "-ens-(blue\|magenta\|green\|yellow\|orange\|brown\|gray\|white)"`) | none for identical values | Codemod |
+| F8 | Old brand colors still used 227 times; aliases with identical values (1.2) | medium | S | 88 Manager files (`git grep -lE -- "-ens-(blue\|magenta\|green\|yellow\|orange\|brown\|gray\|white)"`) | none for identical values | Codemod |
 | F9 | Missing components: Select (both), Checkbox and Slider (Manager), dialog size/tone variants (3.1, 3.2) | medium | M each | new files + 6–25 call sites | medium | Design (Q4, Q7) |
 | F10 | Competing components for one job: badges (4), messages (alert + message-card), popovers (Radix + Base UI), copy buttons (4) (2.4) | medium | M each | per group, 3–45 call sites | medium | Design (Q5, Q6) |
 | F11 | Focus: `focus:` rings in dialogs and sheets, 13 outline removals to check, `animate-shimmer` ignores reduced motion; a11y lint is `warn` (3.6) | medium | S | ~16 files | low (ring shows on keyboard only) | Codemod |
-| F12 | Dead components (5 + `ui/text`), ~25 unused variant values, 87 unused color tokens; knip not in CI (2.2) | low | S | ~12 files | none | Codemod |
+| F12 | Dead components (5 + `ui/text`), 28 unused variant values, 87 unused color tokens; knip not in CI (2.2) | low | S | ~12 files | none | Codemod |
 | F13 | Class helpers: `tw`/`twm` (75 calls), bare `clsx`, Explorer classes not sorted (3.4) | low | S–M | 34 Manager files; all Explorer `.tsx` for sorting | low (`tw`→`cn` adds merging) | Codemod |
 | F14 | 91 ternaries in class helpers in features; 25 `DialogContent`, 26 `Card` overrides (3.2, 3.4) | low | M | 88 files | medium | Design for repeated states |
 | F15 | No Storybook in Explorer; 19 of 41 Manager and 29 of 30 Explorer components have no story and no test (1.1) | medium | M | new stories | none | Codemod |
@@ -590,7 +590,7 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 
 | Ticket | M | Scope | Before → after | Verify | Regression risk |
 | --- | --- | --- | --- | --- | --- |
-| T1 Fix Manager `theme.css` defects | 2 | remove duplicate `ens-garnet-900`, `--Primary-Grey`, unused `bronzite`, `chart-*`, `sidebar-*` | 146 → ~128 tokens, same rendering | `tokens.py` shows no uses of removed names; typecheck; app at 1440 and 390 px | none if `tokens.py` shows 0 uses |
+| T1 Fix Manager `theme.css` defects | 2 | remove duplicate `ens-garnet-900`, `--Primary-Grey`, unused `bronzite`, `chart-*`, `sidebar-*` | 146 → 129 tokens, same rendering | `tokens.py` shows no uses of removed names; typecheck; app at 1440 and 390 px | none if `tokens.py` shows 0 uses |
 | T2 Codemod old brand names with identical values | 2 | `ens-blue`→`ens-lapis-core`, `ens-blue-midnight`→`ens-lapis-dense`, `ens-magenta`→`ens-garnet-core`, and the other identical pairs | 227 old uses → only names with no identical new token | grep shows 0 of the replaced names; computed colors unchanged on landing, dashboard, register | none (same hex) |
 | T3 Shared token stylesheet | 2 | new `packages/<ui>` with one `tokens.css`, both apps import it, app-only tokens stay in the apps. Waits on Q1, Q2, Q9 | two token sets → one, plus app extras | token parity script (G4) passes; screenshots of 5 key screens per app before/after | high: colors and radii change where values differ |
 | T4 Manager default palette to tokens | 2 | 184 `gray/slate/red/…` uses | default palette → tokens; then switch defaults off like Explorer | `tokens.py` default-palette count 0 | medium |
@@ -601,7 +601,7 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 | Ticket | M | Scope | Before → after | Verify | Regression risk |
 | --- | --- | --- | --- | --- | --- |
 | T6 Delete dead components | 2 | `atoms/Badge`, `atoms/QRPattern`, `molecules/FormField`, `organisms/SearchForm`, `ens-consumer/button/LinkButton`, then `ui/text`, with their stories | 6 files fewer | `inventory.py` shows no 0-importer rows; typecheck | none |
-| T7 Remove unused variant values | 2 | the values in 2.2, after checking the 36 dynamic `variant={x}` sites | ~25 values fewer | `variants.py`; typecheck catches any remaining use | none |
+| T7 Remove unused variant values | 2 | the values in 2.2, after checking the 36 dynamic `variant={x}` sites | 28 values fewer | `variants.py`; typecheck catches any remaining use | none |
 | T8 Accessible names and focus | 2 | `aria-label` on the 12 Explorer icon buttons; `focus-visible:` in both dialogs, Explorer sheet, `SearchField`; reduced motion for `animate-shimmer` | WCAG 4.1.2 and 2.4.7 gaps closed | `misuse.py a11y` counts drop; keyboard pass on each screen; test by role and name | low |
 | T9 Move zero-drift primitives | 2 | `collapsible` into the shared package, used by both apps | 2 copies → 1 | both apps' typecheck and tests; Storybook story | none |
 | T10 Shared Button | 2 | one Button with the agreed variants and an explicit CTA variant instead of the 191×56 default; fold `ens-consumer/button` into it. Waits on Q4 | 3 buttons → 1 | Storybook per variant; screenshots of Manager register/renew CTAs and Explorer forms | medium: every `<Button>` with no `variant` changes in Manager |
@@ -658,8 +658,8 @@ CI:
   committed baseline, and fails when a count goes up. Lower the baseline as
   tickets land. Until T3, it also checks that same-named tokens in the two
   apps have the same value.
-- G5. Run `pnpm knip` in `test.yml` so new dead components and exports fail
-  the build.
+- G5. Uncomment the Knip step in `test.yml` (lines 93-98) so new dead
+  components and exports fail the build.
 - G6. The shared package requires a story per exported component (a check
   that each `*.tsx` export has a `*.stories.tsx`).
 
