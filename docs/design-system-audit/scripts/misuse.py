@@ -79,6 +79,26 @@ def scan_tags(app, path, text, in_ds):
             add('override-box-' + name, app, path, ln, tag)
 
 
+def lucide_names(text):
+    """Local names bound by `import { A, B as C } from 'lucide-react'`."""
+    names = []
+    for m in re.finditer(r"import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*['\"]lucide-react['\"]", text):
+        for part in m.group(1).split(','):
+            part = part.strip()
+            if part and not part.startswith('type '):
+                names.append(part.split(' as ')[-1].strip())
+    return names
+
+
+def lucide_size_props(text):
+    """(line, tag) for each Lucide icon sized with a `size`, `width` or `height` prop instead of a size-* class."""
+    names = lucide_names(text)
+    if not names:
+        return []
+    alternation = '|'.join(re.escape(n) for n in names)
+    return [(ln, tag) for ln, tag, _ in jsx_tags(text, alternation) if re.search(r'\s(size|width|height)=', tag)]
+
+
 def important_tokens(line):
     """Tailwind important modifiers in the quoted strings of one source line: `!p-0`, `p-0!`, `hover:!p-0`."""
     out = []
@@ -133,6 +153,8 @@ def scan_file(app, path):
     in_ds = bool(DS_DIR.search(path))
     scan_tags(app, path, text, in_ds)
     scan_lines(app, path, text, in_ds)
+    for ln, tag in lucide_size_props(text):
+        add('lucide-size-prop', app, path, ln, tag)
     if '/features/' in path:
         for ln, body in call_bodies(text, 'cn|twm|tw|clsx'):
             for _ in re.finditer(r'\?\s*[\'"`]', body):

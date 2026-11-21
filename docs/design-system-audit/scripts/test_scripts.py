@@ -4,7 +4,7 @@ import unittest
 
 from inventory import cva_variants, cva_defaults, prop_defaults, prop_variants
 from jsx import jsx_tags
-from misuse import css_important, important_tokens
+from misuse import css_important, important_tokens, lucide_names, lucide_size_props
 from variants import classify, count_values, prop_values
 
 
@@ -24,6 +24,26 @@ class ImportantModifiers(unittest.TestCase):
     def test_css_important_skips_comments(self):
         css = '/* never use !important */\na {\n  bottom: 20px !important;\n}\n'
         self.assertEqual(css_important(css), [(3, 'bottom: 20px !important;')])
+
+
+class LucideSizing(unittest.TestCase):
+    def test_names_follow_aliases_and_skip_types(self):
+        text = "import { Frown, AlertCircle as Alert, type LucideProps } from 'lucide-react'\n"
+        self.assertEqual(lucide_names(text), ['Frown', 'Alert'])
+
+    def test_flags_size_width_height_props_on_lucide_icons_only(self):
+        text = (
+            "import { Frown, Check as Tick } from 'lucide-react'\n"
+            "import { Button } from '@/components/ui/button'\n"
+            "const a = <Frown size={24} strokeWidth={1.5} />\n"
+            "const b = <Tick\n  width={16}\n/>\n"
+            "const c = <Frown className=\"size-4\" strokeWidth={2} />\n"
+            "const d = <Button size=\"sm\" />\n"
+        )
+        self.assertEqual([ln for ln, _ in lucide_size_props(text)], [3, 4])
+
+    def test_files_without_lucide_import_are_skipped(self):
+        self.assertEqual(lucide_size_props('<AddressIcon size="md" />'), [])
 
 
 class VariantExtraction(unittest.TestCase):
