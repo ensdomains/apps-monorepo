@@ -415,7 +415,7 @@ the wiki styleguide; "—" where no rule applies.
   `EnableSessionModal.tsx:101`, `RevokeSessionsModal.tsx:146`,
   `WithdrawLeftoverFundsModal.tsx:178`, `ChainPickerDialog.tsx:136`,
   `ChoosePrimaryNameDialog.tsx:825` with `bg-ens-blue` or
-  `bg-ens-lapis-core`, while the `blue` variant exists (12 literal uses).
+  `bg-ens-lapis-core`, while the `blue` variant exists (16 uses in `Button` tags, `variants.py`).
 - `ThirdPartyRenewalDialog.tsx:75`: `h-[74px] … bg-[#E2E8F0]` on a
   `Button`.
 - 11 Manager `DialogContent`s replace the dialog's color and 14 its size or
