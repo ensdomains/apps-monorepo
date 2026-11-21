@@ -1,6 +1,4 @@
-# Compare ui/ components that exist in both apps: raw diff size, and class tokens
-# that only one copy has (ignores class order, which Biome sorts only in Manager).
-# Run from the repo root: python3 docs/design-system-audit/scripts/drift.py
+# Diff size and one-sided class tokens for ui/ files in both apps (class order ignored); run from the repo root: python3 docs/design-system-audit/scripts/drift.py
 import os
 import re
 import subprocess

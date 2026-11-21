@@ -1,5 +1,4 @@
-# Color token usage per app: tokens defined, uses outside the defining file, unused tokens.
-# Run from the repo root: python3 docs/design-system-audit/scripts/tokens.py
+# Color tokens per app: definitions, uses outside the defining file, unused ones; run from the repo root: python3 docs/design-system-audit/scripts/tokens.py
 import collections
 import re
 import subprocess
