@@ -3,6 +3,7 @@ import { scopeTransactionId } from '@ens-apps/transaction-manager'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import type { Row } from '@tanstack/react-table'
 import {
   ArrowLeftRight,
@@ -56,13 +57,18 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useFlowAttempt } from '@/features/transaction-manager/hooks/useFlowAttempt'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { MAINNET_COIN_TYPE } from '@/lib/coinType'
+import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
+import { MANAGER_UPGRADE_URL } from '@/lib/constants/domain'
 import { names } from '@/lib/reverseRegistrarChainId'
 import { cn, fromCoinType } from '@/lib/utils'
 import { ensChain } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { validateRecord } from '@/utils/records/validateRecord'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
+import {
+  canUpgradeReplaceResolver,
+  getNeedsLatestResolver,
+} from './needsLatestResolver'
 import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
 
@@ -82,71 +88,98 @@ const Banner = ({
   label,
   lagEstimate,
   errorDetail,
+  mismatchDetail,
   action,
 }: {
   status: ReverseMatchStatus
   label: string
   lagEstimate?: string
   errorDetail?: string | null
+  readonly mismatchDetail?: ReactNode
   action?: ReactNode
-}) => (
-  <div
-    className={cn(
-      'flex items-center justify-between gap-3 p-4 rounded-md',
-      match(status)
-        .with('verified', () => 'bg-success-fill text-success-text')
-        .with('pending', () => 'bg-accent-fill text-accent-text')
-        .with('unverifiable', () => 'bg-danger-fill text-danger-text')
-        .with('mismatch', () => 'bg-danger-fill text-danger-text')
-        .exhaustive(),
-    )}
-  >
-    <div className="flex items-center gap-3">
-      {match(status)
-        .with('verified', () => (
-          <>
-            <CheckCircle2 className="size-6 shrink-0" />
-            <span className="font-medium">
-              This is the primary name on {label}
-            </span>
-          </>
-        ))
-        .with('pending', () => (
-          <>
-            <Clock className="size-6 shrink-0" />
-            <span className="text-p">
-              Primary name is set on {label} — waiting for L1 verification
-              {lagEstimate ? ` (${lagEstimate})` : ''}.
-            </span>
-          </>
-        ))
-        .with('unverifiable', () => (
-          <>
-            <TriangleAlert className="size-6 shrink-0" />
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-p">
-                Can't verify reverse resolution on {label} right now
-              </span>
-              {errorDetail && (
-                <code className="text-smallmono opacity-80 break-all">
-                  {errorDetail}
-                </code>
-              )}
-            </div>
-          </>
-        ))
-        .with('mismatch', () => (
-          <>
-            <XCircle className="size-6 shrink-0" />
-            <span className="text-p">
-              The set address does not resolve back to this name on {label}
-            </span>
-          </>
-        ))
-        .exhaustive()}
-    </div>
-    {action}
-  </div>
+}) => {
+  const { variant, icon, message } = match(status)
+    .returnType<{
+      readonly variant: 'success' | 'default' | 'destructive'
+      readonly icon: ReactNode
+      readonly message: ReactNode
+    }>()
+    .with('verified', () => ({
+      variant: 'success',
+      icon: <CheckCircle2 />,
+      message: <p>This is the primary name on {label}</p>,
+    }))
+    .with('pending', () => ({
+      variant: 'default',
+      icon: <Clock />,
+      message: (
+        <p>
+          Primary name is set on {label} — waiting for L1 verification
+          {lagEstimate ? ` (${lagEstimate})` : ''}.
+        </p>
+      ),
+    }))
+    .with('unverifiable', () => ({
+      variant: 'destructive',
+      icon: <TriangleAlert />,
+      message: (
+        <>
+          <p>Can't verify reverse resolution on {label} right now</p>
+          {errorDetail && (
+            <code className="text-smallmono opacity-80 break-all">
+              {errorDetail}
+            </code>
+          )}
+        </>
+      ),
+    }))
+    .with('mismatch', () => ({
+      variant: 'destructive',
+      icon: <XCircle />,
+      message: (
+        <p>
+          The set address does not resolve back to this name on {label}
+          {mismatchDetail ? <>. {mismatchDetail}</> : null}
+        </p>
+      ),
+    }))
+    .exhaustive()
+
+  return (
+    <Alert variant={variant}>
+      {icon}
+      <AlertDescription>
+        {message}
+        {action}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+const OlderResolverDetail = ({ name }: { readonly name: string }) => (
+  <>
+    The older ENS public resolver that{' '}
+    <strong className="font-medium">{name}</strong> uses does not support L2 and
+    default primary names, so{' '}
+    {canUpgradeReplaceResolver(name) ? (
+      <>
+        either{' '}
+        <a
+          href={MANAGER_UPGRADE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          upgrade the name to ENSv2
+        </a>{' '}
+        or{' '}
+      </>
+    ) : null}
+    <Link to="/$name/change-resolver" params={{ name }} className="underline">
+      change the resolver
+    </Link>
+    .
+  </>
 )
 
 const CoinTypeRow = ({
@@ -346,6 +379,7 @@ const ResolutionDetails = ({
   canSetPrimaryName,
   isSettingPrimaryName,
   onSetPrimaryName,
+  v1ResolverAddress,
 }: {
   row: AddressResolutionRow
   name: string
@@ -362,6 +396,7 @@ const ResolutionDetails = ({
   canSetPrimaryName: boolean
   isSettingPrimaryName: boolean
   onSetPrimaryName: () => void
+  readonly v1ResolverAddress: Address | null | undefined
 }) => {
   const { label, icon, coinType, reverseMatch, reverseName } = row
   // `null`/`undefined` = nothing to check / still loading — no banner.
@@ -376,6 +411,13 @@ const ResolutionDetails = ({
   // couldn't be verified either, so offering it would just mint another
   // unverifiable record.
   const offerSetPrimary = status === 'mismatch' && canSetPrimaryName
+  // A primary name set on an older public resolver never verifies, so the banner points at the fix instead.
+  const shouldUpdateResolver =
+    offerSetPrimary &&
+    getNeedsLatestResolver({ row, v1ResolverAddress, chainId: ensChain.id })
+  // Default covers every EVM chain rather than naming one.
+  const bannerLabel =
+    coinType === DEFAULT_EVM_COIN_TYPE ? 'Default chains' : label
 
   return (
     <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
@@ -388,16 +430,19 @@ const ResolutionDetails = ({
       {address && status && (
         <Banner
           status={status}
-          label={label}
+          label={bannerLabel}
           lagEstimate={lagEstimate}
           errorDetail={row.reverseError}
+          mismatchDetail={
+            shouldUpdateResolver ? <OlderResolverDetail name={name} /> : null
+          }
           action={
-            offerSetPrimary ? (
+            offerSetPrimary && !shouldUpdateResolver ? (
               <Button
                 type="button"
                 variant="link"
                 size="sm"
-                className="h-auto p-0 text-primary font-medium shrink-0"
+                className="h-auto p-0 text-primary font-medium underline"
                 disabled={isSettingPrimaryName}
                 onClick={onSetPrimaryName}
               >
@@ -733,10 +778,19 @@ export const AddressResolutionSidebar: FC<
     row: Row<AddressResolutionRow> | null
     name: string
     resolverAddress: Address | undefined
+    readonly v1ResolverAddress?: Address | null
     open: boolean
     setOpen: React.Dispatch<React.SetStateAction<boolean>>
   }>
-> = ({ children, row, name, resolverAddress, open, setOpen }) => {
+> = ({
+  children,
+  row,
+  name,
+  resolverAddress,
+  v1ResolverAddress,
+  open,
+  setOpen,
+}) => {
   const isMobile = useIsMobile()
   const data = row?.original ?? null
   const editor = useAddressRecordEditor(name, data, resolverAddress)
@@ -766,6 +820,7 @@ export const AddressResolutionSidebar: FC<
               canSetPrimaryName={editor.canSetPrimaryName}
               isSettingPrimaryName={editor.isSettingPrimaryName}
               onSetPrimaryName={editor.onSetPrimaryName}
+              v1ResolverAddress={v1ResolverAddress}
             />
           ) : (
             <div className="p-6 text-muted-foreground text-center py-12">

@@ -2,6 +2,8 @@ import type { Row } from '@tanstack/react-table'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { Address } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
+import { MANAGER_UPGRADE_URL } from '@/lib/constants/domain'
 import type { AddressResolutionRow } from './types'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
@@ -77,6 +79,11 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
   NameAvatar: () => null,
 }))
 vi.mock('@/lib/wagmi', () => ({ ensChain: { id: 11155111 } }))
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+    <a href={to}>{children}</a>
+  ),
+}))
 vi.mock('@ens-apps/l2-primary/v1', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@ens-apps/l2-primary/v1')>()),
   getRegistrarAddress: () => '0x3333333333333333333333333333333333333333',
@@ -102,12 +109,14 @@ const mainnetRow = (address: Address): Row<AddressResolutionRow> =>
 const renderSidebar = (
   row: Row<AddressResolutionRow>,
   resolverAddress?: Address,
+  v1ResolverAddress?: Address,
 ) =>
   render(
     <AddressResolutionSidebar
       row={row}
       name="attacker.eth"
       resolverAddress={resolverAddress}
+      v1ResolverAddress={v1ResolverAddress}
       open
       setOpen={vi.fn()}
     />,
@@ -181,6 +190,50 @@ describe('AddressResolutionSidebar', () => {
         screen.queryByText(/^Invalid MAINNET address/),
       ).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    })
+  })
+
+  describe('on an older V1 public resolver', () => {
+    // Sepolia's previous PublicResolver, which has no default address.
+    const OLDER_RESOLVER =
+      '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as Address
+    const defaultRow = (address: Address): Row<AddressResolutionRow> =>
+      ({
+        original: {
+          ...mainnetRow(address).original,
+          coinType: DEFAULT_EVM_COIN_TYPE,
+          label: 'Default',
+          addressSource: 'record',
+        },
+      }) as Row<AddressResolutionRow>
+
+    it('explains the resolver in the mismatch banner instead of offering a primary name', () => {
+      renderSidebar(defaultRow(OWNER), RESOLVER, OLDER_RESOLVER)
+
+      const changeResolver = screen.getByRole('link', {
+        name: 'change the resolver',
+      })
+      expect(changeResolver.parentElement).toHaveTextContent(
+        'The set address does not resolve back to this name on Default chains. The older ENS public resolver that attacker.eth uses does not support L2 and default primary names, so either upgrade the name to ENSv2 or change the resolver.',
+      )
+      expect(changeResolver).toHaveAttribute('href', '/$name/change-resolver')
+      expect(
+        screen.getByRole('link', { name: 'upgrade the name to ENSv2' }),
+      ).toHaveAttribute('href', MANAGER_UPGRADE_URL)
+      expect(
+        screen.queryByRole('button', { name: 'Set primary name' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('does not explain the resolver to a visitor who cannot set the primary name', () => {
+      connectedAddress = VISITOR
+      isOwner = false
+
+      renderSidebar(defaultRow(VISITOR), RESOLVER, OLDER_RESOLVER)
+
+      expect(
+        screen.queryByRole('link', { name: 'change the resolver' }),
+      ).not.toBeInTheDocument()
     })
   })
 })

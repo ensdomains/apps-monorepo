@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
 import { useConnection } from 'wagmi'
@@ -8,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ChangeResolverForm } from '@/features/resolver/components/ChangeResolverForm'
 import { useCanSetResolver } from '@/features/resolver/hooks/useCanSetResolver'
+import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
 import { ConnectWalletAlert } from '@/features/wallet/ConnectWalletAlert'
 
 export const Route = createFileRoute('/$name/change-resolver')({
@@ -70,6 +72,11 @@ function RouteComponent() {
   const { canSet, isLoading, isUnsupported, target } = useCanSetResolver({
     name,
   })
+  // Already read by useCanSetResolver, so this is a cache hit.
+  const v1StateQuery = useQuery({
+    ...getV1NameStateQueryOptions({ name }),
+    enabled: target?.protocol === 'ENSv1',
+  })
 
   if (isLoading) {
     return <LoadingSpinner title="Checking permissions..." />
@@ -126,5 +133,11 @@ function RouteComponent() {
     )
   }
 
-  return <ChangeResolverForm name={name} target={target} />
+  return (
+    <ChangeResolverForm
+      name={name}
+      target={target}
+      currentResolverAddress={v1StateQuery.data?.resolverAddress}
+    />
+  )
 }
