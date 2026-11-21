@@ -331,11 +331,12 @@ Command for every count in this section unless stated:
 `python3 docs/design-system-audit/scripts/misuse.py [<pattern>] [--all]`
 (`--all` prints every file:line). The scan is heuristic: each pattern is a
 candidate list, and the false positives found by reading the lines are
-called out. Rules cited: `.greptile/config.json` ids, STYLEGUIDE.md sections.
+called out. Rules cited: `.greptile/config.json` ids, STYLEGUIDE.md sections,
+the wiki styleguide; "—" where no rule applies.
 
 | Pattern | Rule | Manager | Explorer |
 | --- | --- | --- | --- |
-| Native `<button>` outside DS folders | Thin React Layer; `button-type-attr` | 97 in 70 files | 26 in 21 files |
+| Native `<button>` outside DS folders | — (`Button` exists in both apps) | 97 in 70 files | 26 in 21 files |
 | Native `<select>` | — (no Select component exists) | 1 | 3 in 2 files |
 | Native `<input type="checkbox">` | — (Explorer has `ui/checkbox`) | 6 in 5 files | 0 |
 | Native `<input type="range">` | — (no Slider component) | 2 in 2 files | 0 |
@@ -351,8 +352,8 @@ called out. Rules cited: `.greptile/config.json` ids, STYLEGUIDE.md sections.
 | …of those with a comment on the line or the line above | allowed with a reason | 64 | 10 |
 | Inline `style={…}` | Utility-First Approach | 65 in 36 files | 17 in 11 files |
 | Ternaries inside `cn`/`tw`/`twm`/`clsx` in `features/` | Component Variants with CVA; `pattern-match-complex-conditionals` | 71 in 41 files | 20 in 11 files |
-| `tw`/`twm` calls | `cn-class-helper` | 75 in 34 files | 0 |
-| Bare `clsx` import | `cn-class-helper` | 2 | 0 |
+| `tw`/`twm` calls | wiki styleguide `styling.md` (one class helper); `cn-class-helper` only stops new ones | 75 in 34 files | 0 |
+| Bare `clsx` import | wiki styleguide `styling.md` (one class helper) | 2 | 0 |
 | Logic, IO or copy imported into DS layers | `thin-react-layer` | 13 in 8 files | 1 |
 | Static element with `onClick` and no keyboard handler | `div-click-needs-keyboard` | 3 candidates, 0 real (below) | 0 |
 | Icon-only `size="icon"` button with no accessible name | ARIA Attributes | 1 candidate, 0 real | 13 candidates, 12 real |
