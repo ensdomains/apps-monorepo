@@ -383,7 +383,7 @@ the wiki styleguide; "—" where no rule applies.
 | Icon-only `size="icon"` button with no accessible name | ARIA Attributes | 1 candidate, 0 real | 13 candidates, 12 real |
 | `outline-none` with no focus replacement on the line | `focus-visible-rings` | 11 in 10 files | 2 in 2 files |
 | `focus:ring` instead of `focus-visible:ring` | `focus-visible-rings` | 2 | 4 in 2 files |
-| Lucide `size=`/`width=` props | `lucide-size-class` | 0 | 0 |
+| Lucide icon sized with a `size`/`width`/`height` prop (`misuse.py lucide`) | `lucide-size-class` | 0 | 6 in 6 files |
 
 ### 3.1 Native elements where a component exists
 
@@ -463,6 +463,15 @@ the wiki styleguide; "—" where no rule applies.
 - Inline styles: most are dynamic and fine (`BeadProgressBar.tsx:36` width
   from progress, `EventsTable.tsx:44` column width). Manager's
   `TemporaryPremiumChart.tsx` has 10.
+- Lucide icons sized by prop instead of a `size-*` class: 6 in Explorer,
+  all `size={24} strokeWidth={1.5}` on the `icon` of a message
+  (`AvailableNameMessage.tsx:51`, `ErrorMessage.tsx:37`,
+  `InvalidNameMessage.tsx:29`, `NotFoundMessage.tsx:31`,
+  `DnsClaimableMessage.tsx:44`, `routes/$name/subnames.tsx:72`). 0 in
+  Manager. The scan follows each file's `lucide-react` imports (aliases
+  included), so props on other components named `size` (for example
+  Manager's `AddressIcon size="md"`) are not counted. `size-6` is 24px, so
+  the class gives the same size.
 
 ### 3.4 Variant logic in features
 
@@ -567,8 +576,9 @@ section 5.
 | F14 | 91 ternaries in class helpers in features; 25 `DialogContent`, 26 `Card` overrides (3.2, 3.4) | low | M | 88 files | medium | Design for repeated states |
 | F15 | No Storybook in Explorer; 19 of 41 Manager and 29 of 30 Explorer components have no story and no test (1.1) | medium | M | new stories | none | Codemod |
 | F16 | Duplicated formatters (`truncateAddress`, `truncateName`, `formatUsd*`, `formatRelativeTime`) (3.7) | low | S | 8 files | low (output format may differ) | Codemod, outside the UI package |
+| F17 | 6 Explorer Lucide icons sized with `size={24}` instead of `size-6` (3.3) | low | S | 6 files | none (`size-6` is 24px) | Codemod |
 
-Quick wins that need no Design answer: F3, F5, F8, F11, F12, F13, the
+Quick wins that need no Design answer: F3, F5, F8, F11, F12, F13, F17, the
 `collapsible` part of F2, and F15. Everything else waits on section 5.
 
 ## 5. Questions for Design
@@ -644,6 +654,7 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 | T12b New Select | 2 | a Select primitive; replace the 4 native selects (Manager `LanguageSection.tsx:80`, Explorer `ChangeResolverForm.tsx:327`, `edit-records.tsx:452, 514`) | native → component | tests by role `combobox`; keyboard and screen reader; 390 px | medium: record-type and resolver choices feed form submits |
 | T12c New Slider | 2 | a Slider primitive for the profile image cropper zoom (`ProfileImageCropper.tsx:150`); the debug control may stay native | native → component | test by role `slider`; arrow keys change zoom | low |
 | T13 One class helper | 2 | replace `tw`/`twm` (75 calls) and bare `clsx` with `cn`; one `cn` in the shared package knowing every custom class | 3 helpers → 1 | typecheck; spot-check the 34 files | low (`cn` merges conflicting classes that `tw` kept) |
+| T13b Lucide sizing classes | 2 | the 6 Explorer `size={24}` icons in 3.3 move to `className="size-6"`; `strokeWidth` stays | prop → class, same 24px | `misuse.py lucide` prints 0; the 6 message screens (available, error, invalid, not found, DNS claimable, subnames) look the same at 1440 px | none: same rendered size |
 
 ### Molecules
 
