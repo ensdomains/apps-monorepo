@@ -7,7 +7,8 @@ centralization (option A: a shared package in this repo, code as the source of
 truth, Figma for tokens and mappings only). Nothing here changes code.
 
 Every number comes from a script in [`scripts/`](./scripts). Run them from the
-repo root with `python3`. Counts exclude `*.test.*` and `*.stories.tsx` files
+repo root with `python3`. The scanners' parsing is covered by
+`python3 -m unittest discover -s docs/design-system-audit/scripts`. Counts exclude `*.test.*` and `*.stories.tsx` files
 unless a column says otherwise.
 
 ## Top problems
@@ -34,7 +35,7 @@ unless a column says otherwise.
    6 shared files carry Lingui copy, Explorer has no Storybook, and 48 of 71
    components have no story and no test. (3.5, 1.1, F5, F15)
 7. **Dead weight.** 5 components with 0 importers (plus `ui/text`, used only
-   by two of them), 28 unused variant values, 87 unused color tokens; knip
+   by two of them), 34 unused variant values (16 more unresolved), 87 unused color tokens; knip
    is not in CI. (2.2, F12)
 
 ## 1. Inventory
@@ -69,10 +70,10 @@ Where the code does not match its folder, the "Actual level" column says so.
 | `ui/collapsible.tsx` | Collapsible + 2 parts | — | primitive | no | no | 3 |
 | `ui/dialog.tsx` | Dialog + 8 parts | — | primitive | yes | yes | 19 |
 | `ui/drawer.tsx` | Drawer + 7 parts (vaul) | — | primitive | no | no | 3 |
-| `ui/dropdown-menu.tsx` | DropdownMenu + 14 parts | — | primitive | no | no | 5 |
+| `ui/dropdown-menu.tsx` | DropdownMenu + 14 parts | TS union on `DropdownMenuItem` `variant`: default, destructive | primitive | no | no | 5 |
 | `ui/field.tsx` | Field + 9 parts | cva `orientation`: vertical, horizontal, responsive | molecule | no | no | 2 |
 | `ui/input-group.tsx` | InputGroup + 5 parts | cva `align`: inline-start, inline-end, block-start, block-end; `size`: xs, sm, icon-xs, icon-sm | molecule | no | no | 3 |
-| `ui/input.tsx` | Input | — | primitive | no | no | 7 |
+| `ui/input.tsx` | Input | TS unions: `variant` default, error, success; `size` default, sm, lg | primitive | no | no | 7 |
 | `ui/label.tsx` | Label | — | primitive | no | no | 3 |
 | `ui/material-symbol.tsx` | MSymbol, MATERIAL_SYMBOLS | prop-driven (name, fill, weight) | primitive (icon) | yes | no | 80 |
 | `ui/popover.tsx` | Popover + 3 parts (Radix) | — | primitive | no | no | 4 |
@@ -118,7 +119,7 @@ neither a story nor a test.
 | `ui/combobox.tsx` | Combobox + parts (Base UI) | — | molecule | no | no | 1 |
 | `ui/command.tsx` | Command + parts (cmdk) | — | molecule | no | yes | 3 |
 | `ui/dialog.tsx` | Dialog + 8 parts | — | primitive | no | no | 13 |
-| `ui/dropdown-menu.tsx` | DropdownMenu + 14 parts | — | primitive | no | no | 5 |
+| `ui/dropdown-menu.tsx` | DropdownMenu + 14 parts | TS union on `DropdownMenuItem` `variant`: default, destructive | primitive | no | no | 5 |
 | `ui/field.tsx` | Field + 9 parts | cva `orientation`: vertical, horizontal, responsive | molecule | no | no | 6 |
 | `ui/hover-card.tsx` | HoverCard + 2 parts | — | primitive | no | no | 1 |
 | `ui/input-group.tsx` | InputGroup + 5 parts | cva `align`: inline-start, inline-end, block-start, block-end; `size`: xs, sm, icon-xs, icon-sm | molecule | no | no | 12 |
@@ -128,8 +129,8 @@ neither a story nor a test.
 | `ui/popover.tsx` | Popover + 3 parts | — | primitive | no | no | 6 |
 | `ui/radio-group.tsx` | RadioGroup, RadioGroupItem | — | primitive | no | no | 3 |
 | `ui/separator.tsx` | Separator | — | primitive | no | no | 3 |
-| `ui/sheet.tsx` | Sheet + 7 parts | prop `side`: top, right, bottom, left | primitive | no | no | 15 |
-| `ui/sidebar.tsx` | Sidebar + 20 parts | cva `variant`: default, outline; `size`: default, sm, lg | organism (740 lines, `use-mobile` hook) | no | no | 14 |
+| `ui/sheet.tsx` | Sheet + 7 parts | TS union on `SheetContent` `side`: top, right, bottom, left | primitive | no | no | 15 |
+| `ui/sidebar.tsx` | Sidebar + 20 parts | cva on `SidebarMenuButton` `variant`: default, outline; `size`: default, sm, lg. TS unions on `Sidebar` `side`: left, right; `variant`: sidebar, floating, inset; `collapsible`: offcanvas, icon, none; on `SidebarMenuSubButton` `size`: sm, md | organism (740 lines, `use-mobile` hook) | no | no | 14 |
 | `ui/skeleton.tsx` | Skeleton | — | primitive | no | no | 11 |
 | `ui/switch.tsx` | Switch | — | primitive | no | no | 3 |
 | `ui/table.tsx` | Table + 7 parts | — | primitive | no | no | 19 |
@@ -240,27 +241,49 @@ only step, in `.github/workflows/test.yml:93-98`, is commented out "until Knip
 is configured for all packages". Nothing stops new dead components.
 
 Variant values with no use. Command:
-`python3 docs/design-system-audit/scripts/variants.py`, which counts literal
-`variant="x"` / `variant: 'x'` in the files that import the component. Each
-zero below was then checked for any `'x'` string literal in those files.
-Default variants are left out, since every call without the prop uses them.
-Dynamic props (`variant={x}`) are not resolved: there are 23 in Manager and
-13 in Explorer (`variant=\{` outside `components/ui`), so these are
-candidates to confirm, not proof.
+`python3 docs/design-system-audit/scripts/variants.py`. It covers both
+variant families: cva configs and props typed as string-literal unions
+(directly or through a type alias in the same folder), and the inventory
+lists both. Uses are counted only inside the component's own JSX tags and
+its `*Variants({...})` calls, in the files that import it, so a
+`size="sm"` on a neighbouring `Button` is not counted for `Input`. A
+literal inside an expression counts (`side={isMobile ? 'bottom' : 'right'}`
+uses both). Defaults are left out, since every call without the prop uses
+them. A value is **unused** when nothing passes it and the component has no
+forwarded prop; it is **unresolved** when nothing passes it literally but
+some caller forwards a variable (`variant={status.variant}`), so it may
+still be used. The script's own tests are in `scripts/test_scripts.py`.
+
+Proven unused, 34 values in live components:
 
 | App | Component | Unused values |
 | --- | --- | --- |
-| Manager | `ui/button` | `variant`: connectWallet, payment |
-| Manager | `ui/badge` | `variant`: lightBlue, red |
 | Manager | `ui/alert` | `variant`: info |
-| Manager | `ens-consumer/button/Button` | `color`: none, lightBlue, temp-light-gray, temp-light-gray-ghost; `size`: none, sm, temp-xxs |
+| Manager | `ui/dropdown-menu` (`DropdownMenuItem`) | `variant`: destructive |
+| Manager | `ui/input` | `variant`: error, success; `size`: sm, lg |
 | Manager | `ui/input-group` | `align`: block-start, block-end; `size`: sm, icon-sm |
 | Manager | `ui/field` | `orientation`: responsive |
-| Explorer | `ui/button` | `variant`: input; `size`: lg |
-| Explorer | `ui/badge` | `variant`: accent |
-| Explorer | `ui/sidebar` (menu button) | `variant`: outline; `size`: sm, lg |
-| Explorer | `ui/input-group` | `align`: block-start, block-end; `size`: icon-sm |
+| Manager | `ens-consumer/button/Button` | `color`: none, lightBlue, temp-light-gray, temp-light-gray-ghost; `size`: none, sm, temp-xxs |
+| Manager | `atoms/DomainCard` | `variant`: garnet, peridot (all 4 callers pass `lapis`) |
+| Manager | `molecules/.../AddressSuggestionCard` | `variant`: compact |
+| Explorer | `ui/dropdown-menu` (`DropdownMenuItem`) | `variant`: destructive |
+| Explorer | `ui/input-group` | `align`: block-start, block-end; `size`: sm, icon-sm |
 | Explorer | `ui/field` | `orientation`: horizontal, responsive |
+| Explorer | `ui/sidebar` | `variant`: outline, floating, inset; `size`: sm, lg; `collapsible`: none |
+
+Unresolved, 16 values behind 19 forwarded props:
+
+| App | Component | Values | Forwarded props |
+| --- | --- | --- | --- |
+| Manager | `ui/badge` | `variant`: destructive, outline, lightBlue, red, gray | 2 (`routes/debug/backend/index.tsx`) |
+| Manager | `ui/button` | `variant`: connectWallet, payment | 4 |
+| Manager | `molecules/.../DomainAttributePill` | `variant`: premium-3, premium-4 | 3 |
+| Explorer | `ui/badge` | `variant`: accent | 1 |
+| Explorer | `ui/button` | `variant`: success, warning, input; `size`: lg | 7 |
+| Explorer | `ui/sheet` | `side`: top, left | 1 |
+
+The dead components in the table above (`atoms/Badge`, `atoms/QRPattern`,
+`ui/text`) are left out: their values go with them.
 
 Unused color tokens (`tokens.py`, uses outside the defining CSS file):
 Manager 38 of 146 (all 4 `ens-bronzite-*`, 14 signal steps, 6 old brand
@@ -345,7 +368,8 @@ the wiki styleguide; "—" where no rule applies.
 | `<Button>` overriding height, radius or padding | Component Variants with CVA | 19 in 13 files | 23 in 14 files |
 | `<DialogContent>` overriding color | Component Variants with CVA | 11 in 11 files | 0 |
 | `<Card>` overriding padding or radius | Component Variants with CVA | 26 in 22 files | n/a |
-| `!important` (CSS or Tailwind `!`) | — | 1, justified (`index.css:69`) | 0 |
+| Tailwind important modifier (`!x`, `x!`, after any prefix) in `.ts`/`.tsx` | — | 1 | 4 in 2 files |
+| CSS `!important` | — | 1, justified (`index.css:69`) | 0 |
 | Hex colors outside `assets/`, `icons/` | `no-arbitrary-tailwind` | 218 in 65 files | 15 in 3 files |
 | `rgb()`/`rgba()` in `.tsx` | `no-arbitrary-tailwind` | 32 in 21 files | 1 |
 | Arbitrary Tailwind values `x-[…]` | `no-arbitrary-tailwind` | 917 in 163 files | 180 in 62 files |
@@ -402,9 +426,18 @@ the wiki styleguide; "—" where no rule applies.
   `ConnectWalletMessage.tsx:18`, `dns-import/components/shared.tsx:128`
   (a `danger` tone done by hand with `message-danger-*` classes) and
   `TransactionStateContent.tsx:228`.
-- No Tailwind `!` modifier anywhere. The one CSS `!important`
-  (`apps/manager/src/styles/index.css:69`) has a `biome-ignore` reason
-  (Intercom's injected styles).
+- Important modifiers (`misuse.py important --all`, which reads every quoted
+  class string in `.ts`/`.tsx` and every stylesheet): 5 Tailwind modifiers
+  and 1 CSS `!important`. All 5 Tailwind ones are inside `ui/` and come from
+  the shadcn sources: `data-[variant=destructive]:*:[svg]:!text-destructive`
+  in both dropdown menus (Manager `ui/dropdown-menu.tsx:88`, Explorer
+  `ui/dropdown-menu.tsx:75`) makes a destructive item's icon red over the
+  icon's own color; Explorer `ui/sidebar.tsx:474` (`size-8!`, `p-2!`) and
+  `:485` (`p-0!`) force the collapsed icon size of a menu button. None in
+  feature code. The CSS one (`apps/manager/src/styles/index.css:69`) has a
+  `biome-ignore` reason (Intercom's injected styles). When these primitives
+  move to the shared package, the dropdown and sidebar modifiers can become
+  part of the variant instead (T11).
 
 ### 3.3 Hard-coded values instead of tokens
 
@@ -529,7 +562,7 @@ section 5.
 | F9 | Missing components: Select (both), Checkbox and Slider (Manager), dialog size/tone variants (3.1, 3.2) | medium | M each | new files + 6–25 call sites | medium | Design (Q4, Q7) |
 | F10 | Competing components for one job: badges (4), messages (alert + message-card), popovers (Radix + Base UI), copy buttons (4) (2.4) | medium | M each | per group, 3–45 call sites | medium | Design (Q5, Q6) |
 | F11 | Focus: `focus:` rings in dialogs and sheets, 13 outline removals to check, `animate-shimmer` ignores reduced motion; a11y lint is `warn` (3.6) | medium | S | ~16 files | low (ring shows on keyboard only) | Codemod |
-| F12 | Dead components (5 + `ui/text`), 28 unused variant values, 87 unused color tokens; knip not in CI (2.2) | low | S | ~12 files | none | Codemod |
+| F12 | Dead components (5 + `ui/text`), 34 unused variant values, 87 unused color tokens; knip not in CI (2.2) | low | S | ~12 files | none | Codemod |
 | F13 | Class helpers: `tw`/`twm` (75 calls), bare `clsx`, Explorer classes not sorted (3.4) | low | S–M | 34 Manager files; all Explorer `.tsx` for sorting | low (`tw`→`cn` adds merging) | Codemod |
 | F14 | 91 ternaries in class helpers in features; 25 `DialogContent`, 26 `Card` overrides (3.2, 3.4) | low | M | 88 files | medium | Design for repeated states |
 | F15 | No Storybook in Explorer; 19 of 41 Manager and 29 of 30 Explorer components have no story and no test (1.1) | medium | M | new stories | none | Codemod |
@@ -602,12 +635,14 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 | Ticket | M | Scope | Before → after | Verify | Regression risk |
 | --- | --- | --- | --- | --- | --- |
 | T6 Delete dead components | 2 | `atoms/Badge`, `atoms/QRPattern`, `molecules/FormField`, `organisms/SearchForm`, `ens-consumer/button/LinkButton`, then `ui/text`, with their stories | 6 files fewer | `inventory.py` shows no 0-importer rows; typecheck | none |
-| T7 Remove unused variant values | 2 | the values in 2.2, after checking the 36 dynamic `variant={x}` sites | 28 values fewer | `variants.py`; typecheck catches any remaining use | none |
+| T7 Remove unused variant values | 2 | the 34 proven-unused values in 2.2; the 16 unresolved ones only after reading their 19 forwarded props | 34 values fewer | `variants.py`; typecheck catches any remaining use | none |
 | T8 Accessible names and focus | 2 | `aria-label` on the 12 Explorer icon buttons; `focus-visible:` in both dialogs, Explorer sheet, `SearchField`; reduced motion for `animate-shimmer` | WCAG 4.1.2 and 2.4.7 gaps closed | `misuse.py a11y` counts drop; keyboard pass on each screen; test by role and name | low |
 | T9 Move zero-drift primitives | 2 | `collapsible` into the shared package, used by both apps | 2 copies → 1 | both apps' typecheck and tests; Storybook story | none |
 | T10 Shared Button | 2 | one Button with the agreed variants and an explicit CTA variant instead of the 191×56 default; fold `ens-consumer/button` into it. Waits on Q4 | 3 buttons → 1 | Storybook per variant; screenshots of Manager register/renew CTAs and Explorer forms | medium: every `<Button>` with no `variant` changes in Manager |
 | T11 Shared drifted primitives | 2 | one PR each: `textarea`, `popover`, `switch`, `tabs`, `label`, `tooltip`, `dialog`, `dropdown-menu`, `input`, `badge`, `alert`, `calendar`. Waits on Q5, Q6, Q8, Q9 | 2 copies → 1 per primitive | Storybook story per state; screenshots of the screens that use it | medium per primitive |
-| T12 New Checkbox, Select, Slider | 2 | Explorer's `checkbox` moved to shared and used for Manager's 6 native checkboxes; new Select for the 4 native selects; Slider for 2 ranges | native → component | keyboard and screen-reader pass; tests by role | medium |
+| T12a Shared Checkbox | 2 | move Explorer's `ui/checkbox` to the shared package; replace Manager's 6 native checkboxes (3.1) | 6 native → component; Explorer unchanged | tests by role `checkbox`; keyboard (Space) on the migration name list and funding dialog | medium: the migration list's checked state drives selection |
+| T12b New Select | 2 | a Select primitive; replace the 4 native selects (Manager `LanguageSection.tsx:80`, Explorer `ChangeResolverForm.tsx:327`, `edit-records.tsx:452, 514`) | native → component | tests by role `combobox`; keyboard and screen reader; 390 px | medium: record-type and resolver choices feed form submits |
+| T12c New Slider | 2 | a Slider primitive for the profile image cropper zoom (`ProfileImageCropper.tsx:150`); the debug control may stay native | native → component | test by role `slider`; arrow keys change zoom | low |
 | T13 One class helper | 2 | replace `tw`/`twm` (75 calls) and bare `clsx` with `cn`; one `cn` in the shared package knowing every custom class | 3 helpers → 1 | typecheck; spot-check the 34 files | low (`cn` merges conflicting classes that `tw` kept) |
 
 ### Molecules
@@ -636,8 +671,11 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 | T23 Colors by feature | 3 | hex/rgb to tokens, starting with `notifications/shared/primitives` (22), `TemporaryPremiumChart` (15), `ShareProfileDialog` (11). Brand marks in `WalletIcons` stay | hex → tokens | `misuse.py hex` per file; screenshots | medium |
 | T24 Repeated feature states | 3 | turn repeated class ternaries (chips, rows) into variants | ternaries → variants | `misuse.py ternary` count | low |
 
-Outside the UI package, own ticket: dedupe the formatters in 3.7 into
-`packages/utils` (F16).
+Outside the UI package, own ticket:
+
+| Ticket | M | Scope | Before → after | Verify | Regression risk |
+| --- | --- | --- | --- | --- | --- |
+| T25 Shared formatters | 3 | move `truncateAddress`, `truncateName`, `formatUsd`, `formatUsdCeil` into `packages/utils`, one function each with options for the current differences; `formatRelativeTime` stays per caller unless the three signatures can agree (3.7) | 2 copies per helper → 1, same output for every current input | unit tests in `packages/utils` with each app's current cases (both apps' existing tests for these helpers keep passing unchanged); typecheck in both apps | medium: the copies disagree. Manager's `truncateAddress` joins with `...` (`lib/utils.ts:20`), Explorer's with `…`; the two `truncateName`s take different arguments (label + tld, 10 chars vs full name, 24 chars); Manager's `formatUsdCeil` also accepts a number. Keep each app's output via options, and list any visible change |
 
 ### Guardrails
 
