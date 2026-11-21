@@ -2,11 +2,11 @@ Part of the [design system audit](README.md). Define `X` as shown there before r
 
 ## 3. Misuse
 
-The commands for the rows follow the table (numbered C1–C25). Rows that span
+The commands for the rows follow the table (numbered 1–25). Rows that span
 multi-line JSX tags (overrides, default-variant buttons, ternaries in class
 helpers, icon-only buttons, clickable static elements) cannot be expressed
-as one `git grep`: their file:line lists are in
-[the file:line lists](#fileline-lists), found by reading each opening tag
+as one `git grep`: their file:line lists are at the
+[bottom of this page](#fileline-lists), found by reading each opening tag
 or call. Each pattern is a candidate list, and the false positives found by
 reading the lines are called out. Rules cited: `.greptile/config.json` ids, STYLEGUIDE.md sections,
 the wiki styleguide; "—" where no rule applies.
@@ -101,7 +101,7 @@ for Manager and `':!apps/portal/src/components/ui'` for Explorer):
 - `ThirdPartyRenewalDialog.tsx:75`: `h-[74px] … bg-[#E2E8F0]` on a
   `Button`.
 - 11 Manager `DialogContent`s replace the dialog's color and 14 its size or
-  radius (for example `SubnameMigrationDialog.tsx:173` sets `rounded-3xl`
+  radius (the 11 are among the 14, so 14 tags in all) (for example `SubnameMigrationDialog.tsx:173` sets `rounded-3xl`
   and a garnet border). No dialog size or tone variant exists.
 - Explorer's 22 color overrides are mostly text color on ghost icon buttons
   (`text-muted-foreground`); 2 are inside `ui/` itself. Its 3 background overrides are
@@ -156,7 +156,7 @@ for Manager and `':!apps/portal/src/components/ui'` for Explorer):
 ### 3.4 Variant logic in features
 
 91 ternaries sit inside class helpers in feature code (71 Manager in 41
-files, 20 Explorer in 11 files; list in [file:line lists](#fileline-lists)). Examples: `DurationPresets.tsx:27`, `DashboardPagination.tsx:61`,
+files, 20 Explorer in 11 files; listed under [File:line lists](#fileline-lists)). Examples: `DurationPresets.tsx:27`, `DashboardPagination.tsx:61`,
 `NameRow.tsx:171`, `HomeSearchInput.tsx:257`. Some are one-off state styles
 that are fine; repeated ones (selected/unselected chips, compact/regular rows)
 are missing variants.
@@ -196,8 +196,8 @@ No `useQuery`, wagmi or data fetching in any DS-layer file.
   `ExtendNameSettings.tsx:56`, `MultiNameExtendSettings.tsx:58`,
   `MultiNameExtendSummary.tsx:60`, `TransactionStateContent.tsx:190`,
   `routes/resolver/$address/links.tsx:127`, `links.tsx:329`. The calendar
-  hits in both apps render the day number (false positives). The scan only
-  sees `size="icon"`, so Manager's icon-only native buttons are not covered.
+  hits in both apps render the day number (false positives). The rule only
+  matches `size="icon"`, so Manager's icon-only native buttons are not covered.
 - Focus removed: 13 lines strip the outline with no focus style on the same
   line (11 Manager in 10 files, 2 Explorer; command 23), for example `SearchField.tsx:64`,
   `dashboard/components/NameRow.tsx:395`, `LanguageSection.tsx:82`,
@@ -226,8 +226,7 @@ No `useQuery`, wagmi or data fetching in any DS-layer file.
 | `formatUsd`, `formatUsdCeil` | `apps/manager/src/utils/formatting/formatUsdCeil.ts:36, 53`, `apps/portal/src/utils/formatting/formatUsdCeil.ts:12, 34` (Manager accepts `string \| number`, Explorer `string`) |
 | `formatRelativeTime` | `apps/manager/src/utils/time.ts:12`, `apps/portal/src/features/dashboard/utils/formatActivityEvent.ts:25`, `apps/portal/src/features/dnssec-debug/utils/time.ts:15`, `packages/dev-dqa-overlay/src/panel/formatRelativeTime.ts:1` (three signatures) |
 
-Command: `git grep -nE "(function|const) (cn|tw|twm|formatRelativeTime|formatUsd|formatUsdCeil|truncateAddress|truncateName)[ (=<]" -- apps packages`,
-minus tests.
+Command: `git grep -nE "(function|const) (cn|tw|twm|formatRelativeTime|formatUsd|formatUsdCeil|truncateAddress|truncateName)[ (=<]" -- apps packages "${X[@]}"`.
 
 ## File:line lists
 

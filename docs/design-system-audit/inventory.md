@@ -4,8 +4,9 @@ Part of the [design system audit](README.md). Define `X` as shown there before r
 
 ### 1.1 Components
 
-Files: `git ls-files 'apps/manager/src/components/ui/*.tsx' 'apps/manager/src/components/atoms/*.tsx' 'apps/manager/src/components/molecules/*.tsx' 'apps/manager/src/components/organisms/*.tsx' 'apps/manager/src/components/base-ui/*.tsx' 'apps/manager/src/components/ens-consumer/*.tsx' "${X[@]}"`
-and `git ls-files 'apps/portal/src/components/ui/*.tsx' "${X[@]}"`.
+Files (`git ls-files` does not apply `X`, so tests and stories are filtered with `grep`):
+`git ls-files 'apps/manager/src/components/ui/*.tsx' 'apps/manager/src/components/atoms/*.tsx' 'apps/manager/src/components/molecules/*.tsx' 'apps/manager/src/components/organisms/*.tsx' 'apps/manager/src/components/base-ui/*.tsx' 'apps/manager/src/components/ens-consumer/*.tsx' | grep -vE '\.(test|stories)\.'`
+(41) and `git ls-files 'apps/portal/src/components/ui/*.tsx' | grep -vE '\.(test|stories)\.'` (30).
 
 Variants: read from each file's cva `variants` block and from props typed as
 string-literal unions. This lists the lines they start on:
@@ -178,7 +179,7 @@ names or `var(--…)`:
   ```sh
   git grep -hoP "(?<![\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|fill|stroke|from|to)-(?:gray|zinc|slate|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b" -- 'apps/manager/src/*.ts' 'apps/manager/src/*.tsx' 'apps/manager/src/*.css' ':!apps/manager/src/styles/theme.css' "${X[@]}" | wc -l
   ```
-- Unused tokens: the loop under "Unused color tokens" in 2.2.
+- Unused tokens: the loop under "Unused color tokens" in [2.2](usage.md#22-dead-code).
 
 Brand ramp values that differ for the same name (Manager `theme.css`, Explorer
 `index.css`):

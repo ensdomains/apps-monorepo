@@ -77,7 +77,7 @@ section 5.
 | F11 | Focus: `focus:` rings in dialogs and sheets, 13 outline removals to check, `animate-shimmer` ignores reduced motion; a11y lint is `warn` ([3.6](misuse.md#36-accessibility)) | medium | S | ~16 files | low (ring shows on keyboard only) | Codemod |
 | F12 | Dead components (5 + `ui/text`), 46 unused variant values, 87 unused color tokens; knip not in CI ([2.2](usage.md#22-dead-code)) | low | S | ~12 files | none | Codemod |
 | F13 | Class helpers: `tw`/`twm` (75 calls), bare `clsx`, Explorer classes not sorted ([3.4](misuse.md#34-variant-logic-in-features)) | low | S–M | 34 Manager files; all Explorer `.tsx` for sorting | low (`tw`→`cn` adds merging) | Codemod |
-| F14 | 91 ternaries in class helpers in features; 25 `DialogContent`, 26 `Card` overrides ([3.2](misuse.md#32-overrides-that-fight-a-component), [3.4](misuse.md#34-variant-logic-in-features)) | low | M | 88 files | medium | Design for repeated states |
+| F14 | 91 ternaries in class helpers in features; 18 `DialogContent` (14 Manager, 4 Explorer) and 26 `Card` overrides ([3.2](misuse.md#32-overrides-that-fight-a-component), [3.4](misuse.md#34-variant-logic-in-features)) | low | M | 88 files | medium | Design for repeated states |
 | F15 | No Storybook in Explorer; 19 of 41 Manager and 29 of 30 Explorer components have no story and no test ([1.1](inventory.md#11-components)) | medium | M | new stories | none | Codemod |
 | F16 | Duplicated formatters (`truncateAddress`, `truncateName`, `formatUsd*`, `formatRelativeTime`) ([3.7](misuse.md#37-duplicated-helpers)) | low | S | 8 files | low (output format may differ) | Codemod, outside the UI package |
 | F17 | 6 Explorer Lucide icons sized with `size={24}` instead of `size-6` ([3.3](misuse.md#33-hard-coded-values-instead-of-tokens)) | low | S | 6 files | none (`size-6` is 24px) | Codemod |
@@ -140,9 +140,9 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 | Ticket | M | Scope | Before → after | Verify | Regression risk |
 | --- | --- | --- | --- | --- | --- |
 | T1 Fix Manager `theme.css` defects | 2 | remove duplicate `ens-garnet-900`, `--Primary-Grey`, unused `bronzite`, `chart-*`, `sidebar-*` | 146 → 129 tokens, same rendering | the unused-token loop in [2.2](usage.md#22-dead-code) lists none of the removed names before the change; typecheck; app at 1440 and 390 px | none if the loop lists them as unused |
-| T2b Define or replace `ens-gray-dark` | 2 | `TokenListItem.tsx:75, 84` use a token that does not exist; pick the gray with Design and use an existing token | uncolored text → token color | `git grep -n ens-gray-dark -- apps/manager/src` prints only story lines; screenshot of the token picker | low: the two labels change color |
 | T2 Codemod old brand names with identical values | 2 | `ens-blue`→`ens-lapis-core`, `ens-blue-midnight`→`ens-lapis-dense`, `ens-magenta`→`ens-garnet-core`, and the other identical pairs | 227 old uses → only names with no identical new token | grep shows 0 of the replaced names; computed colors unchanged on landing, dashboard, register | none (same hex) |
-| T3 Shared token stylesheet | 2 | new `packages/<ui>` with one `tokens.css`, both apps import it, app-only tokens stay in the apps. Waits on Q1, Q2, Q9 | two token sets → one, plus app extras | token parity script (G4) passes; screenshots of 5 key screens per app before/after | high: colors and radii change where values differ |
+| T2b Define or replace `ens-gray-dark` | 2 | `TokenListItem.tsx:75, 84` use a token that does not exist; pick the gray with Design and use an existing token | uncolored text → token color | `git grep -n ens-gray-dark -- apps/manager/src` prints only story lines; screenshot of the token picker | low: the two labels change color |
+| T3 Shared token stylesheet | 2 | new `packages/<ui>` with one `tokens.css`, both apps import it, app-only tokens stay in the apps. Waits on Q1, Q2, Q9 | two token sets → one, plus app extras | the token parity check in G4 passes; screenshots of 5 key screens per app before/after | high: colors and radii change where values differ |
 | T4 Manager default palette to tokens | 2 | 184 `gray/slate/red/…` uses | default palette → tokens; then switch defaults off like Explorer | the default-palette command in [1.2](inventory.md#12-tokens) prints 0 | medium |
 | T5 Manager type scale | 2 | adopt the shared `text-*` utilities; retire `text-temp-*`. Waits on Q3 | no scale → named scale | Storybook type story; screenshots | high |
 
@@ -150,7 +150,7 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 
 | Ticket | M | Scope | Before → after | Verify | Regression risk |
 | --- | --- | --- | --- | --- | --- |
-| T6 Delete dead components | 2 | `atoms/Badge`, `atoms/QRPattern`, `molecules/FormField`, `organisms/SearchForm`, `ens-consumer/button/LinkButton`, then `ui/text`, with their stories | 6 files fewer | the importer command in [1.1](inventory.md#11-components) prints 0 for none of the remaining files; typecheck | none |
+| T6 Delete dead components | 2 | `atoms/Badge`, `atoms/QRPattern`, `molecules/FormField`, `organisms/SearchForm`, `ens-consumer/button/LinkButton`, then `ui/text`, with their stories | 6 files fewer | the importer command in [1.1](inventory.md#11-components) prints a non-zero count for every remaining file; typecheck | none |
 | T7 Remove unused variant values | 2 | the 46 unused values in [2.2](usage.md#22-dead-code) | 46 values fewer | the per-value `git grep` in [2.2](usage.md#22-dead-code) prints no call site; typecheck catches any remaining use | none |
 | T8 Accessible names and focus | 2 | `aria-label` on the 12 Explorer icon buttons; `focus-visible:` in both dialogs, Explorer sheet, `SearchField`; reduced motion for `animate-shimmer` | WCAG 4.1.2 and 2.4.7 gaps closed | commands 23 and 24 in [section 3](misuse.md#3-misuse) and the icon-button list in [misuse.md](misuse.md#fileline-lists) drop; keyboard pass on each screen; test by role and name | low |
 | T9 Move zero-drift primitives | 2 | `collapsible` into the shared package, used by both apps | 2 copies → 1 | both apps' typecheck and tests; Storybook story | none |
@@ -176,7 +176,7 @@ confirm before creating tickets. Each ticket is one PR with one concern.
 
 | Ticket | M | Scope | Before → after | Verify | Regression risk |
 | --- | --- | --- | --- | --- | --- |
-| T19 Dialog sizes and tones | 3 | variants for the repeated `DialogContent` overrides (25) and the Drawer/Sheet question. Waits on Q7 | overrides → variants | screenshots of each dialog at 1440 and 390 px | medium |
+| T19 Dialog sizes and tones | 3 | variants for the repeated `DialogContent` overrides (18 tags: 14 Manager, 4 Explorer) and the Drawer/Sheet question. Waits on Q7 | overrides → variants | screenshots of each dialog at 1440 and 390 px | medium |
 | T20 Explorer sidebar placement | 3 | decide app-level vs shared for `ui/sidebar` (740 lines, uses a hook) | moved or renamed out of `ui/` | typecheck | none |
 
 ### Screens

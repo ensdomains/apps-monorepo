@@ -158,12 +158,12 @@ own app's custom classes.
 | Link styled as button | `LinkButton` in `ui/button.tsx` (1), `ens-consumer/button/LinkButton` (0) | `Button asChild` |
 | Copy button | `atoms/CopyableButton` (5), `atoms/NameCopyButton` (2) | `components/CopyButton` (8), `components/CopyableRecord` (8) |
 | Badge / pill | `ui/badge` (3), `atoms/Badge` (0), `molecules/.../DomainAttributePill` (4), `features/grace/.../GracePeriodBadge` (3) | `ui/badge` (20, plus `SoonBadge`), `components/EntityBadge` (43) |
-| Inline message | `ui/alert` (11) | `ui/alert` (26) and `ui/message-card` (20), same four tones from the same `message-*` tokens |
+| Inline message | `ui/alert` (11) | `ui/alert` (26) and `ui/message-card` (20); both color their danger, warning and success tones with the same `message-*` tokens |
 | Modal / overlay | `ui/dialog` (19), `ui/alert-dialog` (8), `ui/drawer` (3) | `ui/dialog` (13), `ui/sheet` (15) |
 | Popover | `ui/popover` on Radix (4) and `base-ui/popover` on Base UI (3) | `ui/popover` (6), `ui/hover-card` (1) |
 | Select / dropdown | no Select component; `ui/dropdown-menu` (5); native `<select>` (1) | no Select component; `ui/dropdown-menu` (5), `ui/combobox` (1), `ui/command` (3), `components/CoinSelect` (1); native `<select>` (3) |
 | Checkbox | none: native `<input type="checkbox">` (6) | `ui/checkbox` (13) |
-| Typography | `ui/text` (dead) next to 214 arbitrary `text-[…]` values (section [3.3](misuse.md#33-hard-coded-values-instead-of-tokens)) | type-scale utilities (`text-h1`…`text-small`) |
+| Typography | `ui/text` (dead) next to 218 arbitrary `text-[…]` values (section [3.3](misuse.md#33-hard-coded-values-instead-of-tokens)) | type-scale utilities (`text-h1`…`text-small`) |
 | Icons | `MSymbol` (80 files) and lucide (75 files) | lucide (150 files) |
 
 Commands for the app-level rows: `git grep -lE "import .*from '[^']*/<Name>'" -- apps/<app>/src "${X[@]}"`.
