@@ -44,7 +44,7 @@ the pathspecs `':!apps/manager/src/components/ui' ':!apps/manager/src/components
 for Manager and `':!apps/portal/src/components/ui'` for Explorer):
 
 1. Native `<button>`: `git grep -nE '<button([[:space:]>]|$)' -- apps/<app>/src DS "${X[@]}"`.
-2. Native `<select>`: `git grep -nE '<select([[:space:]>]|$)' -- apps/<app>/src "${X[@]}"`. Manager prints 2; `DurationSelector.tsx:108` is inside a comment.
+2. Native `<select>`: `git grep -nE '<select([[:space:]>]|$)' -- apps/<app>/src "${X[@]}"`. Manager prints 2; `register-v2/.../DurationSelector.tsx:108` is inside a comment.
 3. Checkboxes: `git grep -n 'type="checkbox"' -- apps/<app>/src ':!*/components/ui/*' "${X[@]}"`.
 4. Ranges: `git grep -n 'type="range"' -- apps/<app>/src "${X[@]}"`.
 5. Native `<dialog>`: `git grep -nE '<dialog([[:space:]>]|$)' -- apps/manager/src apps/portal/src "${X[@]}"` prints nothing.
@@ -69,17 +69,17 @@ for Manager and `':!apps/portal/src/components/ui'` for Explorer):
 
 - Both apps have a `Button`, yet 97 Manager and 26 Explorer native
   `<button>` elements remain. Many are justified unstyled triggers
-  (`GlobalBackButton.tsx:120`, `NoticeBanner.tsx:50`,
+  (Manager `GlobalBackButton.tsx:120` and `NoticeBanner.tsx:50`, Explorer
   `ListLoader.tsx:46`); the rest need a Design answer on a "bare" or "icon"
   button variant ([Q4](README.md#5-questions-for-design)).
 - Manager has no Checkbox, Select or Slider, so its 6 checkboxes
   (`HcaFundingApprovalDialog.tsx:187`, `migration/components/NameRow.tsx:63`,
-  `NameRow.tsx:234`, `SubnameMigrationDialog.tsx:290`,
+  `migration/components/NameRow.tsx:234`, `SubnameMigrationDialog.tsx:290`,
   `ResolverImportReview.tsx:50`, `TemporaryPremiumChartDebugControls.tsx:85`),
   1 select (`LanguageSection.tsx:80`) and 2 ranges
   (`ProfileImageCropper.tsx:150`, `TemporaryPremiumChartDebugControls.tsx:59`)
   are gaps in the library, not misuse. Command 2's second Manager `<select>`
-  hit (`DurationSelector.tsx:108`) is inside a comment.
+  hit (`register-v2/.../DurationSelector.tsx:108`) is inside a comment.
 - Explorer has `ui/checkbox` and uses it everywhere (0 native checkboxes), but
   has no Select: `ChangeResolverForm.tsx:327`, `edit-records.tsx:452`,
   `edit-records.tsx:514` are native.
@@ -157,7 +157,7 @@ for Manager and `':!apps/portal/src/components/ui'` for Explorer):
 
 91 ternaries sit inside class helpers in feature code (71 Manager in 41
 files, 20 Explorer in 11 files; listed under [File:line lists](#fileline-lists)). Examples: `DurationPresets.tsx:27`, `DashboardPagination.tsx:61`,
-`NameRow.tsx:171`, `HomeSearchInput.tsx:257`. Some are one-off state styles
+`dashboard/components/NameRow.tsx:171`, `HomeSearchInput.tsx:257`. Some are one-off state styles
 that are fine; repeated ones (selected/unselected chips, compact/regular rows)
 are missing variants.
 

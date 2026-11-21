@@ -49,7 +49,7 @@ then reading each tag). Each one was followed to the values that reach it:
 | Call site | Passes | Values that reach it |
 | --- | --- | --- |
 | Manager `routes/debug/backend/index.tsx:76, 132` | `Badge variant={status.variant}` | lightOrange, destructive, secondary, gray (lines 59-64, 121-125) |
-| Manager `DomainResultCard.tsx:185`, `PricingDomainHeader.tsx:17`, `TokenPickerContent.tsx:1054` | `DomainAttributePill variant={premiumLabel.variant}` | premium-3, premium-4 (`premiumLabel.ts:19, 27`) |
+| Manager `DomainResultCard.tsx:185`, `PricingDomainHeader.tsx:17`, `register-v2/.../TokenPickerContent.tsx:1054` | `DomainAttributePill variant={premiumLabel.variant}` | premium-3, premium-4 (`premiumLabel.ts:19, 27`) |
 | Manager `atoms/CopyableButton/CopyableButton.tsx:42` | `Button variant={variant}` and spread | ghost (all 5 callers) |
 | Manager `ui/input-group.tsx:113` | `Button variant={variant}` and spread | ghost (default, `input-group.tsx:107`; no caller passes one) |
 | Manager `ui/calendar.tsx:271` | spread onto `Button` | day-picker props, no variant (`buttonVariant` defaults to ghost, never passed) |
