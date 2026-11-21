@@ -297,3 +297,184 @@ own app's custom classes.
 
 Commands for the app-level rows: `git grep -lE "import .*from '[^']*/<Name>'" -- apps/<app>/src`,
 minus test and story files.
+
+## 3. Misuse
+
+Command for every count in this section unless stated:
+`python3 docs/design-system-audit/scripts/misuse.py [<pattern>] [--all]`
+(`--all` prints every file:line). The scan is heuristic: each pattern is a
+candidate list, and the false positives found by reading the lines are
+called out. Rules cited: `.greptile/config.json` ids, STYLEGUIDE.md sections.
+
+| Pattern | Rule | Manager | Explorer |
+| --- | --- | --- | --- |
+| Native `<button>` outside DS folders | Thin React Layer; `button-type-attr` | 97 in 70 files | 26 in 21 files |
+| Native `<select>` | — (no Select component exists) | 1 | 3 in 2 files |
+| Native `<input type="checkbox">` | — (Explorer has `ui/checkbox`) | 6 in 5 files | 0 |
+| Native `<input type="range">` | — (no Slider component) | 2 in 2 files | 0 |
+| Native `<dialog>` | — | 0 | 0 |
+| `<Button>` overriding background color via `className` | CVA for variants | 12 in 9 files | 3 in 3 files |
+| `<Button>` overriding height, radius or padding | CVA for variants | 19 in 13 files | 23 in 14 files |
+| `<DialogContent>` overriding color | CVA for variants | 11 in 11 files | 0 |
+| `<Card>` overriding padding or radius | CVA for variants | 26 in 22 files | n/a |
+| `!important` (CSS or Tailwind `!`) | — | 1, justified (`index.css:69`) | 0 |
+| Hex colors outside `assets/`, `icons/` | `no-arbitrary-tailwind` | 218 in 65 files | 15 in 3 files |
+| `rgb()`/`rgba()` in `.tsx` | `no-arbitrary-tailwind` | 32 in 21 files | 1 |
+| Arbitrary Tailwind values `x-[…]` | `no-arbitrary-tailwind` | 917 in 163 files | 180 in 62 files |
+| …of those with a comment on the line or the line above | allowed with a reason | 64 | 10 |
+| Inline `style={…}` | Utility-first | 65 in 36 files | 17 in 11 files |
+| Ternaries inside `cn`/`tw`/`twm`/`clsx` in `features/` | CVA for variants; `pattern-match-complex-conditionals` | 71 in 41 files | 20 in 11 files |
+| `tw`/`twm` calls | `cn-class-helper` | 75 in 34 files | 0 |
+| Bare `clsx` import | `cn-class-helper` | 2 | 0 |
+| Logic, IO or copy imported into DS layers | `thin-react-layer` | 13 in 8 files | 1 |
+| Static element with `onClick` and no keyboard handler | `div-click-needs-keyboard` | 3 candidates, 0 real (below) | 0 |
+| Icon-only `size="icon"` button with no accessible name | ARIA Attributes | 1 candidate, 0 real | 13 candidates, 12 real |
+| `outline-none` with no focus replacement on the line | `focus-visible-rings` | 11 in 10 files | 2 in 2 files |
+| `focus:ring` instead of `focus-visible:ring` | `focus-visible-rings` | 2 | 4 in 2 files |
+| Lucide `size=`/`width=` props | `lucide-size-class` | 0 | 0 |
+
+### 3.1 Native elements where a component exists
+
+- Both apps have a `Button`, yet 97 Manager and 26 Explorer native
+  `<button>` elements remain. Many are justified unstyled triggers
+  (`GlobalBackButton.tsx:120`, `NoticeBanner.tsx:50`,
+  `ListLoader.tsx:46`); the rest need a Design answer on a "bare" or "icon"
+  button variant (Q4).
+- Manager has no Checkbox, Select or Slider, so its 6 checkboxes
+  (`HcaFundingApprovalDialog.tsx:187`, `migration/components/NameRow.tsx:63`,
+  `NameRow.tsx:234`, `SubnameMigrationDialog.tsx:290`,
+  `ResolverImportReview.tsx:50`, `TemporaryPremiumChartDebugControls.tsx:85`),
+  1 select (`LanguageSection.tsx:80`) and 2 ranges
+  (`ProfileImageCropper.tsx:150`, `TemporaryPremiumChartDebugControls.tsx:59`)
+  are gaps in the library, not misuse. The scan's second Manager `<select>`
+  hit (`DurationSelector.tsx:108`) is inside a comment.
+- Explorer has `ui/checkbox` and uses it everywhere (0 native checkboxes), but
+  has no Select: `ChangeResolverForm.tsx:327`, `edit-records.tsx:452`,
+  `edit-records.tsx:514` are native.
+
+### 3.2 Overrides that fight a component
+
+- Manager's `Button` default variant is a fixed CTA shape:
+  `h-[56px] w-[191px] … bg-ens-blue` (`ui/button.tsx:21`). 18 `<Button>`s
+  in 13 files pass no `variant`; 15 of them then override its size or color
+  with `size` or `className` (the other 3 are in `routes/debug/`).
+  The same "primary blue" button is rebuilt by hand in
+  `BackendAuthModal.tsx:104`, `BackendAuthModal.tsx:161`,
+  `EnableSessionModal.tsx:101`, `RevokeSessionsModal.tsx:146`,
+  `WithdrawLeftoverFundsModal.tsx:178`, `ChainPickerDialog.tsx:136`,
+  `ChoosePrimaryNameDialog.tsx:825` with `bg-ens-blue` or
+  `bg-ens-lapis-core`, while the `blue` variant exists (12 literal uses).
+- `ThirdPartyRenewalDialog.tsx:75`: `h-[74px] … bg-[#E2E8F0]` on a
+  `Button`.
+- 11 Manager `DialogContent`s replace the dialog's color and 14 its size or
+  radius (for example `SubnameMigrationDialog.tsx:173` sets `rounded-3xl`
+  and a garnet border). No dialog size or tone variant exists.
+- Explorer's 22 color overrides are mostly text color on ghost icon buttons
+  (`text-muted-foreground`); 2 are inside `ui/` itself. Its 3 background overrides are
+  `ConnectWalletMessage.tsx:18`, `dns-import/components/shared.tsx:128`
+  (a `danger` tone done by hand with `message-danger-*` classes) and
+  `TransactionStateContent.tsx:228`.
+- No Tailwind `!` modifier anywhere. The one CSS `!important`
+  (`apps/manager/src/styles/index.css:69`) has a `biome-ignore` reason
+  (Intercom's injected styles).
+
+### 3.3 Hard-coded values instead of tokens
+
+- Manager's arbitrary values are mostly typography: `text-[…]` 214,
+  `tracking-[…]` 141, `leading-[…]` 100, then `bg-[…]` 78, `border-[…]` 43,
+  `rounded-[…]` 39, `shadow-[…]` 24. Explorer's are mostly layout:
+  `max-w-[…]` 29, `ring-[…]` 24 (the shadcn `focus-visible:ring-[3px]`),
+  `w-[…]` 23 (`misuse.py` summary lines).
+- Fractional values copied from Figma exports:
+  `DomainAttributePill.tsx:19` `rounded-[14.182px]`,
+  `DomainProfileCard.tsx:61` `rounded-[5.215px]`,
+  `DomainProfileCard.tsx:90` `gap-[5.417px]`,
+  `DomainProfileCard.tsx:50` a two-layer `shadow-[…rgba(14,61,104,…)]`.
+- Hex hot spots in Manager: `notifications/shared/primitives.tsx` (22),
+  `TemporaryPremiumChart.tsx` (15), `WalletIcons.tsx` (13, brand marks),
+  `ens-consumer/button/Button.tsx` (11: hover, active and disabled states
+  have no tokens), `ShareProfileDialog.tsx` (11). Explorer: 13 of its 15 are
+  wallet brand marks in `WalletIcons.tsx`.
+- Manager keeps Tailwind's default palettes on and uses them 184 times
+  (`gray` 92, `slate` 34, `red` 27; `tokens.py`), for example
+  `atoms/Badge/Badge.tsx` and `ui/badge.tsx`. Explorer switched its grays off
+  and uses no other default hue.
+- Inline styles: most are dynamic and fine (`BeadProgressBar.tsx:36` width
+  from progress, `EventsTable.tsx:44` column width). Manager's
+  `TemporaryPremiumChart.tsx` has 10.
+
+### 3.4 Variant logic in features
+
+91 ternaries sit inside class helpers in feature code (71 Manager, 20
+Explorer). Examples: `DurationPresets.tsx:27`, `DashboardPagination.tsx:61`,
+`NameRow.tsx:171`, `HomeSearchInput.tsx:257`. Some are one-off state styles
+that are fine; repeated ones (selected/unselected chips, compact/regular rows)
+are missing variants.
+
+Manager also uses three class helpers: `cn` (`lib/utils.ts:13`), `tw` and
+`twm` (`utils/tailwind.ts:42, 82`, 75 calls in 34 files) and bare `clsx` in
+`ui/material-symbol.tsx:1` and `FeaturesCarousel.tsx:2`. `useSortedClasses`
+is told about `cn`, `cva` and `clsx` only (`apps/manager/biome.jsonc`), so
+classes inside `tw`/`twm` are not sorted. Explorer has no Biome override, so
+its classes are not sorted at all (the reason most of the copy diffs in 2.3
+are reordering).
+
+### 3.5 Logic and copy in shared components
+
+| File | Imports | Problem |
+| --- | --- | --- |
+| `molecules/DomainResultCard/DomainResultCard.tsx:5-7` | `features/grace/.../GracePeriodBadge`, `features/profile/utils/themeColor`, `features/shared/registration/nameUtils` | a molecule depends on three features |
+| `molecules/DomainResultCard/DomainProfileCard.tsx:5` | `features/profile/utils/themeColor` | same |
+| `molecules/DomainResultCard/AddressSuggestionCard.tsx:3` | `viem` | address handling inside a molecule |
+| `atoms/NameCopyButton/NameCopyButton.tsx:3` | `@/hooks/useCopyFeedback` | fine (DOM hook) |
+| `atoms/CopyableButton/CopyableButton.tsx:4` | `@/lib/clipboard` | fine (browser API) |
+| `ui/dialog.tsx`, `atoms/ImageFallback`, `NameCopyButton`, `SearchField`, `DomainProfileCard`, `DomainResultCard` | `@lingui/react/macro` | app copy in shared components; Explorer uses i18next, so these strings must become props or slots before moving to a shared package |
+| Explorer `ui/sidebar.tsx:25` | `@/hooks/use-mobile` | fine (media query) |
+
+No `useQuery`, wagmi or data fetching in any DS-layer file.
+
+### 3.6 Accessibility
+
+- Static `onClick` without keyboard handling: 0 real. The 3 hits are
+  `ui/input-group.tsx:70` and `MigrationModal.tsx:86`, both with a
+  `biome-ignore` reason, and `MigrationValuePropsCarousel.tsx:232`, whose
+  `onClick` is on child buttons (false positive).
+- Icon-only buttons with no accessible name: 12 in Explorer.
+  `TableDateRangeFilter.tsx:69`, `TableMultiSelectFilter.tsx:98`,
+  `ui/combobox.tsx:263`, `RegistrationDurationPicker.tsx:98`,
+  `RegistrationDurationPicker.tsx:109`, `ExtendNameConfirmation.tsx:55`,
+  `ExtendNameSettings.tsx:56`, `MultiNameExtendSettings.tsx:58`,
+  `MultiNameExtendSummary.tsx:60`, `TransactionStateContent.tsx:190`,
+  `routes/resolver/$address/links.tsx:127`, `links.tsx:329`. The calendar
+  hits in both apps render the day number (false positives). The scan only
+  sees `size="icon"`, so Manager's icon-only native buttons are not covered.
+- Focus removed: 13 lines strip the outline with no focus style on the same
+  line (11 Manager, 2 Explorer), for example `SearchField.tsx:64`,
+  `dashboard/components/NameRow.tsx:395`, `LanguageSection.tsx:82`,
+  `CoinSelect.tsx:110`. Some get focus from a parent `focus-within`; each
+  needs a look.
+- `focus:ring` (shows on mouse click too) instead of `focus-visible:ring`:
+  Manager `SearchField.tsx:65`, `ui/dialog.tsx:88`; Explorer
+  `ui/dialog.tsx:70`, `ui/sheet.tsx:82, 86, 93`.
+- Motion: Manager's `animate-shimmer` has no `prefers-reduced-motion`
+  override, while `animate-domain-card-shimmer` and `animate-fee-decay` do
+  (`apps/manager/src/styles/index.css:194, 228-237`).
+- Biome's `a11y` rules `noStaticElementInteractions`, `useButtonType`,
+  `useKeyWithClickEvents` and `noLabelWithoutControl` are `warn`, not
+  `error` (`biome.jsonc:63-68`), so CI does not block them. Existing
+  suppressions: 6 in Manager, 10 in Explorer (5 in tests), each with a
+  reason (`git grep -n 'biome-ignore lint/a11y' -- apps/<app>/src`).
+
+### 3.7 Duplicated helpers
+
+| Helper | Definitions |
+| --- | --- |
+| `cn` | `apps/manager/src/lib/utils.ts:13`, `apps/portal/src/lib/utils.ts:27`, `packages/weave-loader/src/lib/utils.ts:4` (different tailwind-merge config each) |
+| `tw` / `twm` | `apps/manager/src/utils/tailwind.ts:42, 82` only |
+| `truncateAddress` | `apps/manager/src/lib/utils.ts:17`, `apps/portal/src/utils/formatting/truncateAddress.ts:17` |
+| `truncateName` | `apps/manager/src/features/register-v2/utils/truncate-name.ts:1`, `apps/portal/src/utils/formatting/truncateName.ts:15` |
+| `formatUsd`, `formatUsdCeil` | `apps/manager/src/utils/formatting/formatUsdCeil.ts:36, 53`, `apps/portal/src/utils/formatting/formatUsdCeil.ts:12, 34` (Manager accepts `string \| number`, Explorer `string`) |
+| `formatRelativeTime` | `apps/manager/src/utils/time.ts:12`, `apps/portal/src/features/dashboard/utils/formatActivityEvent.ts:25`, `apps/portal/src/features/dnssec-debug/utils/time.ts:15`, `packages/dev-dqa-overlay/src/panel/formatRelativeTime.ts:1` (three signatures) |
+
+Command: `git grep -nE "(function|const) (cn|tw|twm|formatRelativeTime|formatUsd|formatUsdCeil|truncateAddress|truncateName)[ (=<]" -- apps packages`,
+minus tests.
