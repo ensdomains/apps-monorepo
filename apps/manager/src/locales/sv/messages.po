@@ -373,6 +373,7 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Add to favorites"
 msgstr ""
 
@@ -1067,7 +1068,6 @@ msgstr ""
 
 #: src/components/atoms/NameCopyButton/NameCopyButton.tsx
 #: src/features/profile/components/view/AddressProfileHeader.tsx
-#: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr ""
 
@@ -1482,6 +1482,14 @@ msgstr ""
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Expiry Date"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Explore"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileRenewAction.tsx
+msgid "Extend this name’s <0/>registration"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -1912,6 +1920,10 @@ msgstr ""
 msgid "Making your name work everywhere"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Manage advanced <0/>settings in ENS Explorer"
+msgstr ""
+
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Manage everything in one place"
 msgstr ""
@@ -2312,6 +2324,10 @@ msgstr ""
 msgid "Page not found"
 msgstr ""
 
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Parent"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Pay with"
 msgstr ""
@@ -2667,6 +2683,7 @@ msgid "Remove favorite"
 msgstr ""
 
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Remove from favorites"
 msgstr ""
 
@@ -2723,6 +2740,7 @@ msgstr ""
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr ""
 
@@ -3112,6 +3130,7 @@ msgid "Settings"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
+#: src/features/profile/components/view/ProfileShareAction.tsx
 msgid "Share"
 msgstr ""
 
@@ -4030,6 +4049,10 @@ msgstr ""
 
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "View details and <0/>history in ENS Explorer"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx

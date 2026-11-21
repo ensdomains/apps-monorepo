@@ -23,6 +23,7 @@ export const MATERIAL_SYMBOLS = [
   'arrow_drop_down',
   'arrow_forward',
   'arrow_outward',
+  'arrow_right_alt',
   'arrow_shape_up_stack',
   'auto_awesome',
   'badge',

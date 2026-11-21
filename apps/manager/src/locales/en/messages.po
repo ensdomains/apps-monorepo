@@ -368,6 +368,7 @@ msgstr "Add more contact methods"
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Add to favorites"
 msgstr "Add to favorites"
 
@@ -1062,7 +1063,6 @@ msgstr "Copy the sign-in link, open your browser and paste it into the address b
 
 #: src/components/atoms/NameCopyButton/NameCopyButton.tsx
 #: src/features/profile/components/view/AddressProfileHeader.tsx
-#: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
@@ -1478,6 +1478,14 @@ msgstr "expiring on"
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Expiry Date"
 msgstr "Expiry Date"
+
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Explore"
+msgstr "Explore"
+
+#: src/features/profile/components/view/ProfileRenewAction.tsx
+msgid "Extend this name’s <0/>registration"
+msgstr "Extend this name’s <0/>registration"
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Failed to add email"
@@ -1907,6 +1915,10 @@ msgstr "Make it yours"
 msgid "Making your name work everywhere"
 msgstr "Making your name work everywhere"
 
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "Manage advanced <0/>settings in ENS Explorer"
+msgstr "Manage advanced <0/>settings in ENS Explorer"
+
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Manage everything in one place"
 msgstr "Manage everything in one place"
@@ -2307,6 +2319,10 @@ msgstr "Owner"
 msgid "Page not found"
 msgstr "Page not found"
 
+#: src/features/profile/components/view/ProfileDetails.tsx
+msgid "Parent"
+msgstr "Parent"
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Pay with"
 msgstr "Pay with"
@@ -2662,6 +2678,7 @@ msgid "Remove favorite"
 msgstr "Remove favorite"
 
 #: src/features/grace/components/GracePeriodFavoriteButton.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Remove from favorites"
 msgstr "Remove from favorites"
 
@@ -2718,6 +2735,7 @@ msgstr "Removing..."
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/profile/components/view/ProfileRenewAction.tsx
 msgid "Renew"
 msgstr "Renew"
 
@@ -3107,6 +3125,7 @@ msgid "Settings"
 msgstr "Settings"
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
+#: src/features/profile/components/view/ProfileShareAction.tsx
 msgid "Share"
 msgstr "Share"
 
@@ -4026,6 +4045,10 @@ msgstr "Video export is unavailable. Please try again later."
 #: src/features/profile/components/view/ReverseNameView.tsx
 msgid "View address"
 msgstr "View address"
+
+#: src/features/profile/components/view/ProfileExploreAction.tsx
+msgid "View details and <0/>history in ENS Explorer"
+msgstr "View details and <0/>history in ENS Explorer"
 
 #: src/features/profile/components/dialogs/edit-profile/tabs/ExplorerHistoryLink.tsx
 msgid "View history"

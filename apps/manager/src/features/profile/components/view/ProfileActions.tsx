@@ -8,16 +8,17 @@ import { useIntercomClearance } from '@/hooks/useIntercomClearance'
 import { cn } from '@/lib/utils'
 import {
   barEditActionClassName,
-  desktopActionClusterClassName,
   editActionClassName,
   editBottomBarContentClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
+  headerActionClusterClassName,
   profileBarActionsClassName,
   profileStickyBarClassName,
   renewActionClassName,
 } from './ProfileAction.styles'
 import { ProfileEditAction } from './ProfileEditAction'
+import { ProfileExploreAction } from './ProfileExploreAction'
 import { ProfileFavoriteAction } from './ProfileFavoriteAction'
 import { ProfileRenewAction } from './ProfileRenewAction'
 import { ProfileShareAction } from './ProfileShareAction'
@@ -32,7 +33,7 @@ type ProfileDesktopActionsProps = {
 
 type ProfileActionsProps = ProfileDesktopActionsProps & {
   readonly canEdit: boolean
-  /** Owners keep the actions in the bottom bar on desktop too, even when they can't edit. */
+  /** Owners keep the actions in the bottom bar at every width, even when they can't edit; visitors have them in the header. */
   readonly hasDesktopBar: boolean
   /** Latched by the view, so it also decides where the desktop actions go. */
   readonly hasFloatingBar: boolean
@@ -51,9 +52,10 @@ export const ProfileDesktopActions = ({
   renewalProtocol,
   url,
 }: ProfileDesktopActionsProps) => (
-  <div className={desktopActionClusterClassName}>
+  <div className={headerActionClusterClassName}>
     <ProfileFavoriteAction name={name} />
     <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+    <ProfileExploreAction isOwner={isOwner} name={name} />
     <ProfileRenewAction
       className={renewActionClassName}
       isOwner={isOwner}
@@ -88,6 +90,7 @@ export const ProfileActions = ({
     <>
       <ProfileFavoriteAction name={name} />
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+      <ProfileExploreAction isOwner={isOwner} name={name} />
       <ProfileRenewAction
         className={renewActionClassName}
         isOwner={isOwner}
@@ -117,6 +120,9 @@ export const ProfileActions = ({
     )
   }
 
+  // Visitors' actions sit in the profile header at every width, so they get no bar
+  if (!hasBottomNav && !hasDesktopBar) return null
+
   return (
     <>
       {hasBottomNav ? (
@@ -126,15 +132,17 @@ export const ProfileActions = ({
           ref={setBar}
         >
           <div className={editBottomNavContentClassName}>
-            <div
-              className={cn(
-                profileBarActionsClassName,
-                'w-full',
-                hasDesktopBar ? 'xl:mr-auto xl:w-auto' : 'xl:hidden',
-              )}
-            >
-              {barActions}
-            </div>
+            {/* Without the bar the header holds the actions, at every width */}
+            {hasDesktopBar ? (
+              <div
+                className={cn(
+                  profileBarActionsClassName,
+                  'w-full xl:mr-auto xl:w-auto',
+                )}
+              >
+                {barActions}
+              </div>
+            ) : null}
             <ProfileEditAction
               canEdit={canEdit}
               className={editActionClassName}
@@ -151,7 +159,7 @@ export const ProfileActions = ({
       ) : (
         <nav
           aria-label={t`Profile actions`}
-          className={cn(profileStickyBarClassName, hasDesktopBar && 'xl:block')}
+          className={cn(profileStickyBarClassName, 'xl:block')}
           ref={setBar}
         >
           <div className={cn(editBottomBarContentClassName, 'justify-center')}>

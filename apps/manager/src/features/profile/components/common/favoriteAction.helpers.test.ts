@@ -3,6 +3,7 @@ import {
   favoriteAuthPromptMessage,
   getFavoriteActionDisabled,
   getFavoriteActionIntent,
+  getProfileFavoriteIntent,
 } from './favoriteAction.helpers'
 
 describe('favoriteAction.helpers', () => {
@@ -80,5 +81,49 @@ describe('favoriteAction.helpers', () => {
 
   it('uses the requested authentication prompt copy', () => {
     expect(favoriteAuthPromptMessage.message).toBe('Connect to favorite name')
+  })
+})
+
+describe('getProfileFavoriteIntent', () => {
+  const intent = (
+    overrides: Partial<Parameters<typeof getProfileFavoriteIntent>[0]>,
+  ) =>
+    getProfileFavoriteIntent({
+      isAuthed: true,
+      isConnected: true,
+      isFavorite: false,
+      isPending: false,
+      name: 'nick.eth',
+      ...overrides,
+    })
+
+  it.each([
+    [
+      'asks for a wallet when none is connected',
+      { isConnected: false, isAuthed: false },
+      { kind: 'connectWallet' },
+    ],
+    [
+      'asks a connected wallet to sign in',
+      { isAuthed: false },
+      { kind: 'signIn' },
+    ],
+    [
+      'adds the name once signed in',
+      {},
+      { kind: 'addFavorite', name: 'nick.eth' },
+    ],
+    [
+      'removes a favorited name',
+      { isFavorite: true },
+      { kind: 'removeFavorite', name: 'nick.eth' },
+    ],
+    [
+      'waits while a change is saving',
+      { isPending: true, isConnected: false },
+      { kind: 'none' },
+    ],
+  ] as const)('%s', (_, overrides, expected) => {
+    expect(intent(overrides)).toEqual(expected)
   })
 })

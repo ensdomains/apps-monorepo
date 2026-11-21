@@ -9,6 +9,8 @@ import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialog
 import {
   actionLabelClassName,
   barEditActionSymbolClassName,
+  primaryActionClassName,
+  secondaryActionClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
 import type { ResolverCopySource } from '@/features/profile/service/resolverImport'
 import {
@@ -201,7 +203,7 @@ export const EditProfileDialog = ({
             <div className="flex items-center gap-3">
               {canEditNormal && resolverCopySource ? (
                 <Button
-                  className={editButtonClassName}
+                  className={cn(editButtonClassName, secondaryActionClassName)}
                   disabled={importMutation.isPending}
                   onClick={() => void handleOpen(true)}
                   type="button"
@@ -215,7 +217,7 @@ export const EditProfileDialog = ({
                 </Button>
               ) : null}
               <Button
-                className={editButtonClassName}
+                className={cn(editButtonClassName, primaryActionClassName)}
                 disabled={importMutation.isPending}
                 onClick={() => void handleOpen(!canEditNormal)}
                 type="button"

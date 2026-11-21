@@ -1,7 +1,11 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { LinkButton } from '@/components/ui/button'
-import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { profileDisplayQueryOptions } from '@/features/profile/service/profileDisplayQueryOptions'
 import {
   profileExpiryDateFromSeconds,
@@ -15,10 +19,11 @@ import {
   type RenewalProtocol,
 } from '@/features/renew/utils/renewalProtocol'
 import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
+import { cn } from '@/lib/utils'
 import {
   actionLabelClassName,
+  actionTooltipClassName,
   iconActionInnerClassName,
-  renewActionSymbolClassName,
 } from './ProfileAction.styles'
 
 type ProfileRenewActionProps = {
@@ -53,14 +58,13 @@ export const ProfileRenewAction = ({
 
   const buttonContent = (
     <span className={iconActionInnerClassName}>
-      <span className={actionLabelClassName}>
+      {/* Below xl the action bars are capped at 390px, so the label shortens */}
+      <span className={cn(actionLabelClassName, 'xl:hidden')}>
+        <Trans>Renew</Trans>
+      </span>
+      <span className={cn(actionLabelClassName, 'hidden xl:inline')}>
         <Trans>Renew Name</Trans>
       </span>
-      <MSymbol
-        aria-hidden="true"
-        className={renewActionSymbolClassName}
-        symbol="double_arrow"
-      />
     </span>
   )
 
@@ -72,27 +76,46 @@ export const ProfileRenewAction = ({
     )
   }
 
+  const tooltip = (
+    <TooltipContent className={actionTooltipClassName}>
+      <Trans>
+        Extend this name’s <br />
+        registration
+      </Trans>
+    </TooltipContent>
+  )
+
   if (shouldShowThirdPartyRenewalWarning(isOwner)) {
     return (
-      <ThirdPartyRenewalDialog
-        name={name}
-        protocol={resolvedProtocol}
-        trigger={
-          <button className={className} type="button">
-            {buttonContent}
-          </button>
-        }
-      />
+      <Tooltip>
+        <ThirdPartyRenewalDialog
+          name={name}
+          protocol={resolvedProtocol}
+          trigger={
+            <TooltipTrigger asChild>
+              <button className={className} type="button">
+                {buttonContent}
+              </button>
+            </TooltipTrigger>
+          }
+        />
+        {tooltip}
+      </Tooltip>
     )
   }
 
   return (
-    <LinkButton
-      className={className}
-      params={{ name }}
-      to={getRenewalRoute(resolvedProtocol)}
-    >
-      {buttonContent}
-    </LinkButton>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <LinkButton
+          className={className}
+          params={{ name }}
+          to={getRenewalRoute(resolvedProtocol)}
+        >
+          {buttonContent}
+        </LinkButton>
+      </TooltipTrigger>
+      {tooltip}
+    </Tooltip>
   )
 }

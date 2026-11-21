@@ -11,7 +11,8 @@ import {
 } from 'react'
 import { match } from 'ts-pattern'
 import {
-  editBottomBarContentClassName,
+  ownerBarContentClassName,
+  ownerBarEditActionsClassName,
   profileBarActionsClassName,
 } from '@/features/profile/components/view/ProfileAction.styles'
 import { useIntercomClearance } from '@/hooks/useIntercomClearance'
@@ -168,7 +169,7 @@ export const EditProfileFloatingBar = ({
           <AnimatePresence initial={false} mode="wait">
             <motion.div
               animate={fadeMotion.animate}
-              className={editBottomBarContentClassName}
+              className={ownerBarContentClassName}
               exit={fadeMotion.exit}
               initial={fadeMotion.initial}
               key={leftActions ? 'bar' : 'preview'}
@@ -176,9 +177,7 @@ export const EditProfileFloatingBar = ({
               {leftActions ? (
                 <div className={profileBarActionsClassName}>{leftActions}</div>
               ) : null}
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-3 xl:ml-auto xl:flex-none">
-                {rightActions}
-              </div>
+              <div className={ownerBarEditActionsClassName}>{rightActions}</div>
             </motion.div>
           </AnimatePresence>
         </motion.div>

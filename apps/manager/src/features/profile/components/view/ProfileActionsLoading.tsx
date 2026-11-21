@@ -1,3 +1,4 @@
+import { EXPLORER_URL } from '@/constants'
 import { desktopActionClusterClassName } from './ProfileAction.styles'
 import { SkeletonBlock } from './ProfileLoadingPrimitives'
 
@@ -43,6 +44,12 @@ export const ProfileDesktopActionsLoading = ({
   <div className={desktopActionClusterClassName}>
     <ActionIconButtonLoading shouldReduceMotion={shouldReduceMotion} />
     <ActionIconButtonLoading shouldReduceMotion={shouldReduceMotion} />
+    {EXPLORER_URL ? (
+      <ActionTextButtonLoading
+        className="w-24"
+        shouldReduceMotion={shouldReduceMotion}
+      />
+    ) : null}
     <ActionTextButtonLoading
       className="w-33"
       shouldReduceMotion={shouldReduceMotion}

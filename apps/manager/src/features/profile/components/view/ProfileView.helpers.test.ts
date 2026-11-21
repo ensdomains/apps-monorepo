@@ -10,6 +10,7 @@ import {
   getContentHashHref,
   getFeaturedSocialItems,
   getMainReceivingAddress,
+  getProfileParentName,
   getReceivingAddressChains,
   getSafeProfileLinks,
   getSecondarySocialRecords,
@@ -464,5 +465,16 @@ describe('getContentHashHref', () => {
     ['a name that would change the path', 'a/b.eth', 1, undefined],
   ])('links %s', (_, name, chainId, expected) => {
     expect(getContentHashHref({ name, chainId })).toBe(expected)
+  })
+})
+
+describe('getProfileParentName', () => {
+  it.each([
+    ['a subname', 'cats.jringenberg.eth', 'jringenberg.eth'],
+    ['a deeper subname', 'a.b.c.eth', 'b.c.eth'],
+    ['a second-level name', 'nick.eth', null],
+    ['a TLD', 'eth', null],
+  ])('%s', (_, name, expected) => {
+    expect(getProfileParentName(name)).toBe(expected)
   })
 })

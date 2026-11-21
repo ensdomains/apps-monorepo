@@ -1,37 +1,38 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { Link, useHydrated } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { NameCopyButton } from '@/components/atoms/NameCopyButton/NameCopyButton'
-import { MSymbol } from '@/components/ui/material-symbol'
-import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
 import { formatProfileDetailDate } from './ProfileView.helpers'
 
 /**
- * Owner, registration, expiry and grace end under the profile name.
+ * Owner, parent (subnames only), registration, expiry and grace end under the
+ * profile name, per the Explore CTA design (6714:73076).
  *
- * Each item stacks a 13px quartz-500 label over a 13px quartz-700 value.
- * Dates stay short sentence case ("Oct 23, 2026") at every width.
- * The three items stay in one row and share the width evenly. They wrap
- * only when the row is narrower than their content.
- * The owner copy icon stays visible on touch and below xl; on desktop
- * fine pointers it appears on hover or focus-within.
+ * Each item stacks a 13px neutral-500 label over a 13px neutral-800 value,
+ * 8px apart, with 28px between items and no icons. Names link to their page.
+ * Dates stay short sentence case ("Oct 23, 2026") at every width. The items
+ * wrap only when the row is narrower than their content.
  */
 
 type ProfileDetailsProps = {
   readonly expiryDate?: Date | null
+  /** The parent shown for a subname; null for second-level names. */
+  readonly parentName?: string | null
   readonly graceEndDate?: Date | null
   readonly owner?: Address
   readonly ownerReverseName?: string | null
   readonly registrationDate?: number | null
 }
 
+// 13px text and 0.2px tracking have no tokens
 const detailLabelClassName =
-  'flex items-center gap-0.5 font-sans text-[13px] text-ens-quartz-500 leading-none'
+  'font-sans text-[13px] text-neutral-500 leading-none tracking-[0.2px]'
 const detailValueClassName =
-  'font-sans text-[13px] text-ens-quartz-700 leading-none tracking-[0.2px]'
-const detailIconClassName =
-  'ms-opsz-11 ms-wght-300 shrink-0 text-[11px] leading-[11px]'
+  'font-sans text-[13px] text-neutral-800 leading-none tracking-[0.2px]'
+// Inset so the truncating value's overflow doesn't clip the ring
+const detailLinkClassName =
+  'rounded-sm text-inherit hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-inset'
 
 /** Shared by the badge and its skeleton so the badge stays put on load. */
 export const ProfileNameBadgeRow = ({
@@ -65,57 +66,29 @@ export const ProfileNameBadge = ({ name }: { readonly name: string }) => (
   />
 )
 
-const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
-  const { t } = useLingui()
-  const { copied, copy } = useCopyFeedback()
-
-  return (
-    <button
-      aria-label={t`Copy to clipboard`}
-      className="inline-flex size-[13px] shrink-0 items-center justify-center text-ens-quartz-500 xl:pointer-fine:opacity-0 xl:pointer-fine:group-hover:opacity-100 xl:pointer-fine:group-focus-within:opacity-100"
-      onClick={() => copy(value)}
-      title={t`Copy to clipboard`}
-      type="button"
-    >
-      <MSymbol
-        className="ms-opsz-11 ms-wght-400 text-[11px] leading-[11px]"
-        symbol={copied ? 'check' : 'content_copy'}
-      />
-    </button>
-  )
-}
-
 const ProfileDetail = ({
-  icon,
   label,
+  shouldShrink = false,
   value,
-  copyValue,
 }: {
-  readonly icon: React.ReactNode
+  /** The parent can be long, so it gives way to keep the row beside the actions. */
+  readonly shouldShrink?: boolean
   readonly label: React.ReactNode
   readonly value: React.ReactNode
-  readonly copyValue?: string
 }) => (
   <div
     className={cn(
-      'group flex shrink-0 flex-col items-start gap-0.5 overflow-visible',
-      // Leaves room for the copy button that hangs past the value's right edge.
-      copyValue ? 'max-w-[calc(100%-15px)]' : 'max-w-full',
+      'flex min-w-0 max-w-full flex-col items-start gap-2',
+      shouldShrink ? 'shrink' : 'shrink-0',
     )}
   >
     <div className={detailLabelClassName}>
-      {icon}
       <span>{label}</span>
     </div>
-    <div className="relative flex min-w-0 max-w-full items-center py-1">
+    <div className="flex min-w-0 max-w-full items-center">
       <span className={cn(detailValueClassName, 'min-w-0 truncate')}>
         {value}
       </span>
-      {copyValue ? (
-        <span className="absolute top-1/2 left-full ml-0.5 -translate-y-1/2">
-          <ProfileDetailCopyButton value={copyValue} />
-        </span>
-      ) : null}
     </div>
   </div>
 )
@@ -125,6 +98,7 @@ export const ProfileDetails = ({
   graceEndDate,
   owner,
   ownerReverseName,
+  parentName,
   registrationDate,
 }: ProfileDetailsProps) => {
   const timeZone = useHydrated() ? 'local' : 'utc'
@@ -139,17 +113,13 @@ export const ProfileDetails = ({
   const formattedGraceEndDate = formatProfileDetailDate(graceEndDate, timeZone)
 
   return (
-    <div className="flex min-w-0 flex-1 flex-row flex-wrap items-start justify-between gap-5 xl:flex-nowrap xl:justify-start">
+    <div className="flex min-w-0 flex-1 flex-row flex-wrap items-start justify-center gap-x-7 gap-y-4 xl:flex-nowrap xl:justify-start">
       {owner ? (
         <ProfileDetail
-          copyValue={owner}
-          icon={
-            <MSymbol className={detailIconClassName} symbol="key_vertical" />
-          }
           label={<Trans>Owner</Trans>}
           value={
             <Link
-              className="text-inherit hover:underline focus-visible:underline focus-visible:outline-none"
+              className={detailLinkClassName}
               params={{ address: owner }}
               to="/$address"
             >
@@ -158,30 +128,35 @@ export const ProfileDetails = ({
           }
         />
       ) : null}
+      {parentName ? (
+        <ProfileDetail
+          label={<Trans>Parent</Trans>}
+          shouldShrink
+          value={
+            <Link
+              className={detailLinkClassName}
+              params={{ name: parentName }}
+              to="/$name"
+            >
+              {parentName}
+            </Link>
+          }
+        />
+      ) : null}
       {formattedRegistrationDate ? (
         <ProfileDetail
-          icon={
-            <MSymbol className={detailIconClassName} symbol="calendar_clock" />
-          }
           label={<Trans>Registered</Trans>}
           value={formattedRegistrationDate}
         />
       ) : null}
       {formattedExpiryDate ? (
-        <div className="flex shrink-0 items-start gap-5">
+        <div className="flex shrink-0 items-start gap-7">
           <ProfileDetail
-            icon={<MSymbol className={detailIconClassName} symbol="history" />}
             label={<Trans>Expires</Trans>}
             value={formattedExpiryDate}
           />
           {formattedGraceEndDate ? (
             <ProfileDetail
-              icon={
-                <MSymbol
-                  className={detailIconClassName}
-                  symbol="calendar_month"
-                />
-              }
               label={<Trans>Grace period ends</Trans>}
               value={formattedGraceEndDate}
             />

@@ -17,10 +17,17 @@ vi.mock('@/lib/clipboard', () => ({
 
 const owner = '0x7F1234567890123456789012345678901234d5Cb' as Address
 
-const renderProfileDetails = async (ownerReverseName?: string) => {
+const renderProfileDetails = async (
+  ownerReverseName?: string,
+  parentName?: string,
+) => {
   const rootRoute = createRootRoute({
     component: () => (
-      <ProfileDetails owner={owner} ownerReverseName={ownerReverseName} />
+      <ProfileDetails
+        owner={owner}
+        ownerReverseName={ownerReverseName}
+        parentName={parentName}
+      />
     ),
   })
   const addressRoute = createRoute({
@@ -41,21 +48,24 @@ const renderProfileDetails = async (ownerReverseName?: string) => {
 describe('ProfileDetails', () => {
   beforeEach(() => vi.mocked(copyToClipboard).mockClear())
 
-  it('links the reverse owner name to the address and keeps copying independent', async () => {
+  it('links the reverse owner name to the address', async () => {
     const router = await renderProfileDetails('owner.eth')
     const ownerLink = await screen.findByRole('link', { name: 'owner.eth' })
 
     expect(ownerLink).toHaveAttribute('href', `/${owner}`)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy to clipboard' }))
-
-    await waitFor(() => expect(copyToClipboard).toHaveBeenCalledWith(owner))
-    expect(router.state.location.pathname).toBe('/')
-
     fireEvent.click(ownerLink)
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(`/${owner}`),
     )
+  })
+
+  it('links a subname to its parent profile', async () => {
+    await renderProfileDetails('owner.eth', 'jringenberg.eth')
+
+    expect(
+      await screen.findByRole('link', { name: 'jringenberg.eth' }),
+    ).toHaveAttribute('href', '/jringenberg.eth')
   })
 
   it('lets a long owner name shrink inside its column instead of overlapping', async () => {

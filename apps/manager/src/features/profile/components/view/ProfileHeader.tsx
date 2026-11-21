@@ -4,6 +4,7 @@ import type { ProfileRecords } from '@/features/profile/types'
 import { ProfileAbout } from './ProfileAbout'
 import { ProfileAvatar } from './ProfileAvatar'
 import { ProfileDetails, ProfileNameBadge } from './ProfileDetails'
+import { getProfileParentName } from './ProfileView.helpers'
 
 // The about card's content sets the row height. The avatar copies that height
 // so it stays square without stretching the card.
@@ -33,10 +34,10 @@ type ProfileHeaderProps = {
   readonly avatarUrl?: string
   readonly avatarLoading: boolean
   readonly canEdit?: boolean
-  readonly desktopActions?: React.ReactNode
+  /** Favorite, share, explore and renew for visitors: beside the details on desktop, below them on mobile. */
+  readonly actions?: React.ReactNode
   readonly expiryDate?: Date | null
   readonly graceEndDate?: Date | null
-  readonly mobileActions?: React.ReactNode
   readonly name: string
   readonly owner?: Address
   readonly ownerReverseName?: string | null
@@ -45,13 +46,12 @@ type ProfileHeaderProps = {
 }
 
 export const ProfileHeader = ({
+  actions,
   avatarLoading,
   avatarUrl,
   canEdit,
-  desktopActions,
   expiryDate,
   graceEndDate,
-  mobileActions,
   name,
   owner,
   ownerReverseName,
@@ -70,19 +70,22 @@ export const ProfileHeader = ({
       />
       <div className="flex flex-col items-center xl:block xl:space-y-3.25">
         <ProfileNameBadge name={name} />
-        {mobileActions ? (
-          <div className="mt-6 w-full px-5 xl:hidden">{mobileActions}</div>
-        ) : null}
         <div className="mt-8 flex w-full items-start justify-between gap-4 px-5 xl:mt-0 xl:px-0">
           <ProfileDetails
             expiryDate={expiryDate}
             graceEndDate={graceEndDate}
             owner={owner}
             ownerReverseName={ownerReverseName}
+            parentName={getProfileParentName(name)}
             registrationDate={registrationDate}
           />
-          {desktopActions}
+          {actions ? (
+            <div className="hidden shrink-0 xl:block">{actions}</div>
+          ) : null}
         </div>
+        {actions ? (
+          <div className="mt-4 flex justify-center xl:hidden">{actions}</div>
+        ) : null}
         <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t xl:hidden" />
       </div>
       <div className="mt-6 flex flex-col gap-6 px-5 xl:mt-0 xl:flex-row xl:items-start xl:px-0">

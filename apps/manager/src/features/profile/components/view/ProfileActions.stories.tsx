@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { http } from 'viem'
+import { createConfig, WagmiProvider } from 'wagmi'
+import { chain } from '@/config'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
-import { ProfileActions } from './ProfileActions'
+import { ProfileActions, ProfileDesktopActions } from './ProfileActions'
 
 const NAME = 'example.eth'
 const IN_A_YEAR = BigInt(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60)
@@ -20,17 +23,25 @@ const withExpiry = (expiry: bigint) => {
   return queryClient
 }
 
+// The favorite reads the wallet connection; no wallet is connected here
+const PREVIEW_WAGMI_CONFIG = createConfig({
+  chains: [chain],
+  transports: { [chain.id]: http() },
+})
+
 const meta = {
   title: 'Features/Profile/Profile actions',
   component: ProfileActions,
   parameters: { layout: 'fullscreen' },
   decorators: [
     (Story) => (
-      <QueryClientProvider client={withExpiry(IN_A_YEAR)}>
-        <div className="min-h-100">
-          <Story />
-        </div>
-      </QueryClientProvider>
+      <WagmiProvider config={PREVIEW_WAGMI_CONFIG}>
+        <QueryClientProvider client={withExpiry(IN_A_YEAR)}>
+          <div className="min-h-100">
+            <Story />
+          </div>
+        </QueryClientProvider>
+      </WagmiProvider>
     ),
   ],
   args: {
@@ -58,12 +69,17 @@ export const OwnerWithoutEditAccessMobile: Story = {
   parameters: { viewport: { defaultViewport: 'mobile1' } },
 }
 
-/** A visitor's desktop actions sit in the header, so the bar is mobile-only. */
-export const Visitor: Story = {
+/** Visitors get no bar: their actions sit in the profile header at every width. */
+export const VisitorHeaderActions: Story = {
   args: { hasDesktopBar: false, isOwner: false },
+  render: (args) => (
+    <div className="flex justify-center p-10">
+      <ProfileDesktopActions {...args} />
+    </div>
+  ),
 }
 
-/** While the viewer's bar is still unknown, desktop shows no actions. */
-export const PlacementPending: Story = {
-  args: { hasDesktopBar: false, isOwner: undefined },
+export const VisitorHeaderActionsMobile: Story = {
+  ...VisitorHeaderActions,
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
 }
