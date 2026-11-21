@@ -83,6 +83,8 @@ export type L2BridgeQuote = Readonly<{
   amountReceived: bigint
   /** Unix seconds after which the permit is void. */
   deadline: bigint
+  /** The Permit2 allowance comes with no permit to sign, so it takes an approve. */
+  needsOnchainApproval: boolean
 }>
 
 /** The orchestrator could not quote the route. */
@@ -156,6 +158,8 @@ export const quoteL2Bridge = ResultFn(async function* (
       recipient: route.recipient.config,
       calls: [...route.calls],
       sponsored: { gas: false, bridging: false, swaps: false },
+      // Only an Across route passes `validateL2BridgeQuote`, so ask for one.
+      settlementLayers: ['ACROSS'],
     }),
     (cause) =>
       new L2BridgeUnavailableError({
@@ -254,11 +258,10 @@ const sameOp = (op: SignedOp | undefined, call: Call): boolean =>
  * 7. it delivers only the target token, at least `amountOut`;
  * 8. it runs nothing on the source chain, and only `calls`, in order, on the
  *    target;
- * 9. the only setup it asks for is a Permit2 allowance on the source token,
- *    signed by the owner as an EIP-2612 permit covering the transfer and open
- *    for as long as that transfer can fill. An approval without such a permit
- *    is refused: every L2 source is USDC, so it is never approved with a
- *    transaction of our own.
+ * 9. the only setup it asks for is a Permit2 allowance on the source token. If
+ *    it comes with an EIP-2612 permit for the wallet to sign, that permit is
+ *    the owner's, covers the transfer and stays open for as long as the
+ *    transfer can fill.
  */
 export function validateL2BridgeQuote(params: {
   readonly route: L2BridgeRoute
@@ -277,7 +280,7 @@ export function validateL2BridgeQuote(params: {
         prepared.intentRoute.tokenRequirements,
         accepted,
         now,
-      ).map(() => accepted),
+      ).map((needsOnchainApproval) => ({ ...accepted, needsOnchainApproval })),
     )
     .map((accepted) => ({ route, prepared, ...accepted }))
     .mapErr((message) => new L2BridgeRejectedError({ message }))
@@ -384,10 +387,9 @@ function readPermit(
 }
 
 /**
- * Rule 9, on the allowance the wallet has to sign. Every setup step must be a
- * Permit2 allowance on the source token, and every one of those must carry an
- * EIP-2612 permit: an approval without one would need a transaction of our own,
- * which we refuse rather than fall back to.
+ * Rule 9, on the allowance the route needs. Every setup step must be a Permit2
+ * allowance on the source token. One without an EIP-2612 permit is left to the
+ * caller's own approve, and reported; one with a permit has it checked.
  */
 function readApproval(
   route: L2BridgeRoute,
@@ -395,7 +397,7 @@ function readApproval(
   /** What the witness transfer moves, and how long it may still fill. */
   transfer: Pick<PermitTerms, 'amountIn' | 'deadline'>,
   now: bigint,
-): Result<undefined, string> {
+): Result<boolean, string> {
   const requirements = Object.entries(tokenRequirements ?? {}).flatMap(
     ([chainId, tokens]) =>
       Object.entries(tokens).map(([token, requirement]) => ({
@@ -421,7 +423,12 @@ function readApproval(
     )
     if (rejection !== undefined) return err(rejection)
   }
-  return ok(undefined)
+  return ok(
+    requirements.some(
+      ({ requirement }) =>
+        requirement.type === 'approval' && !requirement.permit,
+    ),
+  )
 }
 
 /**
@@ -437,7 +444,7 @@ function rejectApprovalPermit(
   transfer: Pick<PermitTerms, 'amountIn' | 'deadline'>,
   now: bigint,
 ): string | undefined {
-  if (!signed) return 'The route asks for an onchain approval.'
+  if (!signed) return undefined
   const domain = signed.domain
   const message = signed.message ?? {}
   if (

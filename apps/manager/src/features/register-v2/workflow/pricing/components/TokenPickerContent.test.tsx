@@ -159,12 +159,13 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
       if (key.includes('l2-usdc-balances')) {
         const balances = containerMocks.l2Balances
         return {
+          // Holding ETH, so no row is short of gas for an approval.
           data:
             balances &&
             Object.fromEntries(
               Object.entries(balances).map(([chainId, usdc]) => [
                 chainId,
-                usdc === null ? null : { usdc },
+                usdc === null ? null : { usdc, eth: 10n ** 18n },
               ]),
             ),
           isLoading: false,
@@ -1200,6 +1201,7 @@ describe('TokenPickerContentBase L2 rows', () => {
     isQuoteLoading: false,
     isQuoteStale: false,
     hasQuoteFailed: false,
+    isShortOfGas: false,
     ...overrides,
   })
   // One mock behind both selects, so a test sees every selection the picker makes.
@@ -1480,6 +1482,27 @@ describe('TokenPickerContentBase L2 rows', () => {
     expect(screen.getByText('Est. fee: $0.21')).toBeVisible()
     expect(receiptRow('Total')).toHaveTextContent('$5.01')
     expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
+  })
+
+  it('refuses an L2 whose first approval it has no ETH to pay for', () => {
+    renderPicker({
+      funding: underfunded,
+      selectedToken: 'USDC',
+      stablecoinBalances: [emptyUsdc],
+      l2Payment: l2Payment(
+        baseSepoliaRow('available', {
+          amountInRaw: 5_012_573n,
+          isShortOfGas: true,
+        }),
+        baseSepolia.id,
+      ),
+    })
+
+    expect(screen.getByText('Not enough ETH for approval')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Paying from Base Sepolia the first time needs a little ETH there to approve USDC.',
+    )
+    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 
   it('holds the registration until the chosen L2 is quoted', () => {

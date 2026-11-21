@@ -5,9 +5,10 @@ import { type Address, erc20Abi } from 'viem'
 import { l2Sources } from '@/config'
 import type { L2Source } from '@/l2Sources'
 
-/** The owner's wallet on one L2: the USDC it can pay with. */
+/** The owner's wallet on one L2: USDC, and ETH for gas. */
 export type L2Wallet = Readonly<{
   usdc: bigint
+  eth: bigint
 }>
 
 export type L2Wallets = Record<number, L2Wallet | null>
@@ -18,17 +19,20 @@ const readL2Wallet = (
   { chain, usdc, client }: L2Source,
 ): ResultAsync<readonly [number, L2Wallet | null], never> =>
   ResultAsync.fromPromise(
-    client.readContract({
-      address: usdc,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [owner],
-    }),
+    Promise.all([
+      client.readContract({
+        address: usdc,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [owner],
+      }),
+      client.getBalance({ address: owner }),
+    ]),
     () => null,
   )
-    .map((balance): readonly [number, L2Wallet | null] => [
+    .map(([usdcBalance, eth]): readonly [number, L2Wallet | null] => [
       chain.id,
-      { usdc: balance },
+      { usdc: usdcBalance, eth },
     ])
     .orElse(() => okAsync([chain.id, null] as const))
 

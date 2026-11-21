@@ -397,12 +397,6 @@ describe('validateL2BridgeQuote', () => {
       },
     ],
     [
-      'an approval without a permit',
-      (q) => {
-        delete (q.approval as { permit?: unknown }).permit
-      },
-    ],
-    [
       'an approval with another primary type',
       (q) => {
         q.approval.permit.primaryType = 'PermitWitnessTransferFrom'
@@ -480,6 +474,14 @@ describe('validateL2BridgeQuote', () => {
     ).toBe(true)
   })
 
+  it('reports an approval without a permit as needing an onchain approval', () => {
+    const withoutPermit = validate((q) => {
+      delete (q.approval as { permit?: unknown }).permit
+    })
+    expect(withoutPermit._unsafeUnwrap().needsOnchainApproval).toBe(true)
+    expect(validate()._unsafeUnwrap().needsOnchainApproval).toBe(false)
+  })
+
   it('matches a destination value sent as a bigint', () => {
     expect(
       validate((q) => {
@@ -522,7 +524,7 @@ const fakeAccount = () => {
 const asAccount = (account: object) => account as unknown as RhinestoneAccount
 
 describe('quoteL2Bridge', () => {
-  it('asks for an unsponsored payment to the recipient, running its calls', async () => {
+  it('asks for an unsponsored Across payment to the recipient, running its calls', async () => {
     const { account } = fakeAccount()
     const result = await quoteL2Bridge(asAccount(account), route, () => NOW)
     expect(result.isOk()).toBe(true)
@@ -534,6 +536,7 @@ describe('quoteL2Bridge', () => {
       recipient: HCA_CONFIG,
       calls: [COMMIT],
       sponsored: { gas: false, bridging: false, swaps: false },
+      settlementLayers: ['ACROSS'],
     })
   })
 })
