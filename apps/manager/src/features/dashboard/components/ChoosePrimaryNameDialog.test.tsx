@@ -503,7 +503,7 @@ describe('chooser completion refreshes the wallet-scoped surfaces', () => {
     {
       hasV1RegistryResolver: true,
       message:
-        /no longer resolves, usually because its parent name has expired/,
+        /no longer resolves, usually because its parent name expired or was upgraded to ENSv2 without it/,
     },
     {
       hasV1RegistryResolver: false,
