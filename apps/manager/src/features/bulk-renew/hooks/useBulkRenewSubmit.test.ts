@@ -262,6 +262,28 @@ describe('useBulkRenewSubmit (smart account)', () => {
     })
   })
 
+  it('renews again on retry a name whose expiry stayed below the paid target', async () => {
+    mocks.submitHcaRenewal.mockRejectedValueOnce(
+      new Error('The intent could not be filled'),
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+    await act(async () => {
+      await result.current.submit(args)
+    })
+    expect(result.current.phase).toBe('error')
+
+    mocks.getExpiry.mockReturnValue(expiryOnChain(CURRENT_EXPIRY + 1n))
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    expect(result.current.phase).toBe('success')
+    expect(intentLabels()).toEqual([
+      ['one', 'two', 'three'],
+      ['one', 'two', 'three'],
+    ])
+  })
+
   it('refuses to retry when it cannot tell what already renewed', async () => {
     mocks.submitHcaRenewal.mockRejectedValueOnce(
       new Error('Timed out waiting for the intent'),
