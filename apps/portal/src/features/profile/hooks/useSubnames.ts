@@ -2,7 +2,12 @@ import type {
   BignameError,
   Subname as BignameSubname,
 } from '@ens-apps/indexer/bigname'
-import { isStale, retryStale, toProtocol } from '@ens-apps/indexer/bigname'
+import {
+  isStale,
+  retryStale,
+  toDate,
+  toProtocol,
+} from '@ens-apps/indexer/bigname'
 import type { ProtocolVersion as IndexedProtocol } from '@ens-apps/indexer/reads'
 import {
   type InferErrTypes,
@@ -41,6 +46,7 @@ import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
 import { bigname } from '@/lib/bigname'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { toValidDate } from '@/utils/temporal'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
@@ -79,6 +85,8 @@ type Subname = {
   readonly v1Wrapping: V1SubnameWrapping | null
   /** ENSv1 only: its own subnames; undefined when bigname did not count them. */
   readonly subnameCount: number | undefined
+  /** ENSv2 only: its own expiry, null when it has none (`max(uint64)` reads as none). */
+  readonly expiryDate?: Date | null
 }
 
 type GetSubnamesParameters = {
@@ -137,15 +145,19 @@ const toSubname =
   (row: BignameSubname): readonly Subname[] => {
     if (!row.owner || !row.labelhash) return []
     const labelName = toLabelName(row, row.labelhash)
+    const protocol = toProtocol(row.authority)
     return [
       {
         name: `${labelName ?? encodeLabelhash(row.labelhash)}.${parentName}`,
         labelName,
         labelhash: row.labelhash,
         owner: checksumAddress(row.owner),
-        protocol: toProtocol(row.authority),
+        protocol,
         v1Wrapping: toV1Wrapping(row),
         subnameCount: row.subname_count,
+        ...(protocol === 'v2' && {
+          expiryDate: toValidDate(toDate(row.expires_at)),
+        }),
       },
     ]
   }

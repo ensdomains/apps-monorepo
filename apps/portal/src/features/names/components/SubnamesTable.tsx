@@ -9,7 +9,7 @@ import {
   type SortingState,
   useReactTable,
 } from '@tanstack/react-table'
-import { Check, Plus, Search, Trash2, X } from 'lucide-react'
+import { CalendarClock, Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import type { Address, Hex } from 'viem'
 import { AddressHighlightProvider } from '@/components/AddressHighlight'
@@ -42,7 +42,9 @@ import type { ResourceId } from '@/lib/resource/resourceId'
 import { cn } from '@/lib/utils'
 import { healSubname } from '@/utils/ens/localLabels'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import type { ParentExpiry } from '@/utils/names/addressNames'
 import { isEncodedLabelhash } from '@/utils/token/isNormalized'
+import { SubnameExpiryText } from './NameExpiry'
 
 // A child neither bigname nor this browser can label is shown as
 // `[labelhash].parent`, never linked.
@@ -82,27 +84,82 @@ export interface SubnameRow {
   readonly canDelete?: boolean
   /** Why the parent's holder can't delete this subname, shown on a disabled control. */
   readonly deleteBlockedReason?: string
+  /** ENSv2 only: its own expiry, null when it has none. ENSv1 rows leave it out, and the table then shows no expiration. */
+  readonly expiryDate?: Date | null
+  /** Whether the connected user can move this subname's expiry later. */
+  readonly canChangeExpiration?: boolean
+  /** Why its expiration can't be changed here, shown on a disabled control. */
+  readonly changeExpirationBlockedReason?: string
 }
 
 const EMPTY_PENDING_SET: ReadonlySet<string> = new Set()
 
-const BlockedDeleteHint = ({
-  name,
+/** A greyed-out action with a tooltip saying why it isn't available. */
+const BlockedActionHint = ({
+  label,
   reason,
+  children,
 }: {
-  readonly name: string
+  readonly label: string
   readonly reason: string
+  readonly children: React.ReactNode
 }) => (
   <Tooltip>
     <TooltipTrigger
       className="inline-flex size-8 shrink-0 items-center justify-center text-muted-foreground/50 cursor-not-allowed"
-      aria-label={`Can’t delete ${name}: ${reason}`}
+      aria-label={`${label}: ${reason}`}
     >
-      <Trash2 className="size-4" />
+      {children}
     </TooltipTrigger>
-    <TooltipContent className="max-w-xs">{reason}</TooltipContent>
+    <TooltipContent className="max-w-xs text-pretty">{reason}</TooltipContent>
   </Tooltip>
 )
+
+const SubnameExpiration = ({
+  expiryDate,
+  parentExpiry = { status: 'ready' },
+}: {
+  readonly expiryDate: Date | null
+  readonly parentExpiry?: ParentExpiry
+}) => (
+  <span className="flex flex-wrap items-center gap-x-1.5">
+    <SubnameExpiryText
+      expiryDate={expiryDate}
+      parentExpiry={parentExpiry}
+      noExpiryText="No expiry of its own"
+    />
+  </span>
+)
+
+const ChangeExpirationControl = ({
+  row,
+  onChangeExpiration,
+}: {
+  readonly row: SubnameRow
+  readonly onChangeExpiration?: (subname: SubnameRow) => void
+}) => {
+  if (!onChangeExpiration) return null
+  if (row.canChangeExpiration)
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+        aria-label={`Change the expiration of ${row.name}`}
+        onClick={() => onChangeExpiration(row)}
+      >
+        <CalendarClock className="size-4" />
+      </Button>
+    )
+  return row.changeExpirationBlockedReason ? (
+    <BlockedActionHint
+      label={`Can’t change the expiration of ${row.name}`}
+      reason={row.changeExpirationBlockedReason}
+    >
+      <CalendarClock className="size-4" />
+    </BlockedActionHint>
+  ) : null
+}
 
 const OwnerCell = ({ owner }: { owner: Address }) => (
   <EntityBadge variant="address" address={owner}>
@@ -132,11 +189,18 @@ interface SubnamesTableProps {
   readonly isDeleting?: boolean
   /** Names whose delete tx is currently in flight; rendered as dimmed/loading. */
   readonly pendingNames?: ReadonlySet<string>
+  /** Called when the user asks to change a subname's expiration. */
+  readonly onChangeExpiration?: (subname: SubnameRow) => void
+  /** The first name above every row to expire, so each row shows when it stops resolving. */
+  readonly parentExpiry?: ParentExpiry
 }
 
 function buildColumns(
   onDeleteClick?: (name: string) => void,
   isDeleting?: boolean,
+  hasExpiration?: boolean,
+  onChangeExpiration?: (subname: SubnameRow) => void,
+  parentExpiry?: ParentExpiry,
 ): ColumnDef<SubnameRow>[] {
   const selectColumn: ColumnDef<SubnameRow> = {
     enableSorting: false,
@@ -192,34 +256,73 @@ function buildColumns(
       ),
       cell: ({ row }) => <OwnerCell owner={row.original.owner} />,
     },
+    ...(hasExpiration
+      ? [
+          {
+            id: 'expiration',
+            enableSorting: false,
+            header: 'Expiration',
+            cell: ({ row }) => (
+              <SubnameExpiration
+                expiryDate={row.original.expiryDate ?? null}
+                parentExpiry={parentExpiry}
+              />
+            ),
+          } satisfies ColumnDef<SubnameRow>,
+        ]
+      : []),
     {
       enableSorting: false,
       id: 'actions',
       header: () => null,
-      cell: ({ row }) => {
-        if (!onDeleteClick) return null
-        if (row.original.canDelete)
-          return (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-muted-foreground hover:text-destructive"
-              aria-label={`Delete ${row.original.name}`}
-              disabled={isDeleting}
-              onClick={() => onDeleteClick(row.original.name)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          )
-        return row.original.deleteBlockedReason ? (
-          <BlockedDeleteHint
-            name={row.original.name}
-            reason={row.original.deleteBlockedReason}
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end">
+          <ChangeExpirationControl
+            row={row.original}
+            onChangeExpiration={onChangeExpiration}
           />
-        ) : null
-      },
+          <DeleteControl
+            row={row.original}
+            onDeleteClick={onDeleteClick}
+            isDeleting={isDeleting}
+          />
+        </div>
+      ),
     },
   ]
+}
+
+const DeleteControl = ({
+  row,
+  onDeleteClick,
+  isDeleting,
+}: {
+  readonly row: SubnameRow
+  readonly onDeleteClick?: (name: string) => void
+  readonly isDeleting?: boolean
+}) => {
+  if (!onDeleteClick) return null
+  if (row.canDelete)
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 text-muted-foreground hover:text-destructive"
+        aria-label={`Delete ${row.name}`}
+        disabled={isDeleting}
+        onClick={() => onDeleteClick(row.name)}
+      >
+        <Trash2 className="size-4" />
+      </Button>
+    )
+  return row.deleteBlockedReason ? (
+    <BlockedActionHint
+      label={`Can’t delete ${row.name}`}
+      reason={row.deleteBlockedReason}
+    >
+      <Trash2 className="size-4" />
+    </BlockedActionHint>
+  ) : null
 }
 
 const CreateSubnameAction = ({
@@ -261,6 +364,8 @@ export const SubnamesTable = ({
   onClearSelected,
   isDeleting,
   pendingNames,
+  onChangeExpiration,
+  parentExpiry,
 }: SubnamesTableProps) => {
   // With nothing left to load, the rows given are the whole list.
   const totalCount = servedTotal ?? (onLoadMore ? undefined : subnames.length)
@@ -279,13 +384,23 @@ export const SubnamesTable = ({
     setPendingDeleteName(null)
   }
 
+  const hasExpiration = subnames.some((row) => row.expiryDate !== undefined)
   const columns = useMemo(
     () =>
       buildColumns(
         onDeleteSubname ? setPendingDeleteName : undefined,
         isDeleting,
+        hasExpiration,
+        onChangeExpiration,
+        parentExpiry,
       ),
-    [onDeleteSubname, isDeleting],
+    [
+      onDeleteSubname,
+      isDeleting,
+      hasExpiration,
+      onChangeExpiration,
+      parentExpiry,
+    ],
   )
 
   const table = useReactTable({
@@ -422,28 +537,19 @@ export const SubnamesTable = ({
                       name={row.getValue<string>('name')}
                       format="wrap"
                     />
-                    {row.original.canDelete && onDeleteSubname && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 shrink-0 ml-auto text-muted-foreground hover:text-destructive"
-                        aria-label={`Delete ${row.original.name}`}
-                        disabled={isDeleting}
-                        onClick={() => setPendingDeleteName(row.original.name)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
-                    {!row.original.canDelete &&
-                      onDeleteSubname &&
-                      row.original.deleteBlockedReason && (
-                        <span className="ml-auto">
-                          <BlockedDeleteHint
-                            name={row.original.name}
-                            reason={row.original.deleteBlockedReason}
-                          />
-                        </span>
-                      )}
+                    <div className="ml-auto flex items-center">
+                      <ChangeExpirationControl
+                        row={row.original}
+                        onChangeExpiration={onChangeExpiration}
+                      />
+                      <DeleteControl
+                        row={row.original}
+                        onDeleteClick={
+                          onDeleteSubname ? setPendingDeleteName : undefined
+                        }
+                        isDeleting={isDeleting}
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-row gap-2 items-center">
                     <span className="text-base text-muted-foreground">
@@ -453,6 +559,17 @@ export const SubnamesTable = ({
                       {truncateAddress(row.original.owner)}
                     </EntityBadge>
                   </div>
+                  {hasExpiration && (
+                    <div className="flex flex-row gap-2 items-center">
+                      <span className="text-base text-muted-foreground">
+                        Expiration:
+                      </span>
+                      <SubnameExpiration
+                        expiryDate={row.original.expiryDate ?? null}
+                        parentExpiry={parentExpiry}
+                      />
+                    </div>
+                  )}
                 </div>
                 {isPendingDelete && (
                   <div className="border-b border-border bg-muted px-6 py-3">
