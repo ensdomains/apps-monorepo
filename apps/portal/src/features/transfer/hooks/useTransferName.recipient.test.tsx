@@ -94,6 +94,12 @@ vi.mock('../v1/getV1NameState', () => ({
     }),
   }),
 }))
+vi.mock('../v1/getV1WrapperAccess', () => ({
+  getV1WrapperAccessQueryOptions: ({ name }: { name: string }) => ({
+    queryKey: ['v1-wrapper-access-test', name],
+    queryFn: async () => ({ canModifyName: false, canModifyParent: false }),
+  }),
+}))
 
 const { useTransferName } = await import('./useTransferName')
 

@@ -15,7 +15,12 @@ import { useTransferName } from '../hooks/useTransferName'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 import type { V1TransferActor, V1TransferSubject } from '../types'
 import type { V1NameState } from './getV1NameState'
-import { getV1DetachTargets, getV1Holder, getV1ParentPowers } from './rules'
+import {
+  canWriteV1Records,
+  getV1DetachTargets,
+  getV1Holder,
+  getV1ParentPowers,
+} from './rules'
 
 /**
  * The V1 side of the transfer form. Everything here is derived from one
@@ -38,7 +43,8 @@ export const V1SendName = ({
 }) => {
   const parentName = is2LD(name) ? null : getParentName(name)
 
-  const canEditRecords = resolverAddress !== null && actor === 'owner'
+  const canEditRecords =
+    resolverAddress !== null && canWriteV1Records({ subject, actor, account })
   const ethAddressQuery = useQuery({
     ...getEthAddressQueryOptions({ name }),
     enabled: canEditRecords,
@@ -114,7 +120,7 @@ const V1Notices = ({
           <AlertTriangle className="size-4" />
           <AlertDescription>
             <p>
-              You’re reassigning this subname as the owner of{' '}
+              You’re reassigning this subname from{' '}
               <span className="font-medium">{getParentName(name)}</span>. Its
               current owner ({truncateAddress(getV1Holder(subject))}) loses it
               the moment this lands, and its records stay as they are.

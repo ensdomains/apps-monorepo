@@ -108,6 +108,16 @@ vi.mock('../v1/getV1NameState', () => ({
     queryFn: () => getV1NameState(),
   }),
 }))
+const getV1WrapperAccess = vi.fn(() => ({
+  canModifyName: false,
+  canModifyParent: false,
+}))
+vi.mock('../v1/getV1WrapperAccess', () => ({
+  getV1WrapperAccessQueryOptions: () => ({
+    queryKey: ['transfer-v1-wrapper-access'],
+    queryFn: () => getV1WrapperAccess(),
+  }),
+}))
 
 const subject: TransferSubject = { kind: 'v2', registryAddress: REGISTRY }
 
@@ -382,5 +392,53 @@ describe('useTransferName — V1 manager handover', () => {
     })
 
     expect(queryClient.getQueryState(managerKey)?.isInvalidated).toBe(true)
+  })
+})
+
+describe('useTransferName — V1 NameWrapper operator', () => {
+  const wrapped: TransferSubject = {
+    kind: 'v1-wrapped',
+    owner: '0xcccccccccccccccccccccccccccccccccccccccc',
+    fuses: {
+      cannotTransfer: false,
+      cannotSetResolver: false,
+      cannotUnwrap: false,
+      cannotCreateSubdomain: false,
+      parentCannotControl: false,
+    },
+    expiry: null,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('re-gates the holder’s operator as the owner at submit', async () => {
+    getV1NameState.mockReturnValue({
+      subject: wrapped,
+      registration: 'active',
+      resolverAddress: RESOLVER,
+      parent: null,
+      ancestorRegistration: null,
+    })
+    getV1WrapperAccess.mockReturnValueOnce({
+      canModifyName: true,
+      canModifyParent: false,
+    })
+    const { result } = renderTransfer('alice.eth', { transferSubject: wrapped })
+
+    act(() => {
+      result.current.startTransfer({
+        recipient: RECIPIENT,
+        recipientInput: RECIPIENT,
+        roleGrants: [],
+        hasRemainingRoleHolders: false,
+        options,
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.transactions).toHaveLength(1)
+    })
   })
 })

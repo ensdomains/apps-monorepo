@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import { match } from 'ts-pattern'
+import { zeroAddress } from 'viem'
 import { useAccount } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -12,6 +13,7 @@ import { getSubnamePagesQueryOptions } from '@/features/profile/hooks/useSubname
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import { getV1NameStateQueryOptions } from '@/features/transfer/v1/getV1NameState'
+import { getV1WrapperAccessQueryOptions } from '@/features/transfer/v1/getV1WrapperAccess'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { useDeleteV1Subname } from '../hooks/useDeleteV1Subname'
 import {
@@ -32,6 +34,13 @@ interface V1SubnamesContentProps {
 export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   const { address: connectedAccount } = useAccount()
   const stateQuery = useQuery(getV1NameStateQueryOptions({ name }))
+  const wrapperAccessQuery = useQuery({
+    ...getV1WrapperAccessQueryOptions({
+      name,
+      account: connectedAccount ?? zeroAddress,
+    }),
+    enabled: !!connectedAccount,
+  })
   const {
     data,
     isLoading,
@@ -175,7 +184,11 @@ export const V1SubnamesContent = ({ name }: V1SubnamesContentProps) => {
   const canCreateSubname =
     !!connectedAccount &&
     !!stateQuery.data &&
-    getV1SubnameCreateGate(stateQuery.data, connectedAccount).reason === 'ok'
+    getV1SubnameCreateGate(
+      stateQuery.data,
+      connectedAccount,
+      wrapperAccessQuery.data,
+    ).reason === 'ok'
 
   return (
     <>

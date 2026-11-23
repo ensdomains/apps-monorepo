@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { type Address, isAddressEqual } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import type { ResolvedEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { getV1NameStateQueryOptions } from '../v1/getV1NameState'
+import { getV1WrapperAccessQueryOptions } from '../v1/getV1WrapperAccess'
 import { getV1TransferGate } from '../v1/rules'
 import { useCanTransferName } from './useCanTransferName'
 
@@ -37,15 +38,24 @@ export const useCanTransfer = ({
     enabled: isV2Owner,
   })
 
+  const isV1 = !!account && owner?.protocolVersion === 'ENSv1'
   const v1StateQuery = useQuery({
     ...getV1NameStateQueryOptions({ name }),
-    enabled: !!account && owner?.protocolVersion === 'ENSv1',
+    enabled: isV1,
+  })
+  const wrapperAccessQuery = useQuery({
+    ...getV1WrapperAccessQueryOptions({
+      name,
+      account: account ?? zeroAddress,
+    }),
+    enabled: isV1,
   })
 
   return (
     (isV2Owner && hasTransferRole) ||
     (!!account &&
       !!v1StateQuery.data &&
-      getV1TransferGate(v1StateQuery.data, account).reason === 'ok')
+      getV1TransferGate(v1StateQuery.data, account, wrapperAccessQuery.data)
+        .reason === 'ok')
   )
 }

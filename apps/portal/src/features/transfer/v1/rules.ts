@@ -29,6 +29,7 @@ import type {
   V1TransferSubject,
 } from '../types'
 import type { V1NameState, V1RegistrationStatus } from './getV1NameState'
+import type { V1WrapperAccess } from './getV1WrapperAccess'
 
 export type V1TransferGate =
   /** `account` may move the name as `actor`; `subject` is what it will move. */
@@ -73,11 +74,13 @@ export type V1TransferGate =
 const gateAsHolder = (
   subject: V1TransferSubject,
   account: Address,
+  canModifyName: boolean,
 ): V1TransferGate | null =>
   match(subject)
+    // The wrapper's `safeTransferFrom` takes the holder's operators too.
     .with(
       { kind: 'v1-wrapped' },
-      ({ owner }) => !isAddressEqual(owner, account),
+      ({ owner }) => !canModifyName && !isAddressEqual(owner, account),
       () => null,
     )
     .with(
@@ -104,13 +107,17 @@ const gateAsParent = (
   parent: V1ParentState | null,
   account: Address,
   ancestorRegistration: V1RegistrationStatus | null,
+  canModifyParent: boolean,
 ): V1TransferGate => {
   if (!parent) return { reason: 'not-owner' }
   const cannot = (
     why: 'emancipated' | 'wrapper-mismatch' | 'registrant-only',
   ) => ({ reason: 'parent-cannot-reassign', why }) as const
 
-  if (parent.owner && isAddressEqual(parent.owner, account))
+  if (
+    (parent.isWrapped && canModifyParent) ||
+    (parent.owner && isAddressEqual(parent.owner, account))
+  )
     return (
       match(subject)
         .with(
@@ -145,9 +152,11 @@ const gateAsParent = (
   return { reason: 'not-owner' }
 }
 
+/** Without `wrapperAccess`, `account` counts only as a holder, never an operator. */
 export const getV1TransferGate = (
   { subject, registration, parent, ancestorRegistration }: V1NameState,
   account: Address,
+  wrapperAccess?: V1WrapperAccess,
 ): V1TransferGate =>
   match({ subject, registration, ancestorRegistration })
     // Registration status first, whoever is asking: a lapsed name has no live
@@ -162,33 +171,64 @@ export const getV1TransferGate = (
     .with(
       { subject: P.nonNullable },
       ({ subject, ancestorRegistration }) =>
-        gateAsHolder(subject, account) ??
-        gateAsParent(subject, parent, account, ancestorRegistration),
+        gateAsHolder(subject, account, !!wrapperAccess?.canModifyName) ??
+        gateAsParent(
+          subject,
+          parent,
+          account,
+          ancestorRegistration,
+          !!wrapperAccess?.canModifyParent,
+        ),
     )
     .exhaustive()
+
+/**
+ * Whether a gate decided without `wrapperAccess` already stands. An approval
+ * only widens who counts as the holder or the parent, so it can't lift a lapsed
+ * registration, a burned fuse or the manager split, nor change the holder's
+ * own answer.
+ */
+export const isV1TransferGateFinal = (gate: V1TransferGate): boolean =>
+  match(gate)
+    .with(
+      { reason: 'ok', actor: 'owner' },
+      {
+        reason: P.union(
+          'grace',
+          'expired',
+          'ancestor-expired',
+          'cannot-transfer',
+          'manager-only',
+        ),
+      },
+      () => true,
+    )
+    .otherwise(() => false)
 
 /**
  * Whether `account` can set the resolver on a V1 name.
  *
  * The resolver pointer lives on the name's registry slot, so the authority is
  * whoever holds that slot: the controller of an unwrapped `.eth` 2LD (the
- * registrant alone cannot), the wrapper owner of a wrapped name unless
- * CANNOT_SET_RESOLVER is burned, and the registry owner of anything else —
- * an unwrapped subname or an imported DNS name.
+ * registrant alone cannot), the wrapper owner of a wrapped name or its
+ * operator unless CANNOT_SET_RESOLVER is burned, and the registry owner of
+ * anything else — an unwrapped subname or an imported DNS name.
  *
  * Unlike {@link getV1DetachTargets}, which runs behind a page that has already
- * established the caller is the holder, this checks `account` itself: the
+ * established the caller may move the name, this checks `account` itself: the
  * resolver page offers its button to anyone viewing the name.
  *
- * Operators (`setApprovalForAll`) are authorised on chain too but are not
- * recognised here, so the button stays hidden for them.
+ * Registry operators (`ENSRegistry.setApprovalForAll`) are authorised on chain
+ * too but are not recognised here, so the button stays hidden for them.
  */
 export const canSetV1Resolver = ({
   subject,
   account,
+  wrapperAccess,
 }: {
   readonly subject: V1TransferSubject
   readonly account: Address
+  readonly wrapperAccess?: V1WrapperAccess
 }): boolean =>
   match(subject)
     .with(
@@ -199,12 +239,42 @@ export const canSetV1Resolver = ({
     .with(
       { kind: 'v1-wrapped' },
       ({ owner, fuses }) =>
-        isAddressEqual(owner, account) && !fuses.cannotSetResolver,
+        (!!wrapperAccess?.canModifyName || isAddressEqual(owner, account)) &&
+        !fuses.cannotSetResolver,
     )
     .with({ kind: 'v1-registry' }, ({ owner }) =>
       isAddressEqual(owner, account),
     )
     .exhaustive()
+
+/**
+ * Whether `account`, moving the name as `actor`, can write its resolver
+ * records. PublicResolver authorises the registry owner, or the wrapper owner
+ * when the registry owner is the wrapper. For an unwrapped 2LD that is the
+ * controller — the registrant alone can't write records. A parent holds
+ * neither slot on the subname, so it can't touch its records. The resolver
+ * ignores NameWrapper operators.
+ */
+export const canWriteV1Records = ({
+  subject,
+  actor,
+  account,
+}: {
+  readonly subject: V1TransferSubject
+  readonly actor: V1TransferActor
+  readonly account: Address
+}): boolean =>
+  match({ subject, actor })
+    .with({ actor: 'parent' }, () => false)
+    .with(
+      { subject: { kind: 'v1-registrar' } },
+      ({ subject: { controller } }) =>
+        controller !== null && isAddressEqual(controller, account),
+    )
+    .with({ subject: { kind: 'v1-wrapped' } }, ({ subject: { owner } }) =>
+      isAddressEqual(owner, account),
+    )
+    .otherwise(() => true)
 
 /**
  * Which pre-move options to offer. An option is only shown when there is a
@@ -224,24 +294,17 @@ export const getV1DetachTargets = ({
   readonly account: Address
   readonly hasEthAddress: boolean
 }): Readonly<Record<TransferDetachOptionKey, boolean>> => {
-  // Resolver record writes: PublicResolver authorises the registry owner, or
-  // the wrapper owner when the registry owner is the wrapper. For an unwrapped
-  // 2LD that is the controller — the registrant alone can't write records. A
-  // parent holds neither slot on the subname, so it can't touch its records.
-  const canWriteRecords = match({ subject, actor })
+  const canWriteRecords = canWriteV1Records({ subject, actor, account })
+
+  // `setResolver`: same authority, except the wrapper also takes it from the
+  // holder's operators, and refuses it once CANNOT_SET_RESOLVER is burned.
+  const canDetachResolver = match({ subject, actor })
     .with({ actor: 'parent' }, () => false)
     .with(
-      { subject: { kind: 'v1-registrar' } },
-      ({ subject: { controller } }) =>
-        controller !== null && isAddressEqual(controller, account),
+      { subject: { kind: 'v1-wrapped' } },
+      ({ subject: { fuses } }) => !fuses.cannotSetResolver,
     )
-    .otherwise(() => true)
-
-  // `setResolver`: same authority, plus the wrapper refuses it once
-  // CANNOT_SET_RESOLVER is burned.
-  const canDetachResolver =
-    canWriteRecords &&
-    !(subject.kind === 'v1-wrapped' && subject.fuses.cannotSetResolver)
+    .otherwise(() => canWriteRecords)
 
   return {
     setEthAddress: resolverAddress !== null && hasEthAddress && canWriteRecords,

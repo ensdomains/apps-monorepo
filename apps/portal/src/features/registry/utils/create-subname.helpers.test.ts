@@ -224,4 +224,25 @@ describe('getV1SubnameCreateGate', () => {
   it('leaves the holder check to the form when no wallet is connected', () => {
     expect(getV1SubnameCreateGate(state({}), undefined).reason).toBe('ok')
   })
+
+  // The wrapper's `setSubnodeRecord` is `onlyTokenOwner`; the registry's checks
+  // its own approvals.
+  it.each([
+    ['a wrapped name', wrapped(), 'ok'],
+    [
+      'a registry name',
+      { kind: 'v1-registry', owner: OWNER } as const,
+      'not-holder',
+    ],
+  ] as const)(
+    'on %s, answers the holder’s NameWrapper operator: %s',
+    (_, subject, reason) => {
+      expect(
+        getV1SubnameCreateGate(state({ subject }), OTHER, {
+          canModifyName: true,
+          canModifyParent: false,
+        }).reason,
+      ).toBe(reason)
+    },
+  )
 })
