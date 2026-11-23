@@ -1,3 +1,7 @@
+import {
+  encodeResolverRoleBitmap,
+  type ResolverRole,
+} from '@ensdomains/ensjs/utils/v2'
 import { okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import {
@@ -46,10 +50,33 @@ vi.mock('./profileEthAddress', async () => {
   }
 })
 
-const { getResolverWriteState } = await import('./resolverWriteAccess')
+const { getProfileRecordAccess, getResolverWriteState } = await import(
+  './resolverWriteAccess'
+)
+
+const ALL_EDITABLE = {
+  text: true,
+  address: true,
+  contentHash: true,
+  abi: true,
+}
 
 const supportsNameSetters = (supported: boolean) =>
   client.multicall.mockResolvedValue([{ status: 'success', result: supported }])
+
+const RECORD_ROLES = [
+  'ROLE_SET_ADDRESS',
+  'ROLE_SET_TEXT',
+  'ROLE_SET_CONTENTHASH',
+  'ROLE_SET_ABI',
+] as const satisfies readonly ResolverRole[]
+
+// The V1 registry read keeps returning no resolver.
+const grantRootRoles = (roles: readonly ResolverRole[]) =>
+  client.readContract.mockImplementation(
+    async ({ functionName }: { functionName: string }) =>
+      functionName === 'roles' ? encodeResolverRoleBitmap(roles) : zeroAddress,
+  )
 
 const probedSelector = () => {
   const call = client.call.mock.calls[0]
@@ -176,6 +203,95 @@ describe('getResolverWriteState', () => {
       expect(client.call).toHaveBeenCalledWith(
         expect.objectContaining({ to: expected }),
       )
+    },
+  )
+
+  // A resolver can lock the address record while the owner keeps text roles.
+  it.each([
+    { access: 'eth-address', canWrite: false },
+    { access: 'profile', canWrite: true },
+  ] as const)(
+    'reports $access access as $canWrite on a PermissionedResolver without ROLE_SET_ADDRESS',
+    async ({ access, canWrite }) => {
+      supportsNameSetters(true)
+      grantRootRoles(['ROLE_SET_TEXT', 'ROLE_SET_CONTENTHASH', 'ROLE_SET_ABI'])
+      client.call.mockRejectedValue(
+        new ContractFunctionExecutionError(new ExecutionRevertedError(), {
+          abi: [],
+          functionName: 'setAddress',
+        }),
+      )
+
+      const result = await getResolverWriteState('leon.eth', OWNER, access)
+
+      expect(result._unsafeUnwrap().canWrite).toBe(canWrite)
+    },
+  )
+
+  it.each([
+    { type: 'address', role: 'ROLE_SET_ADDRESS' },
+    { type: 'text', role: 'ROLE_SET_TEXT' },
+    { type: 'contentHash', role: 'ROLE_SET_CONTENTHASH' },
+    { type: 'abi', role: 'ROLE_SET_ABI' },
+  ] as const)(
+    'reports only $type as locked when the owner lacks the root $role',
+    async ({ type, role }) => {
+      supportsNameSetters(true)
+      grantRootRoles(RECORD_ROLES.filter((granted) => granted !== role))
+
+      const result = await getProfileRecordAccess('leon.eth', OWNER)
+
+      expect(result._unsafeUnwrap()).toEqual({
+        resolverAddress: RESOLVER,
+        canWrite: true,
+        editableTypes: { ...ALL_EDITABLE, [type]: false },
+      })
+      expect(client.readContract).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address: RESOLVER,
+          functionName: 'roles',
+          args: [0n, OWNER],
+        }),
+      )
+      expect(client.call).not.toHaveBeenCalled()
+    },
+  )
+
+  it('reports no profile access when the owner holds no record roles', async () => {
+    supportsNameSetters(true)
+    grantRootRoles(['ROLE_SET_NAME'])
+
+    const result = await getResolverWriteState('leon.eth', OWNER, 'profile')
+
+    expect(result._unsafeUnwrap().canWrite).toBe(false)
+  })
+
+  // Node-based resolvers authorize every setter alike.
+  it.each([
+    { case: 'succeeds', reverts: false },
+    { case: 'reverts', reverts: true },
+  ])(
+    'applies one ETH address dry run to every record type when it $case',
+    async ({ reverts }) => {
+      supportsNameSetters(false)
+      if (reverts)
+        client.call.mockRejectedValue(
+          new ContractFunctionExecutionError(new ExecutionRevertedError(), {
+            abi: [],
+            functionName: 'setAddr',
+          }),
+        )
+      else client.call.mockResolvedValue({ data: '0x' })
+
+      const result = await getProfileRecordAccess('leon.eth', OWNER)
+
+      expect(result._unsafeUnwrap().editableTypes).toEqual({
+        text: !reverts,
+        address: !reverts,
+        contentHash: !reverts,
+        abi: !reverts,
+      })
+      expect(client.call).toHaveBeenCalledTimes(1)
     },
   )
 

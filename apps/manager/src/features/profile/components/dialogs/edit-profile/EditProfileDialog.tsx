@@ -86,6 +86,7 @@ export const EditProfileDialog = ({
 
   const {
     confirmSetupSave,
+    editableTypes,
     handleSave,
     handleImageUploadPrepared,
     handleSetupConfirmOpenChange,
@@ -249,7 +250,10 @@ export const EditProfileDialog = ({
           ) : null
         }
       >
-        <EditProfileDialogProvider actor={dialogActor}>
+        <EditProfileDialogProvider
+          actor={dialogActor}
+          editableTypes={editableTypes}
+        >
           <EditProfileDialogBody
             form={form}
             importBlockedKeys={resolverImport?.blockedKeys}

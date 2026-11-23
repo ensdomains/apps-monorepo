@@ -1,10 +1,12 @@
 import { shallowEqual, useSelector } from '@xstate/react'
 import { createContext, use, useMemo } from 'react'
 import type { Actor } from 'xstate'
+import type { EditableRecordTypes } from '@/features/profile/service/resolverWriteAccess'
 import type {
   EditProfileDialogSnapshot,
   editProfileDialogMachine,
 } from './EditProfileDialog.machine'
+import { EditableRecordTypesProvider } from './LockedRecordTypes.context'
 import type { GeneralField } from './tabs/general/fields'
 
 interface EditProfileDialogContextValue {
@@ -17,14 +19,18 @@ const EditProfileDialogContext =
 interface EditProfileDialogProviderProps {
   readonly actor: Actor<typeof editProfileDialogMachine>
   readonly children: React.ReactNode
+  readonly editableTypes?: EditableRecordTypes
 }
 
 export const EditProfileDialogProvider = ({
   actor,
   children,
+  editableTypes,
 }: EditProfileDialogProviderProps) => (
   <EditProfileDialogContext.Provider value={{ dialogActor: actor }}>
-    {children}
+    <EditableRecordTypesProvider editableTypes={editableTypes}>
+      {children}
+    </EditableRecordTypesProvider>
   </EditProfileDialogContext.Provider>
 )
 
