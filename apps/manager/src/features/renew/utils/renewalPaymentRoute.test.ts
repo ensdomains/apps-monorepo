@@ -67,4 +67,66 @@ describe('resolveRenewalSigner', () => {
   ])('has no signer while $scenario', ({ isSafeWallet, client }) => {
     expect(resolve({ isSafeWallet, walletClient: client })).toBeNull()
   })
+
+  const signerCases: readonly {
+    readonly name: string
+    readonly signer: Signer | null
+    readonly route: 'intent' | 'wallet' | null
+  }[] = [
+    { name: 'no signer', signer: null, route: null },
+    { name: 'HCA signer', signer: hcaSigner, route: 'intent' },
+    {
+      name: 'EOA signer',
+      signer: { type: 'eoa', walletClient },
+      route: 'wallet',
+    },
+  ]
+  const safeStates: readonly (boolean | undefined)[] = [undefined, false, true]
+  const clients: readonly (WalletClient | null)[] = [null, walletClient]
+  const connectors: readonly (Connector | undefined)[] = [undefined, connector]
+  const routeMatrix = signerCases.flatMap(({ name, signer, route }) =>
+    safeStates.flatMap((isSafeWallet) =>
+      clients.flatMap((client) =>
+        connectors.map((selectedConnector) => ({
+          name,
+          signer,
+          route,
+          isSafeWallet,
+          client,
+          selectedConnector,
+        })),
+      ),
+    ),
+  )
+
+  it.each(routeMatrix)(
+    'selects one route for $name, Safe=$isSafeWallet, wallet=$client, connector=$selectedConnector',
+    ({ signer, route, isSafeWallet, client, selectedConnector }) => {
+      const resolved = resolveRenewalSigner({
+        signer,
+        walletClient: client,
+        connector: selectedConnector,
+        isSafeWallet,
+      })
+
+      if (isSafeWallet === undefined || (isSafeWallet && !client)) {
+        expect(resolved).toBeNull()
+        expect(getRenewalPaymentRoute(resolved)).toBeNull()
+        return
+      }
+      if (!isSafeWallet) {
+        expect(resolved).toBe(signer)
+        expect(getRenewalPaymentRoute(resolved)).toBe(route)
+        return
+      }
+
+      expect(resolved).toEqual({
+        type: 'eoa',
+        walletClient: client,
+        walletId: selectedConnector?.id,
+        connector: selectedConnector,
+      })
+      expect(getRenewalPaymentRoute(resolved)).toBe('wallet')
+    },
+  )
 })
