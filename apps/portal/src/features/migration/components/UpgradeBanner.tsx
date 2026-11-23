@@ -67,7 +67,7 @@ export const UpgradeBanner = ({
     <div className="@container/upgrade-banner">
       <Alert
         variant="default"
-        className="flex flex-col gap-3 p-5 @7xl/upgrade-banner:flex-row @7xl/upgrade-banner:items-center @7xl/upgrade-banner:gap-10"
+        className="flex flex-col gap-3 p-5 @4xl/upgrade-banner:flex-row @4xl/upgrade-banner:items-center @4xl/upgrade-banner:gap-10"
       >
         <div className="flex shrink-0 items-start gap-4 flex-col sm:flex-row sm:items-center">
           <CircleAlert className="size-6 shrink-0" />
@@ -75,7 +75,7 @@ export const UpgradeBanner = ({
             Upgrade to ENSv2
           </p>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col items-start gap-4 @7xl/upgrade-banner:flex-row @7xl/upgrade-banner:items-center @7xl/upgrade-banner:gap-10">
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-4 justify-end @4xl/upgrade-banner:flex-row @4xl/upgrade-banner:items-center @4xl/upgrade-banner:gap-10">
           <p className="min-w-0 text-p">
             {describeUpgrade({ isWrapped, impact })}
           </p>

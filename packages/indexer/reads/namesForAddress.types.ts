@@ -47,6 +47,8 @@ export type NameSummary = Readonly<{
   relations: readonly NameRelation[]
   isPrimary: boolean
   isMigrated: boolean
+  /** An ENSv1 name held in the NameWrapper, where one account holds every role. */
+  isWrapped: boolean
   registrationStatus: NameRegistrationStatus
   /** Null when the name does not expire. */
   expiresAt: Date | null
