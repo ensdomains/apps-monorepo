@@ -92,3 +92,31 @@ export const getChangeExpirationBlockedReason = ({
   canRenew && expiryDate === null && expiresWithName
     ? `This subname has no expiration date of its own. It stays active as long as ${expiresWithName} does. To keep it longer, extend ${expiresWithName}.`
     : undefined
+
+/** What a subname's own expiry offers an account: a change, why it can't change, or nothing. */
+type ExpiryChange =
+  | { readonly type: 'change'; readonly expiryDate: Date }
+  | { readonly type: 'blocked'; readonly reason: string }
+  | { readonly type: 'none' }
+
+/** The change a renewer gets for one subname; `expiryDate` is undefined until its own expiry is read. */
+export const getExpiryChange = ({
+  expiryDate,
+  nowMs,
+  canRenew,
+  expiresWithName,
+}: {
+  readonly expiryDate: Date | null | undefined
+  readonly nowMs: number
+  readonly canRenew: boolean
+  readonly expiresWithName: string | undefined
+}): ExpiryChange => {
+  if (canRenew && canExtendExpiry(expiryDate, nowMs))
+    return { type: 'change', expiryDate }
+  const reason = getChangeExpirationBlockedReason({
+    expiryDate,
+    canRenew,
+    expiresWithName,
+  })
+  return reason ? { type: 'blocked', reason } : { type: 'none' }
+}

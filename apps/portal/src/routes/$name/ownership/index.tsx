@@ -24,6 +24,7 @@ import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { EditSubnameExpiry } from '@/features/registry/components/EditSubnameExpiry'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { TransferPrivilegeWarning } from '@/features/roles/components/PrivilegeWarnings'
 import { useCanTransfer } from '@/features/transfer/hooks/useCanTransfer'
@@ -125,6 +126,14 @@ function RouteComponent() {
         <ExpiryWithRegistrationData
           name={name}
           protocolVersion={data.protocolVersion}
+          expiryAction={
+            data.protocolVersion === 'ENSv2' && (
+              <EditSubnameExpiry
+                name={name}
+                registryAddress={data.registryAddress}
+              />
+            )
+          }
         />
         <NameOwnerRow
           name={name}

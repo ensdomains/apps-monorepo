@@ -8,6 +8,7 @@ import {
   canExtendExpiry,
   DEFAULT_SUBNAME_EXPIRY,
   getChangeExpirationBlockedReason,
+  getExpiryChange,
   getExtendedExpirySeconds,
   getSubnameExpirySeconds,
   type SubnameExpiry,
@@ -183,5 +184,44 @@ describe('getChangeExpirationBlockedReason', () => {
     ],
   ])('%s', (_, input, expected) => {
     expect(getChangeExpirationBlockedReason(input)).toBe(expected)
+  })
+})
+
+describe('getExpiryChange', () => {
+  const NOW_MS = Date.UTC(2027, 0, 15)
+  const OWN = new Date(NOW_MS + 1)
+  const base = {
+    nowMs: NOW_MS,
+    canRenew: true,
+    expiresWithName: 'chakri.eth',
+  } as const
+
+  it.each([
+    [
+      'offers a renewer the change',
+      { expiryDate: OWN },
+      { type: 'change', expiryDate: OWN },
+    ],
+    [
+      'says why a subname with none of its own can’t change',
+      { expiryDate: null },
+      {
+        type: 'blocked',
+        reason:
+          'This subname has no expiration date of its own. It stays active as long as chakri.eth does. To keep it longer, extend chakri.eth.',
+      },
+    ],
+    [
+      'offers nothing while its own expiry is unread',
+      { expiryDate: undefined },
+      { type: 'none' },
+    ],
+    [
+      'offers nothing to an account without the role',
+      { expiryDate: OWN, canRenew: false },
+      { type: 'none' },
+    ],
+  ])('%s', (_, overrides, expected) => {
+    expect(getExpiryChange({ ...base, ...overrides })).toEqual(expected)
   })
 })
