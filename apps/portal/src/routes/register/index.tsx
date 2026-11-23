@@ -1,5 +1,7 @@
+import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { createFileRoute } from '@tanstack/react-router'
 import { LanguagesIcon } from 'lucide-react'
+import { AddressLikeNameNotice } from '@/components/AddressLikeNameNotice'
 import { PageContainer } from '@/components/PageContainer'
 import { TopNav } from '@/components/TopNav'
 import { MessageCard } from '@/components/ui/message-card'
@@ -32,7 +34,10 @@ const RegisterPage = () => {
               }
             />
           ) : (
-            <RegisterName key={name} name={name} />
+            <>
+              {isAddressLikeName(name) && <AddressLikeNameNotice />}
+              <RegisterName key={name} name={name} />
+            </>
           )}
         </PageContainer>
       </main>

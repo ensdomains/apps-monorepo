@@ -1,3 +1,4 @@
+import { isAddressLikeName } from '@ens-apps/utils/addressLikeName'
 import { useQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress } from 'viem'
@@ -30,6 +31,8 @@ export type AddressResolution = {
   readonly isValid: boolean
   /** Whether the trimmed input is a raw 0x address (vs. a name to resolve). */
   readonly isRawAddress: boolean
+  /** Whether the input is a name that reads like a wallet address; it still resolves. */
+  readonly isAddressLike: boolean
   /** True when the input is present but can't be used (invalid/unresolved/error). */
   readonly isInvalid: boolean
   readonly status: AddressResolutionStatus
@@ -83,6 +86,7 @@ export const useAddressResolution = (input: string): AddressResolution => {
     isResolving,
     isValid,
     isRawAddress,
+    isAddressLike: isValid && !isRawAddress && isAddressLikeName(trimmed),
     isInvalid:
       status === 'invalid' || status === 'unresolved' || status === 'error',
     status,
