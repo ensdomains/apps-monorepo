@@ -1,6 +1,7 @@
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mockTimeZone } from '@/test-utils/mockTimeZone'
 import type { AddressNameItem } from '@/utils/names/addressNames'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -77,14 +78,64 @@ describe('NamesTable expiry cell', () => {
           {
             ...row('sub.parent.eth', null),
             parentExpiryDate: new Date(Date.UTC(2030, 5, 15)),
+            parentExpiryName: 'parent.eth',
           },
         ]}
       />,
     )
 
     expect(desktopRowText('sub.parent.eth')).toContain(
-      'June 15, 2030 (Expires with parent)',
+      'June 15, 2030 · Expires with parent.eth',
     )
+  })
+
+  it('shows only the parent’s date, naming it, when the parent expires first', () => {
+    render(
+      <NamesTableHarness
+        data={[
+          {
+            ...row('sub.parent.eth', new Date(Date.UTC(2034, 10, 4))),
+            parentExpiryDate: new Date(Date.UTC(2030, 5, 15)),
+            parentExpiryName: 'parent.eth',
+          },
+        ]}
+      />,
+    )
+
+    expect(desktopRowText('sub.parent.eth')).toContain(
+      'June 15, 2030 · Expires with parent.eth',
+    )
+    expect(desktopRowText('sub.parent.eth')).not.toContain('2034')
+  })
+
+  describe('seen from a time zone a day ahead of UTC', () => {
+    beforeEach(() => {
+      mockTimeZone('Pacific/Kiritimati')
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('shows each expiry on its UTC day, the same for every viewer', () => {
+      render(
+        <NamesTableHarness
+          data={[
+            row('sub.parent.eth', new Date(Date.UTC(2034, 10, 4, 23, 30))),
+            {
+              ...row('other.parent.eth', null),
+              parentExpiryDate: new Date(Date.UTC(2029, 9, 13, 23, 30)),
+              parentExpiryName: 'parent.eth',
+            },
+          ]}
+        />,
+      )
+
+      expect(desktopRowText('sub.parent.eth')).toContain('November 4, 2034')
+      expect(desktopRowText('other.parent.eth')).toContain(
+        'October 13, 2029 · Expires with parent.eth',
+      )
+    })
   })
 
   it("says a subname expires with its parent when the parent's date is unknown", () => {

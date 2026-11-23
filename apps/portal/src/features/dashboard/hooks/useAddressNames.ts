@@ -11,7 +11,8 @@ import { bigname } from '@/lib/bigname'
 import {
   type AddressNameItem,
   byShownExpiry,
-  ethParentOf,
+  ethAncestorsOf,
+  getFirstToExpire,
   mergeAddressNames,
   toAddressNameItem,
   toLapsedItem,
@@ -42,7 +43,7 @@ const toBatches = <T>(items: readonly T[]): readonly (readonly T[])[] =>
 
 type ParentExpiry = readonly [name: string, expiry: Date | null]
 
-/** One lookup's parent expiries; a failed read leaves those dates unknown. */
+/** One lookup's parent expiries; a name it couldn't read is left out, so its date stays unknown. */
 const readParentExpiries = (
   names: readonly string[],
   signal?: AbortSignal,
@@ -57,36 +58,41 @@ const readParentExpiries = (
       { signal },
     )
     .map(({ data }) =>
-      names.map((name, index): ParentExpiry => {
-        const record = data[index]?.record
-        const expiresAt = record?.ens_v1?.expires_at ?? record?.expires_at
-        return [name, toValidDate(toDate(expiresAt))]
+      names.flatMap((name, index): ParentExpiry[] => {
+        const result = data[index]
+        if (result?.status !== 'ok' || !result.record) return []
+        const { ens_v1, expires_at } = result.record
+        return [[name, toValidDate(toDate(ens_v1?.expires_at ?? expires_at))]]
       }),
     )
     .orElse(() => okAsync([]))
 
 /**
- * Gives each ENSv1 subname its `.eth` parent's expiry. Parents already listed
- * are reused; the rest are looked up in batches.
+ * Gives each subname the name above it that expires first. Names already
+ * listed are reused; the rest are looked up in batches.
  */
 const withParentExpiry = (
   items: readonly AddressNameItem[],
   signal?: AbortSignal,
 ): ResultAsync<AddressNameItem[], never> => {
   const listed = new Map(items.map((item) => [item.name, item.expiryDate]))
-  const missing = [
-    ...new Set(items.flatMap((item) => ethParentOf(item) ?? [])),
-  ].filter((parent) => !listed.get(parent))
+  const missing = [...new Set(items.flatMap(ethAncestorsOf))].filter(
+    (ancestor) => !listed.get(ancestor),
+  )
 
   return ResultAsync.combine(
     toBatches(missing).map((batch) => readParentExpiries(batch, signal)),
   ).map((batches) => {
     const expiryOf = new Map([...listed, ...batches.flat()])
     return items.map((item) => {
-      const parent = ethParentOf(item)
-      return parent
-        ? { ...item, parentExpiryDate: expiryOf.get(parent) ?? null }
-        : item
+      const ancestors = ethAncestorsOf(item)
+      if (ancestors.length === 0) return item
+      const first = getFirstToExpire(ancestors, expiryOf)
+      return {
+        ...item,
+        parentExpiryDate: first?.date ?? null,
+        parentExpiryName: first?.name,
+      }
     })
   })
 }

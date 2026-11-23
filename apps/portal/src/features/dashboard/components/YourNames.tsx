@@ -13,16 +13,26 @@ import { MS_PER_SECOND } from '@/features/renew/utils/nameExtension'
 import { cn } from '@/lib/utils'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { truncateName } from '@/utils/formatting/truncateName'
+import {
+  type AddressNameItem,
+  getResolvingExpiry,
+} from '@/utils/names/addressNames'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import { getAddressNamesQueryOptions } from '../hooks/useAddressNames'
 
 const INITIAL_COUNT = 4
 const WARNING_DAYS = 30
 
-const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
-  const plainDate = expiryDate
+const Expiry = (
+  row: Pick<
+    AddressNameItem,
+    'expiryDate' | 'parentExpiryDate' | 'parentExpiryName'
+  >,
+) => {
+  const resolving = getResolvingExpiry(row)
+  const plainDate = resolving.date
     ? unixSecondsToPlainDateUtc(
-        Math.floor(expiryDate.getTime() / MS_PER_SECOND),
+        Math.floor(resolving.date.getTime() / MS_PER_SECOND),
       )
     : undefined
   // `plainDate` is the UTC expiry day, so compare it against the UTC today.
@@ -33,20 +43,31 @@ const Expiry = ({ expiryDate }: { readonly expiryDate?: Date | null }) => {
   const isWarning = !!plainDate && today.until(plainDate).days <= WARNING_DAYS
 
   return (
-    <span
-      className={cn(
-        'shrink-0 whitespace-nowrap text-entity-name font-normal',
-        isWarning
-          ? 'inline-flex h-6.25 items-center gap-1 rounded-xs bg-message-warning-fill px-2 text-message-warning-text'
-          : 'text-neutral-7',
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 sm:w-1/2">
+      <span
+        className={cn(
+          'shrink-0 whitespace-nowrap text-entity-name font-normal',
+          isWarning
+            ? 'inline-flex h-6.25 items-center gap-1 rounded-xs bg-message-warning-fill px-2 text-message-warning-text'
+            : 'text-neutral-7',
+        )}
+      >
+        {isWarning && <TriangleAlert className="size-3.25" aria-hidden />}
+        {match({ type: resolving.type, duration })
+          .with({ type: 'unread' }, () => 'Expires with parent')
+          .with({ duration: undefined }, () => 'Does not expire')
+          .with({ duration: 'Expired' }, () => 'Expired')
+          .otherwise(() => `Expires in ${duration}`)}
+      </span>{' '}
+      {resolving.type === 'parent' && resolving.name && (
+        <span className="inline-flex items-center gap-1.5 text-entity-name font-normal text-neutral-7">
+          with{' '}
+          <EntityBadge variant="name" name={resolving.name} compact>
+            {resolving.name}
+          </EntityBadge>
+        </span>
       )}
-    >
-      {isWarning && <TriangleAlert className="size-3.25" aria-hidden />}
-      {match(duration)
-        .with(undefined, () => 'Does not expire')
-        .with('Expired', (expired) => expired)
-        .otherwise((left) => `Expires in ${left}`)}
-    </span>
+    </div>
   )
 }
 
@@ -83,16 +104,18 @@ export const YourNames = ({ address }: { readonly address: Address }) => {
       {names.length > 0 && (
         <div>
           <ul>
-            {names.slice(0, loader.shown).map(({ name, expiryDate }) =>
+            {names.slice(0, loader.shown).map(({ name, ...row }) =>
               name ? (
                 <li
                   key={name}
-                  className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col items-start gap-4 border-t border-neutral-3 py-3 sm:flex-row sm:items-center"
                 >
-                  <EntityBadge variant="name" name={name} showAvatar compact>
-                    <span title={name}>{truncateName(name)}</span>
-                  </EntityBadge>
-                  <Expiry expiryDate={expiryDate} />
+                  <div className="min-w-0 sm:w-1/2">
+                    <EntityBadge variant="name" name={name} showAvatar compact>
+                      <span title={name}>{truncateName(name)}</span>
+                    </EntityBadge>
+                  </div>
+                  <Expiry {...row} />
                 </li>
               ) : null,
             )}
