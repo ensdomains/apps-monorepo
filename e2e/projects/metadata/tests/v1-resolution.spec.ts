@@ -34,8 +34,9 @@
  * NameWrapper-wrapped, so the test does not need to assume either way.
  */
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { expect, test } from '@playwright/test'
-import { keccak256, parseAbi, toHex } from 'viem'
+import { keccak256, namehash, parseAbi, toHex, zeroAddress } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { revertTo, takeSnapshot } from '../../../fixtures/chain-snapshot.js'
 import {
@@ -44,6 +45,7 @@ import {
 } from '../../../fixtures/makeV1Name.js'
 import { createAccounts } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
+import { mainnetPublicClient } from '../../../helpers/anvil-mainnet-client.js'
 import {
   type MetadataResponse,
   type MigrationStatusResponse,
@@ -53,7 +55,7 @@ import {
 const ERC721_ABI = parseAbi([
   'function ownerOf(uint256 tokenId) view returns (address)',
 ])
-const _LEGACY_REGISTRY_ABI = parseAbi([
+const LEGACY_REGISTRY_ABI = parseAbi([
   'function owner(bytes32 node) view returns (address)',
 ])
 
@@ -119,5 +121,48 @@ test.describe('MD2 — sepolia v1 name resolves metadata correctly', () => {
     } finally {
       await revertTo(before)
     }
+  })
+})
+
+test.describe('MD1 — mainnet v1 name resolves metadata correctly', () => {
+  test('a real, long-registered mainnet name resolves via the redeployed contract addresses', {
+    tag: ['@scenario:MD1'],
+  }, async ({ request }) => {
+    const name = 'ens.eth'
+    const legacyRegistry =
+      ensL1Contracts[supportedL1Chains.mainnet].ensLegacyRegistry.address
+
+    const onChainOwner = await mainnetPublicClient.readContract({
+      address: legacyRegistry,
+      abi: LEGACY_REGISTRY_ABI,
+      functionName: 'owner',
+      args: [namehash(name)],
+    })
+    expect(
+      onChainOwner.toLowerCase(),
+      `${name} has no owner on the mainnet fork at the pinned block — the fixture's anchor name may need updating`,
+    ).not.toBe(zeroAddress)
+
+    const statusRes = await request.get(routes.migrationStatus(name, 'mainnet'))
+    expect(
+      statusRes.status(),
+      `GET /migration-status/${name}?network=mainnet failed — the service's mainnet contract config (src/config/networks.ts) may be pointed at the wrong deployment`,
+    ).toBe(200)
+    const status = (await statusRes.json()) as MigrationStatusResponse
+    expect(
+      status.status,
+      'mainnet has no v2 deployment yet, so every mainnet name must classify as "unmigrated"',
+    ).toBe('unmigrated')
+    if (status.owner) {
+      expect(status.owner.toLowerCase()).toBe(onChainOwner.toLowerCase())
+    }
+
+    const metaRes = await request.get(routes.metadataByName('mainnet', name))
+    expect(
+      metaRes.status(),
+      `GET /mainnet/registry/${name} failed to resolve a real, long-registered name`,
+    ).toBe(200)
+    const meta = (await metaRes.json()) as MetadataResponse
+    expect(meta.name.toLowerCase()).toBe(name)
   })
 })

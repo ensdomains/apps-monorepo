@@ -1,0 +1,42 @@
+{
+  "purpose": "Exact legacy fixture ABI and bytecode. No deployment credentials or state included.",
+  "legacy_repository": "ensdomains/ens-app-v3",
+  "artifacts": [
+    {
+      "artifact": "OutdatedResolverV3.json",
+      "source": "deploy/.contracts/OutdatedResolverV3.json",
+      "fields": ["abi", "bytecode"],
+      "bytecode_sha256": "b67522dc9b0e3a32f2c0a623fee4a2ee358449502d8376189778c229e1216bd1"
+    },
+    {
+      "artifact": "OwnedResolver.json",
+      "source": "node_modules/@ensdomains/ens-contracts/artifacts/contracts/resolvers/OwnedResolver.sol/OwnedResolver.json",
+      "fields": ["abi", "bytecode"],
+      "bytecode_sha256": "4bb700aa03e034b208bf11255e73dddcdf1fbe36cdcd914bd0fa729a8b19f34a"
+    },
+    {
+      "artifact": "CustomLegacyResolver.json",
+      "source": "deploy/.contracts/CustomLegacyResolver.json",
+      "fields": ["abi", "bytecode"],
+      "bytecode_sha256": "e8d1d121bb5e42d14355d4dcebd2bef5bdcfba5d041e40666bd6e9f3db694772"
+    },
+    {
+      "artifact": "CustomNameWrapperAwareResolver.json",
+      "source": "deploy/.contracts/CustomNameWrapperAwareResolver.json",
+      "fields": ["abi", "bytecode"],
+      "bytecode_sha256": "85ba1a2f0e6688786e192574d4abf4e2e77f7adbfff2856f0e3e3948dfba970a"
+    },
+    {
+      "artifact": "LegacyResolverV5.json",
+      "source": "deploy/.contracts/LegacyResolverV5.json",
+      "fields": ["abi", "bytecode"],
+      "bytecode_sha256": "cf3fb0b9cef0f694889363b4bb7754a76d65177a942418932d9018856e223699"
+    },
+    {
+      "artifact": "OutdatedResolverV1.json",
+      "source": "deploy/.contracts/OutdatedResolverV1.json",
+      "fields": ["abi", "bytecode"],
+      "bytecode_sha256": "2ef9f2e83dbf7b82724730205e0476bfdf6ee37b7870179a47e9732b37af8b52"
+    }
+  ]
+}

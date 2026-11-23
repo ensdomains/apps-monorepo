@@ -1,0 +1,360 @@
+/**
+ * V1 name history — only the name's assigned resolver (WEB-1445, #1210)
+ *
+ * Bug: the indexer attributes a record event to a name by node, whatever
+ * contract emitted it, without asking the registry. So anyone could deploy a
+ * contract, emit `AddrChanged(node, theirAddress)` or `TextChanged(node, "url",
+ * …)`, and have it render as "set address to …" in the name's own history.
+ *
+ * Fix: read the name's resolver assignments, and keep a record event only if
+ * its resolver held the name at the event's (block, logIndex).
+ *
+ * What these reach that the unit tests don't: real logs on the fork, indexed by
+ * bigname — which, like the subgraph before it, indexes every contract — and
+ * what the History page and the Resolver page's scoped history actually
+ * render. The interval test uses only
+ * honest, owner-authorised PublicResolvers: the filter matters even with no
+ * attacker in the picture.
+ *
+ * Both pages read one stream, bigname's `/v1/names/{name}/history`. The
+ * oracle: a contract nobody assigned must not write the name's history.
+ *
+ * Needs a real bigname following the fork (`e2e/infra/bigname`). The route
+ * mock (`E2E_MOCK_BIGNAME=true`, as in CI) serves no events, so the suite skips.
+ */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import type { Locator, Page } from '@playwright/test'
+import {
+  type Address,
+  concat,
+  encodeAbiParameters,
+  encodeFunctionData,
+  type Hex,
+  keccak256,
+  namehash,
+  parseAbi,
+  toHex,
+  zeroAddress,
+} from 'viem'
+import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
+import {
+  CERTIFIED_V1_RESOLVER,
+  createMakeV1Name,
+  V1_PUBLIC_RESOLVER,
+} from '../../../fixtures/makeV1Name.js'
+import { expect, test } from '../../../fixtures/playwright.portal.fixture.js'
+import {
+  publicClient,
+  testClient,
+  walletClient,
+} from '../../../helpers/anvil-client.js'
+import {
+  bignameNameHistory,
+  isRealBigname,
+  waitForBignameBlock,
+} from '../../../helpers/bigname-sync.js'
+
+const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+
+const V1_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensLegacyRegistry
+  .address as Address
+/**
+ * A second PublicResolver bound to the canonical registry, so the name's owner
+ * is authorised on it (see the resolver notes in `makeV1Name.ts`). It emits the
+ * value-bearing `TextChanged(bytes32,string,string,string)`.
+ */
+const OTHER_PUBLIC_RESOLVER = CERTIFIED_V1_RESOLVER
+
+/**
+ * Contracts nobody assigned to any name: minimal emitters planted with
+ * `anvil_setCode`. Calldata is `topics ‖ data`, logged verbatim — the shape of
+ * an attacker's contract that emits resolver events for a node it doesn't own.
+ */
+const FORGE_ADDR = '0x00000000000000000000000000000000000a77a2' as Address
+const FORGE_TEXT = '0x00000000000000000000000000000000000a77a3' as Address
+/** LOG2(calldata[64:], calldata[0:32], calldata[32:64]) */
+const LOG2_EMITTER = '0x6040360380604060003760203590600035906000a200'
+/** LOG3(calldata[96:], calldata[0:32], calldata[32:64], calldata[64:96]) */
+const LOG3_EMITTER = '0x606036038060606000376040359060203590600035906000a300'
+
+/** Renders as `0xbad0…0bad` in the timeline. */
+const FORGED_ADDRESS = '0xbad0000000000000000000000000000000000bad' as Address
+const FORGED_ADDRESS_SHORT = /0xbad0…0bad/i
+
+const REGISTRY_ABI = parseAbi([
+  'function setResolver(bytes32 node, address resolver)',
+])
+const RESOLVER_ABI = parseAbi([
+  'function setText(bytes32 node, string key, string value)',
+  'function setAddr(bytes32 node, address a)',
+])
+
+const runId = () => Date.now().toString(36)
+const shortAddress = (address: Address) =>
+  `${address.slice(0, 6)}…${address.slice(-4)}`.toLowerCase()
+
+const send = async (
+  account: PrivateKeyAccount,
+  to: Address,
+  data: Hex,
+): Promise<bigint> => {
+  const hash = await walletClient.sendTransaction({
+    account,
+    chain: walletClient.chain,
+    to,
+    data,
+  })
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  expect(receipt.status, `tx to ${to}`).toBe('success')
+  return receipt.blockNumber
+}
+
+/** Owner-signed registry and resolver writes for one name. */
+const ownerWrites = (owner: PrivateKeyAccount, node: Hex) => ({
+  setResolver: (resolver: Address) =>
+    send(
+      owner,
+      V1_REGISTRY,
+      encodeFunctionData({
+        abi: REGISTRY_ABI,
+        functionName: 'setResolver',
+        args: [node, resolver],
+      }),
+    ),
+  setText: (resolver: Address, value: string) =>
+    send(
+      owner,
+      resolver,
+      encodeFunctionData({
+        abi: RESOLVER_ABI,
+        functionName: 'setText',
+        args: [node, 'url', value],
+      }),
+    ),
+  setAddr: (resolver: Address, address: Address) =>
+    send(
+      owner,
+      resolver,
+      encodeFunctionData({
+        abi: RESOLVER_ABI,
+        functionName: 'setAddr',
+        args: [node, address],
+      }),
+    ),
+})
+
+/** Plant the emitters and forge `AddrChanged` + `TextChanged("url")` for `node`. */
+const forgeResolverEvents = async (
+  attacker: PrivateKeyAccount,
+  node: Hex,
+  url: string,
+): Promise<bigint> => {
+  await testClient.setCode({ address: FORGE_ADDR, bytecode: LOG2_EMITTER })
+  await testClient.setCode({ address: FORGE_TEXT, bytecode: LOG3_EMITTER })
+  await send(
+    attacker,
+    FORGE_ADDR,
+    concat([
+      keccak256(toHex('AddrChanged(bytes32,address)')),
+      node,
+      encodeAbiParameters([{ type: 'address' }], [FORGED_ADDRESS]),
+    ]),
+  )
+  return send(
+    attacker,
+    FORGE_TEXT,
+    concat([
+      keccak256(toHex('TextChanged(bytes32,string,string,string)')),
+      node,
+      keccak256(toHex('url')),
+      encodeAbiParameters(
+        [{ type: 'string' }, { type: 'string' }],
+        ['url', url],
+      ),
+    ]),
+  )
+}
+
+/** Wait until bigname, which the explorer reads, has indexed `block`. */
+const waitForReader = (block: bigint) => waitForBignameBlock(block)
+
+/**
+ * Non-vacuity guard: the forged rows really are in bigname under this name,
+ * so any node-keyed read would return them. Without this, the
+ * page's "not shown" assertions could pass because the forgery never landed.
+ */
+const expectForgeryIndexed = async (name: string) => {
+  const rows = await bignameNameHistory(name)
+  const fromForger = (address: Address) =>
+    rows
+      .filter((r) => r.contract_address.toLowerCase() === address)
+      .map((r) => r.data?.key)
+  expect(
+    fromForger(FORGE_ADDR),
+    'precondition: bigname lists the forged AddrChanged under the name',
+  ).toEqual(['addr:60'])
+  expect(
+    fromForger(FORGE_TEXT),
+    'precondition: and the forged TextChanged',
+  ).toEqual(['text:url'])
+}
+
+/**
+ * A timeline row by its accessible name. Matching the value text alone hits two
+ * spans per row, one of them hidden; the row name also pins the action and key.
+ */
+const textRow = (main: Locator, url: string) =>
+  main.getByRole('button', { name: `set text record url → ${url}` })
+
+/**
+ * Wait for the timeline to show a v1-only resolver record before asserting any
+ * absence, and for no partial-load error: a failed v1 read would hide the
+ * forged rows and the real ones alike.
+ */
+const expectTimelineLoaded = async (
+  page: Page,
+  legitUrl: string,
+): Promise<Locator> => {
+  const main = page.locator('main')
+  await expect(textRow(main, legitUrl)).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect(main.getByText(/couldn't load/i)).toHaveCount(0)
+  return main
+}
+
+/** A fresh V1 name, owned by `user`, pointed at `OTHER_PUBLIC_RESOLVER` with a `url`. */
+const nameWithRecords = async (
+  owner: PrivateKeyAccount,
+  label: string,
+  legitUrl: string,
+) => {
+  const name = await createMakeV1Name({ userAccount: owner })({ label })
+  const node = namehash(name)
+  const writes = ownerWrites(owner, node)
+  await writes.setResolver(OTHER_PUBLIC_RESOLVER)
+  await writes.setText(OTHER_PUBLIC_RESOLVER, legitUrl)
+  return { name, node, writes }
+}
+
+test.describe('V1 name history shows only the assigned resolver (WEB-1445)', () => {
+  test.beforeEach(() => {
+    test.skip(!isRealBigname, 'the bigname route mock serves no history')
+  })
+
+  test("History: a contract nobody assigned can't write the name's history", async ({
+    page,
+    accounts,
+  }) => {
+    test.setTimeout(180_000)
+    const id = runId()
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const attacker = privateKeyToAccount(accounts.getPrivateKey('user2'))
+    const legitUrl = `https://legit-${id}.example`
+    const forgedUrl = `https://phish-${id}.example`
+
+    const { name, node, writes } = await nameWithRecords(
+      owner,
+      'v1-hist-forge',
+      legitUrl,
+    )
+    await writes.setAddr(OTHER_PUBLIC_RESOLVER, owner.address)
+    await waitForReader(await forgeResolverEvents(attacker, node, forgedUrl))
+    await expectForgeryIndexed(name)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/history`)
+    const main = await expectTimelineLoaded(page, legitUrl)
+
+    // Positive control for the address negative below: an AddrChanged from the
+    // assigned resolver still renders.
+    await expect(
+      main.getByRole('button', {
+        // The address badge adds its copy / explorer labels to the name, and
+        // the newest row its date in front.
+        name: new RegExp(`set address to .*${shortAddress(owner.address)}`),
+      }),
+    ).toBeVisible()
+
+    // The bug: these rendered as the name's own records.
+    await expect.soft(main.getByText(forgedUrl, { exact: true })).toHaveCount(0)
+    await expect.soft(main.getByText(FORGED_ADDRESS_SHORT)).toHaveCount(0)
+  })
+
+  test('Resolver page: the scoped history read drops the forged events too', async ({
+    page,
+    accounts,
+  }) => {
+    // The Resolver page scopes the read to resolver event types, which takes
+    // the per-collection query shape (`textChangeds`, `addrChangeds`, …)
+    // instead of the `events` interface the History page uses.
+    test.setTimeout(180_000)
+    const id = runId()
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const attacker = privateKeyToAccount(accounts.getPrivateKey('user2'))
+    const legitUrl = `https://legit-${id}.example`
+    const forgedUrl = `https://phish-${id}.example`
+
+    const { name, node } = await nameWithRecords(
+      owner,
+      'v1-hist-scoped',
+      legitUrl,
+    )
+    await waitForReader(await forgeResolverEvents(attacker, node, forgedUrl))
+    await expectForgeryIndexed(name)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/resolver`)
+    const main = await expectTimelineLoaded(page, legitUrl)
+
+    await expect.soft(main.getByText(forgedUrl, { exact: true })).toHaveCount(0)
+    await expect.soft(main.getByText(FORGED_ADDRESS_SHORT)).toHaveCount(0)
+  })
+
+  test('History: records count only while their resolver was assigned', async ({
+    page,
+    accounts,
+  }) => {
+    // Every write here is by the owner, through a real PublicResolver it is
+    // authorised on. What differs is whether the registry pointed the name at
+    // that resolver when the write happened.
+    test.setTimeout(240_000)
+    const id = runId()
+    const owner = privateKeyToAccount(accounts.getPrivateKey('user'))
+    const url = {
+      neverAssigned: `https://never-assigned-${id}.example`,
+      first: `https://first-interval-${id}.example`,
+      movedOff: `https://moved-off-${id}.example`,
+      reassigned: `https://reassigned-${id}.example`,
+      unset: `https://after-unset-${id}.example`,
+    }
+
+    // Registered without records, so the name starts with no resolver at all.
+    const name = await createMakeV1Name({ userAccount: owner })({
+      label: 'v1-hist-intervals',
+    })
+    const { setResolver, setText } = ownerWrites(owner, namehash(name))
+    const B = OTHER_PUBLIC_RESOLVER
+
+    await setText(B, url.neverAssigned) // before the name ever had a resolver
+    await setResolver(B)
+    await setText(B, url.first) //         B assigned
+    await setResolver(V1_PUBLIC_RESOLVER)
+    await setText(B, url.movedOff) //      name moved off B
+    await setResolver(B)
+    await setText(B, url.reassigned) //    B assigned again
+    await setResolver(zeroAddress)
+    await waitForReader(await setText(B, url.unset)) // resolver unset
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/history`)
+    const main = await expectTimelineLoaded(page, url.reassigned)
+
+    // Positive control: history follows the name across resolver changes —
+    // B's first interval still shows after the name moved away and back.
+    await expect(textRow(main, url.first)).toBeVisible()
+
+    for (const stray of [url.neverAssigned, url.movedOff, url.unset]) {
+      await expect
+        .soft(main.getByText(stray, { exact: true }), stray)
+        .toHaveCount(0)
+    }
+  })
+})

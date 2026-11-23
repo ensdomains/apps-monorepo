@@ -8,9 +8,12 @@ import {
   useState,
 } from 'react'
 import {
+  type CopyTargetState,
   clampPos,
   POSITION_STORAGE_KEY,
   type Pos,
+  type PresetType,
+  readCopyTargetState,
   readStoredPos,
   rpcCall,
 } from './MigrationTestPanel.helpers'
@@ -22,6 +25,43 @@ export function useInvalidateMigrationQueriesOnMount(
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: [{ $scope: 'migration' }] })
   }, [queryClient])
+}
+
+/**
+ * Whether a copy preset's deterministic UserRegistry slot is still clean.
+ *
+ * A copy is re-created inside a registry whose address derives from
+ * `namehash(parentName)`, so re-migrating the same label lands in the same slot
+ * and `copyMigrationReadiness` refuses it (`subregistry-conflict` /
+ * `v2-name-history`). The app surfaces none of that — the Upgrade button just
+ * sits disabled under "Gas estimate unavailable" — so the panel reads it
+ * directly and says so.
+ *
+ * Returns `'pristine'` for anything that is not a copy preset; the caller
+ * decides whether to show it.
+ */
+export function useCopyTargetState(
+  endpoint: string,
+  name: { label: string; type: PresetType } | null,
+  isCopyPreset: boolean,
+): CopyTargetState {
+  const [state, setState] = useState<CopyTargetState>('pristine')
+  const label = name?.label
+  useEffect(() => {
+    if (!label || !isCopyPreset) return
+    let cancelled = false
+    void readCopyTargetState(endpoint, label)
+      .then((next) => {
+        if (!cancelled) setState(next)
+      })
+      .catch(() => {
+        /* anvil unreachable — the status dot already reports that */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [endpoint, label, isCopyPreset])
+  return state
 }
 
 /** Poll Anvil connection status every 5s. */
